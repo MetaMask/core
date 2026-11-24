@@ -4684,11 +4684,6 @@ export class HyperLiquidSubscriptionService {
       percentChange24h = change.toFixed(2);
     }
 
-    // Check if any subscriber for this symbol wants market data
-    const hasMarketDataSubscribers =
-      this.#marketDataSubscribers.has(symbol) &&
-      (this.#marketDataSubscribers.get(symbol)?.size ?? 0) > 0;
-
     const priceUpdate = {
       symbol,
       price,
@@ -4704,11 +4699,10 @@ export class HyperLiquidSubscriptionService {
       spread: orderBookData?.spread,
       // Always include funding when available (don't default to 0, preserve undefined)
       funding: marketData?.funding,
-      // Add market data only if requested by at least one subscriber
-      openInterest: hasMarketDataSubscribers
-        ? marketData?.openInterest
-        : undefined,
-      volume24h: hasMarketDataSubscribers ? marketData?.volume24h : undefined,
+      // The per-DEX assetCtxs feed every price subscription keeps open caches
+      // these for every market, so list readers get them too.
+      openInterest: marketData?.openInterest,
+      volume24h: marketData?.volume24h,
       // Flag markets that are currently untradable because the mid price has drifted
       // too far from the oracle price (HyperLiquid rejects such orders). Lets clients
       // warn the user before they attempt an order that would fail. Defaults to tradable

@@ -41,6 +41,9 @@ import { getPerpsConnectionAttemptContext } from '../utils/perpsConnectionAttemp
  */
 const maxReconnectionAttempts = 10;
 
+// The frame the SDK's keepalive sends; the venue answers it with a `pong`.
+const KEEPALIVE_PING_FRAME = '{"method":"ping"}';
+
 /**
  * Valid time intervals for historical candle data
  * Uses CandlePeriod enum for type safety
@@ -134,6 +137,11 @@ export class HyperLiquidClientService {
 
   // Platform dependencies for logging
   readonly #deps: PerpsPlatformDependencies;
+
+  // Round trip of the last answered keepalive ping, in whole milliseconds.
+  #lastLatencyMs?: number;
+
+  readonly #latencyListeners = new Set<(latencyMs: number) => void>();
 
   /**
    * @param deps - Platform dependencies.
@@ -328,6 +336,8 @@ export class HyperLiquidClientService {
       );
     });
 
+    this.#measureKeepalive(owningTransport);
+
     // Listen for WebSocket termination (fired when SDK exhausts all reconnection attempts)
     this.#wsTransport.socket.addEventListener('terminate', (event: Event) => {
       const customEvent = event as CustomEvent;
@@ -350,6 +360,68 @@ export class HyperLiquidClientService {
     });
 
     return this.#wsTransport;
+  }
+
+  /**
+   * Time the SDK's keepalive: its `{"method":"ping"}` frame to the venue's
+   * `pong`. It adds no timer and sends nothing; it only notes when the
+   * transport sends the ping it already sends.
+   *
+   * @param transport - The transport whose keepalive is timed.
+   */
+  #measureKeepalive(transport: WebSocketTransport): void {
+    const { socket } = transport;
+    let pingSentAt: number | undefined;
+    const send = socket.send.bind(socket);
+    socket.send = (data): void => {
+      if (data === KEEPALIVE_PING_FRAME) {
+        pingSentAt = Date.now();
+      }
+      send(data);
+    };
+    socket.addEventListener('close', () => {
+      pingSentAt = undefined;
+    });
+    socket.addEventListener('message', (event: MessageEvent) => {
+      if (
+        pingSentAt === undefined ||
+        typeof event.data !== 'string' ||
+        !event.data.includes('"pong"') ||
+        this.#wsTransport !== transport
+      ) {
+        return;
+      }
+      const latencyMs = Math.round(Date.now() - pingSentAt);
+      pingSentAt = undefined;
+      this.#lastLatencyMs = latencyMs;
+      for (const listener of this.#latencyListeners) {
+        try {
+          listener(latencyMs);
+        } catch (error) {
+          this.#deps.debugLogger.log('HyperLiquid: latency listener threw', {
+            error: ensureError(error, 'HyperLiquidClientService.latency')
+              .message,
+          });
+        }
+      }
+    });
+  }
+
+  /**
+   * Receive each keepalive round trip, in whole milliseconds, starting with
+   * the last one when there is one.
+   *
+   * @param listener - Receives each round trip.
+   * @returns A function that stops the calls.
+   */
+  subscribeToLatency(listener: (latencyMs: number) => void): () => void {
+    this.#latencyListeners.add(listener);
+    if (this.#lastLatencyMs !== undefined) {
+      listener(this.#lastLatencyMs);
+    }
+    return () => {
+      this.#latencyListeners.delete(listener);
+    };
   }
 
   /**

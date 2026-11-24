@@ -2534,6 +2534,58 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribe();
     });
 
+    it('gives a list subscriber (includeMarketData: false) open interest and volume from the per-DEX assetCtxs feed', async () => {
+      const listCallback = vi.fn();
+      let assetCtxsCallback: ((data: any) => void) | undefined;
+      mockSubscriptionClient.assetCtxs = vi.fn(
+        (_params: any, callback: any) => {
+          assetCtxsCallback = callback;
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      mockClientService.getInfoClient = vi.fn(
+        () =>
+          ({
+            meta: vi.fn().mockResolvedValue({ universe: [{ name: 'BTC' }] }),
+          }) as any,
+      );
+
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: listCallback,
+        includeMarketData: false,
+      });
+      await vi.runAllTimersAsync();
+      assetCtxsCallback?.({
+        dex: '',
+        ctxs: [
+          {
+            prevDayPx: '49000',
+            funding: '0.0001',
+            openInterest: '1000000',
+            dayNtlVlm: '5000000',
+            oraclePx: '50100',
+            markPx: '50000',
+            midPx: '50000',
+          },
+        ],
+      });
+      await vi.runAllTimersAsync();
+
+      expect(listCallback).toHaveBeenLastCalledWith([
+        expect.objectContaining({
+          symbol: 'BTC',
+          // 1M tokens at a $50K mid price.
+          openInterest: 50_000_000_000,
+          volume24h: 5_000_000,
+        }),
+      ]);
+
+      unsubscribe();
+    });
+
     it('skips caching when includeMarketData is false', async () => {
       const mockCallback = vi.fn();
       const mockInfoClient = {

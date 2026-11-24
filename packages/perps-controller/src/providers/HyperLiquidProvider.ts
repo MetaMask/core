@@ -190,6 +190,10 @@ import type {
   MarginModeLockReason,
   MarginAdjustmentLimits,
   PerpsMarginModeLock,
+  PerpsTradingAgentValidity,
+  SubscribeConnectionLatencyParams,
+  SubscribeMarginAdjustmentLimitsParams,
+  SubscribeTradingAgentValidityParams,
 } from '../types/index.js';
 import type { PerpsControllerMessengerBase } from '../types/messenger.js';
 import type { OrderType, StrategyOrderType } from '../types/perps-types.js';
@@ -1085,9 +1089,26 @@ type HyperLiquidProviderOptions = {
   subscriptionBuilderAddressMainnet?: string;
   onChaseOrderMaxDistanceReached?: ChaseOrderMaxDistanceReachedHandler;
   getAgentSigner?: HyperLiquidCredentials['getAgentSigner'];
+  // Whether an account can sign with an agent at all; without it, any
+  // `getAgentSigner` counts as one.
+  hasAgentSource?: (account: PerpsAgentAccount) => boolean;
   // Told when the venue rejects a resolved agent (revoked or expired).
   onAgentRejected?: HyperLiquidCredentials['onAgentRejected'];
 };
+
+/** One `subscribeToTradingAgentValidity` reader. */
+type AgentValiditySubscriber = {
+  /** The account and agent of the last read, once known. */
+  account?: PerpsAgentAccount;
+  agentAddress?: Hex;
+  /** Read the validity again. */
+  refresh: () => void;
+  /** Report a venue rejection of the agent. */
+  reject: (agentAddress: Hex) => void;
+};
+
+/** Longest delay `setTimeout` keeps; a later deadline is re-armed. */
+const MAX_TIMEOUT_MS = 2_147_483_647;
 
 type HandleHip3PreOrderParams = {
   accountContext: AccountSupportContext;
@@ -1920,6 +1941,10 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   readonly #getAgentSigner: HyperLiquidCredentials['getAgentSigner'];
 
+  readonly #hasAgentSource: HyperLiquidProviderOptions['hasAgentSource'];
+
+  readonly #agentValiditySubscribers = new Set<AgentValiditySubscriber>();
+
   // Incremented by clearAgentSigners so answers pending across a clear are
   // discarded and asked again.
   #agentSignersGeneration = 0;
@@ -1991,6 +2016,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     this.#subscriptionBuilderAddressMainnet =
       options.subscriptionBuilderAddressMainnet;
     this.#getAgentSigner = options.getAgentSigner;
+    this.#hasAgentSource = options.hasAgentSource;
     this.#onAgentRejected = options.onAgentRejected;
     this.#getCurrentIsTestnet = options.getCurrentIsTestnet;
     this.#onChaseOrderMaxDistanceReached =
@@ -2265,6 +2291,271 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
   }
 
+  /**
+   * Stream an isolated position's margin adjustment limits from the live
+   * account and position streams, with the same rules as
+   * `getMarginAdjustmentLimits`: Unified and Portfolio Margin add from the
+   * account's `spendableBalance`, Standard from its DEX's withdrawable. The
+   * market comes from the session's metadata cache. The callback receives the
+   * limits once the market is known, then each change.
+   *
+   * @param params - Market, optional account, callback and error handler.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToMarginAdjustmentLimits(
+    params: SubscribeMarginAdjustmentLimitsParams,
+  ): () => void {
+    const { symbol, callback } = params;
+    const { dex } = parseAssetName(symbol);
+    let account: AccountState | undefined;
+    let positions: Position[] | undefined;
+    let market: MarketInfo | undefined;
+    let marketKnown = false;
+    let closed = false;
+    let last: string | undefined;
+    const emit = (): void => {
+      if (closed || !marketKnown) {
+        return;
+      }
+      let limits: MarginAdjustmentLimits;
+      const mode = account?.accountMode;
+      if (!account || !positions || mode === undefined) {
+        limits = { status: 'unavailable', reason: 'account_unknown' };
+      } else if (
+        !hyperLiquidModeFoldsSpot(mode) &&
+        !isHyperLiquidStandardMode(mode)
+      ) {
+        limits = { status: 'unavailable', reason: 'provider' };
+      } else {
+        const maxAdd = isHyperLiquidStandardMode(mode)
+          ? account.subAccountBreakdown?.[dex ?? 'main']?.withdrawableBalance
+          : account.spendableBalance;
+        limits =
+          maxAdd === undefined
+            ? { status: 'unavailable', reason: 'account_unknown' }
+            : this.#computeMarginAdjustmentLimits(
+                maxAdd,
+                positions.find((item) => item.symbol === symbol),
+                market,
+              );
+      }
+      const key = JSON.stringify(limits);
+      if (key !== last) {
+        last = key;
+        callback(limits);
+      }
+    };
+    const stopAccount = this.subscribeToAccount({
+      callback: (next) => {
+        account = next ?? undefined;
+        emit();
+      },
+    });
+    const stopPositions = this.subscribeToPositions({
+      callback: (next) => {
+        positions = next;
+        emit();
+      },
+    });
+    this.#fetchMarketsForDex({ dex })
+      .then((markets) => {
+        market = markets.find((item) => item.name === symbol);
+      })
+      // An unknown market is reported as `account_unknown`, never guessed.
+      .catch(() => undefined)
+      .finally(() => {
+        marketKnown = true;
+        emit();
+      });
+    return () => {
+      closed = true;
+      stopAccount();
+      stopPositions();
+    };
+  }
+
+  /**
+   * Stream the round trip of the WebSocket keepalive ping the transport
+   * already sends, in whole milliseconds. The last measurement, when there
+   * is one, is delivered at once.
+   *
+   * @param params - Callback.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToConnectionLatency(
+    params: SubscribeConnectionLatencyParams,
+  ): () => void {
+    return this.#clientService.subscribeToLatency(params.callback);
+  }
+
+  /**
+   * Report whether the account's agent is valid for the venue: resolved
+   * through `getAgentSigner` and listed by `extraAgents` before its
+   * `validUntil`. The callback receives one read at once, then a new value
+   * when agents are set or cleared (`clearAgentSigners`), when the venue
+   * rejects the agent, and at the agent's `validUntil` (a one-shot timeout).
+   *
+   * @param params - Optional account, callback and error handler.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToTradingAgentValidity(
+    params: SubscribeTradingAgentValidityParams,
+  ): () => void {
+    let closed = false;
+    let readId = 0;
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    let last: string | undefined;
+    const clearDeadline = (): void => {
+      clearTimeout(deadline);
+      deadline = undefined;
+    };
+    // One timeout at the agent's expiry; a deadline beyond the longest
+    // `setTimeout` delay is re-armed when it fires.
+    function armDeadline(agentAddress: Hex, validUntil: number): void {
+      deadline = setTimeout(
+        () => {
+          deadline = undefined;
+          if (Date.now() >= validUntil) {
+            emit({ status: 'invalid', reason: 'expired', agentAddress });
+          } else {
+            armDeadline(agentAddress, validUntil);
+          }
+        },
+        Math.min(Math.max(validUntil - Date.now(), 0), MAX_TIMEOUT_MS),
+      );
+    }
+    function emit(validity: PerpsTradingAgentValidity): void {
+      clearDeadline();
+      if (validity.status === 'valid' && validity.validUntil !== null) {
+        armDeadline(validity.agentAddress, validity.validUntil);
+      }
+      const key = JSON.stringify(validity);
+      if (key !== last) {
+        last = key;
+        params.callback(validity);
+      }
+    }
+    const subscriber: AgentValiditySubscriber = {
+      refresh: () => {
+        readId += 1;
+        const id = readId;
+        this.#readTradingAgentValidity(params.accountId)
+          .then(({ account, validity }) => {
+            if (closed || id !== readId) {
+              return;
+            }
+            subscriber.account = account;
+            subscriber.agentAddress =
+              'agentAddress' in validity ? validity.agentAddress : undefined;
+            emit(validity);
+          })
+          .catch((error: unknown) => {
+            if (!closed && id === readId) {
+              params.onError?.(
+                ensureError(
+                  error,
+                  'HyperLiquidProvider.subscribeToTradingAgentValidity',
+                ),
+              );
+            }
+          });
+      },
+      reject: (agentAddress) => {
+        // A read in flight predates the rejection.
+        readId += 1;
+        emit({ status: 'invalid', reason: 'rejected', agentAddress });
+      },
+    };
+    this.#agentValiditySubscribers.add(subscriber);
+    subscriber.refresh();
+    return () => {
+      closed = true;
+      clearDeadline();
+      this.#agentValiditySubscribers.delete(subscriber);
+    };
+  }
+
+  /**
+   * Read the validity of an account's agent once.
+   *
+   * @param accountId - The account, or the selected one.
+   * @returns The account checked and its agent's validity.
+   */
+  async #readTradingAgentValidity(accountId?: CaipAccountId): Promise<{
+    account?: PerpsAgentAccount;
+    validity: PerpsTradingAgentValidity;
+  }> {
+    let account: PerpsAgentAccount;
+    try {
+      await this.#ensureClientsInitialized();
+      this.#clientService.ensureInitialized();
+      const mainAddress = this.#walletService.getUserAddress(
+        accountId ?? (await this.getCurrentAccountId()),
+      );
+      account = { mainAddress, isTestnet: this.#clientService.isTestnetMode() };
+    } catch {
+      return { validity: { status: 'unknown', reason: 'account_unknown' } };
+    }
+    const hasSource =
+      this.#hasAgentSource?.(account) ?? this.#getAgentSigner !== undefined;
+    if (!hasSource) {
+      return { account, validity: { status: 'not_required' } };
+    }
+    let agent: PerpsAgentSigner | null;
+    try {
+      agent = await this.#resolveAgentSigner(
+        account.mainAddress,
+        account.isTestnet,
+      );
+    } catch {
+      return {
+        account,
+        validity: { status: 'unknown', reason: 'account_unknown' },
+      };
+    }
+    if (!agent) {
+      return { account, validity: { status: 'invalid', reason: 'no_agent' } };
+    }
+    const agentAddress = agent.address;
+    try {
+      const agents = await this.#clientService
+        .getInfoClient({ useHttp: true })
+        .extraAgents({ user: account.mainAddress });
+      const listed = agents.find(
+        ({ address }) => address.toLowerCase() === agentAddress.toLowerCase(),
+      );
+      if (!listed) {
+        return {
+          account,
+          validity: { status: 'invalid', reason: 'not_approved', agentAddress },
+        };
+      }
+      if (listed.validUntil !== null && listed.validUntil <= Date.now()) {
+        return {
+          account,
+          validity: { status: 'invalid', reason: 'expired', agentAddress },
+        };
+      }
+      return {
+        account,
+        validity: {
+          status: 'valid',
+          agentAddress,
+          validUntil: listed.validUntil,
+        },
+      };
+    } catch (error) {
+      this.#deps.debugLogger.log('HyperLiquidProvider: extraAgents failed', {
+        error: ensureError(error, 'HyperLiquidProvider.readAgentValidity')
+          .message,
+      });
+      return {
+        account,
+        validity: { status: 'unknown', reason: 'read_failed' },
+      };
+    }
+  }
+
   async #readMarginAdjustmentLimits(
     symbol: string,
   ): Promise<MarginAdjustmentLimits> {
@@ -2324,6 +2615,26 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (currentMode !== mode || currentAccount !== accountId) {
       return { status: 'unavailable', reason: 'account_unknown' };
     }
+    const market = (await this.#fetchMarketsForDex({ dex })).find(
+      (item) => item.name === symbol,
+    );
+    return this.#computeMarginAdjustmentLimits(maxAdd, position, market);
+  }
+
+  /**
+   * Margin adjustment limits from an account's free margin, its position and
+   * the market, shared by the read and the stream.
+   *
+   * @param maxAdd - Free margin the position can take in.
+   * @param position - The market's position, if any.
+   * @param market - The market, if known.
+   * @returns The limits, or a typed unavailable result.
+   */
+  #computeMarginAdjustmentLimits(
+    maxAdd: string,
+    position: Position | undefined,
+    market: MarketInfo | undefined,
+  ): MarginAdjustmentLimits {
     if (position?.leverage.type !== 'isolated') {
       return { status: 'unavailable', reason: 'no_isolated_position' };
     }
@@ -2332,9 +2643,6 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (!Number.isFinite(addable)) {
       return { status: 'unavailable', reason: 'account_unknown' };
     }
-    const market = (await this.#fetchMarketsForDex({ dex })).find(
-      (item) => item.name === symbol,
-    );
     // Only a confirmed strict-isolated market removes nothing; an unknown
     // market, margin mode or position figure is not a limit.
     const removalAllowed = isMarginRemovalAllowed(market);
@@ -3023,6 +3331,15 @@ export class HyperLiquidProvider implements PerpsProvider {
       'HyperLiquidProvider: agent rejected by the venue, asking again',
       { agent: agentAddress },
     );
+    for (const subscriber of this.#agentValiditySubscribers) {
+      if (
+        subscriber.account &&
+        getAgentAccountKey(subscriber.account) === key &&
+        subscriber.agentAddress?.toLowerCase() === agentAddress.toLowerCase()
+      ) {
+        subscriber.reject(agentAddress);
+      }
+    }
     try {
       this.#onAgentRejected?.(account, agentAddress);
     } catch (callbackError) {
@@ -15893,6 +16210,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             this.#fetchMarketsForDex({
               dex,
               skipFilters: params?.skipFilters,
+              skipCache: params?.skipCache,
             }),
           ),
         );
@@ -15929,6 +16247,7 @@ export class HyperLiquidProvider implements PerpsProvider {
                 return await this.#fetchMarketsForDex({
                   dex,
                   skipFilters: params?.skipFilters,
+                  skipCache: params?.skipCache,
                 });
               } catch (error) {
                 this.#deps.logger.error(
@@ -15957,6 +16276,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       return await this.#fetchMarketsForDex({
         dex: params?.dex ?? null,
         skipFilters: params?.skipFilters,
+        skipCache: params?.skipCache,
       });
     } catch (error) {
       this.#deps.logger.error(
@@ -17792,6 +18112,10 @@ export class HyperLiquidProvider implements PerpsProvider {
   clearAgentSigners(): void {
     this.#agentSignersGeneration += 1;
     this.#agentSigners.clear();
+    // A set or cleared agent changes what validity readers report.
+    for (const subscriber of this.#agentValiditySubscribers) {
+      subscriber.refresh();
+    }
   }
 
   /**
@@ -18128,7 +18452,8 @@ export class HyperLiquidProvider implements PerpsProvider {
    * Liquidation price of the Cross position an order would leave: an opening,
    * or an add, reduce or flip of the market's position, priced against the
    * selected account's Cross collateral (`projectHyperLiquidCrossPositionModify`).
-   * The fee is not included. Never rejects.
+   * A `feeAmountUsd` is taken from the collateral as the fill takes it;
+   * without one the estimate excludes the fee. Never rejects.
    *
    * @param params - The proposed Cross order.
    * @returns `price`, `none` when no positive price liquidates the resulting
@@ -18145,7 +18470,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       (direction !== 'long' && direction !== 'short') ||
       !(positionSize > 0 && Number.isFinite(positionSize)) ||
       !(entryPrice > 0 && Number.isFinite(entryPrice)) ||
-      !(leverage > 0 && Number.isFinite(leverage))
+      !(leverage > 0 && Number.isFinite(leverage)) ||
+      // A fee that is given must be a usable amount; it is never guessed.
+      (params.feeAmountUsd !== undefined &&
+        !(params.feeAmountUsd >= 0 && Number.isFinite(params.feeAmountUsd)))
     ) {
       return crossLiquidationUnavailable('missing_inputs');
     }
@@ -18167,7 +18495,8 @@ export class HyperLiquidProvider implements PerpsProvider {
         size: params.size,
         price: params.entryPrice,
         leverage,
-        feeAmountUsd: 0,
+        // Without a fee the estimate excludes it.
+        feeAmountUsd: params.feeAmountUsd ?? 0,
         marginTiers: context.marginTiers,
         crossAccount: context.crossAccount,
       });

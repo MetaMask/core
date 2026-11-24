@@ -147,7 +147,7 @@ describe('HyperLiquidProvider agent signatures after dispatch refusal', () => {
         isTestnet: false,
         ready: vi.fn().mockResolvedValue(undefined),
         close: vi.fn(),
-        socket: { addEventListener: vi.fn() },
+        socket: { addEventListener: vi.fn(), send: vi.fn() },
       } as unknown as WebSocketTransport;
     });
     const onExchangeRequest = vi.fn(built.reportExchangeRequest);

@@ -107,6 +107,9 @@ import type {
   SubscribeCandlesParams,
   SubscribeOICapsParams,
   SubscribeAvailableToTradeParams,
+  SubscribeConnectionLatencyParams,
+  SubscribeMarginAdjustmentLimitsParams,
+  SubscribeTradingAgentValidityParams,
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
@@ -2508,6 +2511,103 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       };
     }
     return provider.subscribeToAvailableToTrade({ ...params, providerId });
+  }
+
+  /**
+   * Stream margin adjustment limits through the provider that would adjust
+   * the margin: the named route, else the default provider, rebinding when
+   * the default changes.
+   *
+   * @param params - Market, optional route, callback and error handler.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToMarginAdjustmentLimits(
+    params: SubscribeMarginAdjustmentLimitsParams,
+  ): () => void {
+    const unsupported = (): (() => void) => {
+      params.callback({ status: 'unavailable', reason: 'provider' });
+      return () => undefined;
+    };
+    if (params.providerId === undefined) {
+      return this.#trackDefaultRoutedSubscription({
+        open: (provider) =>
+          provider.subscribeToMarginAdjustmentLimits?.({
+            ...params,
+            providerId: this.#defaultProvider,
+          }) ?? unsupported(),
+        // The old venue's limits no longer apply until the new one reports.
+        onInvalidate: () =>
+          params.callback({ status: 'unavailable', reason: 'account_unknown' }),
+      });
+    }
+    const { providerId } = params;
+    const provider = this.#providers.get(providerId);
+    if (!provider?.subscribeToMarginAdjustmentLimits) {
+      return unsupported();
+    }
+    return provider.subscribeToMarginAdjustmentLimits({
+      ...params,
+      providerId,
+    });
+  }
+
+  /**
+   * Stream the keepalive round trip of the named provider, else the default
+   * provider, rebinding when the default changes.
+   *
+   * @param params - Optional route, callback and error handler.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToConnectionLatency(
+    params: SubscribeConnectionLatencyParams,
+  ): () => void {
+    if (params.providerId === undefined) {
+      return this.#trackDefaultRoutedSubscription({
+        open: (provider) =>
+          provider.subscribeToConnectionLatency?.({
+            ...params,
+            providerId: this.#defaultProvider,
+          }) ?? ((): void => undefined),
+      });
+    }
+    const { providerId } = params;
+    const provider = this.#providers.get(providerId);
+    return (
+      provider?.subscribeToConnectionLatency?.({ ...params, providerId }) ??
+      ((): void => undefined)
+    );
+  }
+
+  /**
+   * Stream the trading-agent validity of the named provider, else the default
+   * provider, rebinding when the default changes. A venue without an agent
+   * step reports `not_required`.
+   *
+   * @param params - Optional account and route, callback and error handler.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToTradingAgentValidity(
+    params: SubscribeTradingAgentValidityParams,
+  ): () => void {
+    const notRequired = (): (() => void) => {
+      params.callback({ status: 'not_required' });
+      return () => undefined;
+    };
+    if (params.providerId === undefined) {
+      return this.#trackDefaultRoutedSubscription({
+        open: (provider) =>
+          provider.subscribeToTradingAgentValidity?.({
+            ...params,
+            providerId: this.#defaultProvider,
+          }) ?? notRequired(),
+      });
+    }
+    const { providerId } = params;
+    const provider = this.#providers.get(providerId);
+    if (!provider?.subscribeToTradingAgentValidity) {
+      return notRequired();
+    }
+    return provider.subscribeToTradingAgentValidity({ ...params, providerId });
   }
 
   // ============================================================================

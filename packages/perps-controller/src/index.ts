@@ -387,6 +387,17 @@ export type {
   GetMarginAdjustmentLimitsParams,
   MarginAdjustmentLimits,
   MarginAdjustmentLimitsUnavailableReason,
+  SubscribeMarginAdjustmentLimitsParams,
+  SubscribeMarketMetaParams,
+  SubscribeConnectionLatencyParams,
+  SubscribeFeeRatesParams,
+  PerpsFeeRates,
+  SubscribeTradingAgentValidityParams,
+  PerpsStreamName,
+  PerpsStreamParams,
+  PerpsStreamSnapshot,
+  PerpsStreamSnapshotParams,
+  PerpsTradingAgentValidity,
   GetMarketMetaParams,
   PerpsMarketMeta,
   GetScalePriceLadderParams,
@@ -1022,6 +1033,14 @@ export type {
   SubscribeAggregatedOrderBookParams,
   AggregatedOrderBookConnectionOptions,
 } from './services/AggregatedOrderBookConnection.js';
+export { StreamChannelManager } from './services/StreamChannelManager.js';
+export type {
+  StreamChannelKey,
+  StreamChannelManagerOptions,
+  StreamChannelSource,
+  StreamChannelSubscriber,
+  StreamConnectionWatcher,
+} from './services/StreamChannelManager.js';
 
 // Removed with Live Market Prices component:
 // - usePerpsPrices

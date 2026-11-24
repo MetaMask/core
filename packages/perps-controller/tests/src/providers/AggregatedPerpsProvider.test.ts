@@ -4491,6 +4491,97 @@ describe('AggregatedPerpsProvider', () => {
     });
   });
 
+  describe('stream subscriptions routed per venue', () => {
+    it('streams margin limits from the default venue and rebinds on a default change', () => {
+      const hlCleanup = vi.fn();
+      mockHLProvider.subscribeToMarginAdjustmentLimits = vi.fn(
+        ({ callback }) => {
+          callback({ status: 'available', maxAdd: '10', maxRemove: '2' });
+          return hlCleanup;
+        },
+      );
+      const callback = vi.fn();
+
+      const cleanup = aggregatedProvider.subscribeToMarginAdjustmentLimits({
+        symbol: 'BTC',
+        callback,
+      });
+      aggregatedProvider.setDefaultProvider('lighter');
+
+      expect(callback.mock.calls).toStrictEqual([
+        [{ status: 'available', maxAdd: '10', maxRemove: '2' }],
+        [{ status: 'unavailable', reason: 'account_unknown' }],
+        [{ status: 'unavailable', reason: 'provider' }],
+      ]);
+      expect(hlCleanup).toHaveBeenCalledTimes(1);
+      cleanup();
+    });
+
+    it('reports margin limits of a named venue without the stream as unavailable', () => {
+      const callback = vi.fn();
+
+      aggregatedProvider.subscribeToMarginAdjustmentLimits({
+        symbol: 'BTC',
+        providerId: 'lighter',
+        callback,
+      });
+
+      expect(callback.mock.calls).toStrictEqual([
+        [{ status: 'unavailable', reason: 'provider' }],
+      ]);
+    });
+
+    it('streams the latency of the named venue only', () => {
+      const lighterCleanup = vi.fn();
+      mockHLProvider.subscribeToConnectionLatency = vi.fn(() => vi.fn());
+      mockLighterProvider.subscribeToConnectionLatency = vi.fn(
+        ({ callback }) => {
+          callback(42);
+          return lighterCleanup;
+        },
+      );
+      const callback = vi.fn();
+
+      const cleanup = aggregatedProvider.subscribeToConnectionLatency({
+        providerId: 'lighter',
+        callback,
+      });
+      cleanup();
+
+      expect(callback.mock.calls).toStrictEqual([[42]]);
+      expect(
+        mockHLProvider.subscribeToConnectionLatency,
+      ).not.toHaveBeenCalled();
+      expect(lighterCleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it('streams agent validity from the default venue, and not_required from a venue without an agent step', () => {
+      const hlCleanup = vi.fn();
+      mockHLProvider.subscribeToTradingAgentValidity = vi.fn(({ callback }) => {
+        callback({ status: 'invalid', reason: 'no_agent' });
+        return hlCleanup;
+      });
+      const callback = vi.fn();
+
+      const cleanup = aggregatedProvider.subscribeToTradingAgentValidity({
+        callback,
+      });
+      aggregatedProvider.setDefaultProvider('lighter');
+
+      expect(callback.mock.calls).toStrictEqual([
+        [{ status: 'invalid', reason: 'no_agent' }],
+        [{ status: 'not_required' }],
+      ]);
+      expect(
+        mockHLProvider.subscribeToTradingAgentValidity,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({ providerId: 'hyperliquid' }),
+      );
+      expect(hlCleanup).toHaveBeenCalledTimes(1);
+      cleanup();
+    });
+  });
+
   describe('setDefaultProvider re-routes default-routed streams', () => {
     it.each(['during unsubscribe', 'after rerouting'])(
       'retains the source venue for TWAP updates delivered %s',

@@ -9,7 +9,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked, MockedClass } from 'vitest';
 
-import { createMockHyperLiquidProvider } from '../helpers/providerMocks.js';
+import {
+  createMockHyperLiquidProvider,
+  createMockOrder,
+} from '../helpers/providerMocks.js';
 import {
   createDeferred,
   createMockInfrastructure,
@@ -982,7 +985,7 @@ describe('PerpsController', () => {
       },
     );
 
-    it('opens the live TWAP stream only once the provider is ready, and again after a reconnect', async () => {
+    it('opens no live TWAP stream before the provider is ready, and opens it again after a reconnect', async () => {
       vi.useFakeTimers();
       try {
         controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
@@ -1001,14 +1004,18 @@ describe('PerpsController', () => {
             .forEach(([, handler]) => (handler as () => void)());
         const callback = vi.fn();
 
-        // Subscribed before the provider is ready: no stream yet.
-        const stop = controller.subscribeToLiveTwapOrders({ callback });
+        // Subscribed before the provider is ready: no stream yet. Such a
+        // channel opens on the next successful init (stream context tests).
+        const stopPending = controller.subscribeToLiveTwapOrders({
+          callback: vi.fn(),
+        });
         await vi.advanceTimersByTimeAsync(0);
 
         expect(mockProvider.subscribeToTwapOrders).not.toHaveBeenCalled();
+        stopPending();
 
         markControllerAsInitialized();
-        fireStateChanged();
+        const stop = controller.subscribeToLiveTwapOrders({ callback });
         await vi.advanceTimersByTimeAsync(0);
 
         expect(streams).toHaveLength(1);
@@ -1702,6 +1709,38 @@ describe('PerpsController', () => {
       );
     });
 
+    it('holds Core orders deliveries during the operation and sends the latest once after it', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      let push: (orders: Order[]) => void = () => undefined;
+      mockProvider.subscribeToOrders.mockImplementation((params) => {
+        push = params.callback;
+        return () => undefined;
+      });
+      const callback = vi.fn();
+      controller.subscribeToOrders({ callback });
+      const first = [createMockOrder({ orderId: 'first' })];
+      const latest = [createMockOrder({ orderId: 'latest' })];
+      vi.spyOn(mockTradingServiceInstance, 'cancelOrders').mockImplementation(
+        async (options: any) =>
+          options.withStreamPause(async () => {
+            push(first);
+            push(latest);
+            expect(callback).not.toHaveBeenCalled();
+            return {
+              success: true,
+              successCount: 0,
+              failureCount: 0,
+              results: [],
+            };
+          }, ['orders']),
+      );
+
+      await controller.cancelOrders({ cancelAll: true });
+
+      expect(callback.mock.calls).toStrictEqual([[latest]]);
+    });
+
     it('resumes streams even when operation throws error', async () => {
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
@@ -1975,8 +2014,125 @@ describe('PerpsController', () => {
 
       const unsubscribe = controller.subscribeToPrices(params);
 
-      expect(unsubscribe).toBe(mockUnsubscribe);
-      expect(mockProvider.subscribeToPrices).toHaveBeenCalledWith(params);
+      expect(mockProvider.subscribeToPrices).toHaveBeenCalledWith(
+        expect.objectContaining({ callback: expect.any(Function) }),
+      );
+      unsubscribe();
+      expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
+    });
+
+    describe('shared stream channels', () => {
+      beforeEach(() => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      });
+
+      it('opens one venue subscription for equal parameters and stops it with the last reader', () => {
+        const stop = vi.fn();
+        mockProvider.subscribeToPrices.mockReturnValue(stop);
+
+        const leaveFirst = controller.subscribeToPrices({
+          symbols: ['BTC'],
+          callback: vi.fn(),
+        });
+        const leaveSecond = controller.subscribeToPrices({
+          symbols: ['BTC'],
+          callback: vi.fn(),
+          throttleMs: 1000,
+        });
+
+        expect(mockProvider.subscribeToPrices).toHaveBeenCalledTimes(1);
+        expect(mockProvider.subscribeToPrices).toHaveBeenCalledWith(
+          expect.objectContaining({ throttleMs: undefined }),
+        );
+        leaveFirst();
+        expect(stop).not.toHaveBeenCalled();
+        leaveSecond();
+        expect(stop).toHaveBeenCalledTimes(1);
+      });
+
+      it('opens a separate venue subscription for other parameters', () => {
+        mockProvider.subscribeToPrices.mockReturnValue(vi.fn());
+
+        controller.subscribeToPrices({ symbols: ['BTC'], callback: vi.fn() });
+        controller.subscribeToPrices({ symbols: ['ETH'], callback: vi.fn() });
+
+        expect(mockProvider.subscribeToPrices).toHaveBeenCalledTimes(2);
+      });
+
+      it('replays the last positions to a reader that joins later', async () => {
+        let push: (positions: never[]) => void = () => undefined;
+        mockProvider.subscribeToPositions.mockImplementation(
+          (params: { callback: (positions: never[]) => void }) => {
+            push = params.callback;
+            return vi.fn();
+          },
+        );
+        controller.subscribeToPositions({ callback: vi.fn() });
+        push([]);
+
+        const late = vi.fn();
+        controller.subscribeToPositions({ callback: late });
+        await Promise.resolve();
+
+        expect(mockProvider.subscribeToPositions).toHaveBeenCalledTimes(1);
+        expect(late).toHaveBeenCalledWith([]);
+      });
+
+      it('never replays fills to a reader that joins later', async () => {
+        let push: (fills: never[]) => void = () => undefined;
+        mockProvider.subscribeToOrderFills.mockImplementation(
+          (params: { callback: (fills: never[]) => void }) => {
+            push = params.callback;
+            return vi.fn();
+          },
+        );
+        controller.subscribeToOrderFills({ callback: vi.fn() });
+        push([]);
+
+        const late = vi.fn();
+        controller.subscribeToOrderFills({ callback: late });
+        await Promise.resolve();
+
+        expect(late).not.toHaveBeenCalled();
+      });
+
+      it('reports a failure to a later reader when the first had no error handler', () => {
+        let fail: (error: Error) => void = () => undefined;
+        mockProvider.subscribeToOrders.mockImplementation(
+          (params: { onError?: (error: Error) => void }) => {
+            fail = params.onError ?? fail;
+            return vi.fn();
+          },
+        );
+        controller.subscribeToOrders({ callback: vi.fn() });
+        const onError = vi.fn();
+        controller.subscribeToOrders({ callback: vi.fn(), onError });
+
+        fail(new Error('setup lost'));
+
+        expect(onError).toHaveBeenCalledWith(new Error('setup lost'));
+      });
+
+      it('gives an orders reader that joins after an account switch its own channel', () => {
+        mockProvider.subscribeToOrders.mockReturnValue(vi.fn());
+        controller.subscribeToOrders({ callback: vi.fn() });
+
+        selectedAddress = '0x00000000000000000000000000000000000000b2';
+        controller.subscribeToOrders({ callback: vi.fn() });
+
+        expect(mockProvider.subscribeToOrders).toHaveBeenCalledTimes(2);
+      });
+
+      it('gives a reader that joins after an account switch its own channel', () => {
+        mockProvider.subscribeToPositions.mockReturnValue(vi.fn());
+        controller.subscribeToPositions({ callback: vi.fn() });
+
+        selectedAddress = '0x00000000000000000000000000000000000000b2';
+        controller.subscribeToPositions({ callback: vi.fn() });
+
+        expect(mockProvider.subscribeToPositions).toHaveBeenCalledTimes(2);
+      });
     });
   });
 });

@@ -192,6 +192,89 @@ export type PerpsControllerGetMarketMetaAction = {
 };
 
 /**
+ * Stream every market's metadata (margin tiers, delisting, max leverage,
+ * Cross support) from the routed venue. The callback receives the current
+ * list at once, from the provider's session cache, then a new list each
+ * time the market data preload refreshes (`startMarketDataPreload`), which
+ * re-reads the venue's metadata. It adds no timer of its own. A failed read
+ * goes to `onError` and leaves the last list current; an empty list is
+ * never reported for a failure. In aggregated mode an unrouted stream
+ * rebinds to the new default provider.
+ *
+ * @param params - Optional provider route, callback and error handler.
+ * @returns Cleanup function.
+ */
+export type PerpsControllerSubscribeToMarketMetaAction = {
+  type: `PerpsController:subscribeToMarketMeta`;
+  handler: PerpsController['subscribeToMarketMeta'];
+};
+
+/**
+ * Stream an isolated position's margin adjustment limits from the routed
+ * provider's live account and position streams, with no venue reads. The
+ * callback receives the current limits at once, then each change: the
+ * same result `getMarginAdjustmentLimits` returns. A provider without the
+ * stream, or a route that conflicts with the active provider, reports
+ * `unavailable`/`provider` once.
+ *
+ * @param params - Market, optional route, callback and error handler.
+ * @returns Cleanup function.
+ */
+export type PerpsControllerSubscribeToMarginAdjustmentLimitsAction = {
+  type: `PerpsController:subscribeToMarginAdjustmentLimits`;
+  handler: PerpsController['subscribeToMarginAdjustmentLimits'];
+};
+
+/**
+ * Stream the routed provider's WebSocket keepalive round trip, in whole
+ * milliseconds. The callback receives the last measurement at once when
+ * there is one, then each new one, at the keepalive's own cadence. A
+ * provider without a keepalive measurement never calls back.
+ *
+ * @param params - Optional provider route, callback and error handler.
+ * @returns Cleanup function.
+ */
+export type PerpsControllerSubscribeToConnectionLatencyAction = {
+  type: `PerpsController:subscribeToConnectionLatency`;
+  handler: PerpsController['subscribeToConnectionLatency'];
+};
+
+/**
+ * Stream a market's post-discount fee rates: the `calculateFees` results
+ * for a taker and a maker fill. The callback receives one read at once,
+ * then a new read only on events: a fill on the account's own fills stream
+ * (its volume tier can change), an account switch, a default provider
+ * change in aggregated mode, and `invalidateSubscriptionBenefits`. There is
+ * no timer. A failed read goes to `onError` and leaves the last rates
+ * current; an unchanged read is not delivered.
+ *
+ * @param params - Market, optional order type, route, account, callback
+ * and error handler.
+ * @returns Cleanup function.
+ */
+export type PerpsControllerSubscribeToFeeRatesAction = {
+  type: `PerpsController:subscribeToFeeRates`;
+  handler: PerpsController['subscribeToFeeRates'];
+};
+
+/**
+ * Report whether the selected (or given) account's trading agent is valid
+ * for the routed venue (`PerpsTradingAgentValidity`). The callback receives
+ * one read at once, then a new value on events only: an agent set or
+ * cleared (`setAgentSigner`, `clearAgentSigners`), a venue rejection of the
+ * agent, an account switch, and the agent's `validUntil` expiry, a single
+ * timeout at that deadline. A venue without an agent step reports
+ * `not_required`.
+ *
+ * @param params - Optional account and route, callback and error handler.
+ * @returns Cleanup function.
+ */
+export type PerpsControllerSubscribeToTradingAgentValidityAction = {
+  type: `PerpsController:subscribeToTradingAgentValidity`;
+  handler: PerpsController['subscribeToTradingAgentValidity'];
+};
+
+/**
  * Build a Scale price ladder using the active provider's venue rules.
  *
  * @param params - Market, ladder bounds, count, optional sizing and explicit route.
@@ -1095,6 +1178,32 @@ export type PerpsControllerReconnectAction = {
 };
 
 /**
+ * The last value a stream's channel delivered, for a synchronous first
+ * render (such as React's `useSyncExternalStore`). Uses the same channel
+ * as a `subscribeTo*` call with these parameters.
+ *
+ * @param stream - Stream name.
+ * @param params - The `subscribeTo*` parameters; callbacks and throttle are
+ * ignored.
+ * @returns The callback arguments last delivered, or `undefined` when the
+ * channel is not open or has no value yet.
+ */
+export type PerpsControllerGetStreamSnapshotAction = {
+  type: `PerpsController:getStreamSnapshot`;
+  handler: PerpsController['getStreamSnapshot'];
+};
+
+/**
+ * Stop and restart every open stream's venue subscription, keeping readers
+ * and last values. For a socket that reports open but no longer delivers,
+ * such as after an app returns to the foreground.
+ */
+export type PerpsControllerResubscribeStreamsAction = {
+  type: `PerpsController:resubscribeStreams`;
+  handler: PerpsController['resubscribeStreams'];
+};
+
+/**
  * Subscribe to live price updates
  *
  * @param params - The operation parameters.
@@ -1915,6 +2024,11 @@ export type PerpsControllerMethodActions =
   | PerpsControllerGetMarginModeLockAction
   | PerpsControllerGetMarginAdjustmentLimitsAction
   | PerpsControllerGetMarketMetaAction
+  | PerpsControllerSubscribeToMarketMetaAction
+  | PerpsControllerSubscribeToMarginAdjustmentLimitsAction
+  | PerpsControllerSubscribeToConnectionLatencyAction
+  | PerpsControllerSubscribeToFeeRatesAction
+  | PerpsControllerSubscribeToTradingAgentValidityAction
   | PerpsControllerGetScalePriceLadderAction
   | PerpsControllerPlaceOrderAction
   | PerpsControllerEditOrderAction
@@ -1986,6 +2100,8 @@ export type PerpsControllerMethodActions =
   | PerpsControllerGetProviderHealthAction
   | PerpsControllerSubscribeToProviderHealthAction
   | PerpsControllerReconnectAction
+  | PerpsControllerGetStreamSnapshotAction
+  | PerpsControllerResubscribeStreamsAction
   | PerpsControllerSubscribeToPricesAction
   | PerpsControllerSubscribeToPositionsAction
   | PerpsControllerSubscribeToOrderFillsAction

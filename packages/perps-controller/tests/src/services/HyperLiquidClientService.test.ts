@@ -55,6 +55,7 @@ const mockSubscriptionClient = {
   },
 };
 const mockSocket = {
+  send: vi.fn(),
   addEventListener: vi.fn(),
   removeEventListener: vi.fn(),
 };
@@ -1828,6 +1829,77 @@ describe('HyperLiquidClientService', () => {
       );
     });
 
+    describe('keepalive latency', () => {
+      /**
+       * Fire every socket listener the service registered for an event.
+       *
+       * @param type - Event type.
+       * @returns A function that fires them with an event.
+       */
+      const socketListener =
+        (type: string) =>
+        (event: { data?: unknown }): void => {
+          for (const [eventType, listener] of mockSocket.addEventListener.mock
+            .calls) {
+            if (eventType === type) {
+              (listener as (fired: { data?: unknown }) => void)(event);
+            }
+          }
+        };
+
+      beforeEach(() => {
+        vi.useFakeTimers({ now: 1_000 });
+      });
+
+      afterEach(() => {
+        vi.useRealTimers();
+      });
+
+      it('measures the SDK ping to the pong, with no timer of its own', () => {
+        service.initialize(mockWallet);
+        const listener = vi.fn();
+        service.subscribeToLatency(listener);
+        const timersAfterInit = vi.getTimerCount();
+
+        mockWsTransport.socket.send('{"method":"ping"}');
+        vi.setSystemTime(1_042);
+        socketListener('message')({ data: '{"channel":"pong"}' });
+
+        expect(listener.mock.calls).toStrictEqual([[42]]);
+        expect(vi.getTimerCount()).toBe(timersAfterInit);
+      });
+
+      it('replays the last measurement to a new listener and stops after unsubscribe', () => {
+        service.initialize(mockWallet);
+        mockWsTransport.socket.send('{"method":"ping"}');
+        vi.setSystemTime(1_030);
+        socketListener('message')({ data: '{"channel":"pong"}' });
+
+        const listener = vi.fn();
+        const unsubscribe = service.subscribeToLatency(listener);
+        unsubscribe();
+        mockWsTransport.socket.send('{"method":"ping"}');
+        socketListener('message')({ data: '{"channel":"pong"}' });
+
+        expect(listener.mock.calls).toStrictEqual([[30]]);
+      });
+
+      it('ignores other frames, and a pong after the socket closed', () => {
+        service.initialize(mockWallet);
+        const listener = vi.fn();
+        service.subscribeToLatency(listener);
+
+        mockWsTransport.socket.send('{"method":"post"}');
+        socketListener('message')({ data: '{"channel":"pong"}' });
+        mockWsTransport.socket.send('{"method":"ping"}');
+        socketListener('message')({ data: '{"channel":"allMids"}' });
+        socketListener('close')({});
+        socketListener('message')({ data: '{"channel":"pong"}' });
+
+        expect(listener).not.toHaveBeenCalled();
+      });
+    });
+
     describe('connection epoch', () => {
       /**
        * Fire the raw socket close handler the service registered.
@@ -1915,6 +1987,7 @@ describe('HyperLiquidClientService', () => {
         // returns a singleton, which would make the stale handler
         // indistinguishable from the live one.
         const replacementSocket = {
+          send: vi.fn(),
           addEventListener: vi.fn(),
           removeEventListener: vi.fn(),
         };
