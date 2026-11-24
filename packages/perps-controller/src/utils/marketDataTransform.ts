@@ -11,6 +11,7 @@ import {
   getHyperLiquidAssetName,
 } from '../constants/hyperLiquidConfig.js';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import { buildMarketNumericValues } from '../internal/marketNumericValues.js';
 import type {
   AllMidsResponse,
   PerpsUniverse,
@@ -23,6 +24,7 @@ import type {
   MarketDataFormatters,
 } from '../types/index.js';
 import { parseAssetName } from './hyperLiquidAdapter.js';
+import { isPriceOutsideDeviationBand } from './priceDeviation.js';
 
 /**
  * Calculate open interest in USD
@@ -90,19 +92,12 @@ export function isMarketTradable(params: {
   // Without usable prices we cannot assess deviation — default to tradable so missing
   // data never blocks the user. A non-positive price means "no data" (e.g. the transient
   // zero price emitted before the first real tick), not an untradable market.
-  if (
-    midPrice === undefined ||
-    oraclePrice === undefined ||
-    isNaN(midPrice) ||
-    isNaN(oraclePrice) ||
-    midPrice <= 0 ||
-    oraclePrice <= 0
-  ) {
+  if (midPrice === undefined || oraclePrice === undefined) {
     return true;
   }
-
-  const deviation = Math.abs(midPrice - oraclePrice) / oraclePrice;
-  return deviation <= deviationLimit;
+  // The same band clients use to check a limit price, so a market and an
+  // order at one price never disagree.
+  return !isPriceOutsideDeviationBand(midPrice, oraclePrice, deviationLimit);
 }
 
 /**
@@ -341,6 +336,14 @@ export function transformMarketData(
       marketType,
       isHip3,
       isNewMarket,
+      numericValues: buildMarketNumericValues({
+        price: currentPrice,
+        // Unknown without both prices, not 0%.
+        change24hPercent:
+          hasCurrentPrice && prevDayPrice > 0 ? change24hPercent : undefined,
+        volume,
+        openInterest,
+      }),
     };
   });
 }

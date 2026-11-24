@@ -109,6 +109,19 @@ export type SetOHLCVDataPayload = {
    * 4. else -> noData: true
    */
   slbMode?: boolean;
+  /**
+   * Opt-in. When true, the per-interval visible-range pin is clamped so its
+   * start never predates the oldest loaded bar. This keeps the framed window
+   * inside the bars already in memory, so framing never asks TradingView to
+   * fill an interval older than what is loaded — which otherwise triggers a
+   * deep backward pagination storm on coarse↔fine switches.
+   *
+   * Off by default: when absent or false the visible-range pin uses the
+   * requested start unclamped, exactly like today. Only consumers that have
+   * validated this (currently the extension) should opt in; Social Leaderboard
+   * and every other consumer stay on today's behavior until they do.
+   */
+  atomicIntervalWindow?: boolean;
 };
 
 export type RealtimeUpdateMessage = {

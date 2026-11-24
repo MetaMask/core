@@ -2232,6 +2232,11 @@ export type MetamaskPayMetadata = {
 
   /** Fiat on-ramp metadata (order ID and provider). */
   fiat?: {
+    /**
+     * Whether the order on-ramps mUSD directly into the Money Account, rather
+     * than an intermediate asset bridged by another strategy.
+     */
+    isDirectMusd?: boolean;
     /** Order ID (normalized format: /providers/{provider}/orders/{id}). */
     orderId: string;
     /** Provider code (e.g. "transak-native"). */

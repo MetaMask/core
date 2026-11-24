@@ -231,3 +231,114 @@ export function calculateNetClosedPnl({
     ? undefined
     : gross.minus(cost).toNumber();
 }
+
+/**
+ * Inputs to {@link calculateCloseSize}: the share of the position to close as
+ * a percent, or as a USD amount at `price`.
+ */
+export type CloseSizeParams = {
+  /** Position size in base units; the sign is ignored. */
+  positionSize: number | string;
+  /** Price the close is valued at. */
+  price: number | string;
+  /** Decimals the venue accepts for a size (`PerpsOrderLimits.sizeDecimals`). */
+  sizeDecimals: number;
+  /**
+   * How a partial size meets the size grid. `up` (default) rounds half up
+   * and adds one step when that leaves the size below the request, so the
+   * close covers the requested value. `down` rounds down, so several partial
+   * closes of one position, such as split take-profit levels, never add up to
+   * more than the position.
+   */
+  rounding?: CloseSizeRounding;
+} & (
+  | {
+      /** Percent of the position to close, 0 to 100. */
+      percent: number;
+      usdAmount?: never;
+    }
+  | {
+      /** USD value to close; above the position's value closes all of it. */
+      usdAmount: number | string;
+      percent?: never;
+    }
+);
+
+/** How {@link calculateCloseSize} puts a partial size on the size grid. */
+export type CloseSizeRounding = 'up' | 'down';
+
+/** Result of {@link calculateCloseSize}. */
+export type CloseSize = {
+  /**
+   * Size to close, on the venue's size grid, or the exact position size when
+   * the close covers the whole position.
+   */
+  size: number;
+  /** Value of the requested share before size rounding, in USD to the cent. */
+  usdValue: number;
+};
+
+/**
+ * Size to close for a percent or USD amount of a position, in exact decimal
+ * arithmetic. A request for the whole position returns the exact position
+ * size. Otherwise, by default, the size rounds half up to `sizeDecimals`;
+ * when that leaves it below the requested size, one size step is added so the
+ * close covers the requested value. With `rounding: 'down'` it rounds down to
+ * `sizeDecimals` instead. The result never exceeds the position.
+ *
+ * @param params - See {@link CloseSizeParams}.
+ * @returns The close size and value, or undefined when an input is missing,
+ * out of range or not a number, the position is empty, or `rounding: 'down'`
+ * leaves a requested size below one size step.
+ */
+export function calculateCloseSize(
+  params: CloseSizeParams,
+): CloseSize | undefined {
+  const { sizeDecimals } = params;
+  const positionSize = toDecimal(params.positionSize)?.abs();
+  const price = toPositiveDecimal(params.price);
+  if (
+    !Number.isInteger(sizeDecimals) ||
+    sizeDecimals < 0 ||
+    !positionSize?.isGreaterThan(0) ||
+    price === undefined
+  ) {
+    return undefined;
+  }
+
+  let requestedSize: BigNumber;
+  if (params.usdAmount === undefined) {
+    const percent = toDecimal(params.percent);
+    if (percent === undefined || percent.lt(0) || percent.gt(100)) {
+      return undefined;
+    }
+    requestedSize = percent.dividedBy(100).multipliedBy(positionSize);
+  } else {
+    const usdAmount = toDecimal(params.usdAmount);
+    if (usdAmount === undefined || usdAmount.lt(0)) {
+      return undefined;
+    }
+    requestedSize = BigNumber.min(usdAmount.dividedBy(price), positionSize);
+  }
+
+  let size: BigNumber;
+  if (requestedSize.gte(positionSize)) {
+    size = positionSize;
+  } else if (params.rounding === 'down') {
+    size = requestedSize.decimalPlaces(sizeDecimals, BigNumber.ROUND_DOWN);
+    if (size.isZero() && requestedSize.isGreaterThan(0)) {
+      // Below one size step: no order can close it.
+      return undefined;
+    }
+  } else {
+    size = requestedSize.decimalPlaces(sizeDecimals, BigNumber.ROUND_HALF_UP);
+    if (size.lt(requestedSize)) {
+      size = size.plus(new BigNumber(1).shiftedBy(-sizeDecimals));
+    }
+  }
+
+  return {
+    size: BigNumber.min(size, positionSize).toNumber(),
+    usdValue: roundUsd(requestedSize.multipliedBy(price)).toNumber(),
+  };
+}

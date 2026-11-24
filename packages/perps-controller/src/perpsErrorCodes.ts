@@ -24,6 +24,7 @@ export const PERPS_ERROR_CODES = {
   ACCOUNT_STATE_FAILED: 'ACCOUNT_STATE_FAILED',
   ORDERS_FAILED: 'ORDERS_FAILED', // An orders read failed; the order list is unknown, not empty
   MARKETS_FAILED: 'MARKETS_FAILED',
+  MARKET_NOT_FOUND: 'MARKET_NOT_FOUND', // getMarketMeta: the provider lists no market with that symbol
   UNKNOWN_ERROR: 'UNKNOWN_ERROR',
   // Provider-agnostic order errors
   ORDER_LEVERAGE_REDUCTION_FAILED: 'ORDER_LEVERAGE_REDUCTION_FAILED',

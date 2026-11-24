@@ -26,6 +26,7 @@ import {
 } from './constants/eventNames.js';
 import {
   canonicalizeHyperLiquidDexes,
+  isCrossMarginSupported,
   MAINNET_HIP3_CONFIG,
   TESTNET_HIP3_CONFIG,
   USDC_SYMBOL,
@@ -60,6 +61,7 @@ import { DataLakeService } from './services/DataLakeService.js';
 import { DepositService } from './services/DepositService.js';
 import { EligibilityService } from './services/EligibilityService.js';
 import { FeatureFlagConfigurationService } from './services/FeatureFlagConfigurationService.js';
+import { LighterNotificationEnrollmentService } from './services/LighterNotificationEnrollmentService.js';
 import { MarketDataService } from './services/MarketDataService.js';
 import { isMissingActionHandlerError } from './services/missingActionHandler.js';
 import { isProviderOnTestnet } from './services/providerNetwork.js';
@@ -107,7 +109,9 @@ import type {
   GetMarketDataWithPricesParams,
   GetMarketsParams,
   GetOrderCapabilitiesParams,
+  GetMarginAdjustmentLimitsParams,
   GetMarginModeLockParams,
+  GetMarketMetaParams,
   GetScalePriceLadderParams,
   GetOrderFillsParams,
   GetPublicTradesParams,
@@ -119,6 +123,8 @@ import type {
   MaintenanceMarginParams,
   PositionModifyPreviewParams,
   PositionModifyPreviewResult,
+  CrossLiquidationEstimate,
+  EstimateCrossLiquidationParams,
   MarginMode,
   MarginResult,
   MarketInfo,
@@ -132,7 +138,9 @@ import type {
   PerpsControllerConfig,
   PerpsMarketData,
   PerpsOrderCapabilities,
+  MarginAdjustmentLimits,
   PerpsMarginModeLock,
+  PerpsMarketMeta,
   PerpsScalePriceLadder,
   ScalePriceLadderUnavailableReason,
   PerpsPendingManualRecovery,
@@ -238,6 +246,8 @@ import { captureScaleOrderParams } from './utils/lighterScaleOrders.js';
 import {
   clonePerpsMarketData,
   compileMarketPattern,
+  getPerpsWatchlistReferences,
+  isSharedPerpsMarketReference,
   shouldIncludeMarket,
 } from './utils/marketUtils.js';
 import type { CompiledMarketPattern } from './utils/marketUtils.js';
@@ -1128,6 +1138,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'getOrderBookPreferences',
   'getOrderCapabilities',
   'getMarginModeLock',
+  'getMarginAdjustmentLimits',
+  'getMarketMeta',
   'getScalePriceLadder',
   'getOrderFills',
   'getOrders',
@@ -1163,6 +1175,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'placeOrder',
   'prepareTradingWallet',
   'previewPositionModify',
+  'estimateCrossLiquidation',
   'reconnect',
   'recordMarketViewed',
   'refreshEligibility',
@@ -1391,11 +1404,26 @@ export class PerpsController extends BaseController<
   >();
 
   /**
-   * Latest toggle number per `network:symbol` whose write is still pending,
-   * so a failed write is undone only when no later toggle of the same market
-   * has superseded it.
+   * Latest toggle per network and saved reference whose write is pending.
+   * Grouped and symbol-only calls can overlap on a legacy reference.
    */
-  readonly #pendingWatchlistToggles = new Map<string, number>();
+  readonly #pendingWatchlistToggles = new Map<string, symbol>();
+
+  /**
+   * Removals a failed toggle could not undo because a newer pending toggle
+   * owned one of its references. The newer toggle undoes them if it fails too.
+   */
+  readonly #deferredWatchlistRestores = new Map<
+    symbol,
+    { entries: readonly string[]; snapshot: readonly string[] }[]
+  >();
+
+  /**
+   * References an older toggle added but failed to write while a newer
+   * toggle owned them. Remote storage never held them, so the newer toggle
+   * must not restore them if it fails too.
+   */
+  readonly #unpersistedWatchlistAdds = new Map<symbol, Set<string>>();
 
   #userDiskWrite: Promise<void> = Promise.resolve();
 
@@ -1417,6 +1445,8 @@ export class PerpsController extends BaseController<
   readonly #eligibilityService: EligibilityService;
 
   readonly #dataLakeService: DataLakeService;
+
+  readonly #lighterNotificationEnrollmentService: LighterNotificationEnrollmentService;
 
   readonly #depositService: DepositService;
 
@@ -1481,6 +1511,8 @@ export class PerpsController extends BaseController<
     this.#accountService = new AccountService(infrastructure, messenger);
     this.#eligibilityService = new EligibilityService(infrastructure);
     this.#dataLakeService = new DataLakeService(infrastructure, messenger);
+    this.#lighterNotificationEnrollmentService =
+      new LighterNotificationEnrollmentService(infrastructure, messenger);
     this.#depositService = new DepositService(infrastructure, messenger);
     this.#featureFlagConfigurationService = new FeatureFlagConfigurationService(
       infrastructure,
@@ -1694,25 +1726,8 @@ export class PerpsController extends BaseController<
     const cache = this.state.cachedMarketDataByProvider;
 
     if (activeProvider === 'aggregated') {
-      // Assemble from all registered provider entries
-      const assembled: PerpsMarketData[] = [];
-      for (const providerId of this.#getAggregatedCacheProviderIds(
-        Object.keys(cache),
-      )) {
-        const key = buildProviderCacheKey(providerId, this.state.isTestnet);
-        const entry = cache[key];
-        if (!entry || entry.data.length === 0) {
-          continue;
-        }
-        if (!this.#isMarketCacheEntryCurrent(providerId, entry, options)) {
-          continue;
-        }
-        assembled.push(...clonePerpsMarketData(entry.data));
-      }
-      if (assembled.length === 0) {
-        return null;
-      }
-      return assembled;
+      const rows = this.#getCachedAggregateMarketRows(options);
+      return rows ? clonePerpsMarketData(rows) : null;
     }
 
     // Single provider mode
@@ -1725,6 +1740,51 @@ export class PerpsController extends BaseController<
       return null;
     }
     return clonePerpsMarketData(entry.data);
+  }
+
+  #getCachedAggregateMarketRows(options?: {
+    skipTTL?: boolean;
+  }): PerpsMarketData[] | null {
+    const { cachedMarketDataByProvider: cache, isTestnet } = this.state;
+    const snapshotConfigured = this.#isGlobalSnapshotConfigured();
+    const providerIds = new Set(
+      this.#getAggregatedCacheProviderIds(Object.keys(cache)),
+    );
+    if (snapshotConfigured) {
+      providerIds.add('hyperliquid');
+      // Before initialization Lighter may still register; afterwards require
+      // its slice only when it did, as snapshot reads only include it then.
+      if (
+        this.isInitialized
+          ? this.providers.has('lighter')
+          : this.#isLighterProviderEnabled()
+      ) {
+        providerIds.add('lighter');
+      }
+    }
+    if (this.isInitialized) {
+      // A disk-hydrated slice of a venue that did not register this session
+      // is never refreshed, so it must not decide the aggregate's freshness.
+      for (const providerId of providerIds) {
+        if (!this.providers.has(providerId as PerpsProviderType)) {
+          providerIds.delete(providerId);
+        }
+      }
+    }
+    const assembled: PerpsMarketData[] = [];
+    for (const providerId of providerIds) {
+      const entry = cache[buildProviderCacheKey(providerId, isTestnet)];
+      if (
+        entry?.data.length &&
+        this.#isMarketCacheEntryCurrent(providerId, entry, options)
+      ) {
+        assembled.push(...entry.data);
+      } else if (snapshotConfigured || entry?.sourceExpiresAt !== undefined) {
+        // Clients treat a nonempty aggregate preload as fresh for every venue.
+        return null;
+      }
+    }
+    return assembled.length > 0 ? assembled : null;
   }
 
   #isMarketCacheEntryCurrent(
@@ -3628,6 +3688,100 @@ export class PerpsController extends BaseController<
     }
   }
 
+  /**
+   * Get how much margin an isolated position can take in (`maxAdd`, what the
+   * venue's isolated margin update accepts) and release (`maxRemove`),
+   * through the active provider route used by order placement. Never throws;
+   * failures report an unavailable status.
+   *
+   * @param params - Market and optional provider route.
+   * @returns The limits, or a typed unavailable result.
+   */
+  async getMarginAdjustmentLimits(
+    params: GetMarginAdjustmentLimitsParams,
+  ): Promise<MarginAdjustmentLimits> {
+    try {
+      const activeProvider = await this.#getActiveProviderWhenReady();
+      if (
+        this.#hasConflictingProviderRoute(params.providerId, activeProvider) ||
+        !activeProvider.getMarginAdjustmentLimits
+      ) {
+        return { status: 'unavailable', reason: 'provider' };
+      }
+      return await activeProvider.getMarginAdjustmentLimits(params);
+    } catch (error) {
+      this.#debugLog('PerpsController: Margin adjustment limits unavailable', {
+        error: ensureError(error, 'PerpsController.getMarginAdjustmentLimits')
+          .message,
+      });
+      return { status: 'unavailable', reason: 'provider' };
+    }
+  }
+
+  /**
+   * Get venue metadata (margin tiers, delisted, max leverage, isolated-only)
+   * for one market, or for every market when `symbol` is omitted. Reads the
+   * provider's own market list, which Hyperliquid builds from its session
+   * `meta` cache, never a Terminal snapshot. In aggregated mode it reads one
+   * venue: `providerId`, else the default provider.
+   *
+   * @param params - Optional market and provider route.
+   * @returns One market's metadata when `symbol` is set, otherwise a list.
+   * @throws `MARKET_NOT_FOUND` when no market has that symbol,
+   * `PROVIDER_NOT_FOUND` when the route conflicts with the active provider or
+   * names an unregistered venue, or the venue's error when its read fails.
+   */
+  getMarketMeta(
+    params: GetMarketMetaParams & { symbol: string },
+  ): Promise<PerpsMarketMeta>;
+
+  getMarketMeta(
+    params?: GetMarketMetaParams & { symbol?: undefined },
+  ): Promise<PerpsMarketMeta[]>;
+
+  getMarketMeta(
+    params?: GetMarketMetaParams,
+  ): Promise<PerpsMarketMeta | PerpsMarketMeta[]>;
+
+  async getMarketMeta(
+    params?: GetMarketMetaParams,
+  ): Promise<PerpsMarketMeta | PerpsMarketMeta[]> {
+    const provider = await this.#getActiveProviderWhenReady();
+    const providerId = params?.providerId;
+    if (this.#hasConflictingProviderRoute(providerId, provider)) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+    const symbol = params?.symbol;
+    const marketsParams =
+      symbol === undefined ? undefined : { symbols: [symbol] };
+    // The aggregated list drops a failed venue; read the routed venue alone
+    // so a failure rejects instead of reading as a missing market.
+    const markets =
+      provider instanceof AggregatedPerpsProvider
+        ? await provider.getProviderMarkets(
+            provider.getWriteProviderId(providerId),
+            marketsParams,
+          )
+        : await provider.getMarkets(marketsParams);
+    const metas = markets.map((market): PerpsMarketMeta => ({
+      symbol: market.name,
+      marginTiers: market.marginTiers ?? null,
+      isDelisted: market.isDelisted === true,
+      maxLeverage: market.maxLeverage,
+      onlyIsolated: !isCrossMarginSupported(market),
+    }));
+    if (symbol === undefined) {
+      return metas;
+    }
+    const meta = metas.find(
+      (item) => item.symbol.toLowerCase() === symbol.toLowerCase(),
+    );
+    if (!meta) {
+      throw new Error(PERPS_ERROR_CODES.MARKET_NOT_FOUND);
+    }
+    return meta;
+  }
+
   #getUnavailableMarginModeLock(
     reason: MarginModeLockUnavailableReason,
     providerId: PerpsProviderType | undefined,
@@ -3895,7 +4049,7 @@ export class PerpsController extends BaseController<
         ) => this.saveTradeConfiguration(symbol, leverage, providerId),
       }),
       reportOrderToDataLake: (dataLakeParams) =>
-        this.reportOrderToDataLake(dataLakeParams),
+        this.reportOrderToDataLake(dataLakeParams, provider),
     });
 
     if (result.success) {
@@ -4305,7 +4459,7 @@ export class PerpsController extends BaseController<
         getPositions: () => this.getPositions(),
       }),
       reportOrderToDataLake: (dataLakeParams) =>
-        this.reportOrderToDataLake(dataLakeParams),
+        this.reportOrderToDataLake(dataLakeParams, provider),
     });
   }
 
@@ -5700,9 +5854,9 @@ export class PerpsController extends BaseController<
    * @returns Service context for `MarketDataService.getMarkets`.
    */
   #createGetMarketsContext(): ServiceContext {
-    const globalSnapshot = this.#buildGlobalSnapshotContext();
+    const globalSnapshots = this.#buildGlobalSnapshotContexts();
     return this.#createServiceContext('getMarkets', {
-      ...(globalSnapshot && { globalSnapshot }),
+      ...(globalSnapshots && { globalSnapshots }),
     });
   }
 
@@ -5724,9 +5878,9 @@ export class PerpsController extends BaseController<
   async getMarketDataWithPrices(
     params?: GetMarketDataWithPricesParams,
   ): Promise<PerpsMarketData[]> {
-    const globalSnapshot = this.#buildGlobalSnapshotContext();
+    const globalSnapshots = this.#buildGlobalSnapshotContexts();
     const context = this.#createServiceContext('getMarketDataWithPrices', {
-      ...(globalSnapshot && { globalSnapshot }),
+      ...(globalSnapshots && { globalSnapshots }),
     });
     if (params?.standalone) {
       const provider =
@@ -5750,38 +5904,68 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Capture the exact static identity required to adopt an atomic snapshot.
-   * Dynamic DEX discovery and non-Hyperliquid provider modes deliberately opt
-   * out so they retain the provider path.
+   * Capture the exact static identity each active provider needs to adopt its
+   * atomic snapshot: the direct provider, or every registered venue in
+   * aggregated mode. HyperLiquid with dynamic DEX discovery opts out and
+   * keeps the provider path.
    *
-   * @returns Snapshot identity plus a race guard, or undefined when unsafe.
+   * @returns One snapshot identity with its race guard per provider, or
+   * undefined when none applies.
    */
-  #buildGlobalSnapshotContext(): ServiceContext['globalSnapshot'] {
-    const snapshotConfigured =
-      Boolean(this.#options.infrastructure.terminalApi?.globalSnapshotUrl) ||
-      typeof this.#options.infrastructure.terminalMarketService
-        ?.fetchGlobalSnapshot === 'function';
-    if (!snapshotConfigured || this.state.activeProvider !== 'hyperliquid') {
+  #buildGlobalSnapshotContexts(): ServiceContext['globalSnapshots'] {
+    if (!this.#isGlobalSnapshotConfigured()) {
       return undefined;
     }
 
-    const enabledDexes = this.#getStaticSnapshotDexes();
-    if (!enabledDexes) {
-      return undefined;
+    const { activeProvider, isTestnet, hip3ConfigVersion } = this.state;
+    const isActive = (providerId: PerpsProviderType): boolean =>
+      activeProvider === providerId ||
+      (activeProvider === 'aggregated' && this.providers.has(providerId));
+    const contexts: NonNullable<ServiceContext['globalSnapshots']> = {};
+
+    const hyperLiquidDexes = isActive('hyperliquid')
+      ? this.#getStaticSnapshotDexes()
+      : undefined;
+    if (hyperLiquidDexes) {
+      contexts.hyperliquid = {
+        request: {
+          provider: 'hyperliquid',
+          network: isTestnet ? 'testnet' : 'mainnet',
+          enabledDexes: hyperLiquidDexes,
+        },
+        isCurrent: (): boolean =>
+          this.state.activeProvider === activeProvider &&
+          this.state.isTestnet === isTestnet &&
+          this.state.hip3ConfigVersion === hip3ConfigVersion,
+        isMarketAllowed: this.#buildMarketAllowedFilter(),
+      };
     }
-    const { isTestnet, hip3ConfigVersion } = this.state;
-    return {
-      request: {
-        provider: 'hyperliquid',
-        network: isTestnet ? 'testnet' : 'mainnet',
-        enabledDexes,
-      },
-      isCurrent: () =>
-        this.state.activeProvider === 'hyperliquid' &&
-        this.state.isTestnet === isTestnet &&
-        this.state.hip3ConfigVersion === hip3ConfigVersion,
-      isMarketAllowed: this.#buildMarketAllowedFilter(),
-    };
+    if (isActive('lighter')) {
+      contexts.lighter = {
+        request: {
+          provider: 'lighter',
+          network: isProviderOnTestnet('lighter', isTestnet)
+            ? 'testnet'
+            : 'mainnet',
+          enabledDexes: ['main'],
+        },
+        isCurrent: (): boolean =>
+          this.state.activeProvider === activeProvider &&
+          this.state.isTestnet === isTestnet,
+        // Lighter keeps its provider's market list; the snapshot only adds
+        // metadata to it, so there is no snapshot row to filter.
+        isMarketAllowed: (): boolean => true,
+      };
+    }
+    return contexts.hyperliquid || contexts.lighter ? contexts : undefined;
+  }
+
+  #isGlobalSnapshotConfigured(): boolean {
+    const { terminalApi, terminalMarketService } = this.#options.infrastructure;
+    return (
+      Boolean(terminalApi?.globalSnapshotUrl) ||
+      typeof terminalMarketService?.fetchGlobalSnapshot === 'function'
+    );
   }
 
   #getStaticSnapshotDexes(): string[] | undefined {
@@ -6146,7 +6330,9 @@ export class PerpsController extends BaseController<
     if (
       existingEntry &&
       this.#isMarketCacheEntryCurrent(actualProviderId, existingEntry) &&
-      now - existingEntry.timestamp < PerpsController.#preloadGuardMs
+      now - existingEntry.timestamp < PerpsController.#preloadGuardMs &&
+      (actualProviderId !== 'aggregated' ||
+        this.#getCachedAggregateMarketRows() !== null)
     ) {
       return;
     }
@@ -6190,24 +6376,32 @@ export class PerpsController extends BaseController<
 
       // Store under per-provider key(s)
       const ts = Date.now();
-      const sourceExpiries = data.flatMap((market) =>
-        market.dataSource === 'terminal-global-snapshot-mark' &&
-        typeof market.sourceExpiresAt === 'number'
-          ? [market.sourceExpiresAt]
-          : [],
-      );
-      const sourceExpiresAt =
-        data.length > 0 && sourceExpiries.length === data.length
-          ? Math.min(...sourceExpiries)
-          : undefined;
-      const snapshotCacheIdentity =
-        sourceExpiresAt !== undefined && staticSnapshotDexes
-          ? {
-              sourceExpiresAt,
-              hip3ConfigVersion: preloadContext.hip3ConfigVersion,
-              dexes: staticSnapshotDexes,
-            }
-          : {};
+      // A slice made only of snapshot rows expires with its snapshot.
+      const snapshotCacheIdentity = (
+        rows: PerpsMarketData[],
+      ): Pick<
+        PerpsControllerState['cachedMarketDataByProvider'][string],
+        'sourceExpiresAt' | 'hip3ConfigVersion' | 'dexes'
+      > => {
+        const sourceExpiries = rows.flatMap((market) =>
+          market.dataSource === 'terminal-global-snapshot-mark' &&
+          typeof market.sourceExpiresAt === 'number'
+            ? [market.sourceExpiresAt]
+            : [],
+        );
+        if (
+          rows.length === 0 ||
+          sourceExpiries.length !== rows.length ||
+          !staticSnapshotDexes
+        ) {
+          return {};
+        }
+        return {
+          sourceExpiresAt: Math.min(...sourceExpiries),
+          hip3ConfigVersion: preloadContext.hip3ConfigVersion,
+          dexes: staticSnapshotDexes,
+        };
+      };
       const marketDiskEntries: {
         providerNetworkKey: string;
         data: PerpsMarketData[];
@@ -6247,6 +6441,7 @@ export class PerpsController extends BaseController<
             state.cachedMarketDataByProvider[key] = {
               data: slice,
               timestamp: ts,
+              ...snapshotCacheIdentity(slice),
             };
           }
           // Write aggregated sentinel so the staleness guard sees it
@@ -6265,7 +6460,7 @@ export class PerpsController extends BaseController<
           state.cachedMarketDataByProvider[cacheKey] = {
             data,
             timestamp: ts,
-            ...snapshotCacheIdentity,
+            ...snapshotCacheIdentity(data),
           };
         });
       }
@@ -6702,9 +6897,10 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Project the isolated position that would remain after a proposed order.
+   * Project the position that would remain after a proposed order.
    * Margin and liquidation availability are independent: a missing liquidation
-   * does not hide a valid margin projection. Cross-margin returns unsupported.
+   * does not hide a valid margin projection. Hyperliquid projects Cross
+   * positions against the account's Cross collateral.
    *
    * @param params - Live position plus the proposed order.
    * @returns Discriminated preview of the resulting position.
@@ -6718,6 +6914,33 @@ export class PerpsController extends BaseController<
       provider,
       params,
       context,
+    });
+  }
+
+  /**
+   * Estimate the liquidation price of the Cross position an order would
+   * leave: an opening, or an add, reduce or flip of the market's position.
+   * Never rejects: `price`, `none` when no price liquidates it at the
+   * account's collateral, or `unavailable` with a typed reason.
+   *
+   * @param params - The proposed Cross order.
+   * @returns The typed estimate.
+   */
+  async estimateCrossLiquidation(
+    params: EstimateCrossLiquidationParams,
+  ): Promise<CrossLiquidationEstimate> {
+    // Not initialized or reinitializing: no provider to ask. A direct-mode
+    // route that names another venue would answer for the wrong venue.
+    const provider = this.getActiveProviderOrNull();
+    if (
+      !provider ||
+      this.#hasConflictingProviderRoute(params.providerId, provider)
+    ) {
+      return { status: 'unavailable', reason: 'provider' };
+    }
+    return this.#marketDataService.estimateCrossLiquidation({
+      provider,
+      params,
     });
   }
 
@@ -9668,11 +9891,28 @@ export class PerpsController extends BaseController<
    * Watchlist markets are stored per network (testnet/mainnet).
    *
    * @param symbol - The trading pair symbol.
+   * @param marketKey - Optional cross-venue key for a grouped market.
+   * @param venues - Original rows from the group, used to match a legacy favorite.
+   * @param legacyProvider - Venue that owned saved symbols before grouping.
    */
-  async toggleWatchlistMarket(symbol: string): Promise<void> {
+  async toggleWatchlistMarket(
+    symbol: string,
+    marketKey?: string,
+    venues?: readonly PerpsMarketData[],
+    legacyProvider?: PerpsProviderType,
+  ): Promise<void> {
+    const references = this.#getWatchlistReferences(
+      symbol,
+      marketKey,
+      venues,
+      legacyProvider,
+    );
+    const [reference] = references;
     const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
     const currentWatchlist = this.state.watchlistMarkets[currentNetwork];
-    const isWatchlisted = currentWatchlist.includes(symbol);
+    const isWatchlisted = references.some((entry) =>
+      currentWatchlist.includes(entry),
+    );
 
     this.#debugLog('PerpsController: Toggling watchlist market', {
       timestamp: new Date().toISOString(),
@@ -9685,21 +9925,35 @@ export class PerpsController extends BaseController<
     this.update((state) => {
       if (isWatchlisted) {
         state.watchlistMarkets[currentNetwork] = currentWatchlist.filter(
-          (marketSymbol) => marketSymbol !== symbol,
+          (marketSymbol) => !references.includes(marketSymbol),
         );
       } else {
-        state.watchlistMarkets[currentNetwork] = [...currentWatchlist, symbol];
+        state.watchlistMarkets[currentNetwork] = [
+          ...currentWatchlist,
+          reference,
+        ];
       }
     });
     for (const edits of this.#watchlistEditsDuringHydration) {
-      edits.push({ network: currentNetwork, symbol, add: !isWatchlisted });
+      for (const entry of references) {
+        edits.push({
+          network: currentNetwork,
+          symbol: entry,
+          add: !isWatchlisted && entry === reference,
+        });
+      }
     }
-    const toggleKey = `${currentNetwork}:${symbol}`;
-    const toggleNumber =
-      (this.#pendingWatchlistToggles.get(toggleKey) ?? 0) + 1;
-    this.#pendingWatchlistToggles.set(toggleKey, toggleNumber);
-    const isLatestToggle = (): boolean =>
-      this.#pendingWatchlistToggles.get(toggleKey) === toggleNumber;
+    const toggle = Symbol(reference);
+    const toggleKey = (entry: string): string => `${currentNetwork}:${entry}`;
+    // References with no pending write reflect remote storage.
+    const settledReferences = references.filter(
+      (entry) => !this.#pendingWatchlistToggles.has(toggleKey(entry)),
+    );
+    for (const entry of references) {
+      this.#pendingWatchlistToggles.set(toggleKey(entry), toggle);
+    }
+    const isLatestToggle = (entry: string): boolean =>
+      this.#pendingWatchlistToggles.get(toggleKey(entry)) === toggle;
 
     this.#getMetrics().trackPerpsEvent(PerpsAnalyticsEvent.UiInteraction, {
       [PERPS_EVENT_PROPERTY.INTERACTION_TYPE]:
@@ -9733,53 +9987,142 @@ export class PerpsController extends BaseController<
           action: isWatchlisted ? 'remove' : 'add',
         }),
       );
-      // A later toggle of the same market decides its state; its own write
-      // persists it.
-      if (!isLatestToggle()) {
-        return;
-      }
       // Undo only this toggle. The list may have changed since it was made
       // (hydration, other toggles), so restoring the earlier snapshot would
       // discard those changes.
+      const deferred = this.#deferredWatchlistRestores.get(toggle) ?? [];
+      const unpersisted = this.#unpersistedWatchlistAdds.get(toggle);
       this.update((state) => {
-        const watchlist = state.watchlistMarkets[currentNetwork];
-        if (isWatchlisted) {
-          if (!watchlist.includes(symbol)) {
-            // Back where it was, as far as the current list allows.
-            const index = Math.min(
-              currentWatchlist.indexOf(symbol),
-              watchlist.length,
-            );
-            watchlist.splice(index, 0, symbol);
+        if (!isWatchlisted && isLatestToggle(reference)) {
+          state.watchlistMarkets[currentNetwork] = state.watchlistMarkets[
+            currentNetwork
+          ].filter((marketSymbol) => marketSymbol !== reference);
+        }
+        // A newer toggle of any alias owns the market's state now; restoring
+        // the other aliases would save the market twice. It restores them
+        // only if its own write fails too.
+        const newerToggle = [
+          ...references,
+          ...deferred.flatMap(({ entries }) => entries),
+        ]
+          .map((entry) => this.#pendingWatchlistToggles.get(toggleKey(entry)))
+          .find((pending) => pending !== undefined && pending !== toggle);
+        if (newerToggle) {
+          const newerUnpersisted = new Set([
+            ...(this.#unpersistedWatchlistAdds.get(newerToggle) ?? []),
+            ...(unpersisted ?? []),
+            ...(isWatchlisted ? [] : [reference]),
+          ]);
+          if (newerUnpersisted.size > 0) {
+            this.#unpersistedWatchlistAdds.set(newerToggle, newerUnpersisted);
           }
-        } else {
-          state.watchlistMarkets[currentNetwork] = watchlist.filter(
-            (marketSymbol) => marketSymbol !== symbol,
-          );
+          // Hand over only what remote storage still holds.
+          this.#deferredWatchlistRestores.set(newerToggle, [
+            ...(isWatchlisted
+              ? [{ entries: settledReferences, snapshot: currentWatchlist }]
+              : []),
+            ...deferred,
+            ...(this.#deferredWatchlistRestores.get(newerToggle) ?? []),
+          ]);
+          return;
+        }
+        const restores = isWatchlisted
+          ? [
+              {
+                entries: references.filter((entry) => !unpersisted?.has(entry)),
+                snapshot: currentWatchlist,
+              },
+              ...deferred,
+            ]
+          : deferred;
+        const watchlist = state.watchlistMarkets[currentNetwork];
+        for (const { entries, snapshot } of restores) {
+          for (const [index, entry] of snapshot.entries()) {
+            if (entries.includes(entry) && !watchlist.includes(entry)) {
+              watchlist.splice(Math.min(index, watchlist.length), 0, entry);
+            }
+          }
         }
       });
     } finally {
-      if (isLatestToggle()) {
-        this.#pendingWatchlistToggles.delete(toggleKey);
+      this.#deferredWatchlistRestores.delete(toggle);
+      this.#unpersistedWatchlistAdds.delete(toggle);
+      for (const entry of references) {
+        if (isLatestToggle(entry)) {
+          this.#pendingWatchlistToggles.delete(toggleKey(entry));
+        }
       }
     }
+  }
+
+  /**
+   * The reference a watchlist toggle saves, followed by the aliases it matches.
+   * A watchlist synced to AUS is shared with clients that match by symbol, so
+   * there the venue symbol is saved and the market key is only an alias.
+   *
+   * @param symbol - The trading pair symbol.
+   * @param marketKey - Optional cross-venue key for a grouped market.
+   * @param venues - Original rows from the group.
+   * @param legacyProvider - Venue that owned saved symbols before grouping.
+   * @returns The saved reference and its aliases.
+   */
+  #getWatchlistReferences(
+    symbol: string,
+    marketKey?: string,
+    venues?: readonly PerpsMarketData[],
+    legacyProvider?: PerpsProviderType,
+  ): string[] {
+    const references = getPerpsWatchlistReferences(
+      symbol,
+      marketKey,
+      venues,
+      legacyProvider,
+    );
+    if (!marketKey || !resolveWatchlistExchangeKey(this.state.activeProvider)) {
+      return references;
+    }
+    const [venueReference] = getPerpsWatchlistReferences(
+      symbol,
+      undefined,
+      venues,
+      legacyProvider,
+    );
+    return [
+      venueReference,
+      ...references.filter((entry) => entry !== venueReference),
+    ];
   }
 
   /**
    * Check if a market is in the watchlist on the current network
    *
    * @param symbol - The trading pair symbol.
-   * @returns True if the condition is met.
+   * @param marketKey - Optional cross-venue key for a grouped market.
+   * @param venues - Original rows from the group, used to match a legacy favorite.
+   * @param legacyProvider - Venue that owned saved symbols before grouping.
+   * @returns Whether the reference is saved.
    */
-  isWatchlistMarket(symbol: string): boolean {
+  isWatchlistMarket(
+    symbol: string,
+    marketKey?: string,
+    venues?: readonly PerpsMarketData[],
+    legacyProvider?: PerpsProviderType,
+  ): boolean {
     const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
-    return this.state.watchlistMarkets[currentNetwork].includes(symbol);
+    return this.#getWatchlistReferences(
+      symbol,
+      marketKey,
+      venues,
+      legacyProvider,
+    ).some((reference) =>
+      this.state.watchlistMarkets[currentNetwork].includes(reference),
+    );
   }
 
   /**
    * Get all watchlist markets for the current network
    *
-   * @returns The resulting string value.
+   * @returns Saved market references for the current network.
    */
   getWatchlistMarkets(): string[] {
     const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
@@ -9789,22 +10132,38 @@ export class PerpsController extends BaseController<
   /**
    * Record that the user viewed a market.
    *
-   * The symbol is prepended to the per-network recently-viewed list (newest-first).
-   * Any existing entry for the same symbol is removed first so there are no
-   * duplicates. The list is then capped at PERPS_CONSTANTS.RecentlyViewedMarketsLimit.
+   * The market reference is prepended to the per-network recently-viewed list (newest-first).
+   * Any existing entry for the same reference, or for its legacy alias, is
+   * removed first so there are no duplicates. The list is then capped at
+   * PERPS_CONSTANTS.RecentlyViewedMarketsLimit.
    *
    * @param symbol - The trading pair symbol (e.g. 'BTC', 'ETH', 'xyz:TSLA').
+   * @param marketKey - Optional cross-venue key for a grouped market.
+   * @param venues - Original rows from the group, used to match a legacy entry.
+   * @param legacyProvider - Venue that owned saved symbols before grouping.
    */
-  recordMarketViewed(symbol: string): void {
+  recordMarketViewed(
+    symbol: string,
+    marketKey?: string,
+    venues?: readonly PerpsMarketData[],
+    legacyProvider?: PerpsProviderType,
+  ): void {
+    const references = getPerpsWatchlistReferences(
+      symbol,
+      marketKey,
+      venues,
+      legacyProvider,
+    );
+    const [reference] = references;
     const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
     const now = Date.now();
 
     this.update((state) => {
       const current = state.recentlyViewedMarkets[currentNetwork].filter(
-        (entry) => entry.symbol !== symbol,
+        (entry) => !references.includes(entry.symbol),
       );
       state.recentlyViewedMarkets[currentNetwork] = [
-        { symbol, viewedAt: now },
+        { symbol: reference, viewedAt: now },
         ...current,
       ].slice(0, PERPS_CONSTANTS.RecentlyViewedMarketsLimit);
     });
@@ -9813,12 +10172,12 @@ export class PerpsController extends BaseController<
   /**
    * Get recently viewed markets for the current network.
    *
-   * Returns up to PERPS_CONSTANTS.RecentlyViewedMarketsLimit symbols, ordered
+   * Returns up to PERPS_CONSTANTS.RecentlyViewedMarketsLimit references, ordered
    * newest-first, filtered to entries within the last
    * PERPS_CONSTANTS.RecentlyViewedMarketsTtlMs (24 hours). Returns an empty
    * array when no qualifying entries exist.
    *
-   * @returns Ordered array of market symbols.
+   * @returns Ordered array of saved market references.
    */
   getRecentlyViewedMarkets(): string[] {
     const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
@@ -9900,7 +10259,9 @@ export class PerpsController extends BaseController<
       ...existingWatchlist,
       [exchangeKey]: {
         ...existingWatchlist[exchangeKey],
-        [network]: this.state.watchlistMarkets[network],
+        [network]: this.state.watchlistMarkets[network].filter(
+          isSharedPerpsMarketReference,
+        ),
       },
     };
 
@@ -10024,7 +10385,10 @@ export class PerpsController extends BaseController<
           };
           const nextWatchlistMarkets: PerpsWatchlistMarkets = {
             ...existingWatchlist,
-            [exchangeKey]: { testnet, mainnet },
+            [exchangeKey]: {
+              testnet: testnet.filter(isSharedPerpsMarketReference),
+              mainnet: mainnet.filter(isSharedPerpsMarketReference),
+            },
           };
           const nextPrefs: NotificationPreferences = {
             ...prefs,
@@ -10064,9 +10428,19 @@ export class PerpsController extends BaseController<
           remoteExchangeWatchlist,
           editsDuringHydration,
         );
+        // AUS holds only bare symbols; keep the local keyed and venue entries.
         this.update((state) => {
-          state.watchlistMarkets.testnet = hydrated.testnet;
-          state.watchlistMarkets.mainnet = hydrated.mainnet;
+          for (const network of ['testnet', 'mainnet'] as const) {
+            const localOnly = state.watchlistMarkets[network].filter(
+              (entry) =>
+                !isSharedPerpsMarketReference(entry) &&
+                !hydrated[network].includes(entry),
+            );
+            state.watchlistMarkets[network] = [
+              ...hydrated[network],
+              ...localOnly,
+            ];
+          }
         });
         this.#debugLog('PerpsController: Watchlist hydrated from AUS', {
           exchangeKey,
@@ -10084,26 +10458,46 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Report order events to data lake API with retry (non-blocking)
-   * Thin delegation to DataLakeService
+   * Report an order to notify-perps with retry (non-blocking).
+   * Hyperliquid orders go to the orders endpoint (DataLakeService). Lighter
+   * orders enroll the account for notifications instead and never reach it.
    *
    * @param params - The operation parameters.
    * @param params.action - The order action.
    * @param params.symbol - The trading pair symbol.
+   * @param params.providerId - The venue that executed the order, when known.
    * @param params.slPrice - The stop loss price.
    * @param params.tpPrice - The take profit price.
    * @param params.retryCount - Internal retry counter.
    * @param params._traceId - Internal trace ID.
+   * @param provider - The provider that executed the order.
    * @returns Whether the report was sent successfully, with an optional error message.
    */
-  protected async reportOrderToDataLake(params: {
-    action: 'open' | 'close';
-    symbol: string;
-    slPrice?: number;
-    tpPrice?: number;
-    retryCount?: number;
-    _traceId?: string;
-  }): Promise<{ success: boolean; error?: string }> {
+  protected async reportOrderToDataLake(
+    params: {
+      action: 'open' | 'close';
+      symbol: string;
+      providerId?: PerpsProviderType;
+      slPrice?: number;
+      tpPrice?: number;
+      retryCount?: number;
+      _traceId?: string;
+    },
+    provider: PerpsProvider,
+  ): Promise<{ success: boolean; error?: string }> {
+    if (params.providerId === 'lighter') {
+      return this.#lighterNotificationEnrollmentService.enroll({
+        isTestnet: isProviderOnTestnet('lighter', this.state.isTestnet),
+        getAccountIndex: async () => {
+          if (!provider.getNotificationAccountIndex) {
+            throw new Error(
+              'Provider does not support notification enrollment',
+            );
+          }
+          return provider.getNotificationAccountIndex();
+        },
+      });
+    }
     return this.#dataLakeService.reportOrder({
       action: params.action,
       symbol: params.symbol,

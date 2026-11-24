@@ -1,6 +1,6 @@
 {
   "name": "@metamask/bridge-status-controller",
-  "version": "79.0.0",
+  "version": "79.0.1",
   "description": "Manages bridge-related status fetching functionality for MetaMask",
   "keywords": [
     "Ethereum",
@@ -69,8 +69,8 @@
     "@metamask/profile-sync-controller": "^36.1.2",
     "@metamask/snaps-controllers": "^19.0.1",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/transaction-controller": "^74.3.0",
-    "@metamask/transaction-pay-controller": "^32.1.1",
+    "@metamask/transaction-controller": "^74.4.0",
+    "@metamask/transaction-pay-controller": "^33.0.0",
     "@metamask/utils": "^12.0.2",
     "bignumber.js": "^9.1.2",
     "uuid": "^14.0.3"

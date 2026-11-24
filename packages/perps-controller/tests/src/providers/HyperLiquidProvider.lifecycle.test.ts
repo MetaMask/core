@@ -440,6 +440,9 @@ describe('HyperLiquidProvider', () => {
       getCachedPositions: vi.fn().mockReturnValue([]),
       getFreshPositionsForAllDexs: vi.fn().mockReturnValue(null),
       getCachedPositionsForDex: vi.fn().mockReturnValue(null),
+      getCachedOpenOrdersForDex: vi.fn().mockReturnValue(null),
+      getCachedActiveTwapOrders: vi.fn().mockReturnValue(null),
+      getCachedActiveAssetLeverage: vi.fn().mockReturnValue(null),
       updateFeatureFlags: vi.fn().mockResolvedValue(undefined),
       // Cache methods used by buildAssetMapping optimization
       setDexMetaCache: vi.fn(),
