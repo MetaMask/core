@@ -43,6 +43,7 @@ import type {
   Position,
   PositionsResponse,
   QuoteTokensResponse,
+  SupportedNetworksResponse,
   ReactToCommentOptions,
   RemoveCommentReactionOptions,
   SwapCommentResponse,
@@ -68,6 +69,7 @@ import {
   PositionStruct,
   PositionsResponseStruct,
   QuoteTokensResponseStruct,
+  SupportedNetworksResponseStruct,
   SwapCommentResponseStruct,
   TraderProfileResponseStruct,
   UnfollowResponseStruct,
@@ -109,6 +111,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchBlockedContent',
   'fetchModerationStatus',
   'fetchQuoteTokens',
+  'fetchSupportedNetworks',
   'fetchTrendingGifs',
   'searchGifs',
 ] as const;
@@ -1371,6 +1374,36 @@ export class SocialService extends BaseDataService<
           );
         }
         return quoteTokens;
+      },
+    });
+  }
+
+  /**
+   * Fetches the networks social-api supports.
+   *
+   * Calls `GET ${baseUrl}/supportedNetworks`.
+   *
+   * @returns CAIP-2 chain ids, split into fully and partially supported.
+   */
+  async fetchSupportedNetworks(): Promise<SupportedNetworksResponse> {
+    return await this.fetchQuery({
+      queryKey: [`${this.name}:fetchSupportedNetworks`],
+      queryFn: async () => {
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(`${this.#v1Url}/supportedNetworks`, {
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_SUPPORTED_NETWORKS_FAILED,
+        );
+        const supportedNetworks = (await response.json()) as unknown;
+        if (!is(supportedNetworks, SupportedNetworksResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_SUPPORTED_NETWORKS_INVALID_RESPONSE,
+          );
+        }
+        return supportedNetworks;
       },
     });
   }

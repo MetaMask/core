@@ -1055,6 +1055,18 @@ export type QuoteTokensResponse = {
 };
 
 /**
+ * Networks social-api supports, as CAIP-2 chain ids.
+ *
+ * Returned by `GET /v1/supportedNetworks`.
+ */
+export type SupportedNetworksResponse = {
+  /** CAIP-2 ids of the networks with full social support. */
+  fullSupport: string[];
+  /** CAIP-2 ids of the networks with limited social support. */
+  partialSupport: string[];
+};
+
+/**
  * Query parameters forwarded to the social-api GIF proxy.
  *
  * Keys and values are sent unchanged. The service does not rename them or

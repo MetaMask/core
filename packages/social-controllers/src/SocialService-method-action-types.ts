@@ -506,6 +506,18 @@ export type SocialServiceFetchQuoteTokensAction = {
 };
 
 /**
+ * Fetches the networks social-api supports.
+ *
+ * Calls `GET ${baseUrl}/supportedNetworks`.
+ *
+ * @returns CAIP-2 chain ids, split into fully and partially supported.
+ */
+export type SocialServiceFetchSupportedNetworksAction = {
+  type: `SocialService:fetchSupportedNetworks`;
+  handler: SocialService['fetchSupportedNetworks'];
+};
+
+/**
  * Fetches a page of trending GIFs through the social-api GIF proxy.
  *
  * Calls `GET ${baseUrl}/gifs/trending`. Query parameters are forwarded
@@ -567,5 +579,6 @@ export type SocialServiceMethodActions =
   | SocialServiceFetchBlockedContentAction
   | SocialServiceFetchModerationStatusAction
   | SocialServiceFetchQuoteTokensAction
+  | SocialServiceFetchSupportedNetworksAction
   | SocialServiceFetchTrendingGifsAction
   | SocialServiceSearchGifsAction;

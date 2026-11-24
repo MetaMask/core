@@ -355,6 +355,11 @@ export const QuoteTokensResponseStruct = structType({
   stablecoins: array(string()),
 });
 
+export const SupportedNetworksResponseStruct = structType({
+  fullSupport: array(string()),
+  partialSupport: array(string()),
+});
+
 /**
  * Loose check for a GIF provider page.
  *
