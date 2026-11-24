@@ -72,6 +72,9 @@ export class LighterNormalizer {
  *
  * The intents API needs it as the recipient of a Lighter deposit.
  *
+ * Temporary: replace with the perps utility for resolving the Lighter account
+ * index once it is available.
+ *
  * @param l1Address - EVM address that owns the Lighter account.
  * @returns The account index, as a string.
  */
