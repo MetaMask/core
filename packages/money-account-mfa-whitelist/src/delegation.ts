@@ -315,7 +315,9 @@ function getSingleUseDelegationRequirement(
   }
   return isRewardsClaim(executions, delegator, config)
     ? whitelisted('rewards-claim-delegation')
-    : requireMfa('Delegation executions are not a vault deposit');
+    : requireMfa(
+        'Delegation executions are not a vault deposit or Rewards claim',
+      );
 }
 
 /**

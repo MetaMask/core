@@ -6,7 +6,9 @@ export const DEFAULT_MAX_MESSAGE_AGE = 5 * 60 * 1000;
 /**
  * How far past `maxMessageAge` a Rewards claim proof's expiry may be, for
  * clock skew between the Rewards backend, which sets the expiry, and the
- * signer: one minute.
+ * signer: one minute. The expiry is set by the Rewards money service's
+ * `CLAIM_PROOF_CHALLENGE_TTL_SECONDS` (default 300), which must stay at or
+ * below `maxMessageAge` plus this skew, or every claim proof requires MFA.
  */
 export const CLAIM_PROOF_CLOCK_SKEW = 60 * 1000;
 

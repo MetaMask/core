@@ -801,6 +801,12 @@ describe('getMfaRequirement', () => {
         ).toStrictEqual(whitelistedAs('rewards-claim-proof'));
       });
 
+      it('whitelists a proof for an amount of zero, since the amount does not affect where funds go', () => {
+        expect(
+          evaluateMessage(buildClaimProofMessage({ amount: '0' })),
+        ).toStrictEqual(whitelistedAs('rewards-claim-proof'));
+      });
+
       it('compares the addresses case-insensitively', () => {
         expect(
           evaluateMessage(
@@ -1404,7 +1410,9 @@ describe('getMfaRequirement', () => {
             }),
           ),
         ).toStrictEqual(
-          mfaRequired('Delegation executions are not a vault deposit'),
+          mfaRequired(
+            'Delegation executions are not a vault deposit or Rewards claim',
+          ),
         );
       });
 
@@ -1416,7 +1424,9 @@ describe('getMfaRequirement', () => {
             }),
           ),
         ).toStrictEqual(
-          mfaRequired('Delegation executions are not a vault deposit'),
+          mfaRequired(
+            'Delegation executions are not a vault deposit or Rewards claim',
+          ),
         );
       });
 
@@ -1450,7 +1460,9 @@ describe('getMfaRequirement', () => {
         expect(
           await evaluateDelegation(buildSingleUseDelegation(executions)),
         ).toStrictEqual(
-          mfaRequired('Delegation executions are not a vault deposit'),
+          mfaRequired(
+            'Delegation executions are not a vault deposit or Rewards claim',
+          ),
         );
       });
 
@@ -1549,7 +1561,9 @@ describe('getMfaRequirement', () => {
           ],
         ])('requires MFA when %s', async (_description, modify) => {
           expect(await evaluateModifiedDeposit(modify)).toStrictEqual(
-            mfaRequired('Delegation executions are not a vault deposit'),
+            mfaRequired(
+              'Delegation executions are not a vault deposit or Rewards claim',
+            ),
           );
         });
 
@@ -1559,7 +1573,9 @@ describe('getMfaRequirement', () => {
               buildSingleUseDelegation(buildDepositCalls({ amount: 0n })),
             ),
           ).toStrictEqual(
-            mfaRequired('Delegation executions are not a vault deposit'),
+            mfaRequired(
+              'Delegation executions are not a vault deposit or Rewards claim',
+            ),
           );
         });
       });
@@ -1808,6 +1824,19 @@ describe('getMfaRequirement', () => {
         ).toStrictEqual(whitelistedAs('rewards-claim-delegation'));
       });
 
+      it('whitelists a voucher from the Money Account itself, since the funds still end up as its own vault shares', async () => {
+        const calls = buildClaimCalls();
+        calls[0].callData = calls[0].callData.replace(
+          RECIPIENT.slice(2).toLowerCase(),
+          MONEY_ACCOUNT.slice(2),
+        ) as Hex;
+        expect(calls[0].callData).not.toContain(RECIPIENT.slice(2));
+
+        expect(
+          await evaluateDelegation(buildSingleUseDelegation(calls)),
+        ).toStrictEqual(whitelistedAs('rewards-claim-delegation'));
+      });
+
       it('compares the voucher recipient case-insensitively', async () => {
         expect(
           await evaluateDelegation(
@@ -1907,7 +1936,9 @@ describe('getMfaRequirement', () => {
             buildSingleUseDelegation(modify(buildClaimCalls())),
           ),
         ).toStrictEqual(
-          mfaRequired('Delegation executions are not a vault deposit'),
+          mfaRequired(
+            'Delegation executions are not a vault deposit or Rewards claim',
+          ),
         );
       });
 
