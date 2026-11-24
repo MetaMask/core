@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Clears a pending `authorizing` `register` or `updateRecoverySecret`, which reached no escrow, and throws `MutationRejectedError`.
 - **BREAKING:** `Identifier.verifier` is typed as `Json` instead of `unknown`, since identifiers are persisted in controller state ([#11679](https://github.com/MetaMask/core/pull/11679))
 - `register` and `updateRecoverySecret` reject an empty recovery secret with `invalid_recovery_secret` before requesting approval ([#11679](https://github.com/MetaMask/core/pull/11679))
+- Bump `@noble/hashes` from `^1.8.0` to `^2.4.0` ([#10594](https://github.com/MetaMask/core/pull/10594))
 
 ### Removed
 

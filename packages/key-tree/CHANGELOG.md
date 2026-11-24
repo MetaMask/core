@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@scure/base` from `^1.2.6` to `^2.4.0` ([#10596](https://github.com/MetaMask/core/pull/10596))
+- Bump `@noble/hashes` from `^1.8.0` to `^2.4.0` ([#10594](https://github.com/MetaMask/core/pull/10594))
 
 ## [11.0.0]
 
