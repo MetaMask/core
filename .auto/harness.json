@@ -1,0 +1,8 @@
+{
+  "status": "ready",
+  "source_file": "packages/assets-controller/src/utils/getAssetIdsForMetadataFetch.ts",
+  "metric": "primary_ms",
+  "metric_unit": "ms",
+  "direction": "lower",
+  "checks_command": "yarn workspace @metamask/assets-controller run test run src/utils/getAssetIdsForMetadataFetch.test.ts"
+}
