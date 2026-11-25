@@ -1,11 +1,20 @@
 {
-  "command": "./.auto/measure.sh",
+  "command": "BENCH_MODE=workloads ./.auto/measure.sh",
   "exitCode": 0,
-  "durationSeconds": 18.61,
   "metrics": {
-    "primary_ms": 145,
-    "per_call_us": 1.007
+    "already_precise_baseline_ms": 644.5,
+    "already_precise_candidate_ms": 375.0,
+    "needs_truncation_baseline_ms": 629.5,
+    "needs_truncation_candidate_ms": 681.5,
+    "unknown_precision_baseline_ms": 455.0,
+    "unknown_precision_candidate_ms": 360.0
   },
   "checksPass": true,
-  "checksTail": "Testing types with tsc and vue-tsc is an experimental feature.\nBreaking changes might not follow SemVer, please pin Vitest's version when using it.\n\n RUN  v5.1.1 /Users/prithpalsooriya/Desktop/projects/.perf-research/2026-11-25/core/packages/assets-controller\n\n\n Test Files  50 passed (50)\n      Tests  1293 passed (1293)\nType Errors  no errors\n   Start at  10:28:57\n   Duration  18.34s (tests 38%, import 34%, transform 23%, setup 4%)\n\n     Import  |assets-controller| 1274 modules were evaluated 17676 times · 39.13s total, 34% of tracked time\n             ~1.07s faster with isolate: false — shared modules are evaluated once per worker instead of once per file\n             learn more: https://vitest.dev/guide/improving-performance#test-isolation\n\n"
+  "tests": {
+    "passed": 1296,
+    "failed": 0,
+    "files": 50,
+    "success": true
+  },
+  "supersedes": "Previous parser implementation metrics are historical only."
 }

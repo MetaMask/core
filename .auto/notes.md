@@ -1,3 +1,14 @@
+# Current verdict: readable BigNumber shortcut
+
+Supersedes all historical parser findings below. BigNumber still parses every input. Return unpadded formatting for already-precise values and unknown metadata; otherwise preserve original truncation/trim. +7 net production lines relative to frozen original, one added conditional, no custom parsing/state/cache/dependency. Added three target regression tests (sign/negative zero, natural precision, invalid precision).
+
+Current source passes 1,296 tests across 50 files; package runner reports no type errors. `.auto/checks.sh`, all three comparison invocations and scaling pass. Same-process ABBA median: 686 -> 497.5 ms (27.5% less time), 144,000 calls. Separate distributions: already precise 644.5 -> 375 ms; needs truncation 629.5 -> 681.5 ms (~8.3% slower); unknown precision 455 -> 360 ms. Synthetic workload frequencies are not known to match app traffic. No on-device/app-level improvement established.
+
+Historical maximum-throughput parser is rejected on maintainability grounds. log.jsonl is retained as history, not a recommendation. Do not restore caches or numeric scanners. See results.json for current metrics and limitations.
+
+---
+# Historical notes (superseded; not current behavior or metrics)
+
 # Session Notes — normalizeAmountString fast path (2026-11-25)
 
 ## Final state

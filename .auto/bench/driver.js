@@ -675,6 +675,36 @@ if (failures.length > 0) {
       ((candMs * 1000) / (CMP_ROUNDS * HOT.length)).toFixed(4),
   );
   print('SELF_CHECK=OK');
+} else if (BENCH_MODE === 'workloads') {
+  // Separate distributions expose the trade-off hidden by an aggregate corpus.
+  var groups = [
+    ['already_precise', [['1.5', 18], ['42', 18], ['0', 18], ['1e-6', 18], ['0.25', 18], ['1000000000', 0]]],
+    ['needs_truncation', [['1.123456789', 6], ['-0.5', 0], ['9.9999', 2], ['5e-7', 6], ['-1.23456', 3], ['0.00000199', 6]]],
+    ['unknown_precision', [['1.5', undefined], ['1e-18', undefined], ['-0', undefined], ['42', undefined], ['0.000001', undefined], ['123.45000', undefined]]],
+  ];
+  function timeWorkload(fn, inputs, rounds) {
+    var sink = 0;
+    var start = Date.now();
+    for (var r = 0; r < rounds; r++) {
+      for (var i = 0; i < inputs.length; i++) sink += fn(inputs[i][0], inputs[i][1]).length;
+    }
+    if (sink === -1) print('impossible');
+    return Date.now() - start;
+  }
+  for (var gi = 0; gi < groups.length; gi++) {
+    var label = groups[gi][0];
+    var inputs = groups[gi][1];
+    var rounds = 144000 / inputs.length;
+    timeWorkload(__referenceImpl, inputs, 500);
+    timeWorkload(normalizeAmountString, inputs, 500);
+    var before = timeWorkload(__referenceImpl, inputs, rounds);
+    var after = timeWorkload(normalizeAmountString, inputs, rounds);
+    after += timeWorkload(normalizeAmountString, inputs, rounds);
+    before += timeWorkload(__referenceImpl, inputs, rounds);
+    print('METRIC ' + label + '_baseline_ms=' + before / 2);
+    print('METRIC ' + label + '_candidate_ms=' + after / 2);
+  }
+  print('SELF_CHECK=OK');
 } else if (BENCH_MODE === 'sweep') {
   var s1 = timeCorpus(2000);
   var s2 = timeCorpus(8000);

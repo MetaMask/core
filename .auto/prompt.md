@@ -1,91 +1,27 @@
-# Autoresearch: normalizeAmountString fast path (assets-controller)
+# normalizeAmountString: readable BigNumber formatting shortcut
 
-## Objective
+## Current objective
 
-`normalizeAmountString` (packages/assets-controller/src/utils/normalizeAmountString.ts)
-is an assets-owned hot path in MetaMask Mobile (Hermes profile run 45557828237,
-commit 79768f68a7a75956abaa1accac04094767f33215, ~36.7 ms self time summed
-across per-scenario top functions). Every balance entering `assetsBalance`
-state passes through it.
+Keep BigNumber responsible for parsing, numeric semantics, live global configuration and truncation. Avoid padding zeros only to strip them immediately: when metadata is unknown or the number already fits the requested precision, return `bn.toFixed()` directly. Otherwise preserve the original truncation and trim. The upper precision guard preserves BigNumber's rejection of values above 1e9; truncation of negative nonzero values must still produce `-0` where the original does.
 
-Current implementation constructs a `BigNumber` for every call. For plain
-decimal strings (the overwhelmingly common case) and simple exponent forms,
-the canonical plain-decimal result can be produced with pure string
-manipulation. Goal: a conservative string fast path with a BigNumber fallback
-for everything else, keeping byte-for-byte output parity.
+Human maintainability is a hard gate. Do not restore the earlier custom parser, exponent logic or config caches. A narrower readable win is preferred over peak benchmark speed. Stop when readable options are exhausted; experiment/time budgets are ceilings, not quotas.
 
-## Metrics
+## Context and scope
 
-- **Primary**: `primary_ms` (ms, lower is better) — total wall time for
-  8000 rounds × 18 hot-path inputs (144 000 calls) in Hermes, median of 3 runs.
-- **Secondary**: `per_call_us` — microseconds per call, same run.
+Assets-owned production file: packages/assets-controller/src/utils/normalizeAmountString.ts. Target regression tests may be added without weakening existing tests. No new runtime dependencies or other production changes. Profile run 45557828237, mobile commit 79768f68a7a75956abaa1accac04094767f33215: ~36.7 ms self time summed across available scenario summaries, not an end-to-end latency estimate.
 
-## How to Run
+Use isolated worktrees only. Never edit/switch/commit/reset/stash the live core/ or metamask-mobile/ checkout. The mobile Hermes executable may be executed.
 
-- `./.auto/measure.sh` — rebuilds `.auto/bench/bundle.js` from the **current**
-  production source (never an edited clone), runs the Hermes workload 3×,
-  medians the metrics. Exits nonzero on any parity self-check failure.
-- `BENCH_MODE=sweep ./.auto/measure.sh` — scaling sweep (1k/4k/16k rounds),
-  per-call timings must stay flat for a keep.
-- `./.auto/checks.sh` — runs the unweakened assets-controller package unit
-  tests (`vitest run` in packages/assets-controller).
-- `node .auto/loop.mjs` — CLI emulation of the pi-autoresearch tools
-  (init/run/log) used to drive this session: `node .auto/loop.mjs run
-  ./.auto/measure.sh`, then `node .auto/loop.mjs log <status> <metric>
-  <desc> <metricsJSON> <asiJSON>` (keep commits; discard/crash/checks_failed
-  revert production changes, preserving `.auto/`).
-- `node .auto/bench/build.mjs` — just builds the bundle (env `BENCH_MODE`).
+## Run
 
-The bundle contains: vendored bignumber.js 9.1.2, the **frozen reference**
-implementation (`.auto/bench/reference.impl.js`, the original code from
-origin/main abcfadf696b — never edit/delete it), the **candidate** (live
-production source, TS types stripped), and the driver. The driver self-checks
-candidate vs reference on every invocation: an explicit parity suite (empty/
-odd lengths, signs/negative zero, exponents, leading/trailing zeros,
-whitespace, radix/hex, NaN/invalid, decimals undefined/negative/fractional/
-nonfinite, 200-digit length limits) plus ~600 seeded fuzz cases. Any mismatch
-prints `SELF_CHECK=FAIL` and fails the run.
+- `./.auto/checks.sh`: full assets-controller package suite.
+- `./.auto/measure.sh`: 3 Hermes invocations, 144,000 calls each.
+- `BENCH_MODE=compare ./.auto/measure.sh`: frozen original vs current production source, same-process ABBA, median of 3 invocations.
+- `BENCH_MODE=workloads ./.auto/measure.sh`: already-precise, truncation-required and metadata-unknown distributions separately; exposes regressions hidden by mixed corpus.
+- `BENCH_MODE=sweep ./.auto/measure.sh`: count/input-length/cardinality scaling.
 
-## Files in Scope
+Every invocation compares current production source with the immutable original reference, including configuration-change and DEBUG cases. Do not change the reference or bypass checks.
 
-- `packages/assets-controller/src/utils/normalizeAmountString.ts` — the ONE
-  production file that may be modified.
-- `.auto/**` — playground tooling (bench, logs, notes).
+## Evidence and limitations
 
-## Off Limits
-
-- Everything else in the repo. No other production file. No test weakening.
-- `yarn.lock`, package manifests — no new runtime dependencies.
-- Live checkouts `~/Desktop/projects/core` and `~/Desktop/projects/metamask-mobile`
-  (only the Hermes binary inside metamask-mobile may be executed).
-- Node-only APIs in the hot path (the code must run in Hermes/React Native).
-
-## Constraints
-
-- Keep/discard rule: keep only a change that beats session best beyond noise
-  (confidence ≥ 2× after ≥ 3 runs), passes `.auto/checks.sh`, and keeps
-  per-call cost flat across the scaling sweep.
-- Self-check parity is absolute: the candidate must byte-match the frozen
-  reference on the full parity + fuzz suite, and pass the package unit tests
-  (which include negative zero, exponent, truncation and invalid-input cases).
-- Commit with `git -c commit.gpgsign=false commit` (no interactive signing).
-- Max 25 experiments or 3 hours, whichever first. Don't stop after first win —
-  keep exploring while budget remains. Discarded experiments get reverted
-  (production file only; `.auto/` is preserved).
-
-## Reference behavior notes (verified against frozen reference)
-
-- Non-string or empty input → `'0'`.
-- `NaN`/`Infinity`/anything BigNumber rejects → `'0'`.
-- Whitespace-padded, hex/octal/binary, and other exotic forms go through
-  BigNumber parsing — the fast path must fall back for them (behavior unknown
-  a priori; parity suite pins it).
-- Truncation uses round-toward-zero (`ROUND_DOWN`) at `Math.floor(decimals)`
-  fractional digits; `decimals` undefined/nonfinite/negative → no truncation.
-- Trailing zeros and a dangling dot are trimmed (`"1.500"` → `"1.5"`).
-- Negative zero keeps its sign (`"-0.000"` → `"-0"`).
-- Leading zeros are normalized (`"007"` → `"7"`).
-
-## What's Been Tried
-
-(Filled in as experiments accumulate.)
+See results.json and notes.md for CURRENT findings. log.jsonl preserves historical experiments, including subsequently invalidated/rejected candidates. Historical keep labels are not recommendations. Earlier parser results are superseded, not representative of the current implementation. The workload is synthetic, not trace-replayed: input frequencies and app impact remain unverified. Require device confirmation before merge.
