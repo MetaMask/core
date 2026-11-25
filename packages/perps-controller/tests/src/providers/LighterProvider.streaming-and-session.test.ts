@@ -1038,9 +1038,9 @@ describe('LighterProvider', () => {
       await provider.disconnect();
     });
 
-    it.each(['positions', 'account'] as const)(
-      'reports an account discovery failure to a lone %s reader, whose reopening recovers',
-      async (stream) => {
+    it.each(['subscribeToPositions', 'subscribeToAccount'] as const)(
+      'reports an account discovery failure to a lone %s reader, and recovers when it reopens',
+      async (method) => {
         const { provider, clientInstance } = buildProvider({
           webSocketCtor: fakeCtor,
           configuredAccountIndex: null,
@@ -1049,9 +1049,7 @@ describe('LighterProvider', () => {
         clientInstance.getAccountsByL1Address.mockRejectedValueOnce(failure);
         const onError = vi.fn();
         const subscribe = (): (() => void) =>
-          stream === 'positions'
-            ? provider.subscribeToPositions({ callback: vi.fn(), onError })
-            : provider.subscribeToAccount({ callback: vi.fn(), onError });
+          provider[method]({ callback: vi.fn(), onError });
         const unsubscribe = subscribe();
         await new Promise((resolveTick) => setImmediate(resolveTick));
         await new Promise((resolveTick) => setImmediate(resolveTick));
