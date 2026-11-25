@@ -3,9 +3,9 @@ import type { FetchedSecretDataItem } from '@metamask/toprf-secure-backup';
 import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 
 import { SecretType } from '../constants.js';
-import { InvalidPrimarySecretDataTypeError } from '../errors.js';
 import { SecretMetadata } from '../SecretMetadata.js';
 import type { SocialBackupsMetadata } from '../types.js';
+import { InvalidPrimarySecretDataTypeError } from './errors.js';
 
 export type SecretDataTypeMigrationUpdate = {
   itemId: string;
@@ -153,6 +153,25 @@ export function getDataTypeMigrationUpdates(
   }
 
   return updates;
+}
+
+/**
+ * Find the local backup metadata entry for secret data.
+ *
+ * @param currentBackupsMetadata - Existing backup metadata in controller state.
+ * @param data - The secret data to find.
+ * @param type - The type of the secret data.
+ * @returns The matching backup metadata, if present.
+ */
+export function findSocialBackupMetadata(
+  currentBackupsMetadata: SocialBackupsMetadata[],
+  data: Uint8Array,
+  type: SecretType = SecretType.Mnemonic,
+): SocialBackupsMetadata | undefined {
+  const backupHash = keccak256AndHexify(data);
+  return currentBackupsMetadata.find(
+    (backup) => backup.hash === backupHash && backup.type === type,
+  );
 }
 
 /**

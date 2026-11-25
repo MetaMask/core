@@ -18,15 +18,14 @@ export type {
   SeedlessOnboardingControllerAddNewSecretDataAction,
   SeedlessOnboardingControllerFetchAllSecretDataAction,
   SeedlessOnboardingControllerChangePasswordAction,
+  SeedlessOnboardingControllerCompletePasswordChangeAction,
+  SeedlessOnboardingControllerMarkPasswordChangeKeySyncPendingAction,
   SeedlessOnboardingControllerUpdateBackupMetadataStateAction,
   SeedlessOnboardingControllerVerifyVaultPasswordAction,
   SeedlessOnboardingControllerGetSecretDataBackupStateAction,
   SeedlessOnboardingControllerSubmitPasswordAction,
   SeedlessOnboardingControllerIdentifyIncompleteMetadataBackupAction,
   SeedlessOnboardingControllerSetLockedAction,
-  SeedlessOnboardingControllerSyncLatestGlobalPasswordAction,
-  SeedlessOnboardingControllerSubmitGlobalPasswordAction,
-  SeedlessOnboardingControllerCheckIsPasswordOutdatedAction,
   SeedlessOnboardingControllerGetIsUserAuthenticatedAction,
   SeedlessOnboardingControllerClearStateAction,
   SeedlessOnboardingControllerStoreKeyringEncryptionKeyAction,
@@ -39,6 +38,8 @@ export type {
   SeedlessOnboardingControllerCheckMetadataAccessTokenExpiredAction,
   SeedlessOnboardingControllerCheckAccessTokenExpiredAction,
   SeedlessOnboardingControllerRunMigrationsAction,
+  SeedlessOnboardingControllerResolvePasswordSyncStateAction,
+  SeedlessOnboardingControllerReconcilePasswordAction,
 } from './SeedlessOnboardingController-method-action-types.js';
 export type {
   AuthenticatedUserDetails,
@@ -49,23 +50,27 @@ export type {
   RecoveryErrorData,
   InvalidPrimarySecretDataTypeErrorData,
 } from './types.js';
+export type { SeedlessOperationLifecycle } from './constants.js';
 export {
   Web3AuthNetwork,
   SeedlessOnboardingControllerErrorMessage,
   SeedlessOnboardingMigrationVersion,
+  SeedlessOnboardingOperation,
+  SeedlessOnboardingCheckpoint,
   AuthConnection,
   AUTH_CONNECTION_BY_NAMESPACE,
   SecretType,
+  PasswordSyncInstruction,
 } from './constants.js';
 export { SecretMetadata } from './SecretMetadata.js';
 export {
   InvalidPrimarySecretDataTypeError,
   RecoveryError,
   SeedlessOnboardingError,
-} from './errors.js';
+} from './utils/errors.js';
 
 export { EncAccountDataType } from '@metamask/toprf-secure-backup';
-export { parseSeedlessAuthData } from './seedless-auth-data.js';
+export { parseSeedlessAuthData } from './utils/seedless-auth-data.js';
 export {
   convertUrlSafeBase64StringToBase64String,
   decodeBase64WithSafeUrlReplacements,

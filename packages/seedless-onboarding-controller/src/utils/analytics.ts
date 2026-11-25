@@ -22,12 +22,12 @@ import {
   SeedlessPrimarySrpMissingEventName,
 } from '../constants.js';
 import type { SeedlessIdentityMismatchSource } from '../constants.js';
+import { createModuleLogger, projectLogger } from '../logger.js';
+import { SecretMetadata } from '../SecretMetadata.js';
 import {
   InvalidPrimarySecretDataTypeError,
   isIdentityMismatchError,
-} from '../errors.js';
-import { createModuleLogger, projectLogger } from '../logger.js';
-import { SecretMetadata } from '../SecretMetadata.js';
+} from './errors.js';
 import {
   isPrimarySecretCandidate,
   parseSecretMetadata,

@@ -145,6 +145,13 @@ export const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControl
       includeInDebugSnapshot: true,
       usedInUi: false,
     },
+    seedlessOperationLifecycle: {
+      // Safe coordination data only: operation and checkpoint. No secrets.
+      includeInStateLogs: true,
+      persist: true,
+      includeInDebugSnapshot: true,
+      usedInUi: false,
+    },
   };
 
 /**
