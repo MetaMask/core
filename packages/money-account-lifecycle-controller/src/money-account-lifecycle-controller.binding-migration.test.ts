@@ -1,4 +1,7 @@
-import type { DerivedIdentity } from '@metamask/chomp-api-service';
+import type {
+  DerivedIdentity,
+  DerivedIdentityMigration,
+} from '@metamask/chomp-api-service';
 import { createDeferredPromise } from '@metamask/utils';
 import type { DeferredPromise, Hex } from '@metamask/utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -9,7 +12,9 @@ import {
   MIGRATED_IDENTITY,
   MIGRATING_IDENTITY,
   MONEY_ACCOUNT_ADDRESS,
+  MONEY_ACCOUNT_KEY,
   SFA_IDENTITY,
+  SUCCESSOR_ADDRESS,
   buildBindingMigrator,
   buildLinkedIdentityResponse,
   buildMigratedIdentityResponse,
@@ -17,7 +22,11 @@ import {
   withController,
 } from '../tests/helpers.js';
 import { BindingMigrationIncompleteError } from './binding-migration.js';
-import type { BindingMigrationResult } from './binding-migration.js';
+import type {
+  BindingMigrationResult,
+  BindingMigrationsState,
+} from './binding-migration.js';
+import type { MoneyAccountLifecycleController } from './money-account-lifecycle-controller.js';
 
 const SUCCESSOR_CONTEXT = {
   migrationId:
@@ -26,12 +35,14 @@ const SUCCESSOR_CONTEXT = {
   currentAddress: '0x00000000000000000000000000000000000000dd',
 };
 
+const MIGRATION_TO_SUCCESSOR: DerivedIdentityMigration = {
+  ...MIGRATING_IDENTITY.migration,
+  to: MFA_ACCOUNT_ADDRESS.toLowerCase() as Hex,
+};
+
 const MIGRATING_TO_SUCCESSOR_IDENTITY: DerivedIdentity = {
   ...MIGRATING_IDENTITY,
-  migration: {
-    ...MIGRATING_IDENTITY.migration,
-    to: MFA_ACCOUNT_ADDRESS.toLowerCase() as Hex,
-  },
+  migration: MIGRATION_TO_SUCCESSOR,
 };
 
 const MIGRATION_CONTEXT = {
@@ -40,6 +51,12 @@ const MIGRATION_CONTEXT = {
   previousAddress: '0x00000000000000000000000000000000000000aa',
   currentAddress: '0x00000000000000000000000000000000000000bb',
 };
+
+function getMigrators(
+  controller: MoneyAccountLifecycleController,
+): BindingMigrationsState['migrators'] {
+  return controller.state.bindingMigrations?.migrators ?? {};
+}
 
 describe('MoneyAccountLifecycleController binding migrations', () => {
   describe('registerBindingMigrator', () => {
@@ -63,33 +80,104 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
         });
         expect(migrator.reconcile).not.toHaveBeenCalled();
         expect(controller.state.bindingMigrations).toStrictEqual({
-          vba: {
-            phase: 'afterLink',
-            status: {
+          ...MIGRATION_CONTEXT,
+          migrators: {
+            vba: {
+              phase: 'afterLink',
               status: 'pending',
               details: { step: 'wallet-registration' },
+              lastResult: null,
+              lastError: null,
             },
-            lastResult: null,
-            lastError: null,
           },
         });
       });
     });
 
     it('gives a valid MFA the money account as the previous address and the identity current address as the current address', async () => {
+      await withController(
+        { mpcAccountAddress: SUCCESSOR_ADDRESS },
+        async ({ controller, mocks, init }) => {
+          mocks.getDerivedIdentities.mockResolvedValue({
+            identities: [MFA_IDENTITY],
+          });
+          await init();
+          const migrator = buildBindingMigrator({ phase: 'afterDone' });
+
+          controller.registerBindingMigrator(migrator);
+
+          expect(migrator.getStatus).toHaveBeenCalledWith({
+            ...MIGRATION_CONTEXT,
+            identityStatus: 'DONE',
+          });
+        },
+      );
+    });
+
+    it.each<[string, DerivedIdentity, string | undefined]>([
+      [
+        'migrating to the MPC Money Account of another wallet',
+        MIGRATING_IDENTITY,
+        '0x00000000000000000000000000000000000000ee',
+      ],
+      [
+        'migrated, without the MPC Money Account on this wallet',
+        MFA_IDENTITY,
+        undefined,
+      ],
+      [
+        'migrated to the MPC Money Account of another wallet',
+        MFA_IDENTITY,
+        '0x00000000000000000000000000000000000000ee',
+      ],
+    ])(
+      'records nothing while the money account is %s, which this wallet cannot migrate',
+      async (_description, identity, mpcAccountAddress) => {
+        await withController(
+          { mpcAccountAddress },
+          async ({ controller, mocks, init }) => {
+            mocks.getDerivedIdentities.mockResolvedValue({
+              identities: [identity],
+            });
+            await init();
+            const migrator = buildBindingMigrator({ phase: 'afterDone' });
+
+            controller.registerBindingMigrator(migrator);
+
+            expect(migrator.getStatus).not.toHaveBeenCalled();
+            expect(controller.state.bindingMigrations).toBeNull();
+          },
+        );
+      },
+    );
+
+    it('records the binding migrations of a migrating money account whose MPC Money Account is missing, as resuming restores it', async () => {
+      await withController(
+        { mpcAccountAddress: undefined },
+        async ({ controller, mocks, init }) => {
+          mocks.getDerivedIdentities.mockResolvedValue({
+            identities: [MIGRATING_IDENTITY],
+          });
+          await init();
+
+          controller.registerBindingMigrator(
+            buildBindingMigrator({ id: 'vba' }),
+          );
+
+          expect(getMigrators(controller)).toHaveProperty('vba');
+        },
+      );
+    });
+
+    it('records no binding migrations while no migrator is registered', async () => {
       await withController(async ({ controller, mocks, init }) => {
         mocks.getDerivedIdentities.mockResolvedValue({
-          identities: [MFA_IDENTITY],
+          identities: [MIGRATING_IDENTITY],
         });
+
         await init();
-        const migrator = buildBindingMigrator({ phase: 'afterDone' });
 
-        controller.registerBindingMigrator(migrator);
-
-        expect(migrator.getStatus).toHaveBeenCalledWith({
-          ...MIGRATION_CONTEXT,
-          identityStatus: 'DONE',
-        });
+        expect(controller.state.bindingMigrations).toBeNull();
       });
     });
 
@@ -107,25 +195,34 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
           controller.registerBindingMigrator(migrator);
 
           expect(migrator.getStatus).not.toHaveBeenCalled();
-          expect(controller.state.bindingMigrations).toStrictEqual({});
+          expect(controller.state.bindingMigrations).toBeNull();
         });
       },
     );
 
-    it('records nothing while the wallet is locked', async () => {
+    it('records nothing while the wallet is locked, even with a migrating lifecycle recorded', async () => {
       await withController(
-        { isUnlocked: false },
-        async ({ controller, mocks, init }) => {
-          mocks.getDerivedIdentities.mockResolvedValue({
-            identities: [MIGRATING_IDENTITY],
-          });
+        {
+          isUnlocked: false,
+          options: {
+            state: {
+              moneyAccounts: {
+                [MONEY_ACCOUNT_KEY]: {
+                  type: 'migrating',
+                  identity: MIGRATING_IDENTITY,
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, init }) => {
           await init();
           const migrator = buildBindingMigrator();
 
           controller.registerBindingMigrator(migrator);
 
           expect(migrator.getStatus).not.toHaveBeenCalled();
-          expect(controller.state.bindingMigrations).toStrictEqual({});
+          expect(controller.state.bindingMigrations).toBeNull();
         },
       );
     });
@@ -140,7 +237,7 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
           controller.registerBindingMigrator(migrator);
 
           expect(migrator.getStatus).not.toHaveBeenCalled();
-          expect(controller.state.bindingMigrations).toStrictEqual({});
+          expect(controller.state.bindingMigrations).toBeNull();
         },
       );
     });
@@ -159,7 +256,7 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
           buildBindingMigrator({ id: 'first', phase: 'afterLink' }),
         );
 
-        expect(Object.keys(controller.state.bindingMigrations)).toStrictEqual([
+        expect(Object.keys(getMigrators(controller))).toStrictEqual([
           'second',
           'first',
         ]);
@@ -207,10 +304,11 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
 
         controller.registerBindingMigrator(migrator);
 
-        expect(controller.state.bindingMigrations).toStrictEqual({
+        expect(getMigrators(controller)).toStrictEqual({
           vba: {
             phase: 'afterLink',
-            status: { status: 'unknown' },
+            status: 'unknown',
+            details: null,
             lastResult: null,
             lastError: null,
           },
@@ -233,7 +331,7 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
             migrator,
           );
 
-          expect(controller.state.bindingMigrations).toHaveProperty('vba');
+          expect(getMigrators(controller)).toHaveProperty('vba');
         },
       );
     });
@@ -250,16 +348,12 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
 
         await init();
 
-        expect(controller.state.bindingMigrations.vba?.status).toStrictEqual({
-          status: 'unknown',
-        });
+        expect(getMigrators(controller).vba?.status).toBe('unknown');
 
         migrator.getStatus.mockReturnValue({ status: 'completed' });
         await controller.refresh();
 
-        expect(controller.state.bindingMigrations.vba?.status).toStrictEqual({
-          status: 'completed',
-        });
+        expect(getMigrators(controller).vba?.status).toBe('completed');
       });
     });
 
@@ -276,7 +370,7 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
 
         await controller.refresh();
 
-        expect(controller.state.bindingMigrations).toStrictEqual({});
+        expect(controller.state.bindingMigrations).toBeNull();
       });
     });
 
@@ -294,12 +388,12 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
           gates.isUnlocked = false;
           await triggerKeyringChange();
 
-          expect(controller.state.bindingMigrations).toStrictEqual({});
+          expect(controller.state.bindingMigrations).toBeNull();
 
           gates.isUnlocked = true;
           await triggerKeyringChange();
 
-          expect(controller.state.bindingMigrations).toHaveProperty('vba');
+          expect(getMigrators(controller)).toHaveProperty('vba');
         },
       );
     });
@@ -314,11 +408,11 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
 
         controller.clearState();
 
-        expect(controller.state.bindingMigrations).toStrictEqual({});
+        expect(controller.state.bindingMigrations).toBeNull();
 
         await controller.refresh();
 
-        expect(controller.state.bindingMigrations).toHaveProperty('vba');
+        expect(getMigrators(controller)).toHaveProperty('vba');
       });
     });
   });
@@ -397,6 +491,22 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
       });
     });
 
+    it('does not run a migrator registered while its phase is running', async () => {
+      await withController(async ({ controller }) => {
+        const lateMigrator = buildBindingMigrator({ id: 'late' });
+        const migrator = buildBindingMigrator({ id: 'first' });
+        migrator.reconcile.mockImplementation(async () => {
+          controller.registerBindingMigrator(lateMigrator);
+          return { status: 'completed' };
+        });
+        controller.registerBindingMigrator(migrator);
+
+        await controller.startMigration();
+
+        expect(lateMigrator.reconcile).not.toHaveBeenCalled();
+      });
+    });
+
     it('records the result and the status of each migrator it runs', async () => {
       await withController(async ({ controller, mocks }) => {
         mocks.getDerivedIdentities
@@ -415,11 +525,15 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
         await controller.startMigration();
 
         expect(controller.state.bindingMigrations).toStrictEqual({
-          vba: {
-            phase: 'afterLink',
-            status: { status: 'completed' },
-            lastResult: { status: 'completed' },
-            lastError: null,
+          ...SUCCESSOR_CONTEXT,
+          migrators: {
+            vba: {
+              phase: 'afterLink',
+              status: 'completed',
+              details: null,
+              lastResult: { status: 'completed' },
+              lastError: null,
+            },
           },
         });
       });
@@ -480,9 +594,10 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
         expect(mocks.getSubscriptions).not.toHaveBeenCalled();
         expect(mocks.registerMigrationIntents).not.toHaveBeenCalled();
         expect(getLifecycle(controller)?.type).toBe('migrating');
-        expect(
-          controller.state.bindingMigrations.blocked?.lastResult,
-        ).toStrictEqual({ status: 'blocked', reason: 'Denied' });
+        expect(getMigrators(controller).blocked?.lastResult).toStrictEqual({
+          status: 'blocked',
+          reason: 'Denied',
+        });
       });
     });
 
@@ -544,9 +659,10 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
           ]),
         );
         expect(mocks.captureException).toHaveBeenCalledWith(error);
-        expect(controller.state.bindingMigrations.vba).toStrictEqual({
+        expect(getMigrators(controller).vba).toStrictEqual({
           phase: 'afterLink',
-          status: { status: 'unknown' },
+          status: 'unknown',
+          details: null,
           lastResult: { status: 'pending', reason: 'Network failure' },
           lastError: 'Network failure',
         });
@@ -585,7 +701,7 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
           'Money Account migration is not available',
         );
         expect(second.reconcile).not.toHaveBeenCalled();
-        expect(controller.state.bindingMigrations).toStrictEqual({});
+        expect(controller.state.bindingMigrations).toBeNull();
       });
     });
 
@@ -610,9 +726,9 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
 
           await controller.startMigration();
 
-          expect(
-            controller.state.bindingMigrations.first?.lastResult,
-          ).toStrictEqual({ status: 'completed' });
+          expect(getMigrators(controller).first?.lastResult).toStrictEqual({
+            status: 'completed',
+          });
         },
       );
     });
@@ -662,7 +778,7 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
           expect(mocks.captureException).toHaveBeenCalledWith(
             new Error("Binding migrator 'slow' timed out after 30000 ms"),
           );
-          expect(controller.state.bindingMigrations.slow?.lastError).toBe(
+          expect(getMigrators(controller).slow?.lastError).toBe(
             'Timed out after 30000 ms',
           );
         });
@@ -728,9 +844,7 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
             settle(deferred);
             await vi.advanceTimersByTimeAsync(0);
 
-            expect(
-              controller.state.bindingMigrations.slow?.lastResult,
-            ).toStrictEqual({
+            expect(getMigrators(controller).slow?.lastResult).toStrictEqual({
               status: 'pending',
               reason: 'Timed out after 1000 ms',
             });
@@ -933,7 +1047,7 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
         });
       });
 
-      it('does not run the afterDone migrators when the refetched identities do not show the migration finished', async () => {
+      it('runs the afterDone migrators for the identity CHOMP reported finished, even when the refetched identities lag behind', async () => {
         await withController(
           { mpcAccountAddress: MFA_ACCOUNT_ADDRESS },
           async ({ controller, mocks }) => {
@@ -950,9 +1064,54 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
             await vi.advanceTimersByTimeAsync(2000);
 
             expect(await migration).toBeUndefined();
-            expect(migrator.reconcile).not.toHaveBeenCalled();
+            expect(migrator.reconcile).toHaveBeenCalledWith({
+              ...SUCCESSOR_CONTEXT,
+              identityStatus: 'DONE',
+            });
           },
         );
+      });
+
+      it('runs the afterDone migrators even when refetching the identities fails', async () => {
+        await withController(
+          { mpcAccountAddress: MFA_ACCOUNT_ADDRESS },
+          async ({ controller, mocks }) => {
+            mocks.getDerivedIdentities
+              .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+              .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+              .mockResolvedValueOnce({
+                identities: [MIGRATING_TO_SUCCESSOR_IDENTITY],
+              })
+              .mockRejectedValue(new Error('CHOMP unavailable'));
+            mocks.getDerivedIdentityByAddress.mockResolvedValue(
+              buildMigratedIdentityResponse(),
+            );
+            const migrator = buildBindingMigrator({ phase: 'afterDone' });
+            controller.registerBindingMigrator(migrator);
+
+            const migration = controller.startMigration();
+            await vi.advanceTimersByTimeAsync(2000);
+
+            expect(await migration).toBeUndefined();
+            expect(migrator.reconcile).toHaveBeenCalledTimes(1);
+          },
+        );
+      });
+
+      it('gives up after a minute of waiting even when the clock moves back', async () => {
+        await withController(async ({ controller, mocks }) => {
+          controller.registerBindingMigrator(
+            buildBindingMigrator({ phase: 'afterDone' }),
+          );
+
+          const migration = controller.startMigration();
+          await vi.advanceTimersByTimeAsync(2000);
+          vi.setSystemTime(Date.now() - 24 * 60 * 60 * 1000);
+          await vi.advanceTimersByTimeAsync(58_000);
+
+          expect(await migration).toBeUndefined();
+          expect(mocks.getDerivedIdentityByAddress).toHaveBeenCalledTimes(7);
+        });
       });
     });
 
@@ -1013,6 +1172,457 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
           );
         },
       );
+    });
+  });
+
+  describe('registerBindingMigrator validation', () => {
+    it.each<[string, Record<string, unknown>, string]>([
+      [
+        'an empty id',
+        { id: '' },
+        'A binding migrator needs a non-empty string id other than __proto__',
+      ],
+      [
+        'the id __proto__',
+        { id: '__proto__' },
+        'A binding migrator needs a non-empty string id other than __proto__',
+      ],
+      [
+        'an id that is not a string',
+        { id: 1 },
+        'A binding migrator needs a non-empty string id other than __proto__',
+      ],
+      [
+        'an unknown phase',
+        { phase: 'afterlink' },
+        "Binding migrator 'vba' has an unknown phase 'afterlink'",
+      ],
+      [
+        'no reconcile function',
+        { reconcile: undefined },
+        "Binding migrator 'vba' needs reconcile and getStatus functions",
+      ],
+      [
+        'no getStatus function',
+        { getStatus: 'completed' },
+        "Binding migrator 'vba' needs reconcile and getStatus functions",
+      ],
+      [
+        'a timeout that is not a number',
+        { timeoutMs: '5000' },
+        "The timeout of binding migrator 'vba' must be a positive number of milliseconds up to 2147483647",
+      ],
+    ])('throws for %s', async (_description, overrides, message) => {
+      await withController(({ controller }) => {
+        const migrator = {
+          ...buildBindingMigrator({ id: 'vba' }),
+          ...overrides,
+        };
+
+        expect(() =>
+          controller.registerBindingMigrator(
+            migrator as unknown as Parameters<
+              typeof controller.registerBindingMigrator
+            >[0],
+          ),
+        ).toThrow(message);
+      });
+    });
+
+    it('accepts the longest timeout setTimeout supports', async () => {
+      await withController(({ controller }) => {
+        expect(() =>
+          controller.registerBindingMigrator(
+            buildBindingMigrator({ timeoutMs: 2 ** 31 - 1 }),
+          ),
+        ).not.toThrow();
+      });
+    });
+
+    it('registers the migrator and reports the error when its status cannot be recorded', async () => {
+      await withController(async ({ controller, mocks }) => {
+        const error = new Error('Handler not registered');
+        mocks.getMoneyAccount.mockImplementationOnce(() => {
+          throw error;
+        });
+
+        controller.registerBindingMigrator(buildBindingMigrator({ id: 'vba' }));
+
+        expect(mocks.captureException).toHaveBeenCalledWith(error);
+        expect(() =>
+          controller.registerBindingMigrator(
+            buildBindingMigrator({ id: 'vba' }),
+          ),
+        ).toThrow("A binding migrator with the id 'vba' is already registered");
+      });
+    });
+  });
+
+  describe('binding migrator statuses', () => {
+    it('records a copy of the details, so the migrator can keep changing its own objects', async () => {
+      await withController(async ({ controller, mocks, init }) => {
+        mocks.getDerivedIdentities.mockResolvedValue({
+          identities: [MIGRATING_IDENTITY],
+        });
+        await init();
+        const progress = { status: 'pending' as const, details: { step: 1 } };
+        const migrator = buildBindingMigrator({ id: 'vba' });
+        migrator.getStatus.mockReturnValue(progress);
+
+        controller.registerBindingMigrator(migrator);
+        progress.details.step = 2;
+
+        expect(Object.isFrozen(progress.details)).toBe(false);
+        expect(getMigrators(controller).vba?.details).toStrictEqual({
+          step: 1,
+        });
+      });
+    });
+
+    it.each([
+      ['nothing', undefined],
+      ['an unknown status', { status: 'failed' }],
+      [
+        'details that are not JSON',
+        { status: 'pending', details: { at: (): void => undefined } },
+      ],
+    ])(
+      'records an unknown status and reports it when the migrator returns %s',
+      async (_description, status) => {
+        await withController(async ({ controller, mocks, init }) => {
+          mocks.getDerivedIdentities.mockResolvedValue({
+            identities: [MIGRATING_IDENTITY],
+          });
+          await init();
+          const migrator = buildBindingMigrator({ id: 'vba' });
+          migrator.getStatus.mockReturnValue(status as never);
+
+          controller.registerBindingMigrator(migrator);
+
+          expect(getMigrators(controller).vba?.status).toBe('unknown');
+          expect(mocks.captureException).toHaveBeenCalledWith(
+            new Error("Binding migrator 'vba' returned an invalid status"),
+          );
+        });
+      },
+    );
+
+    it('reports a thrown value that cannot be turned into a string', async () => {
+      await withController(async ({ controller, mocks, init }) => {
+        mocks.getDerivedIdentities.mockResolvedValue({
+          identities: [MIGRATING_IDENTITY],
+        });
+        await init();
+        const migrator = buildBindingMigrator({ id: 'vba' });
+        migrator.getStatus.mockImplementation(() => {
+          throw Object.create(null);
+        });
+
+        controller.registerBindingMigrator(migrator);
+
+        expect(getMigrators(controller).vba?.status).toBe('unknown');
+        expect(mocks.captureException).toHaveBeenCalledWith(
+          new Error('Unknown error'),
+        );
+      });
+    });
+  });
+
+  describe('binding migration results', () => {
+    it.each<{
+      description: string;
+      reset: (payload: {
+        controller: MoneyAccountLifecycleController;
+        gates: { isUnlocked: boolean };
+        triggerKeyringChange: () => Promise<void>;
+      }) => Promise<void>;
+    }>([
+      {
+        description: 'clearState',
+        reset: async ({ controller }): Promise<void> => {
+          controller.clearState();
+        },
+      },
+      {
+        description: 'the wallet locks and unlocks',
+        reset: async ({ gates, triggerKeyringChange }): Promise<void> => {
+          gates.isUnlocked = false;
+          await triggerKeyringChange();
+          gates.isUnlocked = true;
+          await triggerKeyringChange();
+        },
+      },
+    ])('forgets the last results after $description', async ({ reset }) => {
+      await withController(
+        async ({ controller, gates, mocks, init, triggerKeyringChange }) => {
+          await init();
+          mocks.getDerivedIdentities
+            .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+            .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+            .mockResolvedValue({
+              identities: [MIGRATING_TO_SUCCESSOR_IDENTITY],
+            });
+          const migrator = buildBindingMigrator({ id: 'vba' });
+          migrator.reconcile.mockResolvedValue({
+            status: 'pending',
+            reason: 'Busy',
+          });
+          controller.registerBindingMigrator(migrator);
+          await controller.startMigration().catch(() => undefined);
+          expect(getMigrators(controller).vba?.lastResult).toStrictEqual({
+            status: 'pending',
+            reason: 'Busy',
+          });
+
+          await reset({ controller, gates, triggerKeyringChange });
+          await controller.refresh();
+
+          expect(getMigrators(controller).vba?.lastResult).toBeNull();
+        },
+      );
+    });
+
+    it('records each result as soon as the migrator returns, including in the afterDone phase', async () => {
+      await withController(
+        { mpcAccountAddress: MFA_ACCOUNT_ADDRESS },
+        async ({ controller, mocks }) => {
+          mocks.getDerivedIdentities.mockResolvedValue({
+            identities: [MIGRATED_IDENTITY],
+          });
+          const migrator = buildBindingMigrator({
+            id: 'rewards',
+            phase: 'afterDone',
+          });
+          migrator.reconcile.mockImplementation(async () => {
+            migrator.getStatus.mockReturnValue({ status: 'completed' });
+            return { status: 'completed' };
+          });
+          controller.registerBindingMigrator(migrator);
+
+          await controller.startMigration();
+
+          expect(getMigrators(controller).rewards).toStrictEqual({
+            phase: 'afterDone',
+            status: 'completed',
+            details: null,
+            lastResult: { status: 'completed' },
+            lastError: null,
+          });
+        },
+      );
+    });
+
+    it('treats an invalid result as pending, reports it, and does not start the funds transfer', async () => {
+      await withController(async ({ controller, mocks }) => {
+        const migrator = buildBindingMigrator({
+          id: 'vba',
+          phase: 'beforeFundsTransfer',
+        });
+        migrator.reconcile.mockResolvedValue({ status: 'failed' } as never);
+        controller.registerBindingMigrator(migrator);
+
+        await expect(controller.startMigration()).rejects.toStrictEqual(
+          new BindingMigrationIncompleteError('beforeFundsTransfer', [
+            {
+              migratorId: 'vba',
+              result: { status: 'pending', reason: 'Invalid result' },
+            },
+          ]),
+        );
+        expect(mocks.startFundsTransfer).not.toHaveBeenCalled();
+        expect(mocks.captureException).toHaveBeenCalledWith(
+          new Error("Binding migrator 'vba' returned an invalid result"),
+        );
+      });
+    });
+
+    it('treats a migrator that returns something other than a promise like one', async () => {
+      await withController(async ({ controller }) => {
+        const migrator = buildBindingMigrator({ id: 'vba' });
+        migrator.reconcile.mockReturnValue({ status: 'completed' } as never);
+        controller.registerBindingMigrator(migrator);
+
+        expect(await controller.startMigration()).toBeUndefined();
+      });
+    });
+
+    it('records only the fields of a result', async () => {
+      await withController(async ({ controller, mocks }) => {
+        mocks.getDerivedIdentities
+          .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+          .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+          .mockResolvedValue({ identities: [MIGRATING_TO_SUCCESSOR_IDENTITY] });
+        const migrator = buildBindingMigrator({ id: 'vba' });
+        migrator.reconcile.mockResolvedValue({
+          status: 'completed',
+          signature: '0xdeadbeef',
+        } as BindingMigrationResult);
+        controller.registerBindingMigrator(migrator);
+
+        await controller.startMigration();
+
+        expect(getMigrators(controller).vba?.lastResult).toStrictEqual({
+          status: 'completed',
+        });
+      });
+    });
+  });
+
+  describe('when the migration resumes after the funds transfer started', () => {
+    it('only runs the afterDone migrators, as the earlier phases have passed', async () => {
+      vi.useFakeTimers();
+      try {
+        const transferring: DerivedIdentity = {
+          ...MIGRATING_TO_SUCCESSOR_IDENTITY,
+          migration: {
+            ...MIGRATION_TO_SUCCESSOR,
+            transfer: { requestId: 'transfer-request-id', status: 'PENDING' },
+          },
+        };
+        await withController(
+          { mpcAccountAddress: MFA_ACCOUNT_ADDRESS },
+          async ({ controller, mocks }) => {
+            mocks.getDerivedIdentities.mockResolvedValue({
+              identities: [transferring],
+            });
+            mocks.getDerivedIdentityByAddress.mockResolvedValue(
+              buildMigratedIdentityResponse(),
+            );
+            const afterLink = buildBindingMigrator({ id: 'afterLink' });
+            const beforeFundsTransfer = buildBindingMigrator({
+              id: 'beforeFundsTransfer',
+              phase: 'beforeFundsTransfer',
+            });
+            const afterDone = buildBindingMigrator({
+              id: 'afterDone',
+              phase: 'afterDone',
+            });
+            controller.registerBindingMigrator(afterLink);
+            controller.registerBindingMigrator(beforeFundsTransfer);
+            controller.registerBindingMigrator(afterDone);
+
+            const migration = controller.startMigration();
+            await vi.advanceTimersByTimeAsync(2000);
+
+            expect(await migration).toBeUndefined();
+            expect(afterLink.reconcile).not.toHaveBeenCalled();
+            expect(beforeFundsTransfer.reconcile).not.toHaveBeenCalled();
+            expect(afterDone.reconcile).toHaveBeenCalledTimes(1);
+            expect(mocks.startFundsTransfer).toHaveBeenCalledTimes(1);
+          },
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  describe('when the money account has migrated and another identity is migrating', () => {
+    it('still runs the afterDone migrators', async () => {
+      await withController(
+        { mpcAccountAddress: MFA_ACCOUNT_ADDRESS },
+        async ({ controller, mocks }) => {
+          mocks.getDerivedIdentities.mockResolvedValue({
+            identities: [
+              MIGRATED_IDENTITY,
+              {
+                ...MIGRATING_IDENTITY,
+                currentAddress: '0x00000000000000000000000000000000000000ee',
+                migration: null,
+              },
+            ],
+          });
+          const migrator = buildBindingMigrator({ phase: 'afterDone' });
+          controller.registerBindingMigrator(migrator);
+
+          expect(await controller.startMigration()).toBeUndefined();
+          expect(migrator.reconcile).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+  });
+
+  describe('when a migrator is still running from an earlier run', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('waits for that call instead of calling reconcile again', async () => {
+      await withController(async ({ controller, mocks }) => {
+        mocks.getDerivedIdentities
+          .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+          .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+          .mockResolvedValue({ identities: [MIGRATING_TO_SUCCESSOR_IDENTITY] });
+        mocks.createMoneyAccount.mockResolvedValue({
+          id: 'mpc-account-id',
+          address: MFA_ACCOUNT_ADDRESS,
+        } as never);
+        const deferred = createDeferredPromise<BindingMigrationResult>();
+        const slow = buildBindingMigrator({ id: 'slow', timeoutMs: 1000 });
+        slow.reconcile.mockReturnValue(deferred.promise);
+        controller.registerBindingMigrator(slow);
+
+        const first = controller
+          .startMigration()
+          .catch((error: unknown) => error);
+        await vi.advanceTimersByTimeAsync(1000);
+        expect(await first).toBeInstanceOf(BindingMigrationIncompleteError);
+
+        const second = controller.startMigration();
+        await vi.advanceTimersByTimeAsync(100);
+        expect(slow.reconcile).toHaveBeenCalledTimes(1);
+        deferred.resolve({ status: 'completed' });
+
+        expect(await second).toBeUndefined();
+        expect(slow.reconcile).toHaveBeenCalledTimes(1);
+        expect(getMigrators(controller).slow?.lastResult).toStrictEqual({
+          status: 'completed',
+        });
+      });
+    });
+
+    it('leaves no timer behind once a migrator settles', async () => {
+      await withController(async ({ controller }) => {
+        controller.registerBindingMigrator(buildBindingMigrator());
+
+        await controller.startMigration();
+
+        expect(vi.getTimerCount()).toBe(0);
+      });
+    });
+  });
+
+  describe('when the state is cleared while a migration runs', () => {
+    it('starts a new migration once the earlier one has stopped, instead of joining it', async () => {
+      await withController(async ({ controller, mocks }) => {
+        const deferred = createDeferredPromise<BindingMigrationResult>();
+        const migrator = buildBindingMigrator({ id: 'vba' });
+        migrator.reconcile
+          .mockReturnValueOnce(deferred.promise)
+          .mockResolvedValue({ status: 'completed' });
+        controller.registerBindingMigrator(migrator);
+
+        const first = controller
+          .startMigration()
+          .catch((error: unknown) => error);
+        await vi.waitFor(() => expect(migrator.reconcile).toHaveBeenCalled());
+        controller.clearState();
+        const second = controller.startMigration();
+        deferred.resolve({ status: 'completed' });
+
+        expect(await first).toStrictEqual(
+          new Error(
+            'Money Account migration was interrupted because the state was cleared',
+          ),
+        );
+        expect(await second).toBeUndefined();
+        expect(mocks.createMoneyAccount).toHaveBeenCalledTimes(2);
+        expect(migrator.reconcile).toHaveBeenCalledTimes(2);
+      });
     });
   });
 });

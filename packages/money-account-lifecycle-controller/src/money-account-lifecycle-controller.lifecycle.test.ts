@@ -278,7 +278,7 @@ describe('MoneyAccountLifecycleController', () => {
           expect(controller.state).toStrictEqual({
             moneyAccounts: {},
             addressRegistrations: {},
-            bindingMigrations: {},
+            bindingMigrations: null,
           });
 
           gates.moneyAccountAddress = MONEY_ACCOUNT_ADDRESS;
@@ -292,7 +292,7 @@ describe('MoneyAccountLifecycleController', () => {
             addressRegistrations: {
               [MONEY_ACCOUNT_KEY]: { isRegistered: true },
             },
-            bindingMigrations: {},
+            bindingMigrations: null,
           });
         },
       );

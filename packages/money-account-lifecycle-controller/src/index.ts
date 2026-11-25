@@ -23,8 +23,9 @@ export type {
   BindingMigrationContext,
   BindingMigrationPhase,
   BindingMigrationResult,
-  BindingMigrationState,
+  BindingMigrationsState,
   BindingMigrator,
+  BindingMigratorState,
   BindingMigratorStatus,
   IncompleteBindingMigration,
 } from './binding-migration.js';

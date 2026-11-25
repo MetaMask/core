@@ -52,19 +52,25 @@ import type {
   SubscriptionControllerUpdatePaymentMethodAction,
   SubscriptionDelegationServicePrepareDelegationAction,
 } from '@metamask/subscription-controller';
+import { getErrorMessage } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import deepEqual from 'fast-deep-equal';
 
 import {
+  BINDING_MIGRATION_PHASES,
   BindingMigrationIncompleteError,
   buildBindingMigrationContext,
+  getRunnableBindingMigrationPhases,
+  sanitizeBindingMigrationResult,
+  sanitizeBindingMigratorStatus,
 } from './binding-migration.js';
 import type {
   BindingMigrationContext,
   BindingMigrationPhase,
   BindingMigrationResult,
-  BindingMigrationState,
+  BindingMigrationsState,
   BindingMigrator,
+  BindingMigratorState,
   IncompleteBindingMigration,
 } from './binding-migration.js';
 import {
@@ -112,9 +118,7 @@ export type MoneyAccountLifecycleControllerState = {
   addressRegistrations: {
     [address: string]: AddressRegistration;
   };
-  bindingMigrations: {
-    [migratorId: string]: BindingMigrationState;
-  };
+  bindingMigrations: BindingMigrationsState | null;
 };
 
 const moneyAccountLifecycleControllerMetadata = {
@@ -142,7 +146,7 @@ export function getDefaultMoneyAccountLifecycleControllerState(): MoneyAccountLi
   return {
     moneyAccounts: {},
     addressRegistrations: {},
-    bindingMigrations: {},
+    bindingMigrations: null,
   };
 }
 
@@ -237,14 +241,18 @@ export class MoneyAccountLifecycleController extends BaseController<
     Promise<MoneyAccountRegistrationStatus>
   >();
 
-  #migrationInFlight?: Promise<void>;
+  #migrationInFlight?: { promise: Promise<void>; generation: number };
 
   readonly #bindingMigrators = new Map<string, BindingMigrator>();
 
   readonly #bindingMigrationResults = new Map<
     string,
-    Pick<BindingMigrationState, 'lastResult' | 'lastError'>
+    Pick<BindingMigratorState, 'lastResult' | 'lastError'> & {
+      migrationId: Hex;
+    }
   >();
+
+  readonly #reconcilesInFlight = new Map<string, Promise<unknown>>();
 
   /**
    * Bumped by `clearState`. Upgrades and migrations capture it when they
@@ -539,39 +547,48 @@ export class MoneyAccountLifecycleController extends BaseController<
    *
    * Registered binding migrators run once the successor is linked
    * (`afterLink`) and before the funds transfer starts
-   * (`beforeFundsTransfer`). When `afterDone` migrators are registered, this
-   * then waits up to a minute for CHOMP to finish moving the funds and runs
-   * them. If the funds have not moved by then, or their transfer failed,
-   * this resolves without running them; calling this again once the
-   * migration has finished runs them.
+   * (`beforeFundsTransfer`), until CHOMP has started the funds transfer:
+   * from then on those phases have passed, and their migrators are never run
+   * again, even when the migration resumes. When `afterDone` migrators are
+   * registered, this then waits up to a minute for CHOMP to finish moving the
+   * funds and runs them. If the funds have not moved by then, or their
+   * transfer failed, this resolves without running them; calling this again
+   * once the migration has finished runs them.
    *
    * Only one migration runs at a time. A call made while one is in flight
    * joins it instead of starting another: it gets the same promise, so it
    * resolves or rejects with that migration's outcome. A call made after it
-   * settles starts a new run.
+   * settles starts a new run. After `clearState`, a call waits for the
+   * migration that was in flight to stop, without taking on its outcome, and
+   * then starts a new run.
    *
    * @returns A promise that resolves once the migration run, started by this
    * call or joined by it, completes.
-   * @throws If a Money Account upgrade is in flight, the checks fail, the wallet stops being ready part way, or linking the
-   * successor, moving the subscription, registering the intents or starting
-   * the funds transfer fails. A `BindingMigrationIncompleteError` once every
-   * binding migrator of a phase has run, if any of them is pending or
-   * blocked.
+   * @throws If a Money Account upgrade is in flight, the checks fail, the
+   * wallet stops being ready part way, or linking the successor, moving the
+   * subscription, registering the intents or starting the funds transfer
+   * fails. A `BindingMigrationIncompleteError` once every binding migrator of
+   * a phase has run, if any of them is pending or blocked.
    */
   async startMigration(): Promise<void> {
-    if (this.#migrationInFlight) {
-      return this.#migrationInFlight;
+    const inFlight = this.#migrationInFlight;
+    if (inFlight?.generation === this.#generation) {
+      return inFlight.promise;
+    }
+    if (inFlight) {
+      await inFlight.promise.catch(() => undefined);
+      return this.startMigration();
     }
 
     if (this.#upgradesInFlight.size > 0) {
       throw new Error('A Money Account upgrade is in progress');
     }
 
-    const migration = this.#startMigration().finally(() => {
+    const promise = this.#startMigration().finally(() => {
       this.#migrationInFlight = undefined;
     });
-    this.#migrationInFlight = migration;
-    return migration;
+    this.#migrationInFlight = { promise, generation: this.#generation };
+    return promise;
   }
 
   /**
@@ -599,75 +616,93 @@ export class MoneyAccountLifecycleController extends BaseController<
    * Registers a migrator that moves an integration bound to the Money Account
    * address, such as a deposit destination, to the MPC Money Account when the
    * Money Account migrates. `startMigration` runs it in its phase, in
-   * registration order; it is never run once its phase has passed.
+   * registration order. A migrator is never run once its phase has passed,
+   * including when it is registered after that: owners must roll out a
+   * migrator before the migrations it has to cover reach its phase.
    *
-   * While the Money Account is migrating or migrated, its status from
-   * `getStatus` is recorded in `bindingMigrations`, now and after each
-   * identity fetch.
+   * While the Money Account is migrating or migrated, and this wallet can
+   * drive that migration, its status from `getStatus` is recorded in
+   * `bindingMigrations`, now, after each identity fetch, and after each of
+   * its runs. Register migrators when the client starts, before it can call
+   * `startMigration`.
    *
-   * @param migrator - The binding migrator.
-   * @throws If a migrator with the same id is already registered.
+   * @param migrator - The binding migrator. It holds functions, so it can
+   * only be passed within the same process.
+   * @throws If the migrator is invalid, or one with the same id is already
+   * registered.
    */
   registerBindingMigrator(migrator: BindingMigrator): void {
+    assertValidBindingMigrator(migrator);
     if (this.#bindingMigrators.has(migrator.id)) {
       throw new Error(
         `A binding migrator with the id '${migrator.id}' is already registered`,
       );
     }
-    const { timeoutMs } = migrator;
-    if (
-      timeoutMs !== undefined &&
-      !(timeoutMs > 0 && timeoutMs <= MAX_TIMEOUT_MS)
-    ) {
-      throw new Error(
-        `The timeout of binding migrator '${migrator.id}' must be a positive number of milliseconds up to ${MAX_TIMEOUT_MS}`,
-      );
-    }
     this.#bindingMigrators.set(migrator.id, migrator);
 
-    const moneyAccount = this.messenger.call(
-      'MoneyAccountController:getMoneyAccount',
-      { type: 'mnemonic' },
-    );
-    if (moneyAccount && this.#isReady()) {
-      this.#recordBindingMigratorStatuses(moneyAccount.address);
+    try {
+      const moneyAccount = this.messenger.call(
+        'MoneyAccountController:getMoneyAccount',
+        { type: 'mnemonic' },
+      );
+      if (moneyAccount && this.#isReady()) {
+        this.#recordBindingMigratorStatuses(moneyAccount.address);
+      }
+    } catch (error) {
+      this.#reportError(error);
     }
   }
 
   #recordBindingMigratorStatuses(moneyAccountAddress: string): void {
-    const context = this.#getBindingMigrationContext(moneyAccountAddress);
+    const context =
+      this.#bindingMigrators.size > 0
+        ? this.#getBindingMigrationContext(moneyAccountAddress)
+        : undefined;
     this.#setBindingMigrations(
-      context ? this.#buildBindingMigrations(context) : {},
+      context ? this.#buildBindingMigrations(context) : null,
     );
   }
 
   #buildBindingMigrations(
     context: BindingMigrationContext,
-  ): MoneyAccountLifecycleControllerState['bindingMigrations'] {
-    const bindingMigrations: MoneyAccountLifecycleControllerState['bindingMigrations'] =
-      {};
+  ): BindingMigrationsState {
+    const migrators: BindingMigrationsState['migrators'] = {};
     for (const migrator of this.#bindingMigrators.values()) {
       const previous = this.#bindingMigrationResults.get(migrator.id);
-      bindingMigrations[migrator.id] = {
+      const isSameMigration = previous?.migrationId === context.migrationId;
+      migrators[migrator.id] = {
         phase: migrator.phase,
-        status: this.#getBindingMigratorStatus(migrator, context),
-        lastResult: previous?.lastResult ?? null,
-        lastError: previous?.lastError ?? null,
+        ...this.#getBindingMigratorStatus(migrator, context),
+        lastResult: isSameMigration ? previous.lastResult : null,
+        lastError: isSameMigration ? previous.lastError : null,
       };
     }
-    return bindingMigrations;
+    return {
+      migrationId: context.migrationId,
+      previousAddress: context.previousAddress,
+      currentAddress: context.currentAddress,
+      migrators,
+    };
   }
 
   #getBindingMigratorStatus(
     migrator: BindingMigrator,
     context: BindingMigrationContext,
-  ): BindingMigrationState['status'] {
+  ): Pick<BindingMigratorState, 'status' | 'details'> {
     try {
-      return migrator.getStatus(context);
+      const status = sanitizeBindingMigratorStatus(migrator.getStatus(context));
+      if (status) {
+        return status;
+      }
+      this.#reportError(
+        new Error(
+          `Binding migrator '${migrator.id}' returned an invalid status`,
+        ),
+      );
     } catch (error) {
       this.#reportError(error);
-      return { status: 'unknown' };
     }
+    return { status: 'unknown', details: null };
   }
 
   #setBindingMigrations(
@@ -681,23 +716,50 @@ export class MoneyAccountLifecycleController extends BaseController<
     });
   }
 
+  /**
+   * The context of the migration this wallet can drive, if any. A migrating
+   * Money Account can be resumed when its MPC Money Account is missing, as
+   * `startMigration` restores it, but not towards another wallet's MPC Money
+   * Account. The `afterDone` migrators of a migrated Money Account only run
+   * when this wallet holds the MPC Money Account it migrated to.
+   *
+   * @param moneyAccountAddress - The address of the Money Account.
+   * @returns The context, or `undefined` when there is none.
+   */
   #getBindingMigrationContext(
     moneyAccountAddress: string,
   ): BindingMigrationContext | undefined {
     const lifecycle =
       this.state.moneyAccounts[moneyAccountAddress.toLowerCase()];
-    if (lifecycle?.type === 'migrating' && lifecycle.identity.migration) {
-      const { from, to } = lifecycle.identity.migration;
-      return buildBindingMigrationContext(from, to, 'MIGRATING');
+    if (lifecycle?.type !== 'migrating' && lifecycle?.type !== 'mfa') {
+      return undefined;
     }
-    if (lifecycle?.type === 'mfa') {
+
+    const mpcAddress = this.messenger
+      .call('MoneyAccountController:getMoneyAccount', { type: 'mpc' })
+      ?.address.toLowerCase();
+    if (lifecycle.type === 'migrating') {
+      const { migration } = lifecycle.identity;
+      if (
+        !migration ||
+        (mpcAddress !== undefined && mpcAddress !== migration.to.toLowerCase())
+      ) {
+        return undefined;
+      }
       return buildBindingMigrationContext(
-        moneyAccountAddress,
-        lifecycle.identity.currentAddress,
-        'DONE',
+        migration.from,
+        migration.to,
+        'MIGRATING',
       );
     }
-    return undefined;
+    if (mpcAddress !== lifecycle.identity.currentAddress.toLowerCase()) {
+      return undefined;
+    }
+    return buildBindingMigrationContext(
+      moneyAccountAddress,
+      lifecycle.identity.currentAddress,
+      'DONE',
+    );
   }
 
   async #startMigration(): Promise<void> {
@@ -731,6 +793,7 @@ export class MoneyAccountLifecycleController extends BaseController<
       successorAddress,
       'MIGRATING',
     );
+    const runnablePhases = getRunnableBindingMigrationPhases(lifecycle);
 
     try {
       await this.messenger.call(
@@ -738,7 +801,11 @@ export class MoneyAccountLifecycleController extends BaseController<
         successorAddress,
         moneyAccountAddress,
       );
-      await this.#runBindingMigrationPhase('afterLink', context);
+      await this.#runBindingMigrationPhase(
+        'afterLink',
+        context,
+        runnablePhases,
+      );
       // TODO: move to a `money-account-plus-payer` binding migrator in
       // @metamask/subscription-controller.
       await this.#moveSubscriptionToSuccessor(
@@ -751,7 +818,11 @@ export class MoneyAccountLifecycleController extends BaseController<
         moneyAccountAddress,
         successorAddress,
       );
-      await this.#runBindingMigrationPhase('beforeFundsTransfer', context);
+      await this.#runBindingMigrationPhase(
+        'beforeFundsTransfer',
+        context,
+        runnablePhases,
+      );
       await this.#startFundsTransfer(moneyAccountAddress);
     } finally {
       if (this.#isCurrent(this.#migrationGeneration)) {
@@ -760,27 +831,39 @@ export class MoneyAccountLifecycleController extends BaseController<
       }
     }
 
-    if (
-      !this.#hasBindingMigrators('afterDone') ||
-      !(await this.#waitForMigrationDone(moneyAccountAddress))
-    ) {
+    if (!this.#hasBindingMigrators('afterDone')) {
+      return;
+    }
+    const migratedIdentity =
+      await this.#waitForMigrationDone(moneyAccountAddress);
+    if (!migratedIdentity) {
       return;
     }
 
-    const migrated = await this.#fetchMigratableIdentities(moneyAccountAddress);
-    if (migrated.lifecycle.type === 'mfa') {
-      await this.#runAfterDoneMigrators(
-        moneyAccountAddress,
-        migrated.lifecycle.identity,
-      );
-    }
+    this.#assertReadyToMigrate();
+    this.#fetchDerivedIdentities();
+    await this.#waitForLatestDerivedIdentities().catch(() => undefined);
+    await this.#runAfterDoneMigrators(moneyAccountAddress, migratedIdentity);
   }
 
-  async #waitForMigrationDone(moneyAccountAddress: Hex): Promise<boolean> {
-    const deadline = Date.now() + MIGRATION_DONE_TIMEOUT_MS;
+  /**
+   * Polls CHOMP until the identity of the Money Account is `DONE`. Counts the
+   * time it has waited rather than reading the clock, so a clock change
+   * cannot extend the wait.
+   *
+   * @param moneyAccountAddress - The address of the Money Account.
+   * @returns The identity once it is `DONE`, or `undefined` when it is not
+   * `DONE` within the time limit or its funds transfer failed.
+   */
+  async #waitForMigrationDone(
+    moneyAccountAddress: Hex,
+  ): Promise<DerivedIdentity | undefined> {
+    let waited = 0;
     let delay = MIGRATION_DONE_FIRST_CHECK_DELAY_MS;
-    while (Date.now() < deadline) {
-      await sleep(Math.min(delay, deadline - Date.now()));
+    while (waited < MIGRATION_DONE_TIMEOUT_MS) {
+      const wait = Math.min(delay, MIGRATION_DONE_TIMEOUT_MS - waited);
+      await sleep(wait);
+      waited += wait;
       this.#assertReadyToMigrate();
       try {
         const response = await this.messenger.call(
@@ -788,21 +871,21 @@ export class MoneyAccountLifecycleController extends BaseController<
           moneyAccountAddress,
         );
         if (response?.identity.status === 'DONE') {
-          return true;
+          return response.identity;
         }
         const migration = response?.identity.migration;
         if (
           migration?.transfer?.status === 'FAILED' ||
           migration?.premiumTransfer?.status === 'FAILED'
         ) {
-          return false;
+          return undefined;
         }
       } catch (error) {
         this.#reportError(error);
       }
       delay = Math.min(delay * 2, MIGRATION_DONE_MAX_CHECK_DELAY_MS);
     }
-    return false;
+    return undefined;
   }
 
   async #runAfterDoneMigrators(
@@ -845,12 +928,17 @@ export class MoneyAccountLifecycleController extends BaseController<
   async #runBindingMigrationPhase(
     phase: BindingMigrationPhase,
     context: BindingMigrationContext,
+    runnablePhases: readonly BindingMigrationPhase[] = BINDING_MIGRATION_PHASES,
   ): Promise<void> {
+    this.#assertReadyToMigrate();
+    if (!runnablePhases.includes(phase)) {
+      return;
+    }
+
     const migrators = [...this.#bindingMigrators.values()].filter(
       (migrator) => migrator.phase === phase,
     );
     const incomplete: IncompleteBindingMigration[] = [];
-    this.#assertReadyToMigrate();
     for (const migrator of migrators) {
       const { result, error } = await this.#reconcileBindingMigrator(
         migrator,
@@ -859,6 +947,7 @@ export class MoneyAccountLifecycleController extends BaseController<
       this.#assertReadyToMigrate();
 
       this.#bindingMigrationResults.set(migrator.id, {
+        migrationId: context.migrationId,
         lastResult: result,
         lastError: error ?? null,
       });
@@ -881,19 +970,27 @@ export class MoneyAccountLifecycleController extends BaseController<
     const timeoutMs = migrator.timeoutMs ?? DEFAULT_BINDING_MIGRATOR_TIMEOUT_MS;
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
-      const reconciling = migrator.reconcile(context);
-      reconciling.catch(() => undefined);
-      const result = await Promise.race([
-        reconciling,
+      const outcome = await Promise.race([
+        this.#reconcile(migrator, context),
         new Promise<typeof TIMED_OUT>((resolve) => {
           timeoutId = setTimeout(() => resolve(TIMED_OUT), timeoutMs);
         }),
       ]);
-      if (result === TIMED_OUT) {
+      if (outcome === TIMED_OUT) {
         const reason = `Timed out after ${timeoutMs} ms`;
         this.#reportError(
           new Error(
             `Binding migrator '${migrator.id}' timed out after ${timeoutMs} ms`,
+          ),
+        );
+        return { result: { status: 'pending', reason }, error: reason };
+      }
+      const result = sanitizeBindingMigrationResult(outcome);
+      if (!result) {
+        const reason = 'Invalid result';
+        this.#reportError(
+          new Error(
+            `Binding migrator '${migrator.id}' returned an invalid result`,
           ),
         );
         return { result: { status: 'pending', reason }, error: reason };
@@ -908,11 +1005,40 @@ export class MoneyAccountLifecycleController extends BaseController<
       return { result };
     } catch (error) {
       this.#reportError(error);
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getSafeErrorMessage(error);
       return { result: { status: 'pending', reason: message }, error: message };
     } finally {
       clearTimeout(timeoutId);
     }
+  }
+
+  /**
+   * Calls `reconcile`, unless an earlier call for the same migration is still
+   * running, for example after it timed out, in which case this waits for
+   * that call rather than overlapping it.
+   *
+   * @param migrator - The binding migrator.
+   * @param context - The migration context.
+   * @returns What `reconcile` resolved with.
+   */
+  async #reconcile(
+    migrator: BindingMigrator,
+    context: BindingMigrationContext,
+  ): Promise<unknown> {
+    const key = `${migrator.id}:${context.migrationId}`;
+    const inFlight = this.#reconcilesInFlight.get(key);
+    if (inFlight) {
+      return inFlight;
+    }
+
+    const reconciling = (async (): Promise<unknown> =>
+      migrator.reconcile(context))();
+    this.#reconcilesInFlight.set(key, reconciling);
+    const forget = (): void => {
+      this.#reconcilesInFlight.delete(key);
+    };
+    reconciling.finally(forget).catch(() => undefined);
+    return reconciling;
   }
 
   async #startFundsTransfer(moneyAccountAddress: Hex): Promise<void> {
@@ -1076,6 +1202,10 @@ export class MoneyAccountLifecycleController extends BaseController<
     }
 
     const lifecycle = getMoneyAccountLifecycle(moneyAccountAddress, identities);
+    if (lifecycle.type === 'mfa') {
+      return { identities, lifecycle, migration: null };
+    }
+
     const migratingCount = identities.filter(isMigrating).length;
     if (lifecycle.type === 'migrating' && migratingCount === 1) {
       const { migration } = lifecycle.identity;
@@ -1091,7 +1221,7 @@ export class MoneyAccountLifecycleController extends BaseController<
       throw new Error('A Money Account identity is already migrating');
     }
 
-    if (lifecycle.type !== 'sfa' && lifecycle.type !== 'mfa') {
+    if (lifecycle.type !== 'sfa') {
       throw new Error(
         `Money Account ${moneyAccountAddress} cannot be migrated while it is '${lifecycle.type}'`,
       );
@@ -1158,7 +1288,7 @@ export class MoneyAccountLifecycleController extends BaseController<
         this.#isFetchingDerivedIdentities = false;
         this.#derivedIdentities = undefined;
         this.#bindingMigrationResults.clear();
-        this.#setBindingMigrations({});
+        this.#setBindingMigrations(null);
         return;
       }
 
@@ -1299,8 +1429,50 @@ export class MoneyAccountLifecycleController extends BaseController<
 
   #reportError(error: unknown): void {
     this.messenger.captureException?.(
-      error instanceof Error ? error : new Error(String(error)),
+      error instanceof Error ? error : new Error(getSafeErrorMessage(error)),
     );
+  }
+}
+
+function assertValidBindingMigrator(migrator: BindingMigrator): void {
+  const { id, phase, timeoutMs } = migrator;
+  if (typeof id !== 'string' || id === '' || id === '__proto__') {
+    throw new Error(
+      'A binding migrator needs a non-empty string id other than __proto__',
+    );
+  }
+  if (!BINDING_MIGRATION_PHASES.includes(phase)) {
+    throw new Error(
+      `Binding migrator '${id}' has an unknown phase '${String(phase)}'`,
+    );
+  }
+  if (
+    typeof migrator.reconcile !== 'function' ||
+    typeof migrator.getStatus !== 'function'
+  ) {
+    throw new Error(
+      `Binding migrator '${id}' needs reconcile and getStatus functions`,
+    );
+  }
+  if (
+    timeoutMs !== undefined &&
+    !(
+      typeof timeoutMs === 'number' &&
+      timeoutMs > 0 &&
+      timeoutMs <= MAX_TIMEOUT_MS
+    )
+  ) {
+    throw new Error(
+      `The timeout of binding migrator '${id}' must be a positive number of milliseconds up to ${MAX_TIMEOUT_MS}`,
+    );
+  }
+}
+
+function getSafeErrorMessage(error: unknown): string {
+  try {
+    return getErrorMessage(error);
+  } catch {
+    return 'Unknown error';
   }
 }
 

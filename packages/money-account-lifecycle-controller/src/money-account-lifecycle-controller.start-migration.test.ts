@@ -24,6 +24,7 @@ import {
   getLifecycle,
   withController,
 } from '../tests/helpers.js';
+import type { MoneyAccountLifecycleController } from './money-account-lifecycle-controller.js';
 
 function buildCryptoSubscription(payerAddress: Hex): Subscription {
   return {
@@ -303,6 +304,47 @@ describe('MoneyAccountLifecycleController', () => {
         expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(2);
       });
     });
+
+    it.each<{
+      description: string;
+      interrupt: (payload: {
+        controller: MoneyAccountLifecycleController;
+        gates: { isUnlocked: boolean };
+      }) => void;
+      error: string;
+    }>([
+      {
+        description: 'the wallet locks',
+        interrupt: ({ gates }): void => {
+          gates.isUnlocked = false;
+        },
+        error: 'Money Account migration is not available',
+      },
+      {
+        description: 'the state is cleared',
+        interrupt: ({ controller }): void => controller.clearState(),
+        error:
+          'Money Account migration was interrupted because the state was cleared',
+      },
+    ])(
+      'does not move the subscription when $description while linking the successor',
+      async ({ interrupt, error }) => {
+        await withController(async ({ controller, gates, mocks }) => {
+          mocks.getSubscriptions.mockResolvedValue([
+            buildCryptoSubscription(MONEY_ACCOUNT_ADDRESS),
+          ]);
+          mocks.upgradeSuccessorAccount.mockImplementationOnce(async () => {
+            interrupt({ controller, gates });
+          });
+
+          await expect(controller.startMigration()).rejects.toThrow(error);
+          expect(mocks.getSubscriptions).not.toHaveBeenCalled();
+          expect(mocks.getDerivedIdentityByAddress).not.toHaveBeenCalled();
+          expect(mocks.prepareDelegation).not.toHaveBeenCalled();
+          expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+        });
+      },
+    );
 
     it('records the migrating lifecycle before throwing when upgrading the successor fails after linking it', async () => {
       await withController(async ({ controller, mocks }) => {
