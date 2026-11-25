@@ -1,17 +1,12 @@
 import { BigNumber as BigNumberJS } from 'bignumber.js';
 
-/**
- * Fast-path pattern for a plain decimal literal: optional sign, then digits
- * with an optional fractional part (at least one digit overall).
- */
-const PLAIN_DECIMAL_PATTERN = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/u;
-
-/**
- * Fast-path pattern for exponent notation: a plain decimal mantissa followed
- * by a (bounded) decimal exponent. Larger exponents fall back to BigNumber,
- * which defines the canonical behavior.
- */
-const EXPONENT_PATTERN = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)[eE][+-]?\d{1,3}$/u;
+const CHAR_PLUS = 43;
+const CHAR_MINUS = 45;
+const CHAR_DOT = 46;
+const CHAR_0 = 48;
+const CHAR_9 = 57;
+const CHAR_e = 101;
+const CHAR_E = 69;
 
 /**
  * `toFixed()` throws for decimal places above BigNumber's `MAX_DP`. Above this
@@ -65,95 +60,120 @@ export function normalizeAmountString(
   if (typeof amount !== 'string' || amount.length === 0) {
     return '0';
   }
-  if (PLAIN_DECIMAL_PATTERN.test(amount)) {
-    return normalizePlainDecimal(amount, decimals);
-  }
-  if (EXPONENT_PATTERN.test(amount)) {
-    return normalizeExponentDecimal(amount, decimals);
-  }
-  return normalizeWithBigNumber(amount, decimals);
+  const fast = normalizePlainOrExponent(amount, decimals);
+  return fast === undefined ? normalizeWithBigNumber(amount, decimals) : fast;
 }
 
 /**
- * Canonical normalization for a plain decimal string (no exponent), mirroring
- * `BigNumber#toFixed` output exactly.
+ * Fast path for plain decimal literals and simple exponent notation,
+ * mirroring `BigNumber#toFixed` output exactly: leading integer zeros
+ * stripped, trailing fractional zeros and a dangling dot trimmed, exponent
+ * form expanded by shifting the decimal point, and BigNumber's zero-sign
+ * behavior preserved.
+ *
+ * Returns `undefined` when the input is not a plain decimal / simple
+ * exponent form, or when `decimals` is out of the fast path's safe range —
+ * callers must defer to BigNumber in that case.
  */
-function normalizePlainDecimal(
+function normalizePlainOrExponent(
   amount: string,
-  decimals?: number,
-): string {
-  let body = amount;
+  decimals: number | undefined,
+): string | undefined {
+  const length = amount.length;
+  let i = 0;
   let negative = false;
-  const first = amount[0];
-  if (first === '+' || first === '-') {
-    negative = first === '-';
-    body = amount.slice(1);
+  let c = amount.charCodeAt(0);
+  if (c === CHAR_PLUS || c === CHAR_MINUS) {
+    negative = c === CHAR_MINUS;
+    i = 1;
   }
 
-  const dot = body.indexOf('.');
-  const intRaw = dot === -1 ? body : body.slice(0, dot);
-  const fracRaw = dot === -1 ? '' : body.slice(dot + 1);
-  return finishNormalize(intRaw, fracRaw, intRaw + fracRaw, negative, decimals, amount);
-}
+  // Integer part.
+  const intStart = i;
+  c = i < length ? amount.charCodeAt(i) : -1;
+  let hasNonZero = false;
+  while (c >= CHAR_0 && c <= CHAR_9) {
+    if (c !== CHAR_0) {
+      hasNonZero = true;
+    }
+    i += 1;
+    c = i < length ? amount.charCodeAt(i) : -1;
+  }
+  const intLen = i - intStart;
 
-/**
- * Canonical normalization for exponent notation (`"1e-18"`, `"2.5E2"`): the
- * decimal point is shifted in string space, then the shared canonicalization
- * runs — mirroring `BigNumber#toFixed` output exactly.
- */
-function normalizeExponentDecimal(
-  amount: string,
-  decimals?: number,
-): string {
-  let body = amount;
-  let negative = false;
-  const first = amount[0];
-  if (first === '+' || first === '-') {
-    negative = first === '-';
-    body = amount.slice(1);
+  // Optional fractional part.
+  let fracStart = i;
+  let fracLen = 0;
+  if (c === CHAR_DOT) {
+    i += 1;
+    fracStart = i;
+    c = i < length ? amount.charCodeAt(i) : -1;
+    while (c >= CHAR_0 && c <= CHAR_9) {
+      if (c !== CHAR_0) {
+        hasNonZero = true;
+      }
+      i += 1;
+      c = i < length ? amount.charCodeAt(i) : -1;
+    }
+    fracLen = i - fracStart;
   }
 
-  const eIdx = body.indexOf('e') === -1 ? body.indexOf('E') : body.indexOf('e');
-  const mantissa = body.slice(0, eIdx);
-  const exponent = Number(body.slice(eIdx + 1));
-
-  const dot = mantissa.indexOf('.');
-  const intRaw = dot === -1 ? mantissa : mantissa.slice(0, dot);
-  const fracRaw = dot === -1 ? '' : mantissa.slice(dot + 1);
-  const digits = intRaw + fracRaw;
-  const point = intRaw.length + exponent;
+  if (intLen === 0 && fracLen === 0) {
+    return undefined; // Not a plain decimal — defer to BigNumber.
+  }
 
   let intPart: string;
   let fracPart: string;
-  if (point <= 0) {
-    intPart = '0';
-    fracPart = '0'.repeat(-point) + digits;
-  } else if (point >= digits.length) {
-    intPart = digits + '0'.repeat(point - digits.length);
-    fracPart = '';
-  } else {
-    intPart = digits.slice(0, point);
-    fracPart = digits.slice(point);
-  }
-  return finishNormalize(intPart, fracPart, digits, negative, decimals, amount);
-}
+  if (c === CHAR_e || c === CHAR_E) {
+    // Exponent notation: shift the decimal point in string space.
+    i += 1;
+    let exponentNegative = false;
+    c = i < length ? amount.charCodeAt(i) : -1;
+    if (c === CHAR_PLUS || c === CHAR_MINUS) {
+      exponentNegative = c === CHAR_MINUS;
+      i += 1;
+      c = i < length ? amount.charCodeAt(i) : -1;
+    }
+    const expStart = i;
+    let exponent = 0;
+    let expLen = 0;
+    while (c >= CHAR_0 && c <= CHAR_9) {
+      exponent = exponent * 10 + (c - CHAR_0);
+      expLen += 1;
+      i += 1;
+      c = i < length ? amount.charCodeAt(i) : -1;
+    }
+    // Bound the exponent: larger (or malformed / trailing-junk) forms defer
+    // to BigNumber, which defines the canonical behavior.
+    if (expLen === 0 || expLen > 3 || i !== length) {
+      return undefined;
+    }
+    if (exponentNegative) {
+      exponent = -exponent;
+    }
 
-/**
- * Shared tail of both fast paths: optional truncation to `decimals` fractional
- * digits (round toward zero), leading-integer-zero strip, trailing-fractional-
- * zero trim, and BigNumber-compatible zero-sign handling. `rawDigits` is the
- * untruncated significand, used to distinguish values that parsed as exactly
- * zero (sign dropped) from nonzero values truncated toward zero to zero
- * (sign kept: `'-0'`).
- */
-function finishNormalize(
-  intPart: string,
-  fracPart: string,
-  rawDigits: string,
-  negative: boolean,
-  decimals: number | undefined,
-  amount: string,
-): string {
+    const digits =
+      amount.slice(intStart, intStart + intLen) +
+      (fracLen > 0 ? amount.slice(fracStart, fracStart + fracLen) : '');
+    const point = intLen + exponent;
+    if (point <= 0) {
+      intPart = '0';
+      fracPart = '0'.repeat(-point) + digits;
+    } else if (point >= digits.length) {
+      intPart = digits + '0'.repeat(point - digits.length);
+      fracPart = '';
+    } else {
+      intPart = digits.slice(0, point);
+      fracPart = digits.slice(point);
+    }
+  } else if (i === length) {
+    intPart = amount.slice(intStart, intStart + intLen);
+    fracPart = fracLen > 0 ? amount.slice(fracStart, fracStart + fracLen) : '';
+  } else {
+    return undefined; // Trailing junk — defer to BigNumber.
+  }
+
+  // Truncate fractional digits to the asset's precision (round toward zero).
   if (
     decimals !== undefined &&
     Number.isFinite(decimals) &&
@@ -162,32 +182,52 @@ function finishNormalize(
     const dp = Math.floor(decimals);
     if (dp > MAX_FAST_DECIMALS) {
       // Absurd precision (BigNumber throws above MAX_DP) — defer to it.
-      return normalizeWithBigNumber(amount, decimals);
+      return undefined;
     }
     if (fracPart.length > dp) {
-      // Round toward zero: cut excess fractional digits.
       fracPart = fracPart.slice(0, dp);
     }
   }
 
   // Strip leading integer zeros, keeping a single digit ('007' -> '7').
-  const intNorm = intPart === '' ? '0' : intPart.replace(/^0+(?=\d)/u, '');
-  // Trim trailing fractional zeros ('1.500' -> '1.5', '1.000' -> '1').
-  const fracNorm = fracPart.replace(/0+$/u, '');
+  let intZeroEnd = 0;
+  while (
+    intZeroEnd < intPart.length - 1 &&
+    intPart.charCodeAt(intZeroEnd) === CHAR_0
+  ) {
+    intZeroEnd += 1;
+  }
+  if (intZeroEnd > 0) {
+    intPart = intPart.slice(intZeroEnd);
+  }
 
-  if (intNorm === '0' && fracNorm === '') {
+  // Trim trailing fractional zeros ('1.500' -> '1.5', '1.000' -> '1').
+  let fracEnd = fracPart.length;
+  while (fracEnd > 0 && fracPart.charCodeAt(fracEnd - 1) === CHAR_0) {
+    fracEnd -= 1;
+  }
+
+  const intIsZero =
+    intPart.length <= 1 &&
+    (intPart === '' || intPart.charCodeAt(0) === CHAR_0);
+  if (intIsZero && fracEnd === 0) {
     // BigNumber drops the sign for a value that parsed as exactly zero
     // ('-0.000' -> '0'), but keeps it when a nonzero value is truncated
     // toward zero to zero ('-0.5' at 0 decimals -> '-0').
-    if (negative && !/^0+$/u.test(rawDigits)) {
+    if (negative && hasNonZero) {
       return '-0';
     }
     return '0';
   }
-  if (fracNorm === '') {
-    return negative ? `-${intNorm}` : intNorm;
+  if (intPart === '') {
+    intPart = '0'; // e.g. '.5' -> '0.5'
   }
-  return negative ? `-${intNorm}.${fracNorm}` : `${intNorm}.${fracNorm}`;
+  const fracNorm =
+    fracEnd === fracPart.length ? fracPart : fracPart.slice(0, fracEnd);
+  if (fracNorm === '') {
+    return negative ? `-${intPart}` : intPart;
+  }
+  return negative ? `-${intPart}.${fracNorm}` : `${intPart}.${fracNorm}`;
 }
 
 /**
