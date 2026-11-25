@@ -554,6 +554,94 @@ describe('LighterProvider stream lifecycle', () => {
       },
     );
 
+    it('keeps live Lighter orders on another venue’s update after a repair token mint fails', async () => {
+      const { provider: lighter, bridge } = buildStreamProvider();
+      const hl = createMockHyperLiquidProvider();
+      const aggregate = new AggregatedPerpsProvider({
+        providers: new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', hl],
+          ['lighter', lighter],
+        ]),
+        defaultProvider: 'lighter',
+        infrastructure: createMockInfrastructure(),
+        isTestnet: true,
+      });
+      try {
+        const combined = vi.fn();
+        const onError = vi.fn();
+        aggregate.subscribeToOrders({ callback: combined, onError });
+        await settle();
+        const socket = latestSocket();
+        socket.open();
+        await settle();
+        receive(socket, {
+          type: 'subscribed/account_all_orders',
+          orders: openOrders,
+        });
+        const before = socket.sent.length;
+        vi.setSystemTime(Date.now() + 600_000);
+        vi.mocked(bridge.execute).mockRejectedValueOnce(
+          new Error('token mint failed'),
+        );
+        receive(socket, { type: 'update/account_all_orders', orders: null });
+        await settle();
+        expect(socket.sent).toHaveLength(before);
+
+        const late = vi.fn();
+        lighter.subscribeToOrders({ callback: late });
+        const order = expect.objectContaining({ orderId: '42' });
+        expect(late).toHaveBeenCalledExactlyOnceWith([order]);
+        const hlOrder = createMockOrder();
+        hl.subscribeToOrders.mock.calls[0][0].callback([hlOrder]);
+        expect(combined).toHaveBeenLastCalledWith(
+          expect.arrayContaining([
+            expect.objectContaining({ orderId: '42', providerId: 'lighter' }),
+            { ...hlOrder, providerId: 'hyperliquid' },
+          ]),
+          'hyperliquid',
+        );
+        expect(onError).not.toHaveBeenCalled();
+      } finally {
+        await lighter.disconnect();
+      }
+    });
+
+    it('retires cached orders if the repair unsubscribes but cannot send the replacement', async () => {
+      const { provider } = buildStreamProvider();
+      try {
+        const callback = vi.fn();
+        const onError = vi.fn();
+        provider.subscribeToOrders({ callback, onError });
+        await settle();
+        const socket = latestSocket();
+        socket.open();
+        await settle();
+        receive(socket, {
+          type: 'subscribed/account_all_orders',
+          orders: openOrders,
+        });
+        expect(callback).toHaveBeenCalledExactlyOnceWith([
+          expect.objectContaining({ orderId: '42' }),
+        ]);
+        const { send } = socket;
+        const error = new Error('subscribe failed');
+        vi.spyOn(socket, 'send')
+          .mockImplementationOnce(send)
+          .mockImplementationOnce(() => {
+            throw error;
+          });
+        receive(socket, { type: 'update/account_all_orders', orders: null });
+        await settle();
+        expect(venueChannels(socket)).not.toContain('account_all_orders/28');
+        expect(onError).toHaveBeenCalledExactlyOnceWith(error);
+        const late = vi.fn();
+        provider.subscribeToOrders({ callback: late });
+        expect(late).not.toHaveBeenCalled();
+      } finally {
+        await provider.disconnect();
+      }
+    });
+
     it('ignores a repair failure after a valid orders snapshot has arrived', async () => {
       const { provider, bridge } = buildStreamProvider();
       try {
