@@ -3277,7 +3277,7 @@ export class SeedlessOnboardingController<
         this.toprfClient.persistLocalKey({ ...session, oprfKey, authPubKey }),
       );
     } catch (error) {
-      if (!(await this.#fetchRecoveryAuthPubKey())) {
+      if (!(await this.#fetchRecoveryAuthPubKey().catch(() => undefined))) {
         throw error;
       }
       isConfirmed = false;

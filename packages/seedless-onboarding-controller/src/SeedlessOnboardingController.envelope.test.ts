@@ -1853,6 +1853,55 @@ describe('SeedlessOnboardingController', () => {
           });
         });
 
+        it('rethrows the original commit error when checking the recovery verifier also fails', async () => {
+          await withUnlockedController(async (args) => {
+            const { controller, toprfClient } = args;
+            const network = mockNetwork(toprfClient);
+            const persistError = new Error('persist failed');
+            network.spies.persistLocalKey.mockImplementationOnce(async () => {
+              failOnce(
+                network.spies.fetchAuthPubKey,
+                ({ authConnectionId }) => isRecovery(authConnectionId),
+                new Error('nodes still failing'),
+              );
+              throw persistError;
+            });
+            await authenticateAal2(args, { hasRecoveryShare: false });
+
+            await expect(migrateToEnvelope(args)).rejects.toBe(persistError);
+
+            expect(countCalls(network, 'fetchAuthPubKey:recovery')).toBe(2);
+            expect(network.getRecoveryKey()).toBeUndefined();
+            expect(controller.state.recoverySession?.hasRecoveryShare).toBe(
+              false,
+            );
+            expect(controller.state.envelope).toBeUndefined();
+          });
+        });
+
+        it('rethrows Aal2Required with its original cause when registering the key fails with an auth token error', async () => {
+          await withUnlockedController(async (args) => {
+            const { controller, toprfClient } = args;
+            const network = mockNetwork(toprfClient);
+            const authError = new TOPRFError(
+              TOPRFErrorCode.AuthTokenExpired,
+              'expired',
+            );
+            failOnce(network.spies.persistLocalKey, undefined, authError);
+            await authenticateAal2(args, { hasRecoveryShare: false });
+
+            await expect(migrateToEnvelope(args)).rejects.toMatchObject({
+              message: SeedlessOnboardingControllerErrorMessage.Aal2Required,
+              cause: authError,
+            });
+
+            expect(countCalls(network, 'fetchAuthPubKey:recovery')).toBe(1);
+            expect(network.getRecoveryKey()).toBeUndefined();
+            expect(controller.state.recoverySession).toBeUndefined();
+            expect(controller.state.envelope).toBeUndefined();
+          });
+        });
+
         it.each([
           [
             'writing the Recovery Secret envelope',
