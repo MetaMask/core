@@ -67,6 +67,9 @@ const MOCK_SUBSCRIPTION: Subscription = {
 
 const MOCK_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
   eligible: true,
+  benefitPeriodId: 'bp_2026_08_15',
+  benefitPeriodStart: '2026-08-15T00:00:00.000Z',
+  benefitPeriodEnd: '2026-09-15T00:00:00.000Z',
   billingPeriodId: 'bp_2026_08_15',
   products: {
     swaps: {
@@ -95,6 +98,9 @@ const MOCK_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
 
 const MOCK_INELIGIBLE_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
   eligible: false,
+  benefitPeriodId: null,
+  benefitPeriodStart: null,
+  benefitPeriodEnd: null,
   billingPeriodId: null,
   products: {
     swaps: {

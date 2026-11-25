@@ -7,10 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add `SignatureController` to the default initialization configurations ([#11717](https://github.com/MetaMask/core/pull/11717))
+
 ### Changed
 
 - **BREAKING:** Wallet instance options now require `claimsService`, `shieldApiService`, and `subscriptionService` to specify a `baseUrl` instead of using `env` or a production default. ([#11703](https://github.com/MetaMask/core/pull/11703))
   - Set each service's `baseUrl` to its trusted API endpoint without a trailing slash. For production, use `https://claims.api.cx.metamask.io`, `https://ruleset-engine.api.cx.metamask.io`, and `https://subscription.api.cx.metamask.io`, respectively.
+- Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.4.0` ([#11732](https://github.com/MetaMask/core/pull/11732))
+
+## [21.0.5]
+
+### Changed
+
+- Bump `@metamask/subscription-controller` from `^15.3.0` to `^15.4.0` ([#11727](https://github.com/MetaMask/core/pull/11727))
 - Bump `@metamask/analytics-controller` from `^4.3.1` to `^4.4.0` ([#11691](https://github.com/MetaMask/core/pull/11691))
 - Bump `@metamask/network-enablement-controller` from `^7.1.3` to `^7.1.4` ([#11669](https://github.com/MetaMask/core/pull/11669))
 - Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.3.0` ([#11669](https://github.com/MetaMask/core/pull/11669))
@@ -496,7 +507,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.5...HEAD
+[21.0.5]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.4...@metamask/wallet@21.0.5
 [21.0.4]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.3...@metamask/wallet@21.0.4
 [21.0.3]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.2...@metamask/wallet@21.0.3
 [21.0.2]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.1...@metamask/wallet@21.0.2

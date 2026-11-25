@@ -50,7 +50,6 @@ export {
 } from './identifier-auth.js';
 export type {
   AuthControllerToken,
-  EncryptedPendingOperation,
   GetIdentifiersResponse,
   GetMutationReceiptResponse,
   Identifier,
@@ -65,7 +64,6 @@ export type {
   MutationReceipt,
   PendingMutationPayload,
   PendingOperation,
-  PendingOperationEncryptor,
   PendingRecoverySecretHex,
   PendingRegisterPayload,
   PendingUpdateIdentifiersPayload,

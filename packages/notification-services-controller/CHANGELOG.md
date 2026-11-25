@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [30.1.2]
+
+### Changed
+
+- Bump `firebase` from `^12.19.0` to `^13.4.0` ([#11685](https://github.com/MetaMask/core/pull/11685))
+
 ## [30.1.1]
 
 ### Changed
@@ -1021,7 +1027,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@30.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@30.1.2...HEAD
+[30.1.2]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@30.1.1...@metamask/notification-services-controller@30.1.2
 [30.1.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@30.1.0...@metamask/notification-services-controller@30.1.1
 [30.1.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@30.0.1...@metamask/notification-services-controller@30.1.0
 [30.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@30.0.0...@metamask/notification-services-controller@30.0.1

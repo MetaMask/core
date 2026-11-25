@@ -1,13 +1,13 @@
 import { TOPRFError, TOPRFErrorCode } from '@metamask/toprf-secure-backup';
 import type { RateLimitErrorData } from '@metamask/toprf-secure-backup';
 
-import { SeedlessOnboardingControllerErrorMessage } from './constants.js';
-import type { SecretMetadata } from './SecretMetadata.js';
+import { SeedlessOnboardingControllerErrorMessage } from '../constants.js';
+import type { SecretMetadata } from '../SecretMetadata.js';
 import type {
   InvalidPrimarySecretDataTypeErrorData,
   RecoveryErrorData,
-} from './types.js';
-import { getInvalidPrimarySecretDataTypeErrorData } from './utils/index.js';
+} from '../types.js';
+import { getInvalidPrimarySecretDataTypeErrorData } from './utils.js';
 
 /**
  * Get the error message from the TOPRF error code.
@@ -261,4 +261,20 @@ export class SeedlessOnboardingError extends Error {
       stack: this.stack,
     };
   }
+}
+
+/**
+ * Whether `error` is an identity mismatch.
+ *
+ * @param error - The caught value.
+ * @returns True when `error` is a {@link SeedlessOnboardingError} with
+ * {@link SeedlessOnboardingControllerErrorMessage.IdentityMismatch}.
+ */
+export function isIdentityMismatchError(
+  error: unknown,
+): error is SeedlessOnboardingError {
+  return (
+    error instanceof SeedlessOnboardingError &&
+    error.message === SeedlessOnboardingControllerErrorMessage.IdentityMismatch
+  );
 }

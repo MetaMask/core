@@ -8,6 +8,7 @@ import { TradeType } from '../../utils/trade-type.js';
 import {
   fetchServerQuote,
   getServerStatus,
+  ServerApiError,
   submitServerIntent,
 } from './server-api.js';
 import { ServerStatus } from './types.js';
@@ -252,29 +253,61 @@ describe('server-api', () => {
       targetHash: '0xtarget' as const,
     };
 
-    it('gets the status URL with provider and id query parameters', async () => {
+    it('posts provider and id to the status URL', async () => {
       mockOkResponse(STATUS_RESPONSE_MOCK);
 
       await getServerStatus(MESSENGER_MOCK, STATUS_PARAMS_MOCK);
 
-      expect(fetchMock).toHaveBeenCalledWith(
-        `${BASE_URL_MOCK}/status?provider=relay&id=0xabc`,
-        { method: 'GET' },
-      );
+      expect(fetchMock).toHaveBeenCalledWith(`${BASE_URL_MOCK}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: 'relay', id: '0xabc' }),
+      });
     });
 
-    it('appends hash to the status URL when provided', async () => {
+    it('includes hash and logs in the body when provided', async () => {
+      const logs = [
+        {
+          address: '0x1234' as const,
+          data: '0xdata' as const,
+          topics: ['0xtopic1' as const, '0xtopic2' as const],
+        },
+      ];
+
       mockOkResponse(STATUS_RESPONSE_MOCK);
 
       await getServerStatus(MESSENGER_MOCK, {
         ...STATUS_PARAMS_MOCK,
         hash: '0xdeadbeef',
+        logs,
       });
 
-      expect(fetchMock).toHaveBeenCalledWith(
-        `${BASE_URL_MOCK}/status?provider=relay&id=0xabc&hash=0xdeadbeef`,
-        { method: 'GET' },
-      );
+      expect(fetchMock).toHaveBeenCalledWith(`${BASE_URL_MOCK}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: 'relay',
+          id: '0xabc',
+          hash: '0xdeadbeef',
+          logs,
+        }),
+      });
+    });
+
+    it('throws a ServerApiError with the response status on non-OK', async () => {
+      mockErrorResponse(400, { message: 'Missing logs' });
+
+      const error = await getServerStatus(
+        MESSENGER_MOCK,
+        STATUS_PARAMS_MOCK,
+      ).catch((caughtError: unknown) => caughtError);
+
+      expect(error).toBeInstanceOf(ServerApiError);
+      expect(error).toMatchObject({
+        message: '400 - Missing logs',
+        name: 'ServerApiError',
+        status: 400,
+      });
     });
 
     it('returns the parsed response', async () => {
@@ -292,8 +325,13 @@ describe('server-api', () => {
       await getServerStatus(MESSENGER_MOCK, STATUS_PARAMS_MOCK);
 
       expect(fetchMock).toHaveBeenCalledWith(
-        `${BASE_URL_MOCK}/status?provider=relay&id=0xabc`,
-        { method: 'GET', headers: { 'X-Client-Id': 'mobile' } },
+        `${BASE_URL_MOCK}/status`,
+        expect.objectContaining({
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Client-Id': 'mobile',
+          },
+        }),
       );
     });
   });

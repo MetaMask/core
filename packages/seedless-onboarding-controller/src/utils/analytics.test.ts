@@ -1,7 +1,10 @@
+import type { AnalyticsTrackingEvent } from '@metamask/analytics-controller';
 import type { FetchedSecretDataItem } from '@metamask/toprf-secure-backup';
-import { stringToBytes } from '@metamask/utils';
+import { bytesToHex, stringToBytes } from '@metamask/utils';
+import { hmac } from '@noble/hashes/hmac';
+import { sha256 } from '@noble/hashes/sha256';
 import type { Mock } from 'vitest';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   createFetchedSecretDataItem,
@@ -14,15 +17,31 @@ import {
   SRP1,
   SRP2,
 } from '../../tests/__fixtures__/secret-metadata.js';
-import { SecretType } from '../constants.js';
+import {
+  SecretType,
+  SeedlessIdentityMismatchEventName,
+  SeedlessIdentityMismatchReason,
+  SeedlessIdentityMismatchSource,
+  SeedlessIdentityUserIdSalt,
+  SeedlessOnboardingControllerErrorMessage,
+  SeedlessPrimarySrpMismatchEventName,
+  SeedlessPrimarySrpMissingEventName,
+} from '../constants.js';
 import type { IncompleteMetadataBackupEventProperties } from './analytics.js';
 import {
   getIncompleteMetadataBackupEventProperties,
+  trackIdentityMismatchEvent,
   trackIncompleteMetadataBackupEvents,
-  SeedlessPrimarySrpMismatchEventName,
-  SeedlessPrimarySrpMissingEventName,
 } from './analytics.js';
+import { SeedlessOnboardingError } from './errors.js';
 import { parseSecretMetadata } from './secret-data-utils.js';
+
+const { logMock } = vi.hoisted(() => ({ logMock: vi.fn() }));
+
+vi.mock('../logger.js', () => ({
+  projectLogger: {},
+  createModuleLogger: (): Mock => logMock,
+}));
 
 function expectTrackedEvent(
   trackEvent: Mock,
@@ -45,6 +64,10 @@ function expectTrackedEvent(
 }
 
 describe('identifyIncompleteMetadataBackup', () => {
+  beforeEach(() => {
+    logMock.mockClear();
+  });
+
   it('does not track an event when the legacy primary matches the local primary', async () => {
     const fetchAllSecretDataFn = vi
       .fn()
@@ -57,18 +80,16 @@ describe('identifyIncompleteMetadataBackup', () => {
       .fn()
       .mockResolvedValue(stringToBytes(SRP1.data));
     const trackEvent = vi.fn();
-    const logFn = vi.fn();
 
     await trackIncompleteMetadataBackupEvents({
       fetchAllSecretDataFn,
       getPrimaryKeyringSeedPhraseFn,
       trackEvent,
-      logFn,
     });
 
     expect(getPrimaryKeyringSeedPhraseFn).toHaveBeenCalledTimes(1);
     expect(trackEvent).not.toHaveBeenCalled();
-    expect(logFn).not.toHaveBeenCalled();
+    expect(logMock).not.toHaveBeenCalled();
   });
 
   it('tracks a mismatch when the earliest legacy SRP is not the local primary', async () => {
@@ -83,13 +104,11 @@ describe('identifyIncompleteMetadataBackup', () => {
       .fn()
       .mockResolvedValue(stringToBytes('actual primary srp'));
     const trackEvent = vi.fn();
-    const logFn = vi.fn();
 
     await trackIncompleteMetadataBackupEvents({
       fetchAllSecretDataFn,
       getPrimaryKeyringSeedPhraseFn,
       trackEvent,
-      logFn,
     });
 
     expectTrackedEvent(trackEvent, {
@@ -100,7 +119,7 @@ describe('identifyIncompleteMetadataBackup', () => {
         number_of_imported_accounts: 1,
       },
     });
-    expect(logFn).not.toHaveBeenCalled();
+    expect(logMock).not.toHaveBeenCalled();
   });
 
   it('uses the explicitly tagged V2 primary when it matches the local primary', async () => {
@@ -114,17 +133,15 @@ describe('identifyIncompleteMetadataBackup', () => {
       .fn()
       .mockResolvedValue(stringToBytes(PrimarySRP2.data));
     const trackEvent = vi.fn();
-    const logFn = vi.fn();
 
     await trackIncompleteMetadataBackupEvents({
       fetchAllSecretDataFn,
       getPrimaryKeyringSeedPhraseFn,
       trackEvent,
-      logFn,
     });
 
     expect(trackEvent).not.toHaveBeenCalled();
-    expect(logFn).not.toHaveBeenCalled();
+    expect(logMock).not.toHaveBeenCalled();
   });
 
   it('tracks a mismatch when the explicitly tagged V2 primary differs', async () => {
@@ -138,13 +155,11 @@ describe('identifyIncompleteMetadataBackup', () => {
       .fn()
       .mockResolvedValue(stringToBytes('actual primary srp'));
     const trackEvent = vi.fn();
-    const logFn = vi.fn();
 
     await trackIncompleteMetadataBackupEvents({
       fetchAllSecretDataFn,
       getPrimaryKeyringSeedPhraseFn,
       trackEvent,
-      logFn,
     });
 
     expectTrackedEvent(trackEvent, {
@@ -155,7 +170,7 @@ describe('identifyIncompleteMetadataBackup', () => {
         number_of_imported_accounts: 0,
       },
     });
-    expect(logFn).not.toHaveBeenCalled();
+    expect(logMock).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -192,13 +207,11 @@ describe('identifyIncompleteMetadataBackup', () => {
       const fetchAllSecretDataFn = vi.fn().mockResolvedValue(secretDataItems);
       const getPrimaryKeyringSeedPhraseFn = vi.fn();
       const trackEvent = vi.fn();
-      const logFn = vi.fn();
 
       await trackIncompleteMetadataBackupEvents({
         fetchAllSecretDataFn,
         getPrimaryKeyringSeedPhraseFn,
         trackEvent,
-        logFn,
       });
 
       expectTrackedEvent(trackEvent, {
@@ -206,7 +219,7 @@ describe('identifyIncompleteMetadataBackup', () => {
         properties: properties as IncompleteMetadataBackupEventProperties,
       });
       expect(getPrimaryKeyringSeedPhraseFn).not.toHaveBeenCalled();
-      expect(logFn).not.toHaveBeenCalled();
+      expect(logMock).not.toHaveBeenCalled();
     },
   );
 
@@ -214,16 +227,14 @@ describe('identifyIncompleteMetadataBackup', () => {
     const error = new Error('network failure');
     const fetchAllSecretDataFn = vi.fn().mockRejectedValue(error);
     const trackEvent = vi.fn();
-    const logFn = vi.fn();
 
     await trackIncompleteMetadataBackupEvents({
       fetchAllSecretDataFn,
       getPrimaryKeyringSeedPhraseFn: vi.fn(),
       trackEvent,
-      logFn,
     });
 
-    expect(logFn).toHaveBeenCalledWith(
+    expect(logMock).toHaveBeenCalledWith(
       'Error identifying incomplete metadata backup',
       error,
     );
@@ -238,16 +249,14 @@ describe('identifyIncompleteMetadataBackup', () => {
       } as FetchedSecretDataItem,
     ]);
     const trackEvent = vi.fn();
-    const logFn = vi.fn();
 
     await trackIncompleteMetadataBackupEvents({
       fetchAllSecretDataFn,
       getPrimaryKeyringSeedPhraseFn: vi.fn(),
       trackEvent,
-      logFn,
     });
 
-    expect(logFn).toHaveBeenCalledWith(
+    expect(logMock).toHaveBeenCalledWith(
       'Error identifying incomplete metadata backup',
       expect.any(Error),
     );
@@ -261,16 +270,14 @@ describe('identifyIncompleteMetadataBackup', () => {
       .mockResolvedValue([createFetchedSecretDataItem(SRP1)]);
     const getPrimaryKeyringSeedPhraseFn = vi.fn().mockRejectedValue(error);
     const trackEvent = vi.fn();
-    const logFn = vi.fn();
 
     await trackIncompleteMetadataBackupEvents({
       fetchAllSecretDataFn,
       getPrimaryKeyringSeedPhraseFn,
       trackEvent,
-      logFn,
     });
 
-    expect(logFn).toHaveBeenCalledWith(
+    expect(logMock).toHaveBeenCalledWith(
       'Error identifying incomplete metadata backup',
       error,
     );
@@ -281,13 +288,11 @@ describe('identifyIncompleteMetadataBackup', () => {
     const fetchAllSecretDataFn = vi.fn().mockResolvedValue([]);
     const trackError = new Error('analytics unavailable');
     const trackEvent = vi.fn().mockRejectedValue(trackError);
-    const logFn = vi.fn();
 
     await trackIncompleteMetadataBackupEvents({
       fetchAllSecretDataFn,
       getPrimaryKeyringSeedPhraseFn: vi.fn(),
       trackEvent,
-      logFn,
     });
 
     expectTrackedEvent(trackEvent, {
@@ -298,7 +303,7 @@ describe('identifyIncompleteMetadataBackup', () => {
         number_of_imported_accounts: 0,
       },
     });
-    expect(logFn).toHaveBeenCalledWith(
+    expect(logMock).toHaveBeenCalledWith(
       'Error tracking incomplete metadata backup event',
       trackError,
     );
@@ -392,6 +397,133 @@ describe('getIncompleteMetadataBackupEventProperties', () => {
       metadata_schema_version: 'none',
       number_of_imported_wallets: 0,
       number_of_imported_accounts: 0,
+    });
+  });
+});
+
+function hashUserId(userId: string): string {
+  return bytesToHex(
+    hmac(
+      sha256,
+      stringToBytes(SeedlessIdentityUserIdSalt),
+      stringToBytes(userId),
+    ),
+  );
+}
+
+describe('trackIdentityMismatchEvent', () => {
+  beforeEach(() => {
+    logMock.mockClear();
+  });
+
+  it('tracks the source and reason', () => {
+    const trackEvent = vi.fn();
+    const error = new SeedlessOnboardingError(
+      SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
+      { details: SeedlessIdentityMismatchReason.UserIdMismatch },
+    );
+
+    trackIdentityMismatchEvent({
+      source: SeedlessIdentityMismatchSource.TokenRefresh,
+      error,
+      trackEvent,
+    });
+
+    expect(trackEvent).toHaveBeenCalledWith({
+      name: SeedlessIdentityMismatchEventName,
+      properties: {
+        source: SeedlessIdentityMismatchSource.TokenRefresh,
+        reason: SeedlessIdentityMismatchReason.UserIdMismatch,
+        expected_user_id: 'NONE',
+        actual_user_id: 'NONE',
+        metadata_schema_version: 'v1',
+      },
+      sensitiveProperties: {},
+      saveDataRecording: false,
+      hasProperties: true,
+    });
+  });
+
+  it('does not track other errors', () => {
+    const trackEvent = vi.fn();
+
+    trackIdentityMismatchEvent({
+      source: SeedlessIdentityMismatchSource.ToprfAuthenticate,
+      error: new Error('other'),
+      trackEvent,
+    });
+
+    expect(trackEvent).not.toHaveBeenCalled();
+  });
+
+  it('includes salted hashes of the user ids', () => {
+    const trackEvent = vi.fn<(event: AnalyticsTrackingEvent) => void>();
+    const expectedUserId = 'user-1';
+    const actualUserId = 'other-user';
+
+    trackIdentityMismatchEvent({
+      source: SeedlessIdentityMismatchSource.ToprfAuthenticate,
+      error: new SeedlessOnboardingError(
+        SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
+        { details: SeedlessIdentityMismatchReason.UserIdMismatch },
+      ),
+      trackEvent,
+      expectedUserId,
+      actualUserId,
+    });
+
+    const properties = trackEvent.mock.calls[0]?.[0].properties;
+    expect(properties).toStrictEqual({
+      source: SeedlessIdentityMismatchSource.ToprfAuthenticate,
+      reason: SeedlessIdentityMismatchReason.UserIdMismatch,
+      expected_user_id: hashUserId(expectedUserId),
+      actual_user_id: hashUserId(actualUserId),
+      metadata_schema_version: 'v1',
+    });
+    expect(JSON.stringify(properties)).not.toContain(expectedUserId);
+    expect(JSON.stringify(properties)).not.toContain(actualUserId);
+  });
+
+  it('reports NONE when a user id is missing', () => {
+    const trackEvent = vi.fn<(event: AnalyticsTrackingEvent) => void>();
+
+    trackIdentityMismatchEvent({
+      source: SeedlessIdentityMismatchSource.TokenRefresh,
+      error: new SeedlessOnboardingError(
+        SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
+        { details: SeedlessIdentityMismatchReason.MissingIdToken },
+      ),
+      trackEvent,
+      expectedUserId: 'user-1',
+      actualUserId: undefined,
+      migrationVersion: 1,
+    });
+
+    expect(trackEvent.mock.calls[0]?.[0].properties).toStrictEqual({
+      source: SeedlessIdentityMismatchSource.TokenRefresh,
+      reason: SeedlessIdentityMismatchReason.MissingIdToken,
+      expected_user_id: hashUserId('user-1'),
+      actual_user_id: 'NONE',
+      metadata_schema_version: 'v2',
+    });
+  });
+
+  it('logs a tracking failure without throwing', async () => {
+    const trackError = new Error('analytics unavailable');
+
+    trackIdentityMismatchEvent({
+      source: SeedlessIdentityMismatchSource.RotateRefreshToken,
+      error: new SeedlessOnboardingError(
+        SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
+      ),
+      trackEvent: vi.fn().mockRejectedValue(trackError),
+    });
+
+    await vi.waitFor(() => {
+      expect(logMock).toHaveBeenCalledWith(
+        'Error tracking identity mismatch event',
+        trackError,
+      );
     });
   });
 });

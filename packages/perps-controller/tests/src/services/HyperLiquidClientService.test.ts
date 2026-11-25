@@ -203,6 +203,17 @@ describe('HyperLiquidClientService', () => {
   });
 
   describe('Client Initialization', () => {
+    it('keeps the subscription client when provider initialization reuses the stream transport', async () => {
+      await service.ensureSubscriptionClient(mockWallet);
+      const subscriptionClient = service.getSubscriptionClient();
+
+      await service.initialize(mockWallet);
+
+      expect(subscriptionClient).toBeDefined();
+      expect(service.getSubscriptionClient()).toBe(subscriptionClient);
+      expect(hyperliquidModule.SubscriptionClient).toHaveBeenCalledOnce();
+    });
+
     it('initializes clients successfully with dual transports', async () => {
       await service.initialize(mockWallet);
 

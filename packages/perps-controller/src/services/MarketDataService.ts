@@ -3,7 +3,11 @@ import { v4 as uuidv4 } from 'uuid';
 import type { CandlePeriod } from '../constants/chartConfig.js';
 import { PerpsMeasurementName } from '../constants/performanceMetrics.js';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import { buildMarketNumericValues } from '../internal/marketNumericValues.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import { AggregatedPerpsProvider } from '../providers/AggregatedPerpsProvider.js';
+import type { VenueMarketData } from '../providers/AggregatedPerpsProvider.js';
+import { isPerpsProviderType } from '../routing/isPerpsProviderType.js';
 import { PerpsTraceNames, PerpsTraceOperations } from '../types/index.js';
 import type {
   PerpsProvider,
@@ -27,6 +31,8 @@ import type {
   MaintenanceMarginParams,
   PositionModifyPreviewParams,
   PositionModifyPreviewResult,
+  CrossLiquidationEstimate,
+  EstimateCrossLiquidationParams,
   FeeCalculationParams,
   FeeCalculationResult,
   OrderParams,
@@ -41,9 +47,15 @@ import type {
 import type { CandleData } from '../types/perps-types.js';
 import { coalescePerpsRestRequest } from '../utils/coalescePerpsRestRequest.js';
 import { ensureError, isAbortError } from '../utils/errorUtils.js';
-import { applyMarketFilters } from '../utils/marketUtils.js';
+import {
+  applyMarketFilters,
+  getSnapshotMarketIdentity,
+} from '../utils/marketUtils.js';
 import { applyFeeResolution } from '../utils/subscriptionFeeWaiver.js';
-import type { ServiceContext } from './ServiceContext.js';
+import type {
+  GlobalSnapshotContext,
+  ServiceContext,
+} from './ServiceContext.js';
 
 /**
  * MarketDataService
@@ -768,41 +780,289 @@ export class MarketDataService {
    * @returns The current snapshot, or undefined when the caller should fall back.
    */
   async #readCurrentGlobalSnapshot(
-    globalSnapshot: NonNullable<ServiceContext['globalSnapshot']>,
+    globalSnapshot: GlobalSnapshotContext,
     logMethod: string,
   ): Promise<PerpsGlobalSnapshotResult | undefined> {
     const { terminalMarketService } = this.#deps;
     if (!terminalMarketService?.fetchGlobalSnapshot) {
       return undefined;
     }
-    if (!globalSnapshot.isCurrent()) {
-      throw new Error('Terminal global snapshot context changed');
-    }
+    this.#assertSnapshotCurrent(globalSnapshot);
     try {
       const snapshot = await terminalMarketService.fetchGlobalSnapshot(
         globalSnapshot.request,
       );
-      if (!globalSnapshot.isCurrent()) {
-        throw new Error('Terminal global snapshot context changed');
-      }
-      if (Date.now() >= snapshot.expiresAt) {
+      this.#assertSnapshotCurrent(globalSnapshot);
+      if (!this.#isGlobalSnapshotFresh(snapshot)) {
         throw new Error('Terminal global snapshot expired');
       }
       return snapshot;
     } catch (snapshotError) {
-      if (!globalSnapshot.isCurrent()) {
-        throw new Error('Terminal global snapshot context changed');
-      }
+      this.#assertSnapshotCurrent(globalSnapshot);
       terminalMarketService.logError(snapshotError, logMethod);
       return undefined;
     }
   }
 
+  #isGlobalSnapshotFresh(
+    snapshot: PerpsGlobalSnapshotResult | undefined,
+  ): snapshot is PerpsGlobalSnapshotResult {
+    return snapshot !== undefined && Date.now() < snapshot.expiresAt;
+  }
+
+  #assertSnapshotCurrent(globalSnapshot: GlobalSnapshotContext): void {
+    if (!globalSnapshot.isCurrent()) {
+      if (globalSnapshot.request.provider === 'hyperliquid') {
+        throw Object.assign(
+          new Error('Terminal global snapshot context changed'),
+          {
+            code: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+          },
+        );
+      }
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+  }
+
+  /**
+   * Pick the snapshot context for one venue.
+   *
+   * @param context - Snapshot contexts keyed by provider.
+   * @param protocolId - The venue's provider id.
+   * @returns That venue's context, or undefined when it has none.
+   */
+  #snapshotContextFor(
+    context: ServiceContext,
+    protocolId: string,
+  ): GlobalSnapshotContext | undefined {
+    if (protocolId !== 'hyperliquid' && protocolId !== 'lighter') {
+      return undefined;
+    }
+    return (
+      context.globalSnapshots?.[protocolId] ??
+      (context.globalSnapshot?.request.provider === protocolId
+        ? context.globalSnapshot
+        : undefined)
+    );
+  }
+
+  /**
+   * Read one venue's market data. An accepted HyperLiquid snapshot replaces
+   * the venue rows. A Lighter snapshot only adds display and discovery
+   * fields to the venue rows, which keep Lighter's prices and trading rules.
+   * A rejected snapshot leaves the venue rows; without a snapshot context,
+   * `useTerminalApi` adds legacy Terminal metadata to them.
+   *
+   * @param provider - The venue's provider.
+   * @param globalSnapshot - The venue's snapshot context, if any.
+   * @param useTerminalApi - Whether to add legacy Terminal metadata.
+   * @returns Venue rows with their expiry and fallback when a snapshot was applied.
+   */
+  async #readVenueMarketData(
+    provider: PerpsProvider,
+    globalSnapshot: GlobalSnapshotContext | undefined,
+    useTerminalApi = false,
+  ): Promise<VenueMarketData> {
+    const { terminalMarketService } = this.#deps;
+    if (!globalSnapshot || !terminalMarketService?.fetchGlobalSnapshot) {
+      // Fetch Terminal metadata before provider data. It enriches the
+      // provider rows (name, keywords, tags, categories) but never replaces
+      // live pricing or funding.
+      let terminalMetadata: Map<string, TerminalAssetMetadata> | undefined;
+      if (useTerminalApi && terminalMarketService) {
+        try {
+          const result = await terminalMarketService.fetchMarkets();
+          if (result.metadata.size > 0) {
+            terminalMetadata = result.metadata;
+          }
+        } catch (terminalError) {
+          terminalMarketService.logError(
+            terminalError,
+            'getMarketDataWithPrices',
+          );
+        }
+      }
+      const markets = await provider.getMarketDataWithPrices();
+      return terminalMetadata
+        ? this.#enrichWithTerminalMetadata(markets, terminalMetadata)
+        : markets;
+    }
+
+    const logMethod = 'getMarketDataWithPrices.globalSnapshot';
+    if (globalSnapshot.request.provider === 'lighter') {
+      const [markets, snapshot] = await Promise.all([
+        provider.getMarketDataWithPrices(),
+        this.#readCurrentGlobalSnapshot(globalSnapshot, logMethod),
+      ]);
+      this.#assertSnapshotCurrent(globalSnapshot);
+      if (!this.#isGlobalSnapshotFresh(snapshot)) {
+        return markets;
+      }
+      return {
+        markets: this.#mergeSnapshotMetadata(markets, snapshot.markets),
+        expiresAt: snapshot.expiresAt,
+        getFallback: async (): Promise<PerpsMarketData[]> => markets,
+      };
+    }
+
+    // A rejected HyperLiquid snapshot has one fallback to the provider and
+    // is not followed by a second legacy Terminal request.
+    const snapshot = await this.#readCurrentGlobalSnapshot(
+      globalSnapshot,
+      logMethod,
+    );
+    if (snapshot && snapshot.markets.length > 0) {
+      return {
+        markets: snapshot.markets.filter((market) =>
+          globalSnapshot.isMarketAllowed(market.symbol),
+        ),
+        expiresAt: snapshot.expiresAt,
+        getFallback: async (): Promise<PerpsMarketData[]> => {
+          this.#assertSnapshotCurrent(globalSnapshot);
+          const markets = await provider.getMarketDataWithPrices();
+          this.#assertSnapshotCurrent(globalSnapshot);
+          return markets;
+        },
+      };
+    }
+    const markets = await provider.getMarketDataWithPrices();
+    this.#assertSnapshotCurrent(globalSnapshot);
+    return markets;
+  }
+
+  /**
+   * Add a snapshot's display and discovery fields to venue rows of the same
+   * symbol. Price, change, funding and leverage stay with the venue; a row
+   * the snapshot does not list is returned unchanged. The volume and open
+   * interest sort values (`numericValues`) come from the snapshot with the
+   * strings they are displayed as.
+   *
+   * @param markets - Rows from the venue's provider.
+   * @param snapshotMarkets - Rows from the venue's snapshot.
+   * @returns The venue rows with snapshot metadata.
+   */
+  #mergeSnapshotMetadata(
+    markets: PerpsMarketData[],
+    snapshotMarkets: PerpsMarketData[],
+  ): PerpsMarketData[] {
+    const snapshotBySymbol = new Map(
+      snapshotMarkets.map((market) => [market.symbol, market]),
+    );
+    return markets.map((market) => {
+      const snapshot = snapshotBySymbol.get(market.symbol);
+      if (!snapshot) {
+        return market;
+      }
+      const {
+        name,
+        description,
+        iconUrl,
+        marketType,
+        categories,
+        keywords,
+        tags,
+        listedAt,
+        volume,
+        openInterest,
+      } = snapshot;
+      const venueValues = market.numericValues;
+      const numericValues =
+        venueValues &&
+        buildMarketNumericValues({
+          price: venueValues.price,
+          change24hPercent: venueValues.change24hPercent,
+          volume: snapshot.numericValues?.volume,
+          openInterest:
+            openInterest === undefined
+              ? venueValues.openInterest
+              : snapshot.numericValues?.openInterest,
+        });
+      return {
+        ...market,
+        name,
+        volume,
+        ...(numericValues && { numericValues }),
+        ...(openInterest !== undefined && { openInterest }),
+        ...(description !== undefined && { description }),
+        ...(iconUrl !== undefined && { iconUrl }),
+        ...(marketType !== undefined && { marketType }),
+        ...(categories !== undefined && { categories }),
+        ...(keywords !== undefined && { keywords }),
+        ...(tags !== undefined && { tags }),
+        ...(listedAt !== undefined && { listedAt }),
+        ...getSnapshotMarketIdentity(snapshot),
+      };
+    });
+  }
+
+  /**
+   * Read trading rules from the venue and join only snapshot market identity.
+   *
+   * @param provider - The direct or aggregated provider.
+   * @param params - Trading-list query parameters.
+   * @param context - Per-venue snapshot identities for this read.
+   * @returns The venue trading rules with any available market keys and scales.
+   */
+  async #readProviderMarketInfos(
+    provider: PerpsProvider,
+    params: GetMarketsParams | undefined,
+    context: ServiceContext,
+  ): Promise<MarketInfo[]> {
+    const lighter =
+      provider.protocolId === 'lighter'
+        ? this.#snapshotContextFor(context, 'lighter')
+        : undefined;
+    const venueContexts =
+      provider instanceof AggregatedPerpsProvider
+        ? Object.values(context.globalSnapshots ?? {})
+        : [lighter].filter((snapshot) => snapshot !== undefined);
+    if (params?.skipFilters || venueContexts.length === 0) {
+      return provider.getMarkets(params);
+    }
+    const [markets, snapshots] = await Promise.all([
+      provider.getMarkets(params),
+      Promise.all(
+        venueContexts.map(async (snapshotContext) => {
+          const snapshot = await this.#readCurrentGlobalSnapshot(
+            snapshotContext,
+            'getMarkets.globalSnapshot',
+          );
+          return [snapshotContext.request.provider, snapshot] as const;
+        }),
+      ),
+    ]);
+    venueContexts.forEach((snapshotContext) =>
+      this.#assertSnapshotCurrent(snapshotContext),
+    );
+    const byVenue = new Map<PerpsProviderType, Map<string, MarketInfo>>();
+    for (const [venue, snapshot] of snapshots) {
+      if (this.#isGlobalSnapshotFresh(snapshot)) {
+        byVenue.set(
+          venue,
+          new Map(snapshot.marketInfos?.map((market) => [market.name, market])),
+        );
+      }
+    }
+    return markets.map((market) => {
+      const venue = market.providerId ?? provider.protocolId;
+      const snapshot =
+        venue === 'hyperliquid' || venue === 'lighter'
+          ? byVenue.get(venue)?.get(market.name)
+          : undefined;
+      return snapshot
+        ? { ...market, ...getSnapshotMarketIdentity(snapshot) }
+        : market;
+    });
+  }
+
   /**
    * Get available markets
    * Handles full orchestration: tracing, error logging, state management, and provider delegation.
-   * A configured global snapshot is the market list, whether or not
-   * `useTerminalApi` is set. A rejected snapshot falls back to the provider.
+   * For a direct HyperLiquid read, a configured global snapshot is the market
+   * list, whether or not `useTerminalApi` is set, and a rejected snapshot falls
+   * back to the provider. Direct Lighter and aggregated reads return provider
+   * trading rules and join only each venue's snapshot `marketKey` and
+   * `priceScale`, matched by venue and market name.
    * `skipFilters` uses provider discovery because the snapshot DEX set is
    * restricted to the configured allowlist.
    * Without a snapshot URL, `useTerminalApi` still reads the legacy Terminal
@@ -865,8 +1125,12 @@ export class MarketDataService {
 
       // A configured snapshot URL is the list. Do not follow a rejected
       // snapshot with the legacy /v1 market request. `useTerminalApi` does
-      // not choose this path.
-      const { globalSnapshot } = context;
+      // not choose this path. Lighter trading rules stay with its provider,
+      // so only a direct HyperLiquid read takes its list from the snapshot.
+      const globalSnapshot =
+        provider.protocolId === 'hyperliquid'
+          ? this.#snapshotContextFor(context, 'hyperliquid')
+          : undefined;
       const snapshotUrlConfigured = Boolean(
         this.#deps.terminalApi?.globalSnapshotUrl,
       );
@@ -929,9 +1193,13 @@ export class MarketDataService {
         }
       }
 
-      const markets = await provider.getMarkets(params);
-      if (snapshotAttempted && globalSnapshot && !globalSnapshot.isCurrent()) {
-        throw new Error('Terminal global snapshot context changed');
+      const markets = await this.#readProviderMarketInfos(
+        provider,
+        params,
+        context,
+      );
+      if (snapshotAttempted && globalSnapshot) {
+        this.#assertSnapshotCurrent(globalSnapshot);
       }
 
       if (context.stateManager) {
@@ -992,8 +1260,11 @@ export class MarketDataService {
   /**
    * Get market data with prices (includes price, volume, 24h change).
    * Applies optional category filtering, sorting, and limit after fetching.
-   * An explicitly configured global snapshot is the preferred complete source.
-   * `useTerminalApi` controls only legacy metadata enrichment of provider data.
+   * Each venue reads its own global snapshot when one is configured: it is
+   * HyperLiquid's complete source and adds metadata to Lighter's rows. In
+   * aggregated mode every venue does this inside the fan-out, and each falls
+   * back to its provider independently. `useTerminalApi` controls only legacy
+   * metadata enrichment of direct HyperLiquid provider data.
    *
    * @param options - The configuration options.
    * @param options.provider - The perps provider instance.
@@ -1007,7 +1278,7 @@ export class MarketDataService {
     context: ServiceContext;
   }): Promise<PerpsMarketData[]> {
     const { provider, params, context } = options;
-    const { globalSnapshot } = context;
+    const { globalSnapshots } = context;
     // Legacy Terminal metadata is HyperLiquid-specific. Aggregated and
     // direct non-HyperLiquid results must retain their own venue metadata.
     const useTerminalApi =
@@ -1032,62 +1303,49 @@ export class MarketDataService {
         },
       });
 
-      // Prefer a separately configured atomic snapshot only for an exact,
-      // still-current provider/network/DEX identity. A rejected snapshot has
-      // one lexical fallback to the provider below and is not followed by a
-      // second legacy Terminal request.
-      let snapshotAttempted = false;
-      if (
-        globalSnapshot &&
-        this.#deps.terminalMarketService?.fetchGlobalSnapshot
-      ) {
-        snapshotAttempted = true;
-        const snapshot = await this.#readCurrentGlobalSnapshot(
-          globalSnapshot,
-          'getMarketDataWithPrices.globalSnapshot',
+      let markets: PerpsMarketData[];
+      if (provider instanceof AggregatedPerpsProvider) {
+        markets = await provider.getMarketDataWithPrices(
+          async (providerId, venue) =>
+            this.#readVenueMarketData(
+              venue,
+              this.#snapshotContextFor(context, providerId),
+            ),
         );
-        if (snapshot && snapshot.markets.length > 0) {
-          traceData = { success: true };
-          const allowedMarkets = snapshot.markets.filter((market) =>
-            globalSnapshot.isMarketAllowed(market.symbol),
+        // The fan-out drops a venue whose read saw a context change, so the
+        // remaining rows could describe a context that is no longer current.
+        if (
+          Object.values(globalSnapshots ?? {}).some(
+            (snapshot) => !snapshot.isCurrent(),
+          )
+        ) {
+          throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+        }
+      } else {
+        const read = await this.#readVenueMarketData(
+          provider,
+          this.#snapshotContextFor(context, provider.protocolId),
+          useTerminalApi,
+        );
+        if (Array.isArray(read)) {
+          markets = read;
+        } else {
+          markets =
+            Date.now() < read.expiresAt
+              ? read.markets
+              : await read.getFallback();
+        }
+        // Direct rows carry their venue like aggregated rows do, so saved
+        // watchlist and recent references keep it.
+        const { protocolId } = provider;
+        if (isPerpsProviderType(protocolId)) {
+          markets = markets.map((market) =>
+            market.providerId ? market : { ...market, providerId: protocolId },
           );
-          return applyMarketFilters(allowedMarkets, params);
         }
       }
 
-      // Fetch Terminal API metadata before provider data when enabled.
-      // Terminal metadata enriches the provider result (name, keywords, tags,
-      // categories) but never replaces live pricing / funding data.
-      let terminalMetadata: Map<string, TerminalAssetMetadata> | undefined;
-      if (
-        !snapshotAttempted &&
-        useTerminalApi &&
-        this.#deps.terminalMarketService
-      ) {
-        try {
-          const result = await this.#deps.terminalMarketService.fetchMarkets();
-          if (result.metadata.size > 0) {
-            terminalMetadata = result.metadata;
-          }
-        } catch (terminalError) {
-          this.#deps.terminalMarketService.logError(
-            terminalError,
-            'getMarketDataWithPrices',
-          );
-        }
-      }
-
-      const markets = await provider.getMarketDataWithPrices();
-      if (snapshotAttempted && globalSnapshot && !globalSnapshot.isCurrent()) {
-        throw new Error('Terminal global snapshot context changed');
-      }
-
-      // Enrich with terminal metadata when available
-      const enriched = terminalMetadata
-        ? this.#enrichWithTerminalMetadata(markets, terminalMetadata)
-        : markets;
-
-      const filtered = applyMarketFilters(enriched, params);
+      const filtered = applyMarketFilters(markets, params);
 
       traceData = { success: true };
       return filtered;
@@ -1338,6 +1596,40 @@ export class MarketDataService {
         },
       );
       throw error;
+    }
+  }
+
+  /**
+   * Estimate the liquidation price of the Cross position an order would
+   * leave. Never rejects: a provider without the estimate, or one that
+   * throws, gives `{ status: 'unavailable', reason: 'provider' }`.
+   *
+   * @param options - The configuration options.
+   * @param options.provider - The perps provider instance.
+   * @param options.params - The proposed Cross order.
+   * @returns The typed estimate.
+   */
+  async estimateCrossLiquidation(options: {
+    provider: PerpsProvider;
+    params: EstimateCrossLiquidationParams;
+  }): Promise<CrossLiquidationEstimate> {
+    const { provider, params } = options;
+    if (!provider.estimateCrossLiquidation) {
+      return { status: 'unavailable', reason: 'provider' };
+    }
+    try {
+      return await provider.estimateCrossLiquidation(params);
+    } catch (error) {
+      this.#deps.logger.error(
+        ensureError(error, 'MarketDataService.estimateCrossLiquidation'),
+        {
+          context: {
+            name: 'MarketDataService.estimateCrossLiquidation',
+            data: { params },
+          },
+        },
+      );
+      return { status: 'unavailable', reason: 'provider' };
     }
   }
 

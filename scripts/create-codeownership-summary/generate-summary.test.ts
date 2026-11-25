@@ -48,46 +48,61 @@ describe('generateCodeownershipSummary', () => {
     });
 
     expect(summary).toBe(outdent`
-      ## 🛑 Files requiring codeowner review
+      ### 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owner groups.
-      **For files with multiple owners, approval from one owner is sufficient.**
+
+      (Note: For files with multiple owners, approval from one owner is sufficient.)
 
       <details>
       <summary><strong>@MetaMask/team-a</strong> (2 files)</summary>
-
-      - \`packages/example-controller/CHANGELOG.md\`
-      - \`packages/example-controller/src/index.ts\`
+      <br>
+      <ul>
+      <li><code>packages/example-controller/CHANGELOG.md</code></li>
+      <li><code>packages/example-controller/src/index.ts</code></li>
+      </ul>
       </details>
 
       <details>
-      <summary><strong>@MetaMask/team-b</strong> <em>or</em> <strong>@MetaMask/team-c</strong> (2 files)</summary>
-
-      - \`packages/shared-controller/package.json\`
-      - \`packages/shared-controller/README.md\`
+      <summary><strong>@MetaMask/team-b <em>or</em> @MetaMask/team-c</strong> (2 files)</summary>
+      <br>
+      <ul>
+      <li><code>packages/shared-controller/package.json</code></li>
+      <li><code>packages/shared-controller/README.md</code></li>
+      </ul>
       </details>
 
-      <details><summary><h2>ℹ️ Files co-owned by <code>@MetaMask/core-platform</code> (expand for more)</h2></summary>
+      ---
+
+      ### ℹ️ Files co-owned by \`@MetaMask/core-platform\`
+
+      For convenience in maintaining this repo, this team co-owns the following files and thus may approve changes to them.
 
       > [!NOTE]
-      > For convenience in maintaining this repo, \`@MetaMask/core-platform\` co-owns
-      > the following files. **It is not required to seek approval from
-      > \`@MetaMask/core-platform\` to change these files. This section is purely
-      > informational.**
+      > You do not need to get approval from \`@MetaMask/core-platform\` to merge this PR.
 
-      - \`packages/example-controller/CHANGELOG.md\`
-      - \`packages/shared-controller/package.json\`
+      <details>
+      <summary><em>(Expand to view list of files)</em></summary>
+      <ul>
+      <li><code>packages/example-controller/CHANGELOG.md</code></li>
+      <li><code>packages/shared-controller/package.json</code></li>
+      </ul>
       </details>
 
-      <details><summary><h2>ℹ️ Files co-owned by <code>@MetaMask/technical-writers</code> (expand for more)</h2></summary>
+      ---
+
+      ### ℹ️ Files co-owned by \`@MetaMask/technical-writers\`
+
+      For convenience in maintaining this repo, this team co-owns the following files and thus may approve changes to them.
 
       > [!NOTE]
-      > For convenience in maintaining this repo, \`@MetaMask/technical-writers\` co-owns
-      > the following files. **It is not required to seek approval from
-      > \`@MetaMask/technical-writers\` to change these files. This section is purely
-      > informational.**
+      > You do not need to get approval from \`@MetaMask/technical-writers\` to merge this PR.
 
-      - \`packages/shared-controller/README.md\`
+      <details>
+      <summary><em>(Expand to view list of files)</em></summary>
+      <ul>
+      <li><code>packages/shared-controller/README.md</code></li>
+      </ul>
       </details>
 
     `);
@@ -106,14 +121,16 @@ describe('generateCodeownershipSummary', () => {
     });
 
     expect(summary).toBe(outdent`
-      ## 🛑 Files requiring codeowner review
+      ### 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owners.
 
       <details>
       <summary><strong>@MetaMask/team-a</strong> (1 file)</summary>
-
-      - \`a.ts\`
+      <br>
+      <ul>
+      <li><code>a.ts</code></li>
+      </ul>
       </details>
 
     `);
@@ -136,17 +153,50 @@ describe('generateCodeownershipSummary', () => {
     });
 
     expect(summary).toBe(outdent`
-      ## 🛑 Files requiring codeowner review
+      ### 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owners.
 
       <details>
       <summary><strong>@MetaMask/team-a</strong> (1 file)</summary>
-
-      - \`packages/example-controller/src/index.ts\`
+      <br>
+      <ul>
+      <li><code>packages/example-controller/src/index.ts</code></li>
+      </ul>
       </details>
 
     `);
+  });
+
+  it('says maintenance owners may approve when they are approval-required owners', async () => {
+    mockGitRepository({
+      codeowners: outdent`
+        /docs @MetaMask/core-platform
+        /packages/example-controller/CHANGELOG.md @MetaMask/core-platform @MetaMask/team-a # maintenance-owner: @MetaMask/core-platform
+
+      `,
+      changedFilePaths: [
+        'docs/guide.md',
+        'packages/example-controller/CHANGELOG.md',
+      ],
+    });
+
+    const summary = await generateCodeownershipSummary({
+      repositoryDirectoryPath: '/path/to/repository',
+      baseRef: 'main',
+      headRef: 'HEAD',
+    });
+
+    expect(summary).toContain(
+      'For convenience in maintaining this repo, this team co-owns the following files and thus may approve changes to them.',
+    );
+    expect(summary).not.toContain('> [!NOTE]');
+    expect(summary).toContain(
+      '### ℹ️ Files co-owned by `@MetaMask/core-platform`',
+    );
+    expect(summary).toContain(
+      '<details>\n<summary><em>(Expand to view list of files)</em></summary>',
+    );
   });
 
   it('requires approval from maintenance owners when they are the only owners of a file', async () => {
@@ -163,14 +213,16 @@ describe('generateCodeownershipSummary', () => {
     });
 
     expect(summary).toBe(outdent`
-      ## 🛑 Files requiring codeowner review
+      ### 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owners.
 
       <details>
       <summary><strong>@MetaMask/core-platform</strong> (1 file)</summary>
-
-      - \`packages/example-controller/CHANGELOG.md\`
+      <br>
+      <ul>
+      <li><code>packages/example-controller/CHANGELOG.md</code></li>
+      </ul>
       </details>
 
     `);
@@ -190,14 +242,16 @@ describe('generateCodeownershipSummary', () => {
     });
 
     expect(summary).toBe(outdent`
-      ## 🛑 Files requiring codeowner review
+      ### 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owners.
 
       <details>
       <summary><strong>@MetaMask/team-a</strong> (1 file)</summary>
-
-      - \`a.md\`
+      <br>
+      <ul>
+      <li><code>a.md</code></li>
+      </ul>
       </details>
 
     `);
@@ -221,14 +275,16 @@ describe('generateCodeownershipSummary', () => {
     });
 
     expect(summary).toBe(outdent`
-      ## 🛑 Files requiring codeowner review
+      ### 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owners.
 
       <details>
       <summary><strong>@MetaMask/team-a</strong> (1 file)</summary>
-
-      - \`a.ts\`
+      <br>
+      <ul>
+      <li><code>a.ts</code></li>
+      </ul>
       </details>
 
     `);
@@ -251,14 +307,16 @@ describe('generateCodeownershipSummary', () => {
     });
 
     expect(summary).toBe(outdent`
-      ## 🛑 Files requiring codeowner review
+      ### 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owners.
 
       <details>
       <summary><strong>@MetaMask/accounts-engineers</strong> (1 file)</summary>
-
-      - \`packages/example/src/index.ts\`
+      <br>
+      <ul>
+      <li><code>packages/example/src/index.ts</code></li>
+      </ul>
       </details>
 
     `);
@@ -281,16 +339,19 @@ describe('generateCodeownershipSummary', () => {
     });
 
     expect(summary).toBe(outdent`
-      ## 🛑 Files requiring codeowner review
+      ### 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owner groups.
-      **For files with multiple owners, approval from one owner is sufficient.**
+
+      (Note: For files with multiple owners, approval from one owner is sufficient.)
 
       <details>
-      <summary><strong>@MetaMask/extension-platform</strong> <em>or</em> <strong>@MetaMask/mobile-platform</strong> (2 files)</summary>
-
-      - \`a.ts\`
-      - \`b.ts\`
+      <summary><strong>@MetaMask/extension-platform <em>or</em> @MetaMask/mobile-platform</strong> (2 files)</summary>
+      <br>
+      <ul>
+      <li><code>a.ts</code></li>
+      <li><code>b.ts</code></li>
+      </ul>
       </details>
 
     `);
@@ -309,15 +370,17 @@ describe('generateCodeownershipSummary', () => {
     });
 
     expect(summary).toBe(outdent`
-      ## 🛑 Files requiring codeowner review
+      ### 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owners.
 
       <details>
       <summary><strong>@MetaMask/core-platform</strong> (2 files)</summary>
-
-      - \`a/nested/index.ts\`
-      - \`z/index.ts\`
+      <br>
+      <ul>
+      <li><code>a/nested/index.ts</code></li>
+      <li><code>z/index.ts</code></li>
+      </ul>
       </details>
 
     `);
@@ -363,15 +426,17 @@ describe('generateCodeownershipSummary', () => {
       changedFilePaths: ['a/1.ts', 'a/2.ts'],
     });
     const expectedSummary = outdent`
-      ## 🛑 Files requiring codeowner review
+      ### 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owners.
 
       <details>
       <summary><strong>@MetaMask/team-a</strong> (2 files)</summary>
-
-      - \`a/1.ts\`
-      - \`a/2.ts\`
+      <br>
+      <ul>
+      <li><code>a/1.ts</code></li>
+      <li><code>a/2.ts</code></li>
+      </ul>
       </details>
 
     `;
@@ -405,33 +470,40 @@ describe('generateCodeownershipSummary', () => {
       > [!WARNING]
       > This PR seems large! Some changed files needed to be omitted to post the summary below. Run \`yarn create-codeownership-summary\` on this branch to see the full output.
 
-      ## 🛑 Files requiring codeowner review
+      ### 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owners.
 
       <details>
       <summary><strong>@MetaMask/team-a</strong> (30 files)</summary>
-
-      - \`a/01.ts\`
-      - ... _(29 more files)_ ...
+      <br>
+      <ul>
+      <li>... <em>(30 more files)</em> ...</li>
+      </ul>
       </details>
 
       <details>
       <summary><strong>@MetaMask/team-b</strong> (1 file)</summary>
-
-      - \`b/index.ts\`
+      <br>
+      <ul>
+      <li>... <em>(1 more file)</em> ...</li>
+      </ul>
       </details>
 
-      <details><summary><h2>ℹ️ Files co-owned by <code>@MetaMask/core-platform</code> (expand for more)</h2></summary>
+      ---
+
+      ### ℹ️ Files co-owned by \`@MetaMask/core-platform\`
+
+      For convenience in maintaining this repo, this team co-owns the following files and thus may approve changes to them.
 
       > [!NOTE]
-      > For convenience in maintaining this repo, \`@MetaMask/core-platform\` co-owns
-      > the following files. **It is not required to seek approval from
-      > \`@MetaMask/core-platform\` to change these files. This section is purely
-      > informational.**
+      > You do not need to get approval from \`@MetaMask/core-platform\` to merge this PR.
 
-      - \`a/01.ts\`
-      - ... _(29 more files)_ ...
+      <details>
+      <summary><em>(Expand to view list of files)</em></summary>
+      <ul>
+      <li>... <em>(30 more files)</em> ...</li>
+      </ul>
       </details>
 
     `;
@@ -459,15 +531,17 @@ describe('generateCodeownershipSummary', () => {
       > [!WARNING]
       > This PR seems large! Some changed files needed to be omitted to post the summary below. Run \`yarn create-codeownership-summary\` on this branch to see the full output.
 
-      ## 🛑 Files requiring codeowner review
+      ### 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owners.
 
       <details>
       <summary><strong>@MetaMask/team-a</strong> (2 files)</summary>
-
-      - \`${longDirectoryPath}1.ts\`
-      - ... _(1 more file)_ ...
+      <br>
+      <ul>
+      <li><code>${longDirectoryPath}1.ts</code></li>
+      <li>... <em>(1 more file)</em> ...</li>
+      </ul>
       </details>
 
     `;
@@ -476,10 +550,10 @@ describe('generateCodeownershipSummary', () => {
       repositoryDirectoryPath: '/path/to/repository',
       baseRef: 'main',
       headRef: 'HEAD',
-      maxLength: expectedSummary.length,
+      maxLength: expectedSummary.length + 1,
     });
 
-    expect(summary).toBe(expectedSummary);
+    expect(summary.trimEnd()).toBe(expectedSummary.trimEnd());
   });
 });
 

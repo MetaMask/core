@@ -3,6 +3,8 @@ import type { Mock } from 'vitest';
 
 import {
   _resetStateForTests,
+  doesLegendOwnLayoutSettle,
+  getActiveStudies,
   getCurrentResolution,
   getOhlcvData,
   getOhlcvGeneration,
@@ -153,49 +155,39 @@ describe('handleSetOHLCVData', () => {
     expect(getTimeScale).toHaveBeenCalled();
   });
 
-  it('ignores stale setResolution callback when a newer interval arrives', () => {
-    const resetData = vi.fn();
-    const setResCbs: (() => void)[] = [];
-    const setResolution = vi
-      .fn()
-      .mockImplementation((_res: string, callback: () => void) => {
-        setResCbs.push(callback);
-      });
-    const onDataLoaded = vi
-      .fn()
-      .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() });
-    const getTimeScale = vi.fn().mockReturnValue({ setRightOffset: vi.fn() });
+  it('releases the visible-range pin via setRightOffset before switching resolution', () => {
+    const setRightOffset = vi.fn();
+    const setResolution = vi.fn();
+    const getTimeScale = vi.fn().mockReturnValue({ setRightOffset });
     const chart = {
-      resetData,
+      resetData: vi.fn(),
       setResolution,
-      onDataLoaded,
+      onDataLoaded: vi
+        .fn()
+        .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() }),
       getTimeScale,
     } as unknown as TVActiveChart;
 
+    // Prime resolution at "1" (60s spacing).
     handleSetOHLCVData({ data: oneMinuteApart(2) });
     setWidget({
       activeChart: () => chart,
     } as unknown as TVChartingLibraryWidget);
     setChartReady(true);
 
-    // Switch to 5m
+    // Switch to 5m (300s spacing).
     handleSetOHLCVData({
       data: Array.from({ length: 3 }, (_, i) => bar(i * 300_000)),
     });
-    // Switch again to 15m before first callback fires
-    handleSetOHLCVData({
-      data: Array.from({ length: 3 }, (_, i) => bar(i * 900_000)),
-    });
 
-    expect(setResCbs).toHaveLength(2);
-
-    // Fire the stale 5m callback — should be ignored (no side-effects)
-    setResCbs[0]();
-    expect(getTimeScale).not.toHaveBeenCalled();
-
-    // Fire the current 15m callback — should proceed
-    setResCbs[1]();
-    expect(getTimeScale).toHaveBeenCalled();
+    // The absolute visible-range pin is released (setRightOffset) BEFORE
+    // setResolution so TradingView preserves the visible bar count rather than
+    // the inherited wide time span (the pagination storm).
+    expect(setRightOffset).toHaveBeenCalledWith(2);
+    expect(setResolution).toHaveBeenCalledWith('5', expect.any(Function));
+    const releaseOrder = setRightOffset.mock.invocationCallOrder[0];
+    const switchOrder = setResolution.mock.invocationCallOrder[0];
+    expect(releaseOrder).toBeLessThan(switchOrder);
   });
 
   it('calls widget.resetCache before resetData on same-resolution reload', () => {
@@ -736,6 +728,94 @@ describe('emitLayoutSettled (via handleSetOHLCVData)', () => {
 
     (window.requestAnimationFrame as Mock).mockRestore();
   });
+
+  describe('on resolution switch', () => {
+    const setUpResolutionSwitch = (): {
+      postMessageMock: Mock;
+      runSetResolutionCallback: () => void;
+      flushRaf: () => void;
+    } => {
+      const postMessageMock = vi.fn();
+      window.ReactNativeWebView = { postMessage: postMessageMock };
+
+      const rafCallbacks: FrameRequestCallback[] = [];
+      vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
+        (frameCallback: FrameRequestCallback) => {
+          rafCallbacks.push(frameCallback);
+          return rafCallbacks.length;
+        },
+      );
+
+      let setResCb: () => void = () => undefined;
+      const chart = {
+        resetData: vi.fn(),
+        setResolution: vi.fn().mockImplementation((_res, callback) => {
+          setResCb = callback;
+        }),
+        onDataLoaded: vi
+          .fn()
+          .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() }),
+        getTimeScale: vi.fn().mockReturnValue({ setRightOffset: vi.fn() }),
+        getPanes: vi.fn().mockReturnValue([]),
+      } as unknown as TVActiveChart;
+
+      // Prime resolution "1", then switch to "5".
+      handleSetOHLCVData({ data: oneMinuteApart(3) });
+      setWidget({
+        activeChart: () => chart,
+      } as unknown as TVChartingLibraryWidget);
+      setChartReady(true);
+
+      return {
+        postMessageMock,
+        runSetResolutionCallback: () => {
+          handleSetOHLCVData({
+            data: Array.from({ length: 3 }, (_, i) => bar(i * 300_000)),
+          });
+          setResCb();
+        },
+        flushRaf: () => {
+          // Drain nested rAFs (emitLayoutSettled uses 2×rAF).
+          while (rafCallbacks.length > 0) {
+            rafCallbacks.shift()?.(0);
+          }
+        },
+      };
+    };
+
+    const settledCount = (postMessageMock: Mock): number =>
+      postMessageMock.mock.calls.filter((call: string[]) => {
+        const parsed = JSON.parse(call[0]) as { type: string };
+        return parsed.type === 'CHART_LAYOUT_SETTLED';
+      }).length;
+
+    it('defers CHART_LAYOUT_SETTLED to the legend when studies are active', () => {
+      const { postMessageMock, runSetResolutionCallback, flushRaf } =
+        setUpResolutionSwitch();
+      getActiveStudies().set('RSI', 'study-1');
+
+      runSetResolutionCallback();
+      flushRaf();
+
+      expect(doesLegendOwnLayoutSettle()).toBe(true);
+      expect(settledCount(postMessageMock)).toBe(0);
+
+      (window.requestAnimationFrame as Mock).mockRestore();
+    });
+
+    it('posts CHART_LAYOUT_SETTLED from ingestion when no studies are active', () => {
+      const { postMessageMock, runSetResolutionCallback, flushRaf } =
+        setUpResolutionSwitch();
+
+      runSetResolutionCallback();
+      flushRaf();
+
+      expect(doesLegendOwnLayoutSettle()).toBe(false);
+      expect(settledCount(postMessageMock)).toBe(1);
+
+      (window.requestAnimationFrame as Mock).mockRestore();
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -894,5 +974,91 @@ describe('error paths', () => {
       );
     });
     expect(errorCalls.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// atomicIntervalWindow (opt-in)
+// ---------------------------------------------------------------------------
+describe('atomicIntervalWindow (opt-in)', () => {
+  beforeEach(() => {
+    _resetStateForTests();
+    _resetOhlcvIngestionForTests();
+    delete window.ReactNativeWebView;
+  });
+
+  it('clamps the visible-range pin to the oldest bar when opted in', () => {
+    let subscribedCb: (() => void) | undefined;
+    const setVisibleRange = vi.fn();
+    const chart = {
+      resetData: vi.fn(),
+      setResolution: vi.fn(),
+      onDataLoaded: vi.fn().mockReturnValue({
+        subscribe: vi.fn((_scope: unknown, callback: () => void) => {
+          subscribedCb = callback;
+        }),
+        unsubscribe: vi.fn(),
+      }),
+      getTimeScale: vi.fn().mockReturnValue({ setRightOffset: vi.fn() }),
+      setVisibleRange,
+      getPanes: vi.fn().mockReturnValue([]),
+    } as unknown as TVActiveChart;
+
+    handleSetOHLCVData({ data: oneMinuteApart(3) }); // oldest bar at t=0
+    setWidget({
+      activeChart: () => chart,
+    } as unknown as TVChartingLibraryWidget);
+    setChartReady(true);
+
+    // Same-resolution reload with opt-in + a window older than the oldest bar.
+    handleSetOHLCVData({
+      data: oneMinuteApart(3),
+      atomicIntervalWindow: true,
+      visibleFromMs: -600_000,
+    });
+
+    expect(subscribedCb).toBeDefined();
+    (subscribedCb as () => void)();
+    expect(setVisibleRange).toHaveBeenCalledTimes(1);
+    const [clampedRange] = setVisibleRange.mock.calls[0] as [{ from: number }];
+    // Clamped up to the oldest loaded bar (t=0).
+    expect(clampedRange.from).toBe(0);
+  });
+
+  it('does not clamp the visible-range pin when not opted in (today\u2019s behavior)', () => {
+    let subscribedCb: (() => void) | undefined;
+    const setVisibleRange = vi.fn();
+    const chart = {
+      resetData: vi.fn(),
+      setResolution: vi.fn(),
+      onDataLoaded: vi.fn().mockReturnValue({
+        subscribe: vi.fn((_scope: unknown, callback: () => void) => {
+          subscribedCb = callback;
+        }),
+        unsubscribe: vi.fn(),
+      }),
+      getTimeScale: vi.fn().mockReturnValue({ setRightOffset: vi.fn() }),
+      setVisibleRange,
+      getPanes: vi.fn().mockReturnValue([]),
+    } as unknown as TVActiveChart;
+
+    handleSetOHLCVData({ data: oneMinuteApart(3) }); // oldest bar at t=0
+    setWidget({
+      activeChart: () => chart,
+    } as unknown as TVChartingLibraryWidget);
+    setChartReady(true);
+
+    // Same-resolution reload, no opt-in, window older than the oldest bar.
+    handleSetOHLCVData({
+      data: oneMinuteApart(3),
+      visibleFromMs: -600_000,
+    });
+
+    expect(subscribedCb).toBeDefined();
+    (subscribedCb as () => void)();
+    expect(setVisibleRange).toHaveBeenCalledTimes(1);
+    const [rawRange] = setVisibleRange.mock.calls[0] as [{ from: number }];
+    // Unclamped: the raw visibleFromMs is used (-600_000 ms -> -600 s).
+    expect(rawRange.from).toBe(Math.floor(-600_000 / 1000));
   });
 });

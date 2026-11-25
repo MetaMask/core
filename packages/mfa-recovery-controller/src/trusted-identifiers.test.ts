@@ -7,6 +7,7 @@ import type {
 } from '@metamask/messenger';
 import { AuthConnection } from '@metamask/seedless-onboarding-controller';
 import { bytesToHex, stringToBytes } from '@metamask/utils';
+import type { Json } from '@metamask/utils';
 import { sha256 } from '@noble/hashes/sha2';
 import { describe, expect, it } from 'vitest';
 
@@ -109,6 +110,10 @@ describe('isTrustedIdentifier', () => {
     namespace: 'https://accounts.google.com/',
     value: EMAIL_HASH,
   };
+  const { rpId: _rpId, ...verifierWithoutRpId } = PASSKEY.verifier as Record<
+    string,
+    Json
+  >;
 
   it('accepts a trusted passkey', () => {
     expect(isTrustedIdentifier(PASSKEY, [TRUSTED_PASSKEY], {})).toBe(true);
@@ -171,13 +176,7 @@ describe('isTrustedIdentifier', () => {
         verifier: { ...(PASSKEY.verifier as object), rpId: 'other.example' },
       },
     ],
-    [
-      'a passkey without RP ID',
-      {
-        ...PASSKEY,
-        verifier: { ...(PASSKEY.verifier as object), rpId: undefined },
-      },
-    ],
+    ['a passkey without RP ID', { ...PASSKEY, verifier: verifierWithoutRpId }],
     [
       'another credential ID',
       {

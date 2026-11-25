@@ -204,6 +204,8 @@ import type {
   Position,
   PositionModifyPreviewParams,
   PositionModifyPreviewResult,
+  CrossLiquidationEstimate,
+  EstimateCrossLiquidationParams,
   RawLedgerUpdate,
   ReadyToTradeResult,
   SubscribeAccountParams,
@@ -301,6 +303,11 @@ import {
   reconcileLighterChaseChild,
 } from '../utils/lighterChase.js';
 import {
+  getLighterClientOrderKind,
+  toLighterClientOrderIndex,
+} from '../utils/lighterClientOrderTag.js';
+import type { LighterClientOrderKind } from '../utils/lighterClientOrderTag.js';
+import {
   LIGHTER_EDIT_JOURNAL_PREFIX,
   decodeLighterModifyOrder,
   lighterEditOrderId,
@@ -329,6 +336,7 @@ import type {
 } from '../utils/lighterScaleOrders.js';
 import { prepareLighterTwapOrder } from '../utils/lighterTwap.js';
 import { identifyLighterTwapParent } from '../utils/lighterTwapReconciliation.js';
+import { calculateOrderBookSpread } from '../utils/orderBookGrouping.js';
 import {
   isLimitExecutionOrderType,
   isTriggerOrderType,
@@ -358,6 +366,16 @@ type LighterOrderBookState = {
 const NOOP_UNSUBSCRIBE = (): void => undefined;
 
 const LIGHTER_INACTIVE_HISTORY_ROW_LIMIT = 10_000;
+
+/**
+ * Take-profit and stop-loss legs one Lighter order can attach: an OTOCO group
+ * carries one of each. Lighter's own limit; equal to Hyperliquid's today only
+ * by coincidence.
+ */
+const LIGHTER_ATTACHED_TPSL_GROUP_LIMIT = Object.freeze({
+  takeProfit: 1,
+  stopLoss: 1,
+});
 
 /** Default Lighter execution protection, in basis points (5%). */
 const LIGHTER_DEFAULT_SLIPPAGE_BPS = 500;
@@ -2676,6 +2694,16 @@ export class LighterProvider implements PerpsProvider {
     this.#accountIndex = master.index;
     return this.#accountIndex;
   };
+
+  /**
+   * Account index notify-perps watches for this wallet: the master (lowest)
+   * account, the one the provider always trades with.
+   *
+   * @returns The account index.
+   */
+  async getNotificationAccountIndex(): Promise<number> {
+    return await this.#ensureAccountIndex();
+  }
 
   /**
    * Verify venue identity before caching it or recording recovery authority.
@@ -7926,11 +7954,17 @@ export class LighterProvider implements PerpsProvider {
    * collides with probability 1/2^48 (~3.6e-15) and the birthday bound
    * over n total ids is ~n(n-1)/2^49 — about 1.8e-7 after ten thousand
    * orders, versus the 1% per-pair risk of the previous 100-lane scheme.
+   * Stop loss and take profit ids carry the MetaMask tag that notify-perps
+   * reads off fills, with 31 random bits (see toLighterClientOrderIndex).
    *
    * @param count - How many ids to reserve.
+   * @param kinds - Tag kind per id, in order; missing entries are untagged.
    * @returns The reserved ids.
    */
-  readonly #allocateClientOrderIndexes = (count: number): number[] => {
+  readonly #allocateClientOrderIndexes = (
+    count: number,
+    kinds: readonly LighterClientOrderKind[] = [],
+  ): number[] => {
     const ids: number[] = [];
     // Bounded: a degenerate randomness source (or an absurdly full
     // collision set) must surface as an error, never a synchronous spin.
@@ -7946,8 +7980,15 @@ export class LighterProvider implements PerpsProvider {
       }
       attempts += 1;
       const [high, low] = randomUint24Pair();
-      const candidate = high * 2 ** 24 + low;
-      if (candidate === 0 || this.#issuedClientOrderIds.has(candidate)) {
+      const draw = high * 2 ** 24 + low;
+      if (draw === 0) {
+        continue;
+      }
+      const candidate = toLighterClientOrderIndex(
+        kinds[ids.length] ?? 'other',
+        draw,
+      );
+      if (candidate === null || this.#issuedClientOrderIds.has(candidate)) {
         continue;
       }
       this.#issuedClientOrderIds.add(candidate);
@@ -8540,6 +8581,7 @@ export class LighterProvider implements PerpsProvider {
       supportedMarginModes: Object.freeze(['cross', 'isolated'] as const),
       supportedTriggerOrderTypes: Object.freeze([...TRIGGER_ORDER_TYPES]),
       ...this.#getMarketPrecisionAndLimits(market),
+      attachedTpslGroupLimit: LIGHTER_ATTACHED_TPSL_GROUP_LIMIT,
       attachedTpsl: Object.freeze({
         submission: 'native-oto-otoco',
         childCoverage: 'venue-native-zero-size',
@@ -11977,7 +12019,12 @@ export class LighterProvider implements PerpsProvider {
         this.#assertSession(generationAtIntent);
       }
       const [clientOrderIndex, ...attachedClientIds] =
-        this.#allocateClientOrderIndexes(1 + attachedChildren.length);
+        this.#allocateClientOrderIndexes(1 + attachedChildren.length, [
+          getLighterClientOrderKind(orderTypeInt),
+          ...attachedChildren.map((child) =>
+            getLighterClientOrderKind(child[5]),
+          ),
+        ]);
       if (params.timeInForce === 'ALO') {
         postOnlyClientOrderId = String(clientOrderIndex);
       }
@@ -15158,6 +15205,9 @@ export class LighterProvider implements PerpsProvider {
         // and a degenerate RNG must exhaust BEFORE any cancellation.
         const clientOrderIds = this.#allocateClientOrderIndexes(
           validatedOrders.length,
+          validatedOrders.map((entry) =>
+            getLighterClientOrderKind(entry.orderType),
+          ),
         );
         createdClientIds = clientOrderIds;
         // VENUE CONTRACT (proven live: 'GroupingType is not valid'):
@@ -18524,6 +18574,12 @@ export class LighterProvider implements PerpsProvider {
     return { status: 'unsupported', reason: 'provider' };
   }
 
+  async estimateCrossLiquidation(
+    _params: EstimateCrossLiquidationParams,
+  ): Promise<CrossLiquidationEstimate> {
+    return { status: 'unavailable', reason: 'provider' };
+  }
+
   // ============================================================================
   // Live subscriptions over Lighter WebSocket channels, with REST polling
   // only as the price-stream fallback when no WebSocket transport exists.
@@ -19472,9 +19528,10 @@ export class LighterProvider implements PerpsProvider {
           .sort((a, b) => Number(a[0]) - Number(b[0]))
           .slice(0, levels),
       );
-      const bestBid = Number(bids[0]?.price ?? '0');
-      const bestAsk = Number(asks[0]?.price ?? '0');
-      const mid = bestBid > 0 && bestAsk > 0 ? (bestBid + bestAsk) / 2 : 0;
+      const top = calculateOrderBookSpread({
+        bestBid: bids[0]?.price,
+        bestAsk: asks[0]?.price,
+      });
       const maxTotal = Math.max(
         Number(bids[bids.length - 1]?.total ?? '0'),
         Number(asks[asks.length - 1]?.total ?? '0'),
@@ -19482,10 +19539,9 @@ export class LighterProvider implements PerpsProvider {
       const book: OrderBookData = {
         bids,
         asks,
-        spread: String(bestAsk - bestBid),
-        spreadPercentage:
-          mid > 0 ? String(((bestAsk - bestBid) / mid) * 100) : '0',
-        midPrice: String(mid),
+        spread: String(top?.spread ?? 0),
+        spreadPercentage: top ? String(top.spreadPercentage) : '0',
+        midPrice: String(top?.midPrice ?? 0),
         lastUpdated: Date.now(),
         maxTotal: String(maxTotal),
       };

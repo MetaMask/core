@@ -2,15 +2,16 @@ import { TOPRFError, TOPRFErrorCode } from '@metamask/toprf-secure-backup';
 import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 import { describe, expect, it } from 'vitest';
 
-import { SeedlessOnboardingControllerErrorMessage } from './constants.js';
-import { SecretType } from './constants.js';
+import { SeedlessOnboardingControllerErrorMessage } from '../constants.js';
+import { SecretType } from '../constants.js';
+import { SecretMetadata } from '../SecretMetadata.js';
 import {
   getErrorMessageFromTOPRFErrorCode,
   InvalidPrimarySecretDataTypeError,
+  isIdentityMismatchError,
   RecoveryError,
   SeedlessOnboardingError,
 } from './errors.js';
-import { SecretMetadata } from './SecretMetadata.js';
 
 describe('getErrorMessageFromTOPRFErrorCode', () => {
   it('returns TooManyLoginAttempts for RateLimitExceeded', () => {
@@ -349,5 +350,26 @@ describe('SeedlessOnboardingError', () => {
       expect(error.stack).toBeDefined();
       expect(error.stack).toContain('SeedlessOnboardingControllerError');
     });
+  });
+});
+
+describe('isIdentityMismatchError', () => {
+  it('matches an identity mismatch error', () => {
+    const error = new SeedlessOnboardingError(
+      SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
+    );
+
+    expect(isIdentityMismatchError(error)).toBe(true);
+  });
+
+  it('rejects other errors', () => {
+    expect(isIdentityMismatchError(new Error('other'))).toBe(false);
+    expect(
+      isIdentityMismatchError(
+        new SeedlessOnboardingError(
+          SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+        ),
+      ),
+    ).toBe(false);
   });
 });
