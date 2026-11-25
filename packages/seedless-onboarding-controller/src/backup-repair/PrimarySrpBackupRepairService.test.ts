@@ -191,7 +191,7 @@ function setup({
   >(metadataService.batchUpdateSecretDataItems);
   const fetchAllSecretData = vi.fn<
     PrimarySrpBackupRepairServiceOptions['fetchAllSecretData']
-  >(metadataService.fetchAllSecretDataItems);
+  >(async () => metadataService.items.map((item) => ({ ...item })));
   const exportPrimarySeedPhrase = vi
     .fn<PrimarySrpBackupRepairServiceOptions['exportPrimarySeedPhrase']>()
     .mockResolvedValue(LOCAL_PRIMARY_SRP);
