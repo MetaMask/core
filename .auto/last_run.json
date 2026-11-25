@@ -1,11 +1,11 @@
 {
   "command": "./.auto/measure.sh",
   "exitCode": 0,
-  "durationSeconds": 18.81,
+  "durationSeconds": 16.9,
   "metrics": {
-    "primary_ms": 158,
-    "per_call_us": 1.097
+    "primary_ms": 115,
+    "per_call_us": 0.799
   },
   "checksPass": true,
-  "checksTail": "Testing types with tsc and vue-tsc is an experimental feature.\nBreaking changes might not follow SemVer, please pin Vitest's version when using it.\n\n RUN  v5.1.1 /Users/prithpalsooriya/Desktop/projects/.perf-research/2026-11-25/core/packages/assets-controller\n\n\n Test Files  50 passed (50)\n      Tests  1293 passed (1293)\nType Errors  no errors\n   Start at  09:20:12\n   Duration  21.04s (import 42%, tests 27%, transform 26%, setup 5%)\n\n     Import  |assets-controller| 1274 modules were evaluated 17659 times · 68.83s total, 42% of tracked time\n             ~1.88s faster with isolate: false — shared modules are evaluated once per worker instead of once per file\n             learn more: https://vitest.dev/guide/improving-performance#test-isolation\n\n"
+  "checksTail": "Testing types with tsc and vue-tsc is an experimental feature.\nBreaking changes might not follow SemVer, please pin Vitest's version when using it.\n\n RUN  v5.1.1 /Users/prithpalsooriya/Desktop/projects/.perf-research/2026-11-25/core/packages/assets-controller\n\n\n Test Files  50 passed (50)\n      Tests  1293 passed (1293)\nType Errors  no errors\n   Start at  09:22:20\n   Duration  18.91s (tests 36%, import 33%, transform 27%, setup 4%)\n\n     Import  |assets-controller| 1274 modules were evaluated 17683 times · 40.17s total, 33% of tracked time\n             ~1.09s faster with isolate: false — shared modules are evaluated once per worker instead of once per file\n             learn more: https://vitest.dev/guide/improving-performance#test-isolation\n\n"
 }

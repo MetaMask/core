@@ -82,8 +82,10 @@ function normalizePlainOrExponent(
   const length = amount.length;
   let i = 0;
   let negative = false;
+  let hasSign = false;
   let c = amount.charCodeAt(0);
   if (c === CHAR_PLUS || c === CHAR_MINUS) {
+    hasSign = true;
     negative = c === CHAR_MINUS;
     i = 1;
   }
@@ -104,7 +106,9 @@ function normalizePlainOrExponent(
   // Optional fractional part.
   let fracStart = i;
   let fracLen = 0;
+  let hasDot = false;
   if (c === CHAR_DOT) {
+    hasDot = true;
     i += 1;
     fracStart = i;
     c = i < length ? amount.charCodeAt(i) : -1;
@@ -120,6 +124,16 @@ function normalizePlainOrExponent(
 
   if (intLen === 0 && fracLen === 0) {
     return undefined; // Not a plain decimal — defer to BigNumber.
+  }
+
+  // Truncation to the asset's precision is active for any finite,
+  // non-negative `decimals` (matching the BigNumber branch exactly).
+  const truncate =
+    decimals !== undefined && Number.isFinite(decimals) && decimals >= 0;
+  const dp = truncate ? Math.floor(decimals ?? 0) : 0;
+  if (truncate && dp > MAX_FAST_DECIMALS) {
+    // Absurd precision (BigNumber throws above MAX_DP) — defer to it.
+    return undefined;
   }
 
   let intPart: string;
@@ -167,6 +181,21 @@ function normalizePlainOrExponent(
       fracPart = digits.slice(point);
     }
   } else if (i === length) {
+    // Zero-allocation fast return: the input is already canonical (no sign,
+    // no leading integer zeros, no dangling dot, no trailing fractional
+    // zeros, and no truncation required) — BigNumber#toFixed would return it
+    // verbatim.
+    if (
+      !hasSign &&
+      intLen > 0 &&
+      (intLen === 1 || amount.charCodeAt(intStart) !== CHAR_0) &&
+      (!hasDot ||
+        (fracLen > 0 &&
+          amount.charCodeAt(fracStart + fracLen - 1) !== CHAR_0)) &&
+      (!truncate || fracLen <= dp)
+    ) {
+      return amount;
+    }
     intPart = amount.slice(intStart, intStart + intLen);
     fracPart = fracLen > 0 ? amount.slice(fracStart, fracStart + fracLen) : '';
   } else {
@@ -174,19 +203,8 @@ function normalizePlainOrExponent(
   }
 
   // Truncate fractional digits to the asset's precision (round toward zero).
-  if (
-    decimals !== undefined &&
-    Number.isFinite(decimals) &&
-    decimals >= 0
-  ) {
-    const dp = Math.floor(decimals);
-    if (dp > MAX_FAST_DECIMALS) {
-      // Absurd precision (BigNumber throws above MAX_DP) — defer to it.
-      return undefined;
-    }
-    if (fracPart.length > dp) {
-      fracPart = fracPart.slice(0, dp);
-    }
+  if (truncate && fracPart.length > dp) {
+    fracPart = fracPart.slice(0, dp);
   }
 
   // Strip leading integer zeros, keeping a single digit ('007' -> '7').
