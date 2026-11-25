@@ -303,26 +303,6 @@ describe('PerpsController stream subscriptions', () => {
       });
     });
 
-    it('keeps a change heard on one route until that route is read afresh', async () => {
-      provider.getMarkets.mockResolvedValue([market('BTC')]);
-      const { report } = watchMarkets();
-      const routed = { callback: vi.fn(), providerId: 'hyperliquid' } as const;
-      const stop = controller.subscribeToMarketMeta(routed);
-      await flush();
-      report();
-      stop();
-
-      const stopOther = controller.subscribeToMarketMeta({ callback: vi.fn() });
-      await flush();
-      stopOther();
-      controller.subscribeToMarketMeta(routed);
-      await flush();
-
-      expect(provider.getMarkets).toHaveBeenLastCalledWith(
-        expect.objectContaining({ skipCache: true }),
-      );
-    });
-
     it('does not read when the market data preload refreshes', async () => {
       provider.getMarkets.mockResolvedValue([market('BTC')]);
       controller.subscribeToMarketMeta({ callback: vi.fn() });
@@ -838,6 +818,51 @@ describe('PerpsController stream subscriptions', () => {
       );
       provider.subscribeToOrders.mock.calls[0][0].callback([]);
       expect(callback).toHaveBeenCalledWith([], 'hyperliquid');
+    });
+
+    it("keeps a change a closed reader heard until that venue's markets are read afresh", async () => {
+      install();
+      const reports: Partial<Record<PerpsProviderType, () => void>> = {};
+      for (const [id, venue] of [
+        ['hyperliquid', provider],
+        ['lighter', lighter],
+      ] as const) {
+        Object.assign(venue, {
+          subscribeToMarketChanges: vi.fn<
+            NonNullable<PerpsProvider['subscribeToMarketChanges']>
+          >(({ callback }) => {
+            reports[id] = callback;
+            return vi.fn();
+          }),
+        });
+      }
+      const openOnce = async (
+        providerId?: PerpsProviderType,
+      ): Promise<void> => {
+        const stop = controller.subscribeToMarketMeta({
+          callback: vi.fn(),
+          providerId,
+        });
+        await flush();
+        stop();
+      };
+      const fresh = expect.objectContaining({ skipCache: true });
+
+      // Heard by a reader that follows the default provider.
+      const stop = controller.subscribeToMarketMeta({ callback: vi.fn() });
+      await flush();
+      reports.hyperliquid?.();
+      stop();
+      await openOnce('lighter');
+      expect(lighter.getMarkets).not.toHaveBeenCalledWith(fresh);
+      controller.setDefaultProvider('lighter');
+      await openOnce();
+      expect(lighter.getMarkets).not.toHaveBeenCalledWith(fresh);
+
+      await openOnce('hyperliquid');
+      expect(provider.getMarkets).toHaveBeenLastCalledWith(fresh);
+      await openOnce('hyperliquid');
+      expect(provider.getMarkets).not.toHaveBeenLastCalledWith(fresh);
     });
 
     it('opens a single venue account stream again after it failed', async () => {

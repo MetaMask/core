@@ -4059,7 +4059,12 @@ export class PerpsController extends BaseController<
       this.#staleMarketMeta.get(provider) ??
       new Set<PerpsProviderType | undefined>();
     this.#staleMarketMeta.set(provider, stale);
-    const isStale = stale.size > 0;
+    // The venue read, also by a stream that follows the default provider.
+    const venue =
+      provider instanceof AggregatedPerpsProvider
+        ? provider.getWriteProviderId(params.providerId)
+        : undefined;
+    const isStale = stale.has(venue);
     const fail = (error: unknown): void => {
       if (!closed) {
         params.onError?.(
@@ -4088,7 +4093,7 @@ export class PerpsController extends BaseController<
             throw new Error(PERPS_ERROR_CODES.MARKETS_FAILED);
           }
           if (fresh) {
-            stale.delete(params.providerId);
+            stale.delete(venue);
           }
           const list = JSON.stringify(metas);
           if (list !== last) {
@@ -4113,7 +4118,7 @@ export class PerpsController extends BaseController<
         // Changes come in bursts; one read after they settle covers them all.
         callback: () => {
           // Kept until a fresh read, in case this stream closes before its own.
-          stale.add(params.providerId);
+          stale.add(venue);
           settleTimer ??= setTimeout(() => {
             settleTimer = undefined;
             read(true);
@@ -6663,7 +6668,7 @@ export class PerpsController extends BaseController<
 
   #preloadTimer: ReturnType<typeof setInterval> | null = null;
 
-  /** Routes of each provider whose markets changed since a fresh read. */
+  /** Venues of each provider whose markets changed since a fresh read. */
   readonly #staleMarketMeta = new WeakMap<
     PerpsProvider,
     Set<PerpsProviderType | undefined>
