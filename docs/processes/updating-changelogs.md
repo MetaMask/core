@@ -17,9 +17,9 @@ A package's changelog should be updated in the same branch as changes that affec
 Each entry should be placed in a category that matches the type of change. Here are the categories and how they are used:
 
 - **Added** — for new "features", i.e., new exports, methods, or options
-- **Changed** — for modifications to existing behavior)
-- **Deprecated** — for exports or options that may be removed soon)
-- **Removed** — for exports or options that _have_ been removed)
+- **Changed** — for modifications to existing behavior
+- **Deprecated** — for exports or options that may be removed soon
+- **Removed** — for exports or options that _have_ been removed
 - **Fixed** — for corrections to existing behavior
 - **Security** — for patches to security vulnerabilities or other changes that enhance security
 
