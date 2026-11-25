@@ -95,6 +95,7 @@ import {
   LIGHTER_SCALE_SETTLEMENT_WINDOW_MS,
   LIGHTER_SCALE_SETTLEMENT_POLL_MS,
   LIGHTER_ACCOUNT_DISCOVERY_CONFIG,
+  LIGHTER_ORDERS_RESUBSCRIBE_RETRY,
   parseLighterStrictDecimal,
   isLighterOrderSizeDecimals,
   toLighterInteger,
@@ -2052,6 +2053,8 @@ export class LighterProvider implements PerpsProvider {
   #lastStreamAccount: AccountState | null = null;
 
   #accountDiscoveryTimer: ReturnType<typeof setTimeout> | null = null;
+
+  #ordersResubscribeTimer: ReturnType<typeof setTimeout> | null = null;
 
   /** Dedup for the async account-channel setup. */
   #accountChannelSetup: {
@@ -18979,6 +18982,13 @@ export class LighterProvider implements PerpsProvider {
     }
   }
 
+  #cancelOrdersResubscribe(): void {
+    if (this.#ordersResubscribeTimer !== null) {
+      clearTimeout(this.#ordersResubscribeTimer);
+      this.#ordersResubscribeTimer = null;
+    }
+  }
+
   // One outstanding discovery per account stream. Keep the timer identity
   // across the await so an old lookup cannot re-arm a released stream.
   #scheduleAccountDiscovery(
@@ -19418,6 +19428,7 @@ export class LighterProvider implements PerpsProvider {
   /** Forget the account channel setup and the account data it streamed. */
   readonly #resetAccountStreamState = (): void => {
     this.#cancelAccountDiscovery();
+    this.#cancelOrdersResubscribe();
     this.#lastStreamAccount = null;
     this.#accountChannelSetup = null;
     this.#accountChannelsAwaiting = null;
@@ -19460,12 +19471,13 @@ export class LighterProvider implements PerpsProvider {
     );
   };
 
-  #resubscribeAuthenticatedChannel(
+  readonly #resubscribeAuthenticatedChannel = (
     ws: LighterWebSocketLike,
     channel: string,
     getToken: () => Promise<string>,
     repair?: symbol,
-  ): void {
+    attempt = 0,
+  ): void => {
     const generation = this.#sessionGeneration;
     let unsubscribed = false;
     const isCurrent = (): boolean =>
@@ -19507,10 +19519,28 @@ export class LighterProvider implements PerpsProvider {
         } else if (channel.startsWith('account_all_orders/')) {
           // On reconnect the venue never re-subscribed this channel: the
           // cached orders are stale and no frame will arrive to trigger a
-          // snapshot repair on its own.
+          // snapshot repair on its own. Notify, then re-mint on a bounded
+          // timer so a transient failure cannot leave orders dead for the
+          // rest of the session on a healthy socket.
           this.#ordersSnapshotRepair = 'retry';
           this.#wsOrders = null;
           this.#notifySubscriptionError(ensureError(error), ['orders']);
+          if (attempt < LIGHTER_ORDERS_RESUBSCRIBE_RETRY.MaxAttempts) {
+            this.#cancelOrdersResubscribe();
+            this.#ordersResubscribeTimer = setTimeout(() => {
+              this.#ordersResubscribeTimer = null;
+              if (this.#isDisconnected || !isCurrent()) {
+                return;
+              }
+              this.#resubscribeAuthenticatedChannel(
+                ws,
+                channel,
+                getToken,
+                undefined,
+                attempt + 1,
+              );
+            }, LIGHTER_ORDERS_RESUBSCRIBE_RETRY.DelayMs);
+          }
         }
       });
   }

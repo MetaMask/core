@@ -26,6 +26,20 @@ const absent = { subAccounts: [] };
 const tick = async (): Promise<void> =>
   new Promise((resolve) => setImmediate(resolve));
 
+/**
+ * Wait until the predicate holds, bounded across macrotask rounds.
+ *
+ * @param predicate - Completion check polled between rounds.
+ */
+const waitFor = async (predicate: () => boolean): Promise<void> => {
+  for (let i = 0; i < 100; i += 1) {
+    if (predicate()) {
+      return;
+    }
+    await tick();
+  }
+};
+
 const streamProvider = (registeredKey?: string): BuiltProvider =>
   buildProvider({
     configuredAccountIndex: null,
@@ -273,6 +287,111 @@ describe('Lighter exchange account status', () => {
     expect(callback).not.toHaveBeenCalledWith(
       expect.objectContaining({ totalBalance: '0' }),
     );
+    await provider.disconnect();
+  });
+
+  it('replays the confirmed empty base to listeners that join during discovery', async () => {
+    const { provider, clientInstance } = streamProvider();
+    clientInstance.getAccountsByL1Address.mockResolvedValue(absent);
+    const accountCallback = vi.fn();
+    provider.subscribeToAccount({ callback: accountCallback });
+    await tick();
+    expect(accountCallback).toHaveBeenLastCalledWith(
+      expect.objectContaining({ exchangeAccountStatus: { registered: false } }),
+    );
+
+    // Listeners that join after the venue confirmed the account absent
+    // must get the same settled base, not wait on a stream that will not
+    // carry account frames until discovery finds an index.
+    const positions = vi.fn();
+    provider.subscribeToPositions({ callback: positions });
+    expect(positions).toHaveBeenCalledWith([]);
+    const orders = vi.fn();
+    provider.subscribeToOrders({ callback: orders });
+    expect(orders).toHaveBeenCalledWith([]);
+    await provider.disconnect();
+  });
+
+  it('does not read a registered wallet as absent when a stale empty lookup races the cached index', async () => {
+    const { provider, clientInstance } = streamProvider();
+    type Lookup = typeof absent | { subAccounts: typeof ACCOUNT[] };
+    const pending: ((value: Lookup) => void)[] = [];
+    clientInstance.getAccountsByL1Address.mockImplementation(
+      () =>
+        new Promise<Lookup>((resolve) => {
+          pending.push(resolve);
+        }),
+    );
+    // The account read starts the first lookup; the status check starts a
+    // second one while the first is still in flight.
+    const statePromise = provider.getAccountState();
+    await tick();
+    const statusPromise = provider.getExchangeAccountStatus(route);
+    await tick();
+    // The second lookup resolves first and caches the master index; the
+    // stale first lookup then resolves empty and must not win.
+    pending[1]({ subAccounts: [ACCOUNT] });
+    await tick();
+    pending[0](absent);
+    const [state, status] = await Promise.all([statePromise, statusPromise]);
+    expect(status).toStrictEqual({ registered: true, accountIndex: 28 });
+    expect(state.exchangeAccountStatus).toStrictEqual({
+      registered: true,
+      accountIndex: 28,
+    });
+    await provider.disconnect();
+  });
+
+  it('retries the orders auth with mint access when a listener upgrades a read-only setup mid-flight', async () => {
+    const { provider, clientInstance, fireReset } = streamProvider();
+    // Establish the orders channel with a ready signer, then reset the
+    // signer session: no ready signer and no orders channel remain.
+    provider.subscribeToOrders({ callback: vi.fn() });
+    await tick();
+    const socket = StreamFakeWebSocket.instances[0];
+    socket.open();
+    await tick();
+    expect(socket.sent).toContain(
+      JSON.stringify({
+        type: 'subscribe',
+        channel: 'account_all_orders/28',
+        auth: 'auth-token',
+      }),
+    );
+    fireReset();
+    await tick();
+
+    // The next read-only rebuild (a balance listener joining) runs the
+    // recovery review; hold it in flight.
+    const reviewGate = createDeferred<{ code: number; apiKeys: never[] }>();
+    const callsBefore = clientInstance.getApiKeys.mock.calls.length;
+    clientInstance.getApiKeys.mockImplementationOnce(async () => {
+      await reviewGate.promise;
+      return { code: 200, apiKeys: [] };
+    });
+    provider.subscribeToPositions({ callback: vi.fn() });
+    await waitFor(
+      () => clientInstance.getApiKeys.mock.calls.length > callsBefore,
+    );
+
+    // An explicit orders listener joins mid-review, upgrading the setup's
+    // permission; the read-only failure must retry with mint access.
+    const onError = vi.fn();
+    provider.subscribeToOrders({ callback: vi.fn(), onError });
+    const sentBeforeUpgrade = socket.sent.length;
+    reviewGate.resolve({ code: 200, apiKeys: [] });
+    const expected = JSON.stringify({
+      type: 'subscribe',
+      channel: 'account_all_orders/28',
+      auth: 'auth-token',
+    });
+    // Bounded wait for the upgraded setup to re-authenticate on its own.
+    await waitFor(() =>
+      socket.sent.slice(sentBeforeUpgrade).includes(expected),
+    );
+    // The upgraded setup re-authenticated with mint access on its own.
+    expect(socket.sent.slice(sentBeforeUpgrade)).toContain(expected);
+    expect(onError).not.toHaveBeenCalled();
     await provider.disconnect();
   });
 

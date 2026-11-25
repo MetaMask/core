@@ -291,6 +291,12 @@ export const LIGHTER_ACCOUNT_DISCOVERY_CONFIG = {
   DeadlineMs: 180_000,
 } as const;
 
+/** Bounded re-mint when a reconnect fails to re-subscribe the orders channel. */
+export const LIGHTER_ORDERS_RESUBSCRIBE_RETRY = {
+  DelayMs: 5_000,
+  MaxAttempts: 3,
+} as const;
+
 /**
  * Maximum leverage placeholder until per-market margin fractions are wired.
  */

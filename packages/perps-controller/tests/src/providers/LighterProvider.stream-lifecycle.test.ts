@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { CandlePeriod } from '../../../src/constants/chartConfig.js';
 import {
   LIGHTER_CHANNEL_RELEASE_DELAY_MS,
+  LIGHTER_ORDERS_RESUBSCRIBE_RETRY,
   LIGHTER_SOCKET_DOWN_GRACE_MS,
   LIGHTER_SOCKET_IDLE_CLOSE_MS,
   LIGHTER_ACCOUNT_DISCOVERY_CONFIG,
@@ -393,6 +394,14 @@ describe('LighterProvider stream lifecycle', () => {
       await settle();
       expect(onError).toHaveBeenCalledExactlyOnceWith(error);
       expect(fillError).not.toHaveBeenCalled();
+
+      // The bounded re-mint restores the channel on the same socket.
+      await vi.advanceTimersByTimeAsync(
+        LIGHTER_ORDERS_RESUBSCRIBE_RETRY.DelayMs,
+      );
+      await settle();
+      expect(venueChannels(socket)).toContain('account_all_orders/28');
+      expect(onError).toHaveBeenCalledTimes(1);
       await provider.disconnect();
     });
 
