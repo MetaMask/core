@@ -87,14 +87,15 @@ if (cmd === 'init') {
   const metric = Number(metricStr);
   const metrics = metricsJSON ? JSON.parse(metricsJSON) : {};
   const asi = asiJSON ? JSON.parse(asiJSON) : undefined;
-  const confidence = computeConfidence(results, segment, cfg.bestDirection);
   const entry = {
     run: results.length + 1,
     commit: sh('git rev-parse --short=7 HEAD').trim(),
     metric, metrics, status, description: desc,
-    timestamp: Date.now(), segment, confidence,
+    timestamp: Date.now(), segment, confidence: null,
   };
   if (asi) entry.asi = asi;
+  const allResults = [...results, entry];
+  entry.confidence = computeConfidence(allResults, segment, cfg.bestDirection);
   fs.appendFileSync(JSONL, JSON.stringify(entry) + '\n');
 
   const state = readState();
@@ -103,7 +104,7 @@ if (cmd === 'init') {
   console.log('Logged #' + entry.run + ': ' + status + ' — ' + desc);
   console.log('Baseline ' + cfg.metricName + ': ' + baseline + cfg.metricUnit +
     ' | this: ' + metric + ' (' + (((metric - baseline) / baseline) * 100).toFixed(1) + '%)');
-  if (confidence !== null) console.log('Confidence: ' + confidence.toFixed(1) + 'x noise floor');
+  if (entry.confidence !== null) console.log('Confidence: ' + entry.confidence.toFixed(1) + 'x noise floor');
   console.log('Runs this segment: ' + cur.length + '/' + 25);
 
   if (status === 'keep') {
