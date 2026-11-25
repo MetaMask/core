@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Reduce the JS-thread block when validating the Terminal global snapshot: market `trend` data is now checked with a single struct instead of per-point tuples ([TAT-4706](https://consensyssoftware.atlassian.net/browse/TAT-4706)) ([#11757](https://github.com/MetaMask/core/pull/11757))
+
 ## [26.1.0]
 
 ### Added
