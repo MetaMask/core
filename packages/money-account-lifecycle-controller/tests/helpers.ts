@@ -118,6 +118,31 @@ export function buildLinkedIdentityResponse(
   };
 }
 
+export const MIGRATED_IDENTITY: DerivedIdentity = {
+  currentAddress: MFA_ACCOUNT_ADDRESS.toLowerCase() as Hex,
+  previousAddresses: [MONEY_ACCOUNT_KEY as Hex],
+  status: 'DONE',
+  migration: null,
+};
+
+/**
+ * Builds the CHOMP identity response of the money account once it has
+ * migrated to the MPC Money Account.
+ *
+ * @returns The identity response.
+ */
+export function buildMigratedIdentityResponse(): AddressIdentityResponse {
+  return {
+    identity: MIGRATED_IDENTITY,
+    address: {
+      address: MONEY_ACCOUNT_KEY as Hex,
+      role: 'PREVIOUS',
+      predecessor: null,
+      successor: MIGRATED_IDENTITY.currentAddress,
+    },
+  };
+}
+
 export const SUBSCRIPTION_DELEGATION_HASH =
   '0x1111111111111111111111111111111111111111111111111111111111111111';
 

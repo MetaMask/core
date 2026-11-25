@@ -126,24 +126,28 @@ describe('MoneyAccountLifecycleController', () => {
       },
     );
 
-    it.each([
-      { type: 'notInIdentity', identities: [] },
-      { type: 'mfa', identities: [MFA_IDENTITY] },
-    ] as const)(
-      'does not migrate a money account that is $type',
-      async ({ type, identities }) => {
-        await withController(async ({ controller, mocks }) => {
-          mocks.getDerivedIdentities.mockResolvedValue({
-            identities: [...identities],
-          });
+    it('does not migrate a money account that is not in an identity', async () => {
+      await withController(async ({ controller, mocks }) => {
+        mocks.getDerivedIdentities.mockResolvedValue({ identities: [] });
 
-          await expect(controller.startMigration()).rejects.toThrow(
-            `Money Account ${MONEY_ACCOUNT_ADDRESS} cannot be migrated while it is '${type}'`,
-          );
-          expect(mocks.createMoneyAccount).not.toHaveBeenCalled();
+        await expect(controller.startMigration()).rejects.toThrow(
+          `Money Account ${MONEY_ACCOUNT_ADDRESS} cannot be migrated while it is 'notInIdentity'`,
+        );
+        expect(mocks.createMoneyAccount).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does nothing for a money account that has already migrated when no afterDone migrator is registered', async () => {
+      await withController(async ({ controller, mocks }) => {
+        mocks.getDerivedIdentities.mockResolvedValue({
+          identities: [MFA_IDENTITY],
         });
-      },
-    );
+
+        expect(await controller.startMigration()).toBeUndefined();
+        expect(mocks.createMoneyAccount).not.toHaveBeenCalled();
+        expect(mocks.upgradeSuccessorAccount).not.toHaveBeenCalled();
+      });
+    });
 
     it.each<{ description: string; identity: DerivedIdentity }>([
       {
@@ -1095,6 +1099,19 @@ describe('MoneyAccountLifecycleController', () => {
 
         await expect(controller.startMigration()).rejects.toThrow(
           'A Money Account identity is already migrating',
+        );
+        expect(mocks.upgradeSuccessorAccount).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not link the successor when the money account has migrated by the time the MPC Money Account is created', async () => {
+      await withController(async ({ controller, mocks }) => {
+        mocks.getDerivedIdentities
+          .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+          .mockResolvedValueOnce({ identities: [MFA_IDENTITY] });
+
+        await expect(controller.startMigration()).rejects.toThrow(
+          `Money Account ${MONEY_ACCOUNT_ADDRESS} cannot be migrated while it is 'mfa'`,
         );
         expect(mocks.upgradeSuccessorAccount).not.toHaveBeenCalled();
       });

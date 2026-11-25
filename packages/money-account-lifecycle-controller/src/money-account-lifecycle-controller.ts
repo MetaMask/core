@@ -55,11 +55,17 @@ import type {
 import type { Hex } from '@metamask/utils';
 import deepEqual from 'fast-deep-equal';
 
-import { buildBindingMigrationContext } from './binding-migration.js';
+import {
+  BindingMigrationIncompleteError,
+  buildBindingMigrationContext,
+} from './binding-migration.js';
 import type {
   BindingMigrationContext,
+  BindingMigrationPhase,
+  BindingMigrationResult,
   BindingMigrationState,
   BindingMigrator,
+  IncompleteBindingMigration,
 } from './binding-migration.js';
 import {
   getMoneyAccountLifecycle,
@@ -71,6 +77,12 @@ import type { MoneyAccountLifecycleControllerMethodActions } from './money-accou
 const CONTROLLER_NAME = 'MoneyAccountLifecycleController';
 
 const FUNDS_TRANSFER_RETRY_DELAY_MS = 2000;
+
+const MIGRATION_DONE_TIMEOUT_MS = 60_000;
+
+const MIGRATION_DONE_FIRST_CHECK_DELAY_MS = 2000;
+
+const MIGRATION_DONE_MAX_CHECK_DELAY_MS = 16_000;
 
 const RETRYABLE_FUNDS_TRANSFER_ERROR_CODES = [
   'MIGRATION_STEPS_INCOMPLETE',
@@ -468,7 +480,10 @@ export class MoneyAccountLifecycleController extends BaseController<
 
   /**
    * Starts migrating the primary Money Account from its SFA address to a new
-   * MFA address, or resumes its migration if one is already in flight.
+   * MFA address, or resumes its migration if one is already in flight. Once
+   * it has migrated, only runs the `afterDone` binding migrators, which
+   * requires the MPC Money Account of this wallet to be the identity's
+   * current address.
    *
    * Reads the profile's identities fresh from CHOMP and records them, then
    * only proceeds when the wallet is still ready and the Money Account is in
@@ -511,10 +526,20 @@ export class MoneyAccountLifecycleController extends BaseController<
    * Identities are then refetched, so the recorded lifecycle becomes
    * `migrating`, even when any of these steps fails.
    *
+   * Registered binding migrators run once the successor is linked
+   * (`afterLink`) and before the funds transfer starts
+   * (`beforeFundsTransfer`). When `afterDone` migrators are registered, this
+   * then waits up to a minute for CHOMP to finish moving the funds and runs
+   * them. If the funds have not moved by then, or their transfer failed,
+   * this resolves without running them; calling this again once the
+   * migration has finished runs them.
+   *
    * @throws If a migration or Money Account upgrade is already in flight, the
    * checks fail, the wallet stops being ready part way, or linking the
    * successor, moving the subscription, registering the intents or starting
-   * the funds transfer fails.
+   * the funds transfer fails. A `BindingMigrationIncompleteError` once every
+   * binding migrator of a phase has run, if any of them is pending or
+   * blocked.
    */
   async startMigration(): Promise<void> {
     if (this.#isMigrationInFlight) {
@@ -585,20 +610,26 @@ export class MoneyAccountLifecycleController extends BaseController<
 
   #recordBindingMigratorStatuses(moneyAccountAddress: string): void {
     const context = this.#getBindingMigrationContext(moneyAccountAddress);
+    this.#setBindingMigrations(
+      context ? this.#buildBindingMigrations(context) : {},
+    );
+  }
+
+  #buildBindingMigrations(
+    context: BindingMigrationContext,
+  ): MoneyAccountLifecycleControllerState['bindingMigrations'] {
     const bindingMigrations: MoneyAccountLifecycleControllerState['bindingMigrations'] =
       {};
-    if (context) {
-      for (const migrator of this.#bindingMigrators.values()) {
-        const previous = this.state.bindingMigrations[migrator.id];
-        bindingMigrations[migrator.id] = {
-          phase: migrator.phase,
-          status: this.#getBindingMigratorStatus(migrator, context),
-          lastResult: previous?.lastResult ?? null,
-          lastError: previous?.lastError ?? null,
-        };
-      }
+    for (const migrator of this.#bindingMigrators.values()) {
+      const previous = this.state.bindingMigrations[migrator.id];
+      bindingMigrations[migrator.id] = {
+        phase: migrator.phase,
+        status: this.#getBindingMigratorStatus(migrator, context),
+        lastResult: previous?.lastResult ?? null,
+        lastError: previous?.lastError ?? null,
+      };
     }
-    this.#setBindingMigrations(bindingMigrations);
+    return bindingMigrations;
   }
 
   #getBindingMigratorStatus(
@@ -656,11 +687,24 @@ export class MoneyAccountLifecycleController extends BaseController<
     }
     const moneyAccountAddress = moneyAccount.address as Hex;
 
-    const { migration } =
+    const { lifecycle, migration } =
       await this.#fetchMigratableIdentities(moneyAccountAddress);
+    if (lifecycle.type === 'mfa') {
+      await this.#runAfterDoneMigrators(
+        moneyAccountAddress,
+        lifecycle.identity,
+      );
+      return;
+    }
+
     const successorAddress = migration
       ? await this.#getResumableSuccessor(moneyAccountAddress, migration)
       : await this.#createSuccessor(moneyAccountAddress);
+    const context = buildBindingMigrationContext(
+      moneyAccountAddress,
+      successorAddress,
+      'MIGRATING',
+    );
 
     try {
       await this.messenger.call(
@@ -668,7 +712,9 @@ export class MoneyAccountLifecycleController extends BaseController<
         successorAddress,
         moneyAccountAddress,
       );
-      this.#assertReadyToMigrate();
+      await this.#runBindingMigrationPhase('afterLink', context);
+      // TODO: move to a `money-account-plus-payer` binding migrator in
+      // @metamask/subscription-controller.
       await this.#moveSubscriptionToSuccessor(
         moneyAccountAddress,
         successorAddress,
@@ -679,13 +725,151 @@ export class MoneyAccountLifecycleController extends BaseController<
         moneyAccountAddress,
         successorAddress,
       );
-      this.#assertReadyToMigrate();
+      await this.#runBindingMigrationPhase('beforeFundsTransfer', context);
       await this.#startFundsTransfer(moneyAccountAddress);
     } finally {
       if (this.#isCurrent(this.#migrationGeneration)) {
         this.#fetchDerivedIdentities();
         await this.#waitForLatestDerivedIdentities().catch(() => undefined);
       }
+    }
+
+    if (
+      !this.#hasBindingMigrators('afterDone') ||
+      !(await this.#waitForMigrationDone(moneyAccountAddress))
+    ) {
+      return;
+    }
+
+    const migrated = await this.#fetchMigratableIdentities(moneyAccountAddress);
+    if (migrated.lifecycle.type === 'mfa') {
+      await this.#runAfterDoneMigrators(
+        moneyAccountAddress,
+        migrated.lifecycle.identity,
+      );
+    }
+  }
+
+  async #waitForMigrationDone(moneyAccountAddress: Hex): Promise<boolean> {
+    const deadline = Date.now() + MIGRATION_DONE_TIMEOUT_MS;
+    let delay = MIGRATION_DONE_FIRST_CHECK_DELAY_MS;
+    while (Date.now() < deadline) {
+      await sleep(Math.min(delay, deadline - Date.now()));
+      this.#assertReadyToMigrate();
+      try {
+        const response = await this.messenger.call(
+          'ChompApiService:getDerivedIdentityByAddress',
+          moneyAccountAddress,
+        );
+        if (response?.identity.status === 'DONE') {
+          return true;
+        }
+        const migration = response?.identity.migration;
+        if (
+          migration?.transfer?.status === 'FAILED' ||
+          migration?.premiumTransfer?.status === 'FAILED'
+        ) {
+          return false;
+        }
+      } catch (error) {
+        this.#reportError(error);
+      }
+      delay = Math.min(delay * 2, MIGRATION_DONE_MAX_CHECK_DELAY_MS);
+    }
+    return false;
+  }
+
+  async #runAfterDoneMigrators(
+    moneyAccountAddress: Hex,
+    identity: DerivedIdentity,
+  ): Promise<void> {
+    if (!this.#hasBindingMigrators('afterDone')) {
+      return;
+    }
+
+    const mpcMoneyAccount = this.messenger.call(
+      'MoneyAccountController:getMoneyAccount',
+      { type: 'mpc' },
+    );
+    if (
+      mpcMoneyAccount?.address.toLowerCase() !==
+      identity.currentAddress.toLowerCase()
+    ) {
+      throw new Error(
+        `Money Account ${moneyAccountAddress} has migrated to ${identity.currentAddress}, which is not the MPC Money Account of this wallet`,
+      );
+    }
+
+    await this.#runBindingMigrationPhase(
+      'afterDone',
+      buildBindingMigrationContext(
+        moneyAccountAddress,
+        identity.currentAddress,
+        'DONE',
+      ),
+    );
+  }
+
+  #hasBindingMigrators(phase: BindingMigrationPhase): boolean {
+    return [...this.#bindingMigrators.values()].some(
+      (migrator) => migrator.phase === phase,
+    );
+  }
+
+  async #runBindingMigrationPhase(
+    phase: BindingMigrationPhase,
+    context: BindingMigrationContext,
+  ): Promise<void> {
+    const migrators = [...this.#bindingMigrators.values()].filter(
+      (migrator) => migrator.phase === phase,
+    );
+    const incomplete: IncompleteBindingMigration[] = [];
+    this.#assertReadyToMigrate();
+    for (const migrator of migrators) {
+      const { result, error } = await this.#reconcileBindingMigrator(
+        migrator,
+        context,
+      );
+      this.#assertReadyToMigrate();
+
+      this.#setBindingMigrations({
+        ...this.#buildBindingMigrations(context),
+        [migrator.id]: {
+          phase,
+          status: this.#getBindingMigratorStatus(migrator, context),
+          lastResult: result,
+          lastError: error ?? null,
+        },
+      });
+
+      if (result.status === 'pending' || result.status === 'blocked') {
+        incomplete.push({ migratorId: migrator.id, result });
+      }
+    }
+
+    if (incomplete.length > 0) {
+      throw new BindingMigrationIncompleteError(phase, incomplete);
+    }
+  }
+
+  async #reconcileBindingMigrator(
+    migrator: BindingMigrator,
+    context: BindingMigrationContext,
+  ): Promise<{ result: BindingMigrationResult; error?: string }> {
+    try {
+      const result = await migrator.reconcile(context);
+      if (result.status === 'blocked') {
+        this.#reportError(
+          new Error(
+            `Binding migrator '${migrator.id}' is blocked: ${result.reason}`,
+          ),
+        );
+      }
+      return { result };
+    } catch (error) {
+      this.#reportError(error);
+      const message = error instanceof Error ? error.message : String(error);
+      return { result: { status: 'pending', reason: message }, error: message };
     }
   }
 
@@ -702,9 +886,7 @@ export class MoneyAccountLifecycleController extends BaseController<
       ) {
         throw error;
       }
-      await new Promise((resolve) =>
-        setTimeout(resolve, FUNDS_TRANSFER_RETRY_DELAY_MS),
-      );
+      await sleep(FUNDS_TRANSFER_RETRY_DELAY_MS);
       this.#assertReadyToMigrate();
       await this.messenger.call(
         'ChompApiService:startFundsTransfer',
@@ -835,6 +1017,7 @@ export class MoneyAccountLifecycleController extends BaseController<
 
   async #fetchMigratableIdentities(moneyAccountAddress: Hex): Promise<{
     identities: DerivedIdentity[];
+    lifecycle: MoneyAccountLifecycle;
     migration: DerivedIdentityMigration | null;
   }> {
     this.#fetchDerivedIdentities();
@@ -859,20 +1042,20 @@ export class MoneyAccountLifecycleController extends BaseController<
           `The migration of Money Account ${moneyAccountAddress} cannot be resumed`,
         );
       }
-      return { identities, migration };
+      return { identities, lifecycle, migration };
     }
 
     if (migratingCount > 0) {
       throw new Error('A Money Account identity is already migrating');
     }
 
-    if (lifecycle.type !== 'sfa') {
+    if (lifecycle.type !== 'sfa' && lifecycle.type !== 'mfa') {
       throw new Error(
         `Money Account ${moneyAccountAddress} cannot be migrated while it is '${lifecycle.type}'`,
       );
     }
 
-    return { identities, migration: null };
+    return { identities, lifecycle, migration: null };
   }
 
   async #getResumableSuccessor(
@@ -898,10 +1081,15 @@ export class MoneyAccountLifecycleController extends BaseController<
       { type: 'mpc' },
     );
     const mfaAddress = mpcMoneyAccount.address as Hex;
-    const { identities, migration } =
+    const { identities, lifecycle, migration } =
       await this.#fetchMigratableIdentities(moneyAccountAddress);
     if (migration) {
       throw new Error('A Money Account identity is already migrating');
+    }
+    if (lifecycle.type !== 'sfa') {
+      throw new Error(
+        `Money Account ${moneyAccountAddress} cannot be migrated while it is '${lifecycle.type}'`,
+      );
     }
     this.#assertFreshForChomp(mfaAddress, identities);
     this.#assertReadyToMigrate();
@@ -1071,6 +1259,10 @@ export class MoneyAccountLifecycleController extends BaseController<
       error instanceof Error ? error : new Error(String(error)),
     );
   }
+}
+
+async function sleep(milliseconds: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function countIdentityAddresses(

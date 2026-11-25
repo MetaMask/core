@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `startMigration` runs the registered binding migrators of each phase and throws `BindingMigrationIncompleteError` when any of them is pending or blocked ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
+- **BREAKING:** `startMigration` no longer throws for a Money Account that has already migrated; it runs the `afterDone` binding migrators instead ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
+- `startMigration` waits up to a minute for the funds to move when `afterDone` binding migrators are registered ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
 - Bump `@metamask/subscription-controller` from `^15.2.2` to `^15.4.0` ([#11594](https://github.com/MetaMask/core/pull/11594), [#11611](https://github.com/MetaMask/core/pull/11611), [#11727](https://github.com/MetaMask/core/pull/11727))
 
 ## [1.1.0]

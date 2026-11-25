@@ -84,7 +84,10 @@ export type MoneyAccountLifecycleControllerUpgradeMoneyAccountAction = {
 
 /**
  * Starts migrating the primary Money Account from its SFA address to a new
- * MFA address, or resumes its migration if one is already in flight.
+ * MFA address, or resumes its migration if one is already in flight. Once
+ * it has migrated, only runs the `afterDone` binding migrators, which
+ * requires the MPC Money Account of this wallet to be the identity's
+ * current address.
  *
  * Reads the profile's identities fresh from CHOMP and records them, then
  * only proceeds when the wallet is still ready and the Money Account is in
@@ -127,10 +130,20 @@ export type MoneyAccountLifecycleControllerUpgradeMoneyAccountAction = {
  * Identities are then refetched, so the recorded lifecycle becomes
  * `migrating`, even when any of these steps fails.
  *
+ * Registered binding migrators run once the successor is linked
+ * (`afterLink`) and before the funds transfer starts
+ * (`beforeFundsTransfer`). When `afterDone` migrators are registered, this
+ * then waits up to a minute for CHOMP to finish moving the funds and runs
+ * them. If the funds have not moved by then, or their transfer failed,
+ * this resolves without running them; calling this again once the
+ * migration has finished runs them.
+ *
  * @throws If a migration or Money Account upgrade is already in flight, the
  * checks fail, the wallet stops being ready part way, or linking the
  * successor, moving the subscription, registering the intents or starting
- * the funds transfer fails.
+ * the funds transfer fails. A `BindingMigrationIncompleteError` once every
+ * binding migrator of a phase has run, if any of them is pending or
+ * blocked.
  */
 export type MoneyAccountLifecycleControllerStartMigrationAction = {
   type: `MoneyAccountLifecycleController:startMigration`;
