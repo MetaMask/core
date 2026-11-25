@@ -46,7 +46,6 @@ import {
   PermissionController,
   PermissionType,
 } from './index.js';
-import type { EndowmentGetterParams } from './Permission.js';
 import { SubjectType } from './SubjectMetadataController.js';
 
 // Caveat types and specifications
@@ -536,17 +535,13 @@ function getDefaultPermissionSpecificationsAndMocks() {
       [PermissionKeys.endowmentAnySubject]: {
         permissionType: PermissionType.Endowment,
         targetName: PermissionKeys.endowmentAnySubject,
-        endowmentGetter: (_options: EndowmentGetterParams): string[] => [
-          'endowment1',
-        ],
+        globals: ['ethereum'],
         allowedCaveats: null,
       },
       [PermissionKeys.endowmentSnapsOnly]: {
         permissionType: PermissionType.Endowment,
         targetName: PermissionKeys.endowmentSnapsOnly,
-        endowmentGetter: (_options: EndowmentGetterParams): string[] => [
-          'endowment2',
-        ],
+        globals: ['snap'],
         allowedCaveats: [CaveatTypes.endowmentCaveat],
         subjectTypes: [SubjectType.Snap],
       },
@@ -5431,8 +5426,8 @@ describe('PermissionController', () => {
     });
   });
 
-  describe('getEndowments', () => {
-    it('gets the endowments', async () => {
+  describe('getEndowmentsGlobals', () => {
+    it('gets the globals of all permitted endowments', () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
@@ -5440,18 +5435,17 @@ describe('PermissionController', () => {
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.endowmentAnySubject]: {},
+          [PermissionNames.endowmentRpcMethods]: {},
+          [PermissionNames.wallet_doubleNumber]: {},
         },
       });
 
-      expect(
-        await controller.getEndowments(
-          origin,
-          PermissionNames.endowmentAnySubject,
-        ),
-      ).toStrictEqual(['endowment1']);
+      expect(controller.getEndowmentsGlobals(origin)).toStrictEqual([
+        'ethereum',
+      ]);
     });
 
-    it('returns null if the endowment has no endowment getter', async () => {
+    it('returns an empty array if no endowments with globals are permitted', () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
@@ -5459,53 +5453,17 @@ describe('PermissionController', () => {
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.endowmentRpcMethods]: {},
+          [PermissionNames.wallet_doubleNumber]: {},
         },
       });
 
-      expect(
-        await controller.getEndowments(
-          origin,
-          PermissionNames.endowmentRpcMethods,
-        ),
-      ).toBeNull();
+      expect(controller.getEndowmentsGlobals(origin)).toStrictEqual([]);
     });
 
-    it('throws if the requested permission target is not an endowment', async () => {
+    it('returns an empty array if the subject has no permissions', () => {
       const controller = getDefaultPermissionController();
-      const origin = 'metamask.io';
 
-      controller.grantPermissions({
-        subject: { origin },
-        approvedPermissions: {
-          [PermissionNames.wallet_getSecretArray]: {},
-        },
-      });
-
-      await expect(
-        controller.getEndowments(
-          origin,
-          // @ts-expect-error Intentional destructive testing
-          PermissionNames.wallet_getSecretArray,
-        ),
-      ).rejects.toThrow(
-        new errors.EndowmentPermissionDoesNotExistError(
-          PermissionNames.wallet_getSecretArray,
-          origin,
-        ),
-      );
-    });
-
-    it('throws if the subject does not have the requisite permission', async () => {
-      const controller = getDefaultPermissionController();
-      const origin = 'metamask.io';
-
-      await expect(
-        controller.getEndowments(origin, PermissionNames.endowmentAnySubject),
-      ).rejects.toThrow(
-        errors.unauthorized({
-          data: { origin, targetName: PermissionNames.endowmentAnySubject },
-        }),
-      );
+      expect(controller.getEndowmentsGlobals('metamask.io')).toStrictEqual([]);
     });
   });
 
@@ -5738,7 +5696,7 @@ describe('PermissionController', () => {
       expect(controller.state).toStrictEqual({ subjects: {} });
     });
 
-    it('action: PermissionController:getEndowments', async () => {
+    it('action: PermissionController:getEndowmentsGlobals', () => {
       const messenger = getRootMessenger();
       vi.spyOn(messenger, 'call');
 
@@ -5750,20 +5708,9 @@ describe('PermissionController', () => {
         DefaultCaveatSpecifications
       >(options);
 
-      await expect(
-        messenger.call(
-          'PermissionController:getEndowments',
-          'foo',
-          PermissionNames.endowmentAnySubject,
-        ),
-      ).rejects.toThrow(
-        errors.unauthorized({
-          data: {
-            origin: 'foo',
-            targetName: PermissionNames.endowmentAnySubject,
-          },
-        }),
-      );
+      expect(
+        messenger.call('PermissionController:getEndowmentsGlobals', 'foo'),
+      ).toStrictEqual([]);
 
       controller.grantPermissions({
         subject: { origin: 'foo' },
@@ -5773,43 +5720,19 @@ describe('PermissionController', () => {
       });
 
       expect(
-        await messenger.call(
-          'PermissionController:getEndowments',
-          'foo',
-          PermissionNames.endowmentAnySubject,
-        ),
-      ).toStrictEqual(['endowment1']);
+        messenger.call('PermissionController:getEndowmentsGlobals', 'foo'),
+      ).toStrictEqual(['ethereum']);
 
-      expect(
-        await messenger.call(
-          'PermissionController:getEndowments',
-          'foo',
-          PermissionNames.endowmentAnySubject,
-          { arbitrary: 'requestData' },
-        ),
-      ).toStrictEqual(['endowment1']);
-
-      expect(messenger.call).toHaveBeenCalledTimes(3);
+      expect(messenger.call).toHaveBeenCalledTimes(2);
       expect(messenger.call).toHaveBeenNthCalledWith(
         1,
-        'PermissionController:getEndowments',
+        'PermissionController:getEndowmentsGlobals',
         'foo',
-        PermissionNames.endowmentAnySubject,
       );
-
       expect(messenger.call).toHaveBeenNthCalledWith(
         2,
-        'PermissionController:getEndowments',
+        'PermissionController:getEndowmentsGlobals',
         'foo',
-        PermissionNames.endowmentAnySubject,
-      );
-
-      expect(messenger.call).toHaveBeenNthCalledWith(
-        3,
-        'PermissionController:getEndowments',
-        'foo',
-        PermissionNames.endowmentAnySubject,
-        { arbitrary: 'requestData' },
       );
     });
 

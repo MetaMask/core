@@ -7,7 +7,7 @@ export type {
   PermissionControllerClearStateAction,
   PermissionControllerExecuteRestrictedMethodAction,
   PermissionControllerGetCaveatAction,
-  PermissionControllerGetEndowmentsAction,
+  PermissionControllerGetEndowmentsGlobalsAction,
   PermissionControllerGetPermissionsAction,
   PermissionControllerGetSubjectNamesAction,
   PermissionControllerGrantPermissionsAction,
