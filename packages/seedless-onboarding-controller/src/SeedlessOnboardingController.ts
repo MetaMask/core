@@ -27,12 +27,12 @@ import {
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { Mutex } from 'async-mutex';
 
+import { PrimarySrpBackupRepair } from './backup-repair/PrimarySrpBackupRepair.js';
 import type { AuthConnection } from './constants.js';
 import {
   controllerName,
   PASSWORD_OUTDATED_CACHE_TTL_MS,
   PASSWORD_RECOVERY_OPERATIONS,
-  PrimarySrpRepairType,
   SecretType,
   SeedlessIdentityMismatchSource,
   SeedlessOnboardingControllerErrorMessage,
@@ -69,7 +69,6 @@ import {
   seedlessOnboardingMetadata,
 } from './state.js';
 import type {
-  MetadataSchemaVersion,
   MutuallyExclusiveCallback,
   SeedlessOnboardingControllerState,
   AuthenticatedUserDetails,
@@ -104,19 +103,16 @@ import {
   decryptStringWithKey,
   getDataTypeMigrationUpdates,
   getNewSocialBackupsMetadata,
-  assertIdentityUnchanged,
   assertIdentityUnchangedAndTrackEvent,
   assertIdTokenMismatchAndTrackEvent,
   findSocialBackupMetadata,
   getLatestAccessToken,
   encryptStringWithKey,
-  trackIncompleteMetadataBackupEvents,
   isAuthTokenError,
   isMaxKeyChainLengthError,
   isTokenNearExpiry,
   parseVaultData,
   parseAndValidateSecretMetadataBackup,
-  planPrimarySrpRepair,
   serializeVaultData,
 } from './utils/index.js';
 import type { SecretBackupData } from './utils/index.js';
@@ -227,6 +223,8 @@ export class SeedlessOnboardingController<
 
   readonly #recoverySession: RecoverySessionManager;
 
+  readonly #primarySrpBackupRepair: PrimarySrpBackupRepair;
+
   readonly #refreshJWTToken: RefreshJWTToken;
 
   readonly #revokeRefreshToken: RevokeRefreshToken;
@@ -322,6 +320,41 @@ export class SeedlessOnboardingController<
           delete draft.recoverySession;
         });
       },
+    });
+    this.#primarySrpBackupRepair = new PrimarySrpBackupRepair({
+      getToprfClient: (): ToprfSecureBackup => this.toprfClient,
+      fetchAllSecretData: (): Promise<FetchedSecretDataItem[]> => {
+        const { toprfEncryptionKey, toprfAuthKeyPair } =
+          this.#cachedDecryptedVaultData as DeserializedVaultData;
+        return this.#executeWithTokenRefresh(
+          () =>
+            this.toprfClient.fetchAllSecretDataItems({
+              decKey: toprfEncryptionKey,
+              authKeyPair: toprfAuthKeyPair,
+            }),
+          'identifyIncompleteMetadataBackup',
+        );
+      },
+      exportPrimarySeedPhrase: (password): Promise<Uint8Array> =>
+        this.messenger.call('KeyringController:exportSeedPhrase', {
+          password,
+        }),
+      trackEvent: (event): void =>
+        this.messenger.call('AnalyticsController:trackEvent', event),
+      getIdentity: (): { userId?: string; authConnectionId?: string } => ({
+        userId: this.state.userId,
+        authConnectionId: this.state.authConnectionId,
+      }),
+      withRepairContext: (fn): Promise<void> =>
+        this.#withControllerLock(async () => {
+          this.#assertIsUnlocked();
+          await this.#assertPasswordInSync({ skipCache: true });
+          const vaultData = await this.#unlockVaultAndGetVaultData();
+          await this.#executeWithTokenRefresh(
+            () => fn(vaultData),
+            'repairMissingPrimarySrpBackup',
+          );
+        }),
     });
     this.#refreshJWTToken = refreshJWTToken;
     this.#revokeRefreshToken = revokeRefreshToken;
@@ -1159,7 +1192,8 @@ export class SeedlessOnboardingController<
     return await this.#withControllerLock(async () => {
       await this.#unlockVaultAndReconcileAccessToken(password);
 
-      this.#identifyIncompleteMetadataBackup(password);
+      // Not awaited: the repair takes the controller lock held here.
+      this.#primarySrpBackupRepair.run(password);
     });
   }
 
@@ -1175,7 +1209,7 @@ export class SeedlessOnboardingController<
   async identifyIncompleteMetadataBackup(password: string): Promise<void> {
     this.#assertIsUnlocked();
 
-    await this.#identifyIncompleteMetadataBackup(password);
+    await this.#primarySrpBackupRepair.run(password);
   }
 
   /**
@@ -4373,109 +4407,6 @@ export class SeedlessOnboardingController<
         this.messenger.call('AnalyticsController:trackEvent', event),
       migrationVersion: this.state.migrationVersion,
     });
-  }
-
-  async #identifyIncompleteMetadataBackup(password: string): Promise<void> {
-    const deserializedVaultData =
-      this.#cachedDecryptedVaultData as DeserializedVaultData;
-    const { userId, authConnectionId } = this.state;
-
-    const plan = await planPrimarySrpRepair({
-      fetchAllSecretDataFn: () =>
-        this.#executeWithTokenRefresh(
-          () =>
-            this.toprfClient.fetchAllSecretDataItems({
-              decKey: deserializedVaultData.toprfEncryptionKey,
-              authKeyPair: deserializedVaultData.toprfAuthKeyPair,
-            }),
-          'identifyIncompleteMetadataBackup',
-        ),
-      getPrimaryKeyringSeedPhraseFn: () =>
-        this.messenger.call('KeyringController:exportSeedPhrase', {
-          password,
-        }),
-    });
-
-    await trackIncompleteMetadataBackupEvents({
-      plan,
-      trackEvent: (event) =>
-        this.messenger.call('AnalyticsController:trackEvent', event),
-    });
-
-    if (plan?.repairType === PrimarySrpRepairType.Missing) {
-      await this.#repairMissingPrimarySrpBackup({
-        localPrimarySRP: plan.localPrimarySRP,
-        metadataSchemaVersion: plan.metadataSchemaVersion,
-        expectedIdentity: { userId, authConnectionId },
-      });
-    }
-  }
-
-  /**
-   * Write the local primary SRP to the metadata service as the remote primary
-   * SRP.
-   *
-   * This is a best-effort repair: any failure is logged and never thrown, so
-   * it can't block the unlock flow.
-   *
-   * @param params - The repair to apply.
-   * @param params.localPrimarySRP - The primary SRP to write.
-   * @param params.metadataSchemaVersion - The schema version of the remote
-   * backup. The primary SRP is written as v1 only when the backup is v1, and
-   * as v2 otherwise.
-   * @param params.expectedIdentity - The identity the repair was planned for.
-   * The repair is aborted if the identity changed in the meantime.
-   */
-  async #repairMissingPrimarySrpBackup({
-    localPrimarySRP,
-    metadataSchemaVersion,
-    expectedIdentity,
-  }: {
-    localPrimarySRP: Uint8Array;
-    metadataSchemaVersion: MetadataSchemaVersion;
-    expectedIdentity: { userId?: string; authConnectionId?: string };
-  }): Promise<void> {
-    try {
-      await this.#withControllerLock(async () => {
-        this.#assertIsUnlocked();
-
-        await this.#assertPasswordInSync({
-          skipCache: true,
-        });
-        const { toprfEncryptionKey, toprfAuthKeyPair } =
-          await this.#unlockVaultAndGetVaultData();
-
-        await this.#executeWithTokenRefresh(async () => {
-          // The identity may have changed since the repair was planned.
-          assertIdentityUnchanged(
-            {
-              userId: this.state.userId,
-              authConnectionId: this.state.authConnectionId,
-            },
-            expectedIdentity,
-          );
-
-          // A v1 backup has not been migrated, so it must stay on the legacy
-          // schema: an untagged mnemonic has no data type. Every other backup
-          // (v2, none, mixed) is written as v2 with the `PrimarySrp` data type.
-          const dataType =
-            metadataSchemaVersion === 'v1'
-              ? undefined
-              : EncAccountDataType.PrimarySrp;
-          const primarySecretMetadata = new SecretMetadata(localPrimarySRP, {
-            dataType,
-          });
-          await this.toprfClient.addSecretDataItem({
-            encKey: toprfEncryptionKey,
-            secretData: primarySecretMetadata.toBytes(),
-            authKeyPair: toprfAuthKeyPair,
-            dataType,
-          });
-        }, 'repairMissingPrimarySrpBackup');
-      });
-    } catch (error) {
-      log('Error repairing missing primary SRP backup', error);
-    }
   }
 }
 
