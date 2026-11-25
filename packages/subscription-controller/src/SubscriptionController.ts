@@ -465,6 +465,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       state.benefits = benefits.eligible
         ? {
             billingPeriodId: benefits.billingPeriodId,
+            benefitPeriodId: benefits.benefitPeriodId,
+            benefitPeriodStart: benefits.benefitPeriodStart,
+            benefitPeriodEnd: benefits.benefitPeriodEnd,
             ...benefits.products,
           }
         : undefined;

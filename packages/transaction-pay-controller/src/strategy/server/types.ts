@@ -67,7 +67,9 @@ export type ServerQuoteRequest = {
   amount: string;
   tradeType: TradeType;
   sender: Hex;
-  recipient: Hex;
+
+  /** Address of the recipient, or another identifier such as a Lighter account index. */
+  recipient: string;
   refundTo?: Hex;
   slippage?: number;
   providers?: string[];
@@ -147,7 +149,14 @@ export type ServerQuote = {
   gasless: boolean;
 };
 
-/** Status values returned by GET /status. */
+/** Log from the source transaction receipt sent to POST /status. */
+export type ServerStatusLog = {
+  address: Hex;
+  data: Hex;
+  topics: Hex[];
+};
+
+/** Status values returned by POST /status. */
 export enum ServerStatus {
   Pending = 'PENDING',
   Submitted = 'SUBMITTED',
@@ -157,7 +166,7 @@ export enum ServerStatus {
   Unknown = 'UNKNOWN',
 }
 
-/** Response body from GET /status. */
+/** Response body from POST /status. */
 export type ServerStatusResponse = {
   status: ServerStatus;
   sourceHash?: Hex;

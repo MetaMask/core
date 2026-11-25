@@ -14,6 +14,8 @@ import type {
   ChartConfig,
   ChartTheme,
   TVChartingLibraryWidget,
+  TVVisibilityType,
+  TVWatchedValue,
 } from '../../core/types.js';
 import * as externalLinkBridgeModule from '../externalLinkBridge.js';
 import {
@@ -76,11 +78,18 @@ const baseConfig: ChartConfig = {
 
 function makeMockWidget(): TVChartingLibraryWidget & {
   _onChartReadyCb: (() => void) | null;
+  paneButtonsVisibility: () => TVWatchedValue<TVVisibilityType>;
 } {
   const mock = {
     _onChartReadyCb: null as (() => void) | null,
     onChartReady(callback: () => void): void {
       mock._onChartReadyCb = callback;
+    },
+    paneButtonsVisibility(): TVWatchedValue<TVVisibilityType> {
+      return {
+        value: (): TVVisibilityType => 'visibleOnMouseOver',
+        setValue: (): void => undefined,
+      };
     },
     activeChart: vi.fn(),
     applyOverrides: vi.fn(),
@@ -328,6 +337,61 @@ describe('createChartWidget onChartReady', () => {
     createChartWidget(baseConfig, { datafeed: {}, onReady });
     mockWidgetInstance._onChartReadyCb?.();
     expect(reportErrorToRN).toHaveBeenCalledWith(expect.any(Error));
+  });
+
+  describe('pane buttons visibility', () => {
+    let setValue: Mock;
+
+    beforeEach(() => {
+      setValue = vi.fn();
+      vi.spyOn(mockWidgetInstance, 'paneButtonsVisibility').mockReturnValue({
+        value: vi.fn(),
+        setValue,
+      });
+    });
+
+    it('hides pane buttons by default', () => {
+      createChartWidget(baseConfig, { datafeed: {} });
+      mockWidgetInstance._onChartReadyCb?.();
+      expect(setValue).toHaveBeenCalledWith('alwaysOff');
+    });
+
+    it('hides pane buttons when hidePaneButtons is true', () => {
+      createChartWidget(
+        { ...baseConfig, features: { hidePaneButtons: true } },
+        { datafeed: {} },
+      );
+      mockWidgetInstance._onChartReadyCb?.();
+      expect(setValue).toHaveBeenCalledWith('alwaysOff');
+    });
+
+    it('leaves pane buttons untouched when hidePaneButtons is false', () => {
+      createChartWidget(
+        { ...baseConfig, features: { hidePaneButtons: false } },
+        { datafeed: {} },
+      );
+      mockWidgetInstance._onChartReadyCb?.();
+      expect(mockWidgetInstance.paneButtonsVisibility).not.toHaveBeenCalled();
+      expect(setValue).not.toHaveBeenCalled();
+    });
+
+    it('reports errors from paneButtonsVisibility and still posts CHART_READY', () => {
+      setValue.mockImplementation(() => {
+        throw new Error('pane boom');
+      });
+      createChartWidget(baseConfig, { datafeed: {} });
+      mockWidgetInstance._onChartReadyCb?.();
+      expect(reportErrorToRN).toHaveBeenCalledWith(expect.any(Error));
+      expect(postToRN).toHaveBeenCalledWith('CHART_READY', {});
+    });
+
+    it('does not throw when the widget lacks paneButtonsVisibility', () => {
+      delete (mockWidgetInstance as TVChartingLibraryWidget)
+        .paneButtonsVisibility;
+      createChartWidget(baseConfig, { datafeed: {} });
+      expect(() => mockWidgetInstance._onChartReadyCb?.()).not.toThrow();
+      expect(postToRN).toHaveBeenCalledWith('CHART_READY', {});
+    });
   });
 });
 

@@ -5,19 +5,31 @@
  * We use selective exports to avoid the name collision.
  */
 export * from './accountUtils.js';
+export { calculateAccountReturnOnEquity } from './accountAggregation.js';
+export type { AccountReturnOnEquityParams } from './accountAggregation.js';
 export * from './advancedOrderLists.js';
 export * from './advancedOrders.js';
 export { getBatchOperationStatus } from './batchOperationStatus.js';
 export {
   estimateCloseReceive,
   calculateNetClosedPnl,
+  calculateCloseSize,
 } from './closeCalculations.js';
 export type {
+  CloseSize,
+  CloseSizeParams,
+  CloseSizeRounding,
   CloseReceiveEstimateParams,
   CloseReceiveEstimate,
   NetClosedPnlParams,
 } from './closeCalculations.js';
 export * from './errorUtils.js';
+export {
+  calculateFeeNotionalUsd,
+  calculateUndiscountedFeeAmount,
+  getUndiscountedFeeRate,
+} from './feeAmounts.js';
+export type { FeeNotionalParams } from './feeAmounts.js';
 // hyperLiquidAdapter: selective export to avoid calculatePositionSize clash with orderCalculations
 export {
   adaptOrderToSDK,
@@ -52,10 +64,30 @@ export * from './marketSearch.js';
 export * from './marketUtils.js';
 export {
   aggregateOrderBookLevels,
+  calculateOrderBookAggregationParams,
+  calculateOrderBookGroupingOptions,
+  calculateOrderBookSpread,
   groupOrderBook,
+  selectDefaultOrderBookGrouping,
 } from './orderBookGrouping.js';
-export type { GroupedOrderBook } from './orderBookGrouping.js';
+export type {
+  GroupedOrderBook,
+  OrderBookAggregationParams,
+  OrderBookGroupingLadder,
+  OrderBookGroupingOptionsParams,
+  OrderBookSpread,
+} from './orderBookGrouping.js';
+export { estimateOrderBookSlippage } from './orderBookSlippage.js';
+export type {
+  OrderBookSlippageEstimate,
+  OrderBookSlippageParams,
+} from './orderBookSlippage.js';
 export * from './orderCalculations.js';
+export {
+  normalizeHyperLiquidScalePriceLadder,
+  sizeHyperLiquidScaleLadder,
+} from './hyperLiquidScaleOrders.js';
+export { getFillAggregationKey, getOrderFillKey } from './orderFills.js';
 export * from './orderTypes.js';
 export {
   getPerpsErrorCopy,
@@ -64,6 +96,15 @@ export {
 } from './perpsClientCopy.js';
 export type { PerpsErrorCopy, PerpsOrderTypeLabel } from './perpsClientCopy.js';
 export * from './perpsDiskPersistence.js';
+export {
+  getPositionDirection,
+  recomputePositionAtPrice,
+} from './positionCalculations.js';
+export {
+  getPriceDeviationBand,
+  isPriceOutsideDeviationBand,
+} from './priceDeviation.js';
+export { roundPerpsPrice } from './pricePrecision.js';
 export * from './rewardsUtils.js';
 export * from './significantFigures.js';
 export * from './sortMarkets.js';

@@ -88,6 +88,10 @@ export const PERPS_ERROR_COPY: Readonly<
     key: 'perps.errors.marketsFailed',
     defaultMessage: 'Failed to get markets',
   },
+  [PERPS_ERROR_CODES.MARKET_NOT_FOUND]: {
+    key: 'perps.errors.marketNotFound',
+    defaultMessage: 'Market not found',
+  },
   [PERPS_ERROR_CODES.UNKNOWN_ERROR]: {
     key: 'perps.errors.unknownError',
     defaultMessage: 'Unknown error occurred',

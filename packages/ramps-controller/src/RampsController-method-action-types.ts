@@ -1017,6 +1017,41 @@ export type RampsControllerTransakGetActiveOrdersAction = {
 };
 
 /**
+ * Submits MiCA consent for the authenticated user.
+ *
+ * @param consentedAt - ISO 8601 timestamp of consent.
+ * @returns The submission response containing the status.
+ */
+export type RampsControllerTransakSubmitMicaConsentAction = {
+  type: `RampsController:transakSubmitMicaConsent`;
+  handler: RampsController['transakSubmitMicaConsent'];
+};
+
+/**
+ * Submits source of income details for the authenticated user.
+ *
+ * @param monthlyVolume - Expected monthly transaction volume.
+ * @param sourceOfFundsType - Source of funds (e.g., "salary", "business_income").
+ * @returns The submission response containing the status.
+ */
+export type RampsControllerTransakSubmitSourceOfIncomeAction = {
+  type: `RampsController:transakSubmitSourceOfIncome`;
+  handler: RampsController['transakSubmitSourceOfIncome'];
+};
+
+/**
+ * Submits additional nationality details for the authenticated user.
+ *
+ * @param employmentStatus - Employment status (e.g., "employed", "self_employed").
+ * @param countryOfCitizenship - ISO 3166-1 alpha-2 country code.
+ * @returns The submission response containing the status.
+ */
+export type RampsControllerTransakSubmitAdditionalDetailsNationalityAction = {
+  type: `RampsController:transakSubmitAdditionalDetailsNationality`;
+  handler: RampsController['transakSubmitAdditionalDetailsNationality'];
+};
+
+/**
  * Union of all RampsController action types.
  */
 export type RampsControllerMethodActions =
@@ -1084,4 +1119,7 @@ export type RampsControllerMethodActions =
   | RampsControllerTransakGetIdProofStatusAction
   | RampsControllerTransakCancelOrderAction
   | RampsControllerTransakCancelAllActiveOrdersAction
-  | RampsControllerTransakGetActiveOrdersAction;
+  | RampsControllerTransakGetActiveOrdersAction
+  | RampsControllerTransakSubmitMicaConsentAction
+  | RampsControllerTransakSubmitSourceOfIncomeAction
+  | RampsControllerTransakSubmitAdditionalDetailsNationalityAction;

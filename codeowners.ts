@@ -356,6 +356,7 @@ const config = {
     },
     'signature-controller': {
       teams: ['@MetaMask/confirmations'],
+      initializationPath: 'signature-controller',
     },
     'smart-transactions-controller': {
       teams: ['@MetaMask/transactions'],

@@ -61,4 +61,13 @@ describe('public order capability contract', () => {
     ).toThrow(TypeError);
     expect(declaration.supportedTriggerOrderTypes).toHaveLength(4);
   });
+
+  it('reports the attached TP/SL group limit for Hyperliquid', () => {
+    expect(HYPERLIQUID_ORDER_CAPABILITIES.attachedTpslGroupLimit).toStrictEqual(
+      {
+        takeProfit: 1,
+        stopLoss: 1,
+      },
+    );
+  });
 });
