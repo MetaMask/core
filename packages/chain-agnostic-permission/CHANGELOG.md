@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+- Add `rpcMethods` property to the `endowment:caip25` specification, gating the following JSON-RPC methods: `eth_sendTransaction`, `eth_signTransaction`, `eth_sendRawTransaction`, `eth_signTypedData`, `eth_signTypedData_v3`, `eth_signTypedData_v4`, `personal_sign` and `wallet_sendCalls` behind the permission ([#11753](https://github.com/MetaMask/core/pull/11753))
 
 ### Changed
 
