@@ -312,7 +312,19 @@ type Caip25EndowmentSpecification = ValidPermissionSpecification<{
   targetName: typeof Caip25EndowmentPermissionName;
   validator: PermissionValidatorConstraint;
   allowedCaveats: Readonly<NonEmptyArray<string>> | null;
+  rpcMethods: readonly string[];
 }>;
+
+const CAIP25_ENDOWMENT_RPC_METHODS = [
+  'eth_sendTransaction',
+  'eth_signTransaction',
+  'eth_sendRawTransaction',
+  'eth_signTypedData',
+  'eth_signTypedData_v3',
+  'eth_signTypedData_v4',
+  'personal_sign',
+  'wallet_sendCalls',
+] as const;
 
 /**
  * Helper that returns a `endowment:caip25` specification that
@@ -329,6 +341,7 @@ const specificationBuilder: PermissionSpecificationBuilder<
     permissionType: PermissionType.Endowment,
     targetName: Caip25EndowmentPermissionName,
     allowedCaveats: [Caip25CaveatType],
+    rpcMethods: CAIP25_ENDOWMENT_RPC_METHODS,
     validator: (permission: PermissionConstraint) => {
       if (
         permission.caveats?.length !== 1 ||
