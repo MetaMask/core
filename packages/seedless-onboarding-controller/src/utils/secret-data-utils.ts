@@ -12,7 +12,11 @@ import { parseControlRecord } from '../envelope/envelope-keys.js';
 import type { ControlRecord } from '../envelope/envelope-keys.js';
 import { createModuleLogger, projectLogger } from '../logger.js';
 import { SecretMetadata } from '../SecretMetadata.js';
-import type { PrimarySrpRepairPlan, SocialBackupsMetadata } from '../types.js';
+import type {
+  MetadataSchemaVersion,
+  PrimarySrpRepairPlan,
+  SocialBackupsMetadata,
+} from '../types.js';
 import { InvalidPrimarySecretDataTypeError } from './errors.js';
 
 const log = createModuleLogger(projectLogger, controllerName);
@@ -261,6 +265,34 @@ export function parseAndValidateSecretMetadataBackup(
 }
 
 /**
+ * Get the storage schema version of a secret metadata backup.
+ *
+ * `v2` is only reported when every item is stored as v2, and `v1` when every
+ * item is stored as v1.
+ *
+ * @param secretMetadata - Parsed secret metadata.
+ * @returns The schema version of the backup.
+ */
+export function getMetadataSchemaVersion(
+  secretMetadata: SecretMetadata[],
+): MetadataSchemaVersion {
+  if (secretMetadata.length === 0) {
+    // No secret metadata found.
+    return 'none';
+  }
+
+  if (secretMetadata.every((secret) => secret.storageVersion === 'v2')) {
+    return 'v2';
+  }
+
+  if (secretMetadata.every((secret) => secret.storageVersion === 'v1')) {
+    return 'v1';
+  }
+
+  return 'mixed';
+}
+
+/**
  * Compare the remote primary SRP backup with the local primary SRP, and decide
  * which repair applies.
  *
@@ -268,7 +300,8 @@ export function parseAndValidateSecretMetadataBackup(
  * mnemonic is treated as the remote primary candidate. Newer metadata uses the
  * explicit `PrimarySrp` data type. When no mnemonic can be the primary the
  * backup is `missing`, otherwise the candidate is compared with the local
- * primary SRP and a difference is a `mismatch`.
+ * primary SRP and a difference is a `mismatch`. The plan also reports the
+ * schema version of the remote backup, so a repair can write the same schema.
  *
  * This only reads data. It does not modify local or remote backup data. Fetch,
  * parsing, and keyring failures are logged and result in no plan.
@@ -306,6 +339,7 @@ export async function planPrimarySrpRepair({
     return {
       repairType: PrimarySrpRepairType.Mismatch,
       secretMetadata,
+      metadataSchemaVersion: getMetadataSchemaVersion(secretMetadata),
       localPrimarySRP,
     };
   } catch (error) {
@@ -315,6 +349,7 @@ export async function planPrimarySrpRepair({
       return {
         repairType: PrimarySrpRepairType.Missing,
         secretMetadata,
+        metadataSchemaVersion: getMetadataSchemaVersion(secretMetadata),
         localPrimarySRP,
       };
     }

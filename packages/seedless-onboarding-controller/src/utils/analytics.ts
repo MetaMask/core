@@ -20,15 +20,18 @@ import {
 import type { SeedlessIdentityMismatchSource } from '../constants.js';
 import { createModuleLogger, projectLogger } from '../logger.js';
 import { SecretMetadata } from '../SecretMetadata.js';
-import type { PrimarySrpRepairPlan } from '../types.js';
+import type { MetadataSchemaVersion, PrimarySrpRepairPlan } from '../types.js';
 import { isIdentityMismatchError } from './errors.js';
-import { isPrimarySecretCandidate } from './secret-data-utils.js';
+import {
+  getMetadataSchemaVersion,
+  isPrimarySecretCandidate,
+} from './secret-data-utils.js';
 
 export const SeedlessEnvelopeMigrationCheckpointEventName =
   'Seedless Onboarding Envelope Migration Checkpoint';
 
 export type IncompleteMetadataBackupEventProperties = {
-  metadata_schema_version: 'v1' | 'v2' | 'mixed' | 'none';
+  metadata_schema_version: MetadataSchemaVersion;
   number_of_imported_wallets: number;
   number_of_imported_accounts: number;
 };
@@ -68,34 +71,6 @@ export function getIncompleteMetadataBackupEventProperties(
     number_of_imported_wallets: numberOfImportedWallets,
     number_of_imported_accounts: numberOfImportedAccounts,
   };
-}
-
-/**
- * Report `v2` only when every stored item already uses the v2 schema.
- *
- * @param secretMetadata - Parsed secret metadata.
- * @returns The metadata schema version to include in analytics.
- */
-function getMetadataSchemaVersion(
-  secretMetadata: SecretMetadata[],
-):
-  | IncompleteMetadataBackupEventProperties['metadata_schema_version']
-  | 'mixed'
-  | 'none' {
-  if (secretMetadata.length === 0) {
-    // No secret metadata found.
-    return 'none';
-  }
-
-  if (secretMetadata.every((secret) => secret.storageVersion === 'v2')) {
-    return 'v2';
-  }
-
-  if (secretMetadata.every((secret) => secret.storageVersion === 'v1')) {
-    return 'v1';
-  }
-
-  return 'mixed';
 }
 
 /**

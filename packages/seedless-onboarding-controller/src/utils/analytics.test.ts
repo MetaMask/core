@@ -141,7 +141,7 @@ describe('trackIncompleteMetadataBackupEvents', () => {
       description: 'an empty response',
       secretDataItems: [],
       properties: {
-        metadata_schema_version: 'none',
+        metadata_schema_version: 'none' as const,
         number_of_imported_wallets: 0,
         number_of_imported_accounts: 0,
       },
@@ -173,6 +173,7 @@ describe('trackIncompleteMetadataBackupEvents', () => {
         plan: {
           repairType: PrimarySrpRepairType.Missing,
           secretMetadata: parseSecretMetadata(secretDataItems),
+          metadataSchemaVersion: properties.metadata_schema_version,
           localPrimarySRP: stringToBytes(SRP1.data),
         },
         trackEvent,
@@ -180,7 +181,7 @@ describe('trackIncompleteMetadataBackupEvents', () => {
 
       expectTrackedEvent(trackEvent, {
         name: SeedlessPrimarySrpMissingEventName,
-        properties: properties as IncompleteMetadataBackupEventProperties,
+        properties,
       });
       expect(logMock).not.toHaveBeenCalled();
     },
@@ -221,6 +222,7 @@ describe('trackIncompleteMetadataBackupEvents', () => {
         plan: {
           repairType: PrimarySrpRepairType.Mismatch,
           secretMetadata: parseSecretMetadata(secretDataItems),
+          metadataSchemaVersion: properties.metadata_schema_version,
           localPrimarySRP: stringToBytes(SRP1.data),
         },
         trackEvent,
@@ -242,6 +244,7 @@ describe('trackIncompleteMetadataBackupEvents', () => {
       plan: {
         repairType: PrimarySrpRepairType.Mismatch,
         secretMetadata: [],
+        metadataSchemaVersion: 'none',
         localPrimarySRP: stringToBytes(SRP1.data),
       },
       trackEvent,

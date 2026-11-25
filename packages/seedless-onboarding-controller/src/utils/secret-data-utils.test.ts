@@ -24,6 +24,7 @@ import {
   findSocialBackupMetadata,
   getCreatedAtMs,
   getDataTypeMigrationUpdates,
+  getMetadataSchemaVersion,
   getNewSocialBackupsMetadata,
   isSecretDataType,
   parseAndValidateSecretMetadataBackup,
@@ -168,6 +169,33 @@ describe('secret data utilities', () => {
     });
   });
 
+  describe('getMetadataSchemaVersion', () => {
+    it.each([
+      { description: 'there are no items', items: [], expected: 'none' },
+      {
+        description: 'every item is stored as v1',
+        items: [SRP1, PrivateKey1],
+        expected: 'v1',
+      },
+      {
+        description: 'every item is stored as v2',
+        items: [PrimarySRP2, ImportedPrivateKey1],
+        expected: 'v2',
+      },
+      {
+        description: 'the items use both versions',
+        items: [SRP1, ImportedPrivateKey1],
+        expected: 'mixed',
+      },
+    ])('returns $expected when $description', ({ items, expected }) => {
+      const secretMetadata = parseSecretMetadata(
+        items.map(createFetchedSecretDataItem),
+      );
+
+      expect(getMetadataSchemaVersion(secretMetadata)).toBe(expected);
+    });
+  });
+
   describe('planPrimarySrpRepair', () => {
     const localPrimarySrp = stringToBytes(SRP1.data);
 
@@ -179,21 +207,29 @@ describe('secret data utilities', () => {
       {
         description: 'the remote metadata is empty',
         secretDataItems: [],
+        metadataSchemaVersion: 'none',
       },
       {
-        description: 'the remote metadata only has private keys',
+        description: 'the remote metadata only has v2 private keys',
         secretDataItems: [createFetchedSecretDataItem(ImportedPrivateKey1)],
+        metadataSchemaVersion: 'v2',
       },
       {
-        description: 'the remote metadata only has imported SRPs',
+        description: 'the remote metadata only has v2 imported items',
         secretDataItems: [
           createFetchedSecretDataItem(ImportedSRP1),
           createFetchedSecretDataItem(ImportedPrivateKey1),
         ],
+        metadataSchemaVersion: 'v2',
+      },
+      {
+        description: 'the remote metadata only has legacy private keys',
+        secretDataItems: [createFetchedSecretDataItem(PrivateKey1)],
+        metadataSchemaVersion: 'v1',
       },
     ])(
-      'plans a missing primary SRP repair when $description',
-      async ({ secretDataItems }) => {
+      'plans a missing primary SRP repair with the $metadataSchemaVersion schema when $description',
+      async ({ secretDataItems, metadataSchemaVersion }) => {
         const repair = await planPrimarySrpRepair({
           fetchAllSecretDataFn: async () => secretDataItems,
           getPrimaryKeyringSeedPhraseFn: async () => localPrimarySrp,
@@ -202,6 +238,7 @@ describe('secret data utilities', () => {
         expect(repair).toStrictEqual({
           repairType: PrimarySrpRepairType.Missing,
           secretMetadata: expect.any(Array),
+          metadataSchemaVersion,
           localPrimarySRP: localPrimarySrp,
         });
         expect(repair?.secretMetadata).toHaveLength(secretDataItems.length);
@@ -213,6 +250,7 @@ describe('secret data utilities', () => {
       {
         description: 'the remote primary SRP differs from the local one',
         secretDataItems: [createFetchedSecretDataItem(PrimarySRP2)],
+        metadataSchemaVersion: 'v2',
       },
       {
         description: 'the earliest legacy SRP is not the local primary SRP',
@@ -220,21 +258,34 @@ describe('secret data utilities', () => {
           createFetchedSecretDataItem(PrivateKey1),
           createFetchedSecretDataItem(SRP2),
         ],
+        metadataSchemaVersion: 'v1',
       },
-    ])('plans a mismatch when $description', async ({ secretDataItems }) => {
-      const repair = await planPrimarySrpRepair({
-        fetchAllSecretDataFn: async () => secretDataItems,
-        getPrimaryKeyringSeedPhraseFn: async () => localPrimarySrp,
-      });
+      {
+        description: 'the remote metadata mixes legacy and v2 items',
+        secretDataItems: [
+          createFetchedSecretDataItem(SRP2),
+          createFetchedSecretDataItem(ImportedSRP1),
+        ],
+        metadataSchemaVersion: 'mixed',
+      },
+    ])(
+      'plans a mismatch with the $metadataSchemaVersion schema when $description',
+      async ({ secretDataItems, metadataSchemaVersion }) => {
+        const repair = await planPrimarySrpRepair({
+          fetchAllSecretDataFn: async () => secretDataItems,
+          getPrimaryKeyringSeedPhraseFn: async () => localPrimarySrp,
+        });
 
-      expect(repair).toStrictEqual({
-        repairType: PrimarySrpRepairType.Mismatch,
-        secretMetadata: expect.any(Array),
-        localPrimarySRP: localPrimarySrp,
-      });
-      expect(repair?.secretMetadata).toHaveLength(secretDataItems.length);
-      expect(logMock).not.toHaveBeenCalled();
-    });
+        expect(repair).toStrictEqual({
+          repairType: PrimarySrpRepairType.Mismatch,
+          secretMetadata: expect.any(Array),
+          metadataSchemaVersion,
+          localPrimarySRP: localPrimarySrp,
+        });
+        expect(repair?.secretMetadata).toHaveLength(secretDataItems.length);
+        expect(logMock).not.toHaveBeenCalled();
+      },
+    );
 
     it.each([
       {

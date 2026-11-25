@@ -7704,6 +7704,54 @@ describe('SeedlessOnboardingController', () => {
         );
       });
 
+      it('adds the local primary SRP as v2 when the remote backup is empty', async () => {
+        await withRepairScenario(
+          { remoteItems: [] },
+          async ({ addSecretDataItem, identify }) => {
+            await identify();
+
+            expect(addSecretDataItem).toHaveBeenCalledTimes(1);
+            expect(addSecretDataItem).toHaveBeenCalledWith(
+              expect.objectContaining({
+                dataType: EncAccountDataType.PrimarySrp,
+              }),
+            );
+          },
+        );
+      });
+
+      it('adds the local primary SRP as v1 when the remote backup is v1', async () => {
+        await withRepairScenario(
+          {
+            remoteItems: [
+              {
+                data: new SecretMetadata(MOCK_PRIVATE_KEY, {
+                  type: SecretType.PrivateKey,
+                }).toBytes(),
+                itemId: 'remote-legacy-private-key',
+                version: 'v1' as const,
+              },
+            ],
+          },
+          async ({ addSecretDataItem, identify }) => {
+            await identify();
+
+            expect(addSecretDataItem).toHaveBeenCalledTimes(1);
+            const { secretData, dataType } = addSecretDataItem.mock
+              .calls[0][0] as {
+              secretData: Uint8Array;
+              dataType?: EncAccountDataType;
+            };
+            expect(dataType).toBeUndefined();
+
+            const metadata = SecretMetadata.fromRawMetadata(secretData, {});
+            expect(metadata.data).toStrictEqual(MOCK_SEED_PHRASE);
+            expect(metadata.type).toBe(SecretType.Mnemonic);
+            expect(metadata.dataType).toBeUndefined();
+          },
+        );
+      });
+
       it('does not add anything when the remote backup already has a primary SRP', async () => {
         await withRepairScenario(
           {

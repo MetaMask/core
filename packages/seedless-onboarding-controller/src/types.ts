@@ -396,6 +396,16 @@ export type DecodedNodeAuthToken = {
 };
 
 /**
+ * The storage schema version of the remote secret metadata backup.
+ *
+ * - `v1`: every item is a legacy item, created before `dataType` existed.
+ * - `v2`: every item is stored with a `dataType`.
+ * - `mixed`: the items use both schema versions.
+ * - `none`: there are no items.
+ */
+export type MetadataSchemaVersion = 'v1' | 'v2' | 'mixed' | 'none';
+
+/**
  * The result of comparing the remote primary SRP backup with the local primary
  * SRP when they are not in sync.
  *
@@ -403,11 +413,14 @@ export type DecodedNodeAuthToken = {
  * - `mismatch`: the remote primary SRP differs from the local one.
  *
  * `secretMetadata` is the parsed remote backup the result was derived from.
- * `localPrimarySRP` is the local primary SRP read from the keyring.
+ * `metadataSchemaVersion` is the schema version of that backup, which a repair
+ * must keep using. `localPrimarySRP` is the local primary SRP read from the
+ * keyring.
  */
 export type PrimarySrpRepairPlan = {
   repairType: PrimarySrpRepairType;
   secretMetadata: SecretMetadata[];
+  metadataSchemaVersion: MetadataSchemaVersion;
   localPrimarySRP: Uint8Array;
 };
 

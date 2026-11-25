@@ -69,6 +69,7 @@ import {
   seedlessOnboardingMetadata,
 } from './state.js';
 import type {
+  MetadataSchemaVersion,
   MutuallyExclusiveCallback,
   SeedlessOnboardingControllerState,
   AuthenticatedUserDetails,
@@ -4404,6 +4405,7 @@ export class SeedlessOnboardingController<
     if (plan?.repairType === PrimarySrpRepairType.Missing) {
       await this.#repairMissingPrimarySrpBackup({
         localPrimarySRP: plan.localPrimarySRP,
+        metadataSchemaVersion: plan.metadataSchemaVersion,
         expectedIdentity: { userId, authConnectionId },
       });
     }
@@ -4418,14 +4420,19 @@ export class SeedlessOnboardingController<
    *
    * @param params - The repair to apply.
    * @param params.localPrimarySRP - The primary SRP to write.
+   * @param params.metadataSchemaVersion - The schema version of the remote
+   * backup. The primary SRP is written as v1 only when the backup is v1, and
+   * as v2 otherwise.
    * @param params.expectedIdentity - The identity the repair was planned for.
    * The repair is aborted if the identity changed in the meantime.
    */
   async #repairMissingPrimarySrpBackup({
     localPrimarySRP,
+    metadataSchemaVersion,
     expectedIdentity,
   }: {
     localPrimarySRP: Uint8Array;
+    metadataSchemaVersion: MetadataSchemaVersion;
     expectedIdentity: { userId?: string; authConnectionId?: string };
   }): Promise<void> {
     try {
@@ -4448,14 +4455,21 @@ export class SeedlessOnboardingController<
             expectedIdentity,
           );
 
-          const primarySecretMeatdata = new SecretMetadata(localPrimarySRP, {
-            dataType: EncAccountDataType.PrimarySrp,
+          // A v1 backup has not been migrated, so it must stay on the legacy
+          // schema: an untagged mnemonic has no data type. Every other backup
+          // (v2, none, mixed) is written as v2 with the `PrimarySrp` data type.
+          const dataType =
+            metadataSchemaVersion === 'v1'
+              ? undefined
+              : EncAccountDataType.PrimarySrp;
+          const primarySecretMetadata = new SecretMetadata(localPrimarySRP, {
+            dataType,
           });
           await this.toprfClient.addSecretDataItem({
             encKey: toprfEncryptionKey,
-            secretData: primarySecretMeatdata.toBytes(),
+            secretData: primarySecretMetadata.toBytes(),
             authKeyPair: toprfAuthKeyPair,
-            dataType: EncAccountDataType.PrimarySrp,
+            dataType,
           });
         }, 'repairMissingPrimarySrpBackup');
       });
