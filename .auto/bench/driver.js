@@ -150,6 +150,14 @@ var PARITY = [
   ['1.5e999', 6],
   ['9'.repeat(600) + 'e999', undefined],
   ['1' + '0'.repeat(2000), undefined],
+  // Huge unbounded input lengths (fast path is linear; BigNumber reference
+  // must stay byte-identical at 5k/10k digits).
+  ['1' + '0'.repeat(4999), undefined],
+  ['1' + '0'.repeat(4999), 18],
+  ['1.' + '9'.repeat(4998) + '5', 18],
+  ['0.' + '0'.repeat(4999) + '1', 18],
+  ['9'.repeat(9999), 0],
+  ['1' + '0'.repeat(9998) + '.' + '5', 18],
 ];
 
 var DECIMALS_POOL = [
@@ -197,9 +205,9 @@ var FUZZ = buildFuzz(600);
 
 // Parity under a NON-DEFAULT global BigNumber config. The reference (frozen
 // original) uses the same shared BigNumber instance, so both sides see the
-// mutated config. Entries: [configObj, cases]. After each config block the
-// harness restores defaults and pokes the candidate with a whitespace input
-// (which must take the BigNumber fallback) so any config caching is fresh.
+// mutated config. Entries: [configObj, cases]. Config is set IMMEDIATELY
+// before each case pair with no warm-up or cache-priming calls in between —
+// the very next call after a config change must already obey it.
 // bignumber.js 9.1.2 has no ERRORS config (errors always throw) — the ERRORS
 // key is silently ignored, which the last block demonstrates.
 var CONFIG_PARITY = [
@@ -225,6 +233,10 @@ var CONFIG_PARITY = [
       ['0.1234567890123', 18],
       [' 1.5', 6],
       ['1.5', 6],
+      ['1000000', undefined],
+      ['100000', undefined],
+      ['10000', undefined],
+      ['0.00001', undefined],
     ],
   ],
   [
@@ -237,6 +249,7 @@ var CONFIG_PARITY = [
       ['1e40', undefined],
       ['1e60', undefined],
       ['0.001', 18],
+      ['1000', undefined],
     ],
   ],
   [
@@ -257,6 +270,40 @@ var CONFIG_PARITY = [
       ['NaN', 18],
     ],
   ],
+];
+
+// Warm-then-change: fast-path calls under the default config (1 through 63
+// consecutive calls, covering any conceivable sampled/cached refresh window)
+// followed by a config change — the IMMEDIATE next call must obey the new
+// config with no intervening priming call.
+var WARM_THEN_CHANGE = [
+  // [warmFastCalls, configObj, amount, decimals]
+  [1, { RANGE: 5 }, '1000000', undefined],
+  [2, { RANGE: 5 }, '1000000', 18],
+  [7, { RANGE: 5 }, '1234567890', undefined],
+  [31, { RANGE: 5 }, '0.00000001', 18],
+  [62, { RANGE: 5 }, '1e10', undefined],
+  [63, { RANGE: 5 }, '1000000', undefined],
+  [63, { RANGE: 5 }, '0.000001', undefined],
+  [1, { RANGE: 1 }, '10', undefined],
+  [63, { RANGE: 1 }, '0.01', undefined],
+  [63, { RANGE: [-3, 50] }, '9999', undefined],
+  [63, { RANGE: 1e9 }, '1e999', undefined],
+];
+
+// Interleaved: change the config before EVERY call. Each invocation must
+// read the ambient config exactly.
+var INTERLEAVED_CONFIG_CASES = [
+  // [amount, decimals] — config alternates per case between RANGE 5 and the
+  // default.
+  ['1000000', undefined],
+  ['1000000', undefined],
+  ['999999', undefined],
+  ['0.000001', 18],
+  ['1234567890', 2],
+  ['99999', undefined],
+  ['1e-7', 18],
+  ['1000000', undefined],
 ];
 
 function selfCheck() {
@@ -294,18 +341,12 @@ function selfCheck() {
       }
     }
   }
-  // Parity under non-default global BigNumber config (RANGE etc.). The
-  // candidate must track the configured range or explicitly fall back.
-  // PARITY_SKIP_CONFIG=1 (build-time) skips these blocks — timing
-  // isolation only, never a keep decision.
-  if (PARITY_SKIP_CONFIG !== true)
+  // Parity under non-default global BigNumber config (RANGE etc.). Config
+  // is set immediately before each case — no warm-up or cache-priming calls.
   for (var ci = 0; ci < CONFIG_PARITY.length; ci++) {
     var cfg = CONFIG_PARITY[ci][0];
     var cases = CONFIG_PARITY[ci][1];
     BigNumberJS.config(cfg);
-    // Poke the candidate with an input that must take the BigNumber
-    // fallback, so any cached config view is refreshed before comparing.
-    normalizeAmountString(' 1', undefined);
     for (var i = 0; i < cases.length; i++) {
       var amount = cases[i][0];
       var decimals = cases[i][1];
@@ -331,14 +372,127 @@ function selfCheck() {
         );
         if (failures.length >= 10) {
           BigNumberJS.config({ RANGE: [-1e7, 1e7] });
+          BigNumber.DEBUG = false;
           return failures;
         }
       }
     }
   }
-  // Restore defaults (and refresh the candidate's cached view again).
+  // Warm-then-change: run N consecutive fast-path calls under the default
+  // config, then flip the config and compare the VERY NEXT call — no
+  // priming/warm-up call in between.
   BigNumberJS.config({ RANGE: [-1e7, 1e7] });
-  normalizeAmountString(' 1', undefined);
+  for (var wi = 0; wi < WARM_THEN_CHANGE.length; wi++) {
+    var warmN = WARM_THEN_CHANGE[wi][0];
+    var warmCfg = WARM_THEN_CHANGE[wi][1];
+    var warmAmount = WARM_THEN_CHANGE[wi][2];
+    var warmDecimals = WARM_THEN_CHANGE[wi][3];
+    for (var wj = 0; wj < warmN; wj++) {
+      normalizeAmountString('1.5', 6); // fast-path warm call
+    }
+    BigNumberJS.config(warmCfg);
+    var warmExpected;
+    var warmActual;
+    try {
+      warmExpected = __referenceImpl(warmAmount, warmDecimals);
+    } catch (e) {
+      warmExpected = 'THREW:' + e.message;
+    }
+    try {
+      warmActual = normalizeAmountString(warmAmount, warmDecimals);
+    } catch (e) {
+      warmActual = 'THREW:' + e.message;
+    }
+    if (warmExpected !== warmActual) {
+      failures.push(
+        'warmThenChange[' + wi + '] warm=' + warmN +
+          ' config=' + JSON.stringify(warmCfg) +
+          ' input=' + JSON.stringify(warmAmount) +
+          ' decimals=' + String(warmDecimals) +
+          ' expected=' + JSON.stringify(warmExpected) +
+          ' actual=' + JSON.stringify(warmActual),
+      );
+    }
+    BigNumberJS.config({ RANGE: [-1e7, 1e7] });
+  }
+  // Interleaved: flip the config before EVERY call; each call must read the
+  // ambient config exactly.
+  for (var ii = 0; ii < INTERLEAVED_CONFIG_CASES.length; ii++) {
+    var intCase = INTERLEAVED_CONFIG_CASES[ii];
+    BigNumberJS.config(ii % 2 === 0 ? { RANGE: 5 } : { RANGE: [-1e7, 1e7] });
+    var intExpected;
+    var intActual;
+    try {
+      intExpected = __referenceImpl(intCase[0], intCase[1]);
+    } catch (e) {
+      intExpected = 'THREW:' + e.message;
+    }
+    try {
+      intActual = normalizeAmountString(intCase[0], intCase[1]);
+    } catch (e) {
+      intActual = 'THREW:' + e.message;
+    }
+    if (intExpected !== intActual) {
+      failures.push(
+        'interleaved[' + ii + '] input=' + JSON.stringify(intCase[0]) +
+          ' decimals=' + String(intCase[1]) +
+          ' expected=' + JSON.stringify(intExpected) +
+          ' actual=' + JSON.stringify(intActual),
+      );
+    }
+  }
+  BigNumberJS.config({ RANGE: [-1e7, 1e7] });
+  // BigNumber.DEBUG = true pins invalid-input behavior (bignumber.js 9.1.2
+  // throws 'Not a number' for base conversions and >15-digit Number
+  // primitives in debug mode; plain decimal strings are unaffected). Both
+  // sides share the instance, so outputs must match call-for-call.
+  BigNumber.DEBUG = true;
+  var DEBUG_CASES = [
+    ['1.5', 6],
+    ['0', undefined],
+    ['0x1f', 18],
+    ['0b101', 18],
+    ['0o17', 18],
+    [' 1.5', 6],
+    ['1.5 ', 6],
+    ['NaN', 18],
+    ['Infinity', undefined],
+    ['-Infinity', 6],
+    ['', 18],
+    ['1.5abc', 6],
+    ['abc', 18],
+    ['1e999', 18],
+    ['1e-999', 18],
+    ['9'.repeat(512), 18],
+    ['1' + '0'.repeat(2000), undefined],
+    ['1.5e18', undefined],
+    ['007.500', 2],
+  ];
+  for (var di = 0; di < DEBUG_CASES.length; di++) {
+    var dbgExpected;
+    var dbgActual;
+    try {
+      dbgExpected = __referenceImpl(DEBUG_CASES[di][0], DEBUG_CASES[di][1]);
+    } catch (e) {
+      dbgExpected = 'THREW:' + e.message;
+    }
+    try {
+      dbgActual = normalizeAmountString(DEBUG_CASES[di][0], DEBUG_CASES[di][1]);
+    } catch (e) {
+      dbgActual = 'THREW:' + e.message;
+    }
+    if (dbgExpected !== dbgActual) {
+      failures.push(
+        'debug[' + di + '] input=' + JSON.stringify(DEBUG_CASES[di][0]) +
+          ' decimals=' + String(DEBUG_CASES[di][1]) +
+          ' expected=' + JSON.stringify(dbgExpected) +
+          ' actual=' + JSON.stringify(dbgActual),
+      );
+    }
+  }
+  BigNumber.DEBUG = false;
+  // Restore defaults.
+  BigNumberJS.config({ RANGE: [-1e7, 1e7] });
   return failures;
 }
 
@@ -383,6 +537,8 @@ if (failures.length > 0) {
     print('PARITY_FAIL ' + failures[f]);
   }
   print('SELF_CHECK=FAIL ' + failures.length + ' mismatches');
+  // Nonzero exit so the harness fails THIS run, not just the aggregate grep.
+  throw new Error('parity self-check failed: ' + failures.length + ' mismatches');
 } else if (BENCH_MODE === 'sweep') {
   var s1 = timeCorpus(2000);
   var s2 = timeCorpus(8000);

@@ -50,9 +50,19 @@ for i in $(seq 1 $RUNS); do
   fi
 done
 
-if ! grep -q '^SELF_CHECK=OK$' .auto/bench/run_*.out; then
-  echo "--- parity self-check failed ---" >&2
-  grep -h '^SELF_CHECK=' .auto/bench/run_*.out >&2 || tail -20 .auto/bench/run_1.out >&2
+# EVERY run must pass the self-check. (A grep across all run_*.out files
+# would pass if any single run printed OK while another failed.)
+ALL_OK=1
+for i in $(seq 1 $RUNS); do
+  if ! grep -q '^SELF_CHECK=OK$' ".auto/bench/run_$i.out" || \
+     grep -qE 'SELF_CHECK=FAIL|PARITY_FAIL' ".auto/bench/run_$i.out"; then
+    echo "--- parity self-check failed (run $i) ---" >&2
+    grep -hE 'SELF_CHECK=|PARITY_FAIL' ".auto/bench/run_$i.out" | head -10 >&2
+    ALL_OK=0
+  fi
+done
+if [ "$ALL_OK" != "1" ]; then
+  echo "METRIC status=crash"
   exit 1
 fi
 
