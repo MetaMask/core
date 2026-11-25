@@ -12,6 +12,17 @@ const { withinSandbox } = createSandbox(
   'platform-api-docs/root-messenger-discovery',
 );
 
+vi.mock(import('./ts-project.js'), async (importOriginal) => {
+  const { createProject } = await importOriginal();
+  return {
+    createProject: (): ReturnType<typeof createProject> => {
+      const project = createProject();
+      project.compilerOptions.set({ lib: ['lib.es5.d.ts'] });
+      return project;
+    },
+  };
+});
+
 vi.setConfig({ testTimeout: 60_000 });
 
 /**
