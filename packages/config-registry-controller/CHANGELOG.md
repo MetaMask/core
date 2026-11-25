@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `localConfigOverrides` option to `ConfigRegistryController`, which merges locally provided network configs over remote (or fallback) configs, field-level, with local values winning on collisions. Overrides that would produce an invalid network config are reported via `captureException` and skipped ([#10977](https://github.com/MetaMask/core/pull/10977))
+
 ### Changed
 
 - Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))

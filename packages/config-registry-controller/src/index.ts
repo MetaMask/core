@@ -1,6 +1,7 @@
 export type {
   ConfigRegistryControllerState,
   ConfigRegistryControllerOptions,
+  LocalNetworkConfigOverrides,
   ConfigRegistryControllerActions,
   ConfigRegistryControllerGetStateAction,
   ConfigRegistryControllerStateChangedEvent,
