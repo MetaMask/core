@@ -355,9 +355,14 @@ export function isBoundedIntervalWindowActive(): boolean {
  * Counterpart of {@link isBoundedIntervalWindowActive}; no-ops otherwise.
  *
  * The window is applied immediately (data is usually loaded by `onChartReady`)
- * and again on the first data load in case TradingView is still loading. Both
+ * and again once via `dataReady` in case TradingView is still loading. Both
  * are clamped to the oldest loaded bar, so neither triggers backward
  * pagination.
+ *
+ * `dataReady` is used instead of `onDataLoaded` because it fires exactly once
+ * (immediately if data is already loaded). An `onDataLoaded` listener would
+ * stay armed when data loaded before ready, and re-apply the initial window
+ * on the next history load (e.g. scroll-back), snapping the chart back.
  *
  * @param chart - The active TradingView chart.
  */
@@ -366,7 +371,17 @@ export function applyInitialVisibleRange(chart: TVActiveChart): void {
     return;
   }
   applyVisibleRangeImmediate(chart);
-  applyVisibleRange(chart);
+  if (typeof chart.dataReady !== 'function') {
+    return;
+  }
+  const capturedGeneration = getOhlcvGeneration();
+  chart.dataReady(() => {
+    // Newer data (interval switch / refetch) applies its own window.
+    if (capturedGeneration !== getOhlcvGeneration()) {
+      return;
+    }
+    applyVisibleRangeImmediate(chart);
+  });
 }
 
 /**

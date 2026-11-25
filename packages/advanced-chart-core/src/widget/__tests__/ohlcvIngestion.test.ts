@@ -1073,45 +1073,51 @@ describe('applyInitialVisibleRange', () => {
     delete window.ReactNativeWebView;
   });
 
-  const buildChart = (): {
+  const buildChart = (
+    options: { withDataReady?: boolean } = {},
+  ): {
     chart: TVActiveChart;
     setVisibleRange: Mock;
     onDataLoaded: Mock;
-    fireDataLoaded: () => void;
+    dataReady: Mock;
+    fireDataReady: () => void;
   } => {
-    let dataLoadedCb: (() => void) | undefined;
+    let dataReadyCb: (() => void) | undefined;
     const setVisibleRange = vi.fn();
     const onDataLoaded = vi.fn().mockReturnValue({
-      subscribe: vi.fn((_scope: unknown, callback: () => void) => {
-        dataLoadedCb = callback;
-      }),
+      subscribe: vi.fn(),
       unsubscribe: vi.fn(),
+    });
+    const dataReady = vi.fn((callback: () => void) => {
+      dataReadyCb = callback;
     });
     const chart = {
       onDataLoaded,
       setVisibleRange,
       getTimeScale: vi.fn().mockReturnValue({ setRightOffset: vi.fn() }),
+      ...(options.withDataReady === false ? {} : { dataReady }),
     } as unknown as TVActiveChart;
     return {
       chart,
       setVisibleRange,
       onDataLoaded,
-      fireDataLoaded: () => dataLoadedCb?.(),
+      dataReady,
+      fireDataReady: () => dataReadyCb?.(),
     };
   };
 
-  it('applies the clamped window immediately and again on first data load when opted in', () => {
+  it('applies the clamped window immediately and again once data is ready when opted in', () => {
     handleSetOHLCVData({
       data: oneMinuteApart(3),
       boundedIntervalWindow: true,
       visibleFromMs: -600_000,
     });
-    const { chart, setVisibleRange, fireDataLoaded } = buildChart();
+    const { chart, setVisibleRange, fireDataReady } = buildChart();
 
     applyInitialVisibleRange(chart);
     expect(setVisibleRange).toHaveBeenCalledTimes(1);
 
-    fireDataLoaded();
+    fireDataReady();
     expect(setVisibleRange).toHaveBeenCalledTimes(2);
     for (const [range] of setVisibleRange.mock.calls as [{ from: number }][]) {
       // Clamped up to the oldest loaded bar (t=0).
@@ -1119,14 +1125,66 @@ describe('applyInitialVisibleRange', () => {
     }
   });
 
+  it('does not leave an onDataLoaded listener that would re-apply the window on a later history load', () => {
+    handleSetOHLCVData({
+      data: oneMinuteApart(3),
+      boundedIntervalWindow: true,
+      visibleFromMs: 0,
+    });
+    const { chart, onDataLoaded } = buildChart();
+
+    applyInitialVisibleRange(chart);
+
+    expect(onDataLoaded).not.toHaveBeenCalled();
+  });
+
+  it('skips the dataReady re-apply when newer data arrived before it fired', () => {
+    handleSetOHLCVData({
+      data: oneMinuteApart(3),
+      boundedIntervalWindow: true,
+      visibleFromMs: 0,
+    });
+    const { chart, setVisibleRange, fireDataReady } = buildChart();
+
+    applyInitialVisibleRange(chart);
+    expect(setVisibleRange).toHaveBeenCalledTimes(1);
+
+    // Chart is not ready in this test, so this only bumps the generation.
+    handleSetOHLCVData({
+      data: oneMinuteApart(3),
+      boundedIntervalWindow: true,
+      visibleFromMs: 0,
+    });
+    fireDataReady();
+
+    expect(setVisibleRange).toHaveBeenCalledTimes(1);
+  });
+
+  it('applies only the immediate window when dataReady is unavailable', () => {
+    handleSetOHLCVData({
+      data: oneMinuteApart(3),
+      boundedIntervalWindow: true,
+      visibleFromMs: 0,
+    });
+    const { chart, setVisibleRange, onDataLoaded } = buildChart({
+      withDataReady: false,
+    });
+
+    applyInitialVisibleRange(chart);
+
+    expect(setVisibleRange).toHaveBeenCalledTimes(1);
+    expect(onDataLoaded).not.toHaveBeenCalled();
+  });
+
   it('no-ops when not opted in', () => {
     handleSetOHLCVData({ data: oneMinuteApart(3), visibleFromMs: 0 });
-    const { chart, setVisibleRange, onDataLoaded } = buildChart();
+    const { chart, setVisibleRange, onDataLoaded, dataReady } = buildChart();
 
     applyInitialVisibleRange(chart);
 
     expect(setVisibleRange).not.toHaveBeenCalled();
     expect(onDataLoaded).not.toHaveBeenCalled();
+    expect(dataReady).not.toHaveBeenCalled();
   });
 
   it('no-ops in SLB mode', () => {
