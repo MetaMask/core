@@ -157,6 +157,9 @@ export {
 export type { RampsClientIdentity } from './client-identity.js';
 export {
   addRampsClientIdentityParams,
+  isRampsClientBuild,
+  RampsClientBuild,
+  RAMPS_CLIENT_BUILD_PARAM,
   RAMPS_CLIENT_PRODUCT_PARAM,
   RAMPS_CLIENT_VERSION_PARAM,
 } from './client-identity.js';

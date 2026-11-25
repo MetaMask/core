@@ -10,6 +10,7 @@ import type { Mock } from 'vitest';
 
 import { flushPromises } from '../../../tests/vitest/helpers.js';
 import packageJson from '../package.json';
+import { RampsClientBuild } from './client-identity.js';
 import type {
   TransakServiceMessenger,
   TransakAccessToken,
@@ -2168,6 +2169,92 @@ describe('TransakService', () => {
             query.clientProduct === 'metamask-mobile' &&
             query.clientVersion === '8.9.0',
         )
+        .reply(200, MOCK_DEPOSIT_ORDER);
+
+      const { service } = getService({
+        options: {
+          clientProduct: 'metamask-mobile',
+          clientVersion: '8.9.0',
+        },
+      });
+
+      const promise = service.getOrder(depositOrderId, '0x1234');
+      await vi.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result.id).toBe(depositOrderId);
+    });
+
+    it('sends the clientBuild query param on ramps API order fetches', async () => {
+      const depositOrderId = `${STAGING_PROVIDER_PATH}/orders/order-abc-123`;
+
+      nock(STAGING_ORDERS_BASE)
+        .get(`${STAGING_PROVIDER_PATH}/orders/order-abc-123`)
+        .query({
+          wallet: '0x1234',
+          action: 'deposit',
+          context: MOCK_CONTEXT,
+          clientBuild: 'prod',
+        })
+        .reply(200, MOCK_DEPOSIT_ORDER);
+
+      const { service } = getService({
+        options: {
+          clientBuild: RampsClientBuild.Production,
+        },
+      });
+
+      const promise = service.getOrder(depositOrderId, '0x1234');
+      await vi.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result.id).toBe(depositOrderId);
+    });
+
+    it('omits the clientBuild query param on order fetches when the value is invalid', async () => {
+      const depositOrderId = `${STAGING_PROVIDER_PATH}/orders/order-abc-123`;
+
+      nock(STAGING_ORDERS_BASE)
+        .get(`${STAGING_PROVIDER_PATH}/orders/order-abc-123`)
+        .query({
+          wallet: '0x1234',
+          action: 'deposit',
+          context: MOCK_CONTEXT,
+          clientProduct: 'metamask-mobile',
+          clientVersion: '8.9.0',
+        })
+        .reply(200, MOCK_DEPOSIT_ORDER);
+
+      const { service } = getService({
+        options: {
+          clientProduct: 'metamask-mobile',
+          clientVersion: '8.9.0',
+          clientBuild: 'RC' as unknown as RampsClientBuild,
+        },
+      });
+
+      const promise = service.getOrder(depositOrderId, '0x1234');
+      await vi.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result.id).toBe(depositOrderId);
+    });
+
+    it('omits the clientBuild query param on order fetches when the option is omitted', async () => {
+      const depositOrderId = `${STAGING_PROVIDER_PATH}/orders/order-abc-123`;
+
+      nock(STAGING_ORDERS_BASE)
+        .get(`${STAGING_PROVIDER_PATH}/orders/order-abc-123`)
+        .query({
+          wallet: '0x1234',
+          action: 'deposit',
+          context: MOCK_CONTEXT,
+          clientProduct: 'metamask-mobile',
+          clientVersion: '8.9.0',
+        })
         .reply(200, MOCK_DEPOSIT_ORDER);
 
       const { service } = getService({
