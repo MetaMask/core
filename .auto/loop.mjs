@@ -8,8 +8,9 @@
 //   node .auto/loop.mjs init <name> <metricName> <metricUnit> <lower|higher>
 //   node .auto/loop.mjs run <cmd...>            # time it, parse METRIC lines, run checks.sh on pass
 //   node .auto/loop.mjs log <status> <metric> <desc> [metricsJSON] [asiJSON]
-//     status: keep | discard | crash | checks_failed
+//     status: keep | discard | crash | checks_failed | verify
 //     keep       -> git add -A + git -c commit.gpgsign=false commit "<desc>\n\nResult: {json}"
+//     verify     -> no-op (noise / verification runs; counts toward budget)
 //     non-keep   -> revert production changes, preserve .auto/
 import fs from 'node:fs';
 import path from 'node:path';
@@ -114,6 +115,10 @@ if (cmd === 'init') {
       desc + '\n\nResult: ' + resultData],
       { cwd: root, encoding: 'utf8' });
     console.log('Git: committed — ' + out.split('\n')[0]);
+  } else if (status === 'verify') {
+    // Verification / noise-measurement run: no production change to keep or
+    // revert, and nothing to commit. Counts toward the run budget.
+    console.log('Git: no-op (verification run)');
   } else {
     sh(`git checkout -- . ':(exclude,glob)**/.auto' ':(exclude,glob)**/.auto/**'`);
     try { sh(`git clean -fd -e '.auto' -e '**/.auto/**' 2>/dev/null || true`); } catch { /* ignore */ }
