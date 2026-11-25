@@ -969,12 +969,15 @@ export class SeedlessOnboardingController<
         const vaultKeySet = toVaultKeySet(
           await this.#unlockVaultAndGetVaultData(),
         );
-        // another device may have migrated the vault, so the control record
-        // decides, not local state (I6)
-        const controlRecords =
-          await this.#envelopeStore.fetchControlRecords(vaultKeySet);
+        // An envelope-managed device skips the pre-lock check and reads the
+        // control records once under the metadata lock. A legacy device checks
+        // once in case another device migrated the vault (I6).
+        const isEnvelopeManaged =
+          getEnvelopeStatus(this.state).isEnvelopeManaged ||
+          (await this.#envelopeStore.fetchControlRecords(vaultKeySet)).length >
+            0;
 
-        if (controlRecords.length > 0) {
+        if (isEnvelopeManaged) {
           const { authKeyPair: newPasswordAuthKeyPair } =
             await this.#changePasswordEnveloped({
               vaultKeySet,
@@ -1001,11 +1004,6 @@ export class SeedlessOnboardingController<
             },
           });
         } else {
-          if (getEnvelopeStatus(this.state).isEnvelopeManaged) {
-            throw new SeedlessOnboardingError(
-              SeedlessOnboardingControllerErrorMessage.EnvelopeControlRecordNotFound,
-            );
-          }
           // update the encryption key with new password and update the Metadata Store
           const {
             encKey: newEncKey,

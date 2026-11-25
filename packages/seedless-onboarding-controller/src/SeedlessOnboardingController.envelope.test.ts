@@ -3251,6 +3251,7 @@ describe('SeedlessOnboardingController', () => {
             readTimeline(network).filter((label) =>
               [
                 'acquireMetadataLock:vault',
+                'fetchAllSecretDataItems:vault',
                 'addSecretDataItem:pbek',
                 'batchAddSecretDataItems:vault',
                 'persistLocalKey:password',
@@ -3259,8 +3260,10 @@ describe('SeedlessOnboardingController', () => {
             ),
           ).toStrictEqual([
             'acquireMetadataLock:vault',
+            'fetchAllSecretDataItems:vault',
             'addSecretDataItem:pbek',
             'batchAddSecretDataItems:vault',
+            'fetchAllSecretDataItems:vault',
             'persistLocalKey:password',
             'releaseMetadataLock:vault',
           ]);
