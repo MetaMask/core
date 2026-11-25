@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The service re-checks after a confirmed `moneyAccountDeposit` or `membershipSubscription` transaction (again 90 seconds later, past the balance cache), on `KeyringController:unlock`, when `AuthenticationController` signs in, when the cached Plus subscription changes, and every 5 minutes while the balance stays short and the wallet is unlocked
   - The balance check uses the pricing cached in `SubscriptionController` state, and fetches it only when none is cached
   - When the balance covers the charge, it calls `SubscriptionController:retryCryptoCharge`, so the Subscription API charges the stored delegation
+  - Add optional `chargeRetryInterval` constructor option to change the 5-minute re-check interval. Keep it above the `MoneyAccountBalanceService` balance stale time
 - Add `SubscriptionService.payLastInvoice` and `SubscriptionService.verifyPaymentMethod`, exposed as messenger actions, which call `POST /subscriptions/:id/last-invoice/pay` and `POST /subscriptions/:id/payment-method/verify` ([#11612](https://github.com/MetaMask/core/pull/11612))
 - Add `SubscriptionController.retryCryptoCharge`, exposed as a messenger action, which retries a failed crypto charge with the stored payment method and refreshes subscriptions ([#11612](https://github.com/MetaMask/core/pull/11612))
   - It verifies the payment method of a `paused` subscription and pays the last invoice otherwise
