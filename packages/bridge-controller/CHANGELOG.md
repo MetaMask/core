@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `Advanced Order Quotes Requested` and `Advanced Order Quotes Received` analytics event names with payload typing ([#11747](https://github.com/MetaMask/core/pull/11747))
+
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.4.0` ([#11732](https://github.com/MetaMask/core/pull/11732))
+- **BREAKING:** Emit Advanced Order quote events for advanced-order quote polling without rewriting caller-provided event names ([#11747](https://github.com/MetaMask/core/pull/11747))
+  - Consumers must accept `AdvancedOrderMetricsEventName` values in `trackMetaMetricsFn` and explicitly use the Advanced Order event names when tracking successful advanced-order quote fetches.
+- Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.4.1` ([#11732](https://github.com/MetaMask/core/pull/11732), [#11761](https://github.com/MetaMask/core/pull/11761))
 
 ## [83.4.0]
 

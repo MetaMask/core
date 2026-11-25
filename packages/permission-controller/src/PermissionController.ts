@@ -176,7 +176,7 @@ const controllerName = 'PermissionController';
 const MESSENGER_EXPOSED_METHODS = [
   'clearState',
   'executeRestrictedMethod',
-  'getEndowments',
+  'getEndowmentsGlobals',
   'getEndowmentsRpcMethods',
   'isEndowmentRpcMethod',
   'getSubjectNames',
@@ -428,16 +428,6 @@ export type GetCaveat = {
 export type ClearPermissions = {
   type: `${typeof controllerName}:clearPermissions`;
   handler: () => void;
-};
-
-/**
- * Gets the endowments for the given subject and permission.
- *
- * @deprecated Use `PermissionControllerGetEndowmentsAction` instead.
- */
-export type GetEndowments = {
-  type: `${typeof controllerName}:getEndowments`;
-  handler: GenericPermissionController['getEndowments'];
 };
 
 /**
@@ -2711,36 +2701,29 @@ export class PermissionController<
   }
 
   /**
-   * Gets the subject's endowments per the specified endowment permission.
-   * Throws if the subject does not have the required permission or if the
-   * permission is not an endowment permission.
+   * Gets the JavaScript globals tied to the endowment permissions for a
+   * subject.
    *
-   * @param origin - The origin of the subject whose endowments to retrieve.
-   * @param targetName - The name of the endowment permission. This must be a
-   * valid permission target name.
-   * @param requestData - Additional data associated with the request, if any.
-   * Forwarded to the endowment getter function for the permission.
-   * @returns The endowments, if any.
+   * @param origin - The origin of the subject whose globals to retrieve.
+   * @returns The names of the globals, if any.
    */
-  async getEndowments(
-    origin: string,
-    targetName: ExtractEndowmentPermission<
-      ControllerPermissionSpecification,
-      ControllerCaveatSpecification
-    >['parentCapability'],
-    requestData?: unknown,
-  ): Promise<Json> {
-    if (!this.hasPermission(origin, targetName)) {
-      throw unauthorized({ data: { origin, targetName } });
-    }
+  getEndowmentsGlobals(origin: string): string[] {
+    const permissions = Object.values(this.getPermissions(origin) ?? {});
 
-    return (
-      this.#getTypedPermissionSpecification(
-        PermissionType.Endowment,
-        targetName,
-        origin,
-      ).endowmentGetter?.({ origin, requestData }) ?? null
-    );
+    return permissions.flatMap((permission) => {
+      const specification = this.#getPermissionSpecification(
+        permission.parentCapability,
+      );
+
+      if (
+        hasSpecificationType(specification, PermissionType.Endowment) &&
+        specification.globals
+      ) {
+        return specification.globals;
+      }
+
+      return [];
+    });
   }
 
   /**
