@@ -1,0 +1,159 @@
+name: Notify about failing workflows
+
+on:
+  workflow_run:
+    workflows:
+      - Main
+    types:
+      - completed
+    branches:
+      - main
+
+jobs:
+  notify:
+    name: Notify
+    if: >-
+      contains(fromJSON('["failure", "timed_out"]'), github.event.workflow_run.conclusion) &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      pull-requests: read
+    environment: default-branch
+    steps:
+      - name: Generate notification
+        uses: actions/github-script@v9
+        env:
+          PAYLOAD_PATH: ${{ runner.temp }}/payload.json
+        with:
+          script: |
+            const fs = require('fs/promises');
+
+            const escape = (text) =>
+              text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+            const link = (url, text) => `<${url}|${text}>`;
+
+            const isFailure = ({ conclusion }) => conclusion === 'failure' || conclusion === 'timed_out';
+
+            async function getRunDetails(run) {
+              const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+                ...context.repo,
+                run_id: run.id,
+              });
+
+              const { data: pullRequests } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                ...context.repo,
+                commit_sha: run.head_sha,
+              });
+
+              const pullRequest =
+                pullRequests.find((pr) => pr.merged_at && pr.base.ref === run.head_branch) ??
+                pullRequests[0];
+
+              return {
+                workflow: run.name,
+                repository: { name: run.repository.full_name, url: run.repository.html_url },
+                branch: run.head_branch,
+                run: { url: run.html_url, attempt: run.run_attempt },
+                commit: {
+                  sha: run.head_sha,
+                  url: `${run.repository.html_url}/commit/${run.head_sha}`,
+                  subject: (run.head_commit?.message ?? '').split('\n')[0],
+                  author: run.head_commit?.author?.name ?? 'Unknown',
+                },
+                pullRequest: pullRequest && {
+                  number: pullRequest.number,
+                  title: pullRequest.title,
+                  url: pullRequest.html_url,
+                },
+                failedJobs: jobs
+                  .filter((job) => isFailure(job) && job.name !== 'All jobs pass')
+                  .map((job) => ({
+                    name: job.name,
+                    url: job.html_url,
+                    timedOut: job.conclusion === 'timed_out',
+                    failedSteps: (job.steps ?? []).filter(isFailure).map((step) => step.name),
+                  })),
+              };
+            }
+
+            function generateNotification(details) {
+              const title = `${details.workflow} workflow failed`;
+
+              const failedJobs = details.failedJobs.map((job) => {
+                const line = `• ${link(job.url, escape(job.name))}${job.timedOut ? ' (timed out)' : ''}`;
+                const steps = job.failedSteps.map((step) => `_${escape(step)}_`);
+                return steps.length > 0 ? `${line}: ${steps.join(', ')}` : line;
+              });
+
+              const failedJobsText =
+                failedJobs.length === 0
+                  ? '_No failed jobs found._'
+                  : [
+                      ...failedJobs.slice(0, 10),
+                      ...(failedJobs.length > 10 ? [`…and ${failedJobs.length - 10} more`] : []),
+                    ].join('\n');
+
+              const attempt = details.run.attempt > 1 ? ` (attempt ${details.run.attempt})` : '';
+              const footer = [
+                details.pullRequest &&
+                  link(details.pullRequest.url, `#${details.pullRequest.number}`),
+                escape(details.commit.author),
+                link(details.commit.url, `\`${details.commit.sha.slice(0, 7)}\``),
+                `${link(details.run.url, 'View run')}${attempt}`,
+              ].filter(Boolean);
+
+              return {
+                text: `:warning: ${title} on ${details.repository.name} (${details.branch}).`,
+                blocks: [
+                  {
+                    type: 'header',
+                    text: { type: 'plain_text', text: `:warning: ${title}.`, emoji: true },
+                  },
+                  {
+                    type: 'context',
+                    elements: [
+                      {
+                        type: 'mrkdwn',
+                        text: `${link(details.repository.url, details.repository.name)} · \`${details.branch}\``,
+                      },
+                    ],
+                  },
+                  {
+                    type: 'section',
+                    text: {
+                      type: 'mrkdwn',
+                      text: `> ${escape(details.pullRequest?.title ?? details.commit.subject)}`,
+                    },
+                  },
+                  {
+                    type: 'section',
+                    text: {
+                      type: 'mrkdwn',
+                      text: `*Failed jobs*\n${failedJobsText}`,
+                    },
+                  },
+                  {
+                    type: 'context',
+                    elements: [
+                      {
+                        type: 'mrkdwn',
+                        text: footer.join(' · '),
+                      },
+                    ],
+                  },
+                ],
+              };
+            }
+
+            const details = await getRunDetails(context.payload.workflow_run);
+            const notification = generateNotification(details);
+            await fs.writeFile(process.env.PAYLOAD_PATH, JSON.stringify(notification));
+
+      - name: Send notification
+        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c # v3.0.3
+        with:
+          webhook: ${{ secrets.NOTIFY_SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload-file-path: ${{ runner.temp }}/payload.json

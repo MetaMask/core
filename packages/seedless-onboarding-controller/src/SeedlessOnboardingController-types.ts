@@ -128,4 +128,11 @@ export type SeedlessOnboardingControllerOptions<
    * @default PASSWORD_OUTDATED_CACHE_TTL_MS
    */
   passwordOutdatedCacheTTL?: number;
+
+  /**
+   * Callback returning whether MFA recovery / envelope migration is enabled.
+   *
+   * @default () => false
+   */
+  mfaFlag?: () => boolean;
 };

@@ -1,6 +1,7 @@
 import type { AnalyticsTrackingEvent } from '@metamask/analytics-controller';
+import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 import type { FetchedSecretDataItem } from '@metamask/toprf-secure-backup';
-import { bytesToHex, stringToBytes } from '@metamask/utils';
+import { bigIntToHex, bytesToHex, stringToBytes } from '@metamask/utils';
 import { hmac } from '@noble/hashes/hmac';
 import { sha256 } from '@noble/hashes/sha256';
 import type { Mock } from 'vitest';
@@ -27,13 +28,15 @@ import {
   SeedlessPrimarySrpMismatchEventName,
   SeedlessPrimarySrpMissingEventName,
 } from '../constants.js';
-import { SeedlessOnboardingError } from '../errors.js';
+import { serializeControlRecord } from '../envelope/envelope-keys.js';
+import type { ControlRecord } from '../envelope/envelope-keys.js';
 import type { IncompleteMetadataBackupEventProperties } from './analytics.js';
 import {
   getIncompleteMetadataBackupEventProperties,
   trackIdentityMismatchEvent,
   trackIncompleteMetadataBackupEvents,
 } from './analytics.js';
+import { SeedlessOnboardingError } from './errors.js';
 import { parseSecretMetadata } from './secret-data-utils.js';
 
 const { logMock } = vi.hoisted(() => ({ logMock: vi.fn() }));
@@ -168,6 +171,53 @@ describe('identifyIncompleteMetadataBackup', () => {
         metadata_schema_version: 'v2',
         number_of_imported_wallets: 1,
         number_of_imported_accounts: 0,
+      },
+    });
+    expect(logMock).not.toHaveBeenCalled();
+  });
+
+  it('ignores EnvelopeControl items mixed into the fetched items', async () => {
+    const controlRecord: ControlRecord = {
+      v: 1,
+      seq: 1,
+      passwordNamespace: {
+        verifier: 'verifier',
+        verifierId: 'user',
+        authSk: bigIntToHex(1n),
+        keyIndex: 1,
+      },
+      migratedAt: 1,
+    };
+    const controlItem = {
+      data: serializeControlRecord(controlRecord),
+      version: 'v2',
+      dataType: EncAccountDataType.EnvelopeControl,
+    } as FetchedSecretDataItem;
+    const fetchAllSecretDataFn = vi
+      .fn()
+      .mockResolvedValue([
+        createFetchedSecretDataItem(PrivateKey1),
+        controlItem,
+        createFetchedSecretDataItem(SRP1),
+        createFetchedSecretDataItem(SRP2),
+      ]);
+    const getPrimaryKeyringSeedPhraseFn = vi
+      .fn()
+      .mockResolvedValue(stringToBytes('actual primary srp'));
+    const trackEvent = vi.fn();
+
+    await trackIncompleteMetadataBackupEvents({
+      fetchAllSecretDataFn,
+      getPrimaryKeyringSeedPhraseFn,
+      trackEvent,
+    });
+
+    expectTrackedEvent(trackEvent, {
+      name: SeedlessPrimarySrpMismatchEventName,
+      properties: {
+        metadata_schema_version: 'v1',
+        number_of_imported_wallets: 1,
+        number_of_imported_accounts: 1,
       },
     });
     expect(logMock).not.toHaveBeenCalled();

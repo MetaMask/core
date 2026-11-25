@@ -51,8 +51,10 @@ import {
   scheduleChartLayoutSettledNotify,
 } from '../widget/initChart.js';
 import {
+  applyInitialVisibleRange,
   handleRealtimeUpdate,
   handleSetOHLCVData,
+  isBoundedIntervalWindowActive,
   onFirstOhlcvData,
 } from '../widget/ohlcvIngestion.js';
 import { advancedChartPriceFormatterFactory } from '../widget/priceFormatter.js';
@@ -91,6 +93,12 @@ function buildInitialTimeframe():
   | undefined {
   const visibleFromMs = getVisibleFromMs();
   if (visibleFromMs === null) {
+    return undefined;
+  }
+  // Opt-in consumers get the window applied on ready instead: TradingView
+  // retains a constructor `timeframe` and sizes later interval switches from
+  // it (see isBoundedIntervalWindowActive).
+  if (isBoundedIntervalWindowActive()) {
     return undefined;
   }
   const visibleToMs = getVisibleToMs() ?? Date.now();
@@ -200,6 +208,7 @@ export function bootstrap(): ChartConfig {
                   reportErrorToRN(rightOffsetError);
                 }
               }
+              applyInitialVisibleRange(chart);
               attachCrosshairListener(chart);
               attachTapDismiss(widget);
               attachMarkerHitTest(widget, chart);

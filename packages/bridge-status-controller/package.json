@@ -69,8 +69,8 @@
     "@metamask/profile-sync-controller": "^36.1.2",
     "@metamask/snaps-controllers": "^19.0.1",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/transaction-controller": "^74.4.0",
-    "@metamask/transaction-pay-controller": "^33.0.0",
+    "@metamask/transaction-controller": "^74.4.1",
+    "@metamask/transaction-pay-controller": "^33.1.1",
     "@metamask/utils": "^12.0.2",
     "bignumber.js": "^9.1.2",
     "uuid": "^14.0.3"

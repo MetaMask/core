@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add support for passing `undefined` as `multiplier` to `estimateGasBuffered`, which then uses the value from `confirmations_gas_buffer`. The buffer is applied even when estimation fails ([#11756](https://github.com/MetaMask/core/pull/11756))
 
+## [74.4.1]
+
+### Fixed
+
+- Treat transactions as not sponsored when the simulation `sponsorship` response contains a non-empty `error` ([#11752](https://github.com/MetaMask/core/pull/11752))
+
 ## [74.4.0]
 
 ### Added
@@ -2958,7 +2964,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.4.1...HEAD
+[74.4.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.4.0...@metamask/transaction-controller@74.4.1
 [74.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.3.0...@metamask/transaction-controller@74.4.0
 [74.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.2.0...@metamask/transaction-controller@74.3.0
 [74.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.1.0...@metamask/transaction-controller@74.2.0

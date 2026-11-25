@@ -53,12 +53,9 @@ describe('caip25EndowmentBuilder', () => {
       expect(specification).toStrictEqual({
         permissionType: PermissionType.Endowment,
         targetName: Caip25EndowmentPermissionName,
-        endowmentGetter: expect.any(Function),
         allowedCaveats: [Caip25CaveatType],
         validator: expect.any(Function),
       });
-
-      expect(specification.endowmentGetter()).toBeNull();
     });
   });
 

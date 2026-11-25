@@ -1,6 +1,6 @@
 {
   "name": "@metamask/wallet",
-  "version": "21.0.5",
+  "version": "22.0.0",
   "description": "Provides a shared framework for building MetaMask wallets",
   "keywords": [
     "Ethereum",
@@ -80,7 +80,7 @@
     "@metamask/signature-controller": "^40.1.1",
     "@metamask/storage-service": "^2.0.0",
     "@metamask/subscription-controller": "^15.4.0",
-    "@metamask/transaction-controller": "^74.4.0",
+    "@metamask/transaction-controller": "^74.4.1",
     "@metamask/utils": "^12.0.2"
   },
   "devDependencies": {

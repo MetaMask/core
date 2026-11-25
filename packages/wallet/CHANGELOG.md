@@ -7,9 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^74.4.0` to `^74.4.1` ([#11761](https://github.com/MetaMask/core/pull/11761))
+
+## [22.0.0]
+
 ### Added
 
 - **BREAKING:** Add `SignatureController` to the default initialization configurations ([#11717](https://github.com/MetaMask/core/pull/11717))
+  - Hosts that already register `SignatureController` on the wallet root messenger must remove it before upgrading, or messenger registration will collide.
 
 ### Changed
 
@@ -505,7 +512,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.5...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@22.0.0...HEAD
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.5...@metamask/wallet@22.0.0
 [21.0.5]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.4...@metamask/wallet@21.0.5
 [21.0.4]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.3...@metamask/wallet@21.0.4
 [21.0.3]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.2...@metamask/wallet@21.0.3

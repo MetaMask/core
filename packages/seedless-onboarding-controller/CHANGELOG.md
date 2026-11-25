@@ -9,7 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Emit a `Seedless Onboarding Identity Mismatch` analytics event when an identity mismatch is detected during TOPRF `authenticate`, token refresh, or refresh-token rotation
+- Add password envelope migration and MFA recovery methods and messenger actions: `authenticateForRecovery`, `migrateToEnvelope`, `recoverWithRecoverySecret`, `resetPasswordWithVaultKeys`, and `restoreVaultWithPassword` ([#11346](https://github.com/MetaMask/core/pull/11346))
+- Add optional `mfaFlag` callback option (default `() => false`) to `SeedlessOnboardingControllerOptions` to gate `migrateToEnvelope` and the different-user guard in `authenticate` ([#11346](https://github.com/MetaMask/core/pull/11346))
+- Add `envelope`, `isLocalPassword`, and non-persisted `recoverySession` controller state fields along with `EnvelopeState`, `RecoverySession`, `SeedlessOnboardingEnvelopeStatus`, and `getEnvelopeStatus` ([#11346](https://github.com/MetaMask/core/pull/11346))
+- Add envelope and MFA recovery error messages to `SeedlessOnboardingControllerErrorMessage` (`Aal2Required`, `RecoveryKeyShareConflict`, `InvalidEnvelope`, `EnvelopeControlRecordNotFound`, `EnvelopeVaultRequiresEnvelopePasswordChange`, `EnvelopeMigrationRequiresDataTypes`, `EnvelopeMigrationInconsistent`, `EnvelopeMigrationDisabled`, `RecoveryEnvelopeNotFound`, `PasswordEnvelopeNotFound`, `InvalidRecoverySecret`, `PasswordResetRequiresRecovery`, `InvalidSecretDataType`, and `UserAlreadyAuthenticated`) ([#11346](https://github.com/MetaMask/core/pull/11346))
+- Add dependency `@metamask/superstruct` (`^3.4.1`) ([#11346](https://github.com/MetaMask/core/pull/11346))
+- Add the `seedlessOperationLifecycle` state field to persist the generic non-sensitive lifecycle record defined by the Seedless Onboarding state-machine ADR ([#10148](https://github.com/MetaMask/core/pull/10148))
+  - `operation` identifies the Seedless Onboarding workflow, such as `PASSWORD_CHANGE` or `PASSWORD_SYNC`.
+  - `checkpoint` identifies the recoverable boundary within that workflow.
+- Add `PasswordSyncInstruction` enum, returned by `resolvePasswordSyncState` and `reconcilePassword` to tell clients which step to run next after either an interrupted local password change or a password change on another device ([#10148](https://github.com/MetaMask/core/pull/10148))
+  - `PasswordOutdated` covers remote password changes and committed password-change recovery for the regular recovery checkpoints.
+  - `KEY_SYNC_PENDING` with an outdated remote password returns `WalletResetRequired` because the local Keyring and Seedless encryption keys cannot be reconciled.
+  - Errors are thrown when the password state cannot be established; no unknown instruction is returned.
+- Add `resolvePasswordSyncState({ skipCache })` and `SeedlessOnboardingControllerResolvePasswordSyncStateAction` to resolve remote password state at unlock without consuming a password, replacing the removed `checkIsPasswordOutdated` read ([#10148](https://github.com/MetaMask/core/pull/10148))
+- Add `reconcilePassword` and `SeedlessOnboardingControllerReconcilePasswordAction` to bring local Seedless state up to date with the remote password after either an interrupted local password change or a password change made on another device. It accepts an optional `maxKeyChainLength` parameter ([#10148](https://github.com/MetaMask/core/pull/10148))
+  - For an outdated password with no checkpoint, `REMOTE_PASSWORD_PENDING`, or `LOCAL_STATE_PENDING`, it performs the password-chain unlock and local vault rewrite internally, re-encrypts `encryptedKeyringEncryptionKey` under the new wrapping key so `loadKeyringEncryptionKey` keeps working, and advances the lifecycle to `LOCAL_PASSWORD_PENDING` so the client reconciles the local Keyring before unlocking normally.
+  - For `LOCAL_PASSWORD_PENDING` or `KEY_SYNC_PENDING` with a current remote password, it unlocks the already-rewritten local vault with the supplied password so `loadKeyringEncryptionKey` and `storeKeyringEncryptionKey` work after a restart, without repeating remote TOPRF recovery. A newer `accessToken` from `refreshAuthTokens` is kept instead of being overwritten by the vault copy.
+  - For `KEY_SYNC_PENDING` with an outdated remote password, it returns `WalletResetRequired` instead of attempting password reconciliation.
+- Add `completePasswordChange` and `markPasswordChangeKeySyncPending` lifecycle-advance methods, along with `SeedlessOnboardingControllerCompletePasswordChangeAction` and `SeedlessOnboardingControllerMarkPasswordChangeKeySyncPendingAction`. `completePasswordChange` clears an active password-recovery lifecycle only when its checkpoint is `KEY_SYNC_PENDING`, after key synchronization and local persistence are verified; from any other checkpoint it is a no-op. Password-sync methods also clear stale lifecycle state when the password state is already in sync ([#10148](https://github.com/MetaMask/core/pull/10148))
+- Add `SeedlessOnboardingControllerErrorMessage.PasswordChangeInProgress`, thrown when a password change is started while another one is unresolved ([#10148](https://github.com/MetaMask/core/pull/10148))
+- Add `SeedlessOnboardingControllerErrorMessage.OperationInProgress` and `InvalidPasswordSyncCheckpoint` for lifecycle conflicts and invalid recovery checkpoints ([#10148](https://github.com/MetaMask/core/pull/10148))
+- Emit a `Seedless Onboarding Identity Mismatch` analytics event when an identity mismatch is detected during TOPRF `authenticate`, token refresh, or refresh-token rotation ([#11531](https://github.com/MetaMask/core/pull/11531))
   - Properties are `source` (`toprf_authenticate`, `token_refresh`, or `rotate_refresh_token`), `reason` (`missing_user_id`, `missing_id_token`, `id_token_undecodable`, `user_id_mismatch`, `identity_changed_in_flight`, or `unknown`), `expected_user_id`, `actual_user_id`, and `metadata_schema_version`
   - `metadata_schema_version` is `v2` when `state.migrationVersion` is at least 1, and `v1` otherwise
   - `expected_user_id` is the user id the flow expected. `actual_user_id` is the id token subject, or the current controller user id when the identity changed in flight
@@ -23,16 +43,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `fetchAllSecretData` no longer accepts a `password` parameter; it requires an unlocked vault and does not modify the local vault or `envelope` state ([#11346](https://github.com/MetaMask/core/pull/11346))
+  - Replace `fetchAllSecretData(password)` with `restoreVaultWithPassword({ password })`.
+- **BREAKING:** `changePassword` is now lifecycle-aware: it writes `seedlessOperationLifecycle` with the shared `REMOTE_PASSWORD_PENDING`, `LOCAL_STATE_PENDING`, and `LOCAL_PASSWORD_PENDING` checkpoints and rejects a concurrent change with `PasswordChangeInProgress` ([#10148](https://github.com/MetaMask/core/pull/10148))
+  - Clients must not start a second password change while a lifecycle is unfinished, and must drive the lifecycle to completion by calling `completePasswordChange` after `markPasswordChangeKeySyncPending` has recorded `KEY_SYNC_PENDING`. See the [password sync flow](./docs/0002-seedless-password-sync-flow.md).
+- **BREAKING:** `addNewSecretData` and `runMigrations` now reject while `seedlessOperationLifecycle` is set, including the `LOCAL_PASSWORD_PENDING` state left after a successful password change. They throw `PasswordChangeInProgress` for a pending password change and `OperationInProgress` for another password-recovery operation; clients must complete recovery first ([#10148](https://github.com/MetaMask/core/pull/10148))
+- **BREAKING:** `clearState` now returns a promise and waits for in-flight controller operations before clearing state. It also clears the in-memory decrypted vault data to prevent a completed operation from restoring cleared state ([#10148](https://github.com/MetaMask/core/pull/10148))
+- Throw `SeedlessOnboardingControllerErrorMessage.UserAlreadyAuthenticated` from `authenticate` when `mfaFlag` is enabled and a different user or verifier is already in state; callers must call `clearState` before authenticating another user ([#11346](https://github.com/MetaMask/core/pull/11346))
+- Update `changePassword`, `resolvePasswordSyncState`, and `reconcilePassword` to support envelope-managed vaults ([#11346](https://github.com/MetaMask/core/pull/11346))
+- `storeKeyringEncryptionKey` and `loadKeyringEncryptionKey` now acquire the controller lock, so they wait for any in-flight controller operation before reading or writing the Keyring encryption key ([#10148](https://github.com/MetaMask/core/pull/10148))
 - Bump `@metamask/analytics-controller` from `^4.3.1` to `^4.4.0` ([#11691](https://github.com/MetaMask/core/pull/11691))
+- Bump `@metamask/auth-network-utils` from `^0.4.0` to `^0.5.0` ([#11346](https://github.com/MetaMask/core/pull/11346))
+- Bump `@metamask/toprf-secure-backup` from `^1.1.0` to `^2.0.0` ([#11346](https://github.com/MetaMask/core/pull/11346))
+
+### Removed
+
+- **BREAKING:** Remove the `checkIsPasswordOutdated` method and `SeedlessOnboardingControllerCheckIsPasswordOutdatedAction` ([#10148](https://github.com/MetaMask/core/pull/10148))
+  - Call `resolvePasswordSyncState({ skipCache })` instead. It performs the same remote check and additionally returns the required recovery step, so a boolean `true` result now corresponds to `PasswordSyncInstruction.PasswordOutdated` for regular checkpoints or `PasswordSyncInstruction.WalletResetRequired` for `KEY_SYNC_PENDING`.
+- **BREAKING:** Remove the `submitGlobalPassword` and `syncLatestGlobalPassword` methods, along with `SeedlessOnboardingControllerSubmitGlobalPasswordAction` and `SeedlessOnboardingControllerSyncLatestGlobalPasswordAction` ([#10148](https://github.com/MetaMask/core/pull/10148))
+  - Call `reconcilePassword({ globalPassword })` instead. When password synchronization is required, it runs both steps internally in the correct order, re-wraps the stored Keyring encryption key, and records the lifecycle checkpoint, none of which happened when the two methods were called directly. For `KEY_SYNC_PENDING` with an outdated remote password, it returns `WalletResetRequired` instead.
 
 ### Fixed
 
+- Guard vault encryption and refresh-token rotation against `clearState` running in flight (including when the same user re-authenticates) and update rotated token state atomically with the vault write ([#11346](https://github.com/MetaMask/core/pull/11346))
+- Treat invalid or expired auth token errors wrapped in `SomeError` (for example from `fetchAuthPubKey`) as auth token errors in `isAuthTokenError`, allowing token refresh and error handling to trigger ([#11346](https://github.com/MetaMask/core/pull/11346))
+- Prevent a refresh-token rotation or token refresh that overlaps a password change from writing the previous TOPRF keys into the rewritten vault ([#10148](https://github.com/MetaMask/core/pull/10148))
+  - `rotateRefreshToken` now reads the latest decrypted vault data and writes the new revoke token under the vault lock after the renewal request completes, and throws `VaultLocked` when the controller is locked in the meantime
+  - The token refresh reads the latest decrypted vault data and writes the new access token under the vault lock in the same way
 - Decode JWT idToken payloads that use base64url (`-` and `_`), so a spec-compliant OAuth idToken is checked locally and can still be sent to the nodes ([#11531](https://github.com/MetaMask/core/pull/11531))
 - Prevent stale identity data from being written into state when the controller identity changes while a token refresh is in flight ([#11531](https://github.com/MetaMask/core/pull/11531))
   - If the identity is switched by a new `authenticate()` call or wiped by `clearState()` while a refresh is pending, the pending refresh results are discarded and the refresh-token rotation side effects are skipped
   - These situations now throw `SeedlessOnboardingControllerErrorMessage.IdentityMismatch` instead of a generic authentication error
   - `rotateRefreshToken` throws `IdentityMismatch` and does not renew the vault revoke token when the idToken `sub` does not match `state.userId`
   - A refresh-token rotation that observes an identity change does not persist the new revoke token to the vault
+
+### Security
+
+- Exclude `envelope` state from state logs to avoid fingerprinting accounts across logs ([#11346](https://github.com/MetaMask/core/pull/11346))
 
 ## [12.1.0]
 
