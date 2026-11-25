@@ -16,6 +16,13 @@ const CHAR_E = 69;
 const MAX_FAST_DECIMALS = 1000;
 
 /**
+ * Matches an already-canonical plain decimal (no sign, no leading integer
+ * zeros, no dangling dot, no trailing fractional zeros) — the form
+ * `BigNumber#toFixed` would return verbatim.
+ */
+const CANONICAL_PATTERN = /^(?:0|[1-9]\d*)(?:\.\d*[1-9])?$/u;
+
+/**
  * Normalize an asset balance `amount` string into a canonical plain-decimal
  * form (no scientific notation), optionally truncating to the asset's decimal
  * precision.
@@ -59,6 +66,26 @@ export function normalizeAmountString(
 ): string {
   if (typeof amount !== 'string' || amount.length === 0) {
     return '0';
+  }
+  // Already-canonical inputs (the common case) return verbatim — one native
+  // regex test instead of a character scan, with zero string allocation.
+  if (CANONICAL_PATTERN.test(amount)) {
+    if (
+      decimals === undefined ||
+      !Number.isFinite(decimals) ||
+      decimals < 0
+    ) {
+      return amount;
+    }
+    const dp = Math.floor(decimals);
+    if (dp > MAX_FAST_DECIMALS) {
+      return normalizeWithBigNumber(amount, decimals);
+    }
+    const dot = amount.indexOf('.');
+    if (dot === -1 || amount.length - dot - 1 <= dp) {
+      return amount;
+    }
+    // Truncation needed — fall through to the general fast path.
   }
   const fast = normalizePlainOrExponent(amount, decimals);
   return fast === undefined ? normalizeWithBigNumber(amount, decimals) : fast;
