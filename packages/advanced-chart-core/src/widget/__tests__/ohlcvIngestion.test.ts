@@ -3,8 +3,6 @@ import type { Mock } from 'vitest';
 
 import {
   _resetStateForTests,
-  doesLegendOwnLayoutSettle,
-  getActiveStudies,
   getCurrentResolution,
   getOhlcvData,
   getOhlcvGeneration,
@@ -21,8 +19,10 @@ import type {
 } from '../../core/types.js';
 import {
   _resetOhlcvIngestionForTests,
+  applyInitialVisibleRange,
   handleRealtimeUpdate,
   handleSetOHLCVData,
+  isBoundedIntervalWindowActive,
   onFirstOhlcvData,
 } from '../ohlcvIngestion.js';
 
@@ -155,39 +155,49 @@ describe('handleSetOHLCVData', () => {
     expect(getTimeScale).toHaveBeenCalled();
   });
 
-  it('releases the visible-range pin via setRightOffset before switching resolution', () => {
-    const setRightOffset = vi.fn();
-    const setResolution = vi.fn();
-    const getTimeScale = vi.fn().mockReturnValue({ setRightOffset });
+  it('ignores stale setResolution callback when a newer interval arrives', () => {
+    const resetData = vi.fn();
+    const setResCbs: (() => void)[] = [];
+    const setResolution = vi
+      .fn()
+      .mockImplementation((_res: string, callback: () => void) => {
+        setResCbs.push(callback);
+      });
+    const onDataLoaded = vi
+      .fn()
+      .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() });
+    const getTimeScale = vi.fn().mockReturnValue({ setRightOffset: vi.fn() });
     const chart = {
-      resetData: vi.fn(),
+      resetData,
       setResolution,
-      onDataLoaded: vi
-        .fn()
-        .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() }),
+      onDataLoaded,
       getTimeScale,
     } as unknown as TVActiveChart;
 
-    // Prime resolution at "1" (60s spacing).
     handleSetOHLCVData({ data: oneMinuteApart(2) });
     setWidget({
       activeChart: () => chart,
     } as unknown as TVChartingLibraryWidget);
     setChartReady(true);
 
-    // Switch to 5m (300s spacing).
+    // Switch to 5m
     handleSetOHLCVData({
       data: Array.from({ length: 3 }, (_, i) => bar(i * 300_000)),
     });
+    // Switch again to 15m before first callback fires
+    handleSetOHLCVData({
+      data: Array.from({ length: 3 }, (_, i) => bar(i * 900_000)),
+    });
 
-    // The absolute visible-range pin is released (setRightOffset) BEFORE
-    // setResolution so TradingView preserves the visible bar count rather than
-    // the inherited wide time span (the pagination storm).
-    expect(setRightOffset).toHaveBeenCalledWith(2);
-    expect(setResolution).toHaveBeenCalledWith('5', expect.any(Function));
-    const releaseOrder = setRightOffset.mock.invocationCallOrder[0];
-    const switchOrder = setResolution.mock.invocationCallOrder[0];
-    expect(releaseOrder).toBeLessThan(switchOrder);
+    expect(setResCbs).toHaveLength(2);
+
+    // Fire the stale 5m callback — should be ignored (no side-effects)
+    setResCbs[0]();
+    expect(getTimeScale).not.toHaveBeenCalled();
+
+    // Fire the current 15m callback — should proceed
+    setResCbs[1]();
+    expect(getTimeScale).toHaveBeenCalled();
   });
 
   it('calls widget.resetCache before resetData on same-resolution reload', () => {
@@ -728,94 +738,6 @@ describe('emitLayoutSettled (via handleSetOHLCVData)', () => {
 
     (window.requestAnimationFrame as Mock).mockRestore();
   });
-
-  describe('on resolution switch', () => {
-    const setUpResolutionSwitch = (): {
-      postMessageMock: Mock;
-      runSetResolutionCallback: () => void;
-      flushRaf: () => void;
-    } => {
-      const postMessageMock = vi.fn();
-      window.ReactNativeWebView = { postMessage: postMessageMock };
-
-      const rafCallbacks: FrameRequestCallback[] = [];
-      vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
-        (frameCallback: FrameRequestCallback) => {
-          rafCallbacks.push(frameCallback);
-          return rafCallbacks.length;
-        },
-      );
-
-      let setResCb: () => void = () => undefined;
-      const chart = {
-        resetData: vi.fn(),
-        setResolution: vi.fn().mockImplementation((_res, callback) => {
-          setResCb = callback;
-        }),
-        onDataLoaded: vi
-          .fn()
-          .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() }),
-        getTimeScale: vi.fn().mockReturnValue({ setRightOffset: vi.fn() }),
-        getPanes: vi.fn().mockReturnValue([]),
-      } as unknown as TVActiveChart;
-
-      // Prime resolution "1", then switch to "5".
-      handleSetOHLCVData({ data: oneMinuteApart(3) });
-      setWidget({
-        activeChart: () => chart,
-      } as unknown as TVChartingLibraryWidget);
-      setChartReady(true);
-
-      return {
-        postMessageMock,
-        runSetResolutionCallback: () => {
-          handleSetOHLCVData({
-            data: Array.from({ length: 3 }, (_, i) => bar(i * 300_000)),
-          });
-          setResCb();
-        },
-        flushRaf: () => {
-          // Drain nested rAFs (emitLayoutSettled uses 2×rAF).
-          while (rafCallbacks.length > 0) {
-            rafCallbacks.shift()?.(0);
-          }
-        },
-      };
-    };
-
-    const settledCount = (postMessageMock: Mock): number =>
-      postMessageMock.mock.calls.filter((call: string[]) => {
-        const parsed = JSON.parse(call[0]) as { type: string };
-        return parsed.type === 'CHART_LAYOUT_SETTLED';
-      }).length;
-
-    it('defers CHART_LAYOUT_SETTLED to the legend when studies are active', () => {
-      const { postMessageMock, runSetResolutionCallback, flushRaf } =
-        setUpResolutionSwitch();
-      getActiveStudies().set('RSI', 'study-1');
-
-      runSetResolutionCallback();
-      flushRaf();
-
-      expect(doesLegendOwnLayoutSettle()).toBe(true);
-      expect(settledCount(postMessageMock)).toBe(0);
-
-      (window.requestAnimationFrame as Mock).mockRestore();
-    });
-
-    it('posts CHART_LAYOUT_SETTLED from ingestion when no studies are active', () => {
-      const { postMessageMock, runSetResolutionCallback, flushRaf } =
-        setUpResolutionSwitch();
-
-      runSetResolutionCallback();
-      flushRaf();
-
-      expect(doesLegendOwnLayoutSettle()).toBe(false);
-      expect(settledCount(postMessageMock)).toBe(1);
-
-      (window.requestAnimationFrame as Mock).mockRestore();
-    });
-  });
 });
 
 // ---------------------------------------------------------------------------
@@ -978,9 +900,9 @@ describe('error paths', () => {
 });
 
 // ---------------------------------------------------------------------------
-// atomicIntervalWindow (opt-in)
+// boundedIntervalWindow (opt-in)
 // ---------------------------------------------------------------------------
-describe('atomicIntervalWindow (opt-in)', () => {
+describe('boundedIntervalWindow (opt-in)', () => {
   beforeEach(() => {
     _resetStateForTests();
     _resetOhlcvIngestionForTests();
@@ -1013,7 +935,7 @@ describe('atomicIntervalWindow (opt-in)', () => {
     // Same-resolution reload with opt-in + a window older than the oldest bar.
     handleSetOHLCVData({
       data: oneMinuteApart(3),
-      atomicIntervalWindow: true,
+      boundedIntervalWindow: true,
       visibleFromMs: -600_000,
     });
 
@@ -1060,5 +982,223 @@ describe('atomicIntervalWindow (opt-in)', () => {
     const [rawRange] = setVisibleRange.mock.calls[0] as [{ from: number }];
     // Unclamped: the raw visibleFromMs is used (-600_000 ms -> -600 s).
     expect(rawRange.from).toBe(Math.floor(-600_000 / 1000));
+  });
+
+  it('applies the clamped window synchronously after a resolution switch when opted in', () => {
+    let setResCb: () => void = () => undefined;
+    const setVisibleRange = vi.fn();
+    const onDataLoaded = vi
+      .fn()
+      .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() });
+    const chart = {
+      setResolution: vi
+        .fn()
+        .mockImplementation((_res: string, callback: () => void) => {
+          setResCb = callback;
+        }),
+      onDataLoaded,
+      getTimeScale: vi.fn().mockReturnValue({ setRightOffset: vi.fn() }),
+      setVisibleRange,
+      getPanes: vi.fn().mockReturnValue([]),
+    } as unknown as TVActiveChart;
+
+    handleSetOHLCVData({ data: oneMinuteApart(2) });
+    setWidget({
+      activeChart: () => chart,
+    } as unknown as TVChartingLibraryWidget);
+    setChartReady(true);
+
+    // Switch to 5m with a window older than the oldest loaded bar (t=0).
+    handleSetOHLCVData({
+      data: Array.from({ length: 3 }, (_, i) => bar(i * 300_000)),
+      boundedIntervalWindow: true,
+      visibleFromMs: -600_000,
+    });
+    setResCb();
+
+    expect(setVisibleRange).toHaveBeenCalledTimes(1);
+    const [range] = setVisibleRange.mock.calls[0] as [{ from: number }];
+    expect(range.from).toBe(0);
+    expect(onDataLoaded).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isBoundedIntervalWindowActive / applyInitialVisibleRange
+// ---------------------------------------------------------------------------
+describe('isBoundedIntervalWindowActive', () => {
+  beforeEach(() => {
+    _resetStateForTests();
+    _resetOhlcvIngestionForTests();
+    delete window.ReactNativeWebView;
+  });
+
+  it('is true when opted in, not SLB, and visibleFromMs is set', () => {
+    handleSetOHLCVData({
+      data: oneMinuteApart(3),
+      boundedIntervalWindow: true,
+      visibleFromMs: 0,
+    });
+    expect(isBoundedIntervalWindowActive()).toBe(true);
+  });
+
+  it('is false when not opted in', () => {
+    handleSetOHLCVData({ data: oneMinuteApart(3), visibleFromMs: 0 });
+    expect(isBoundedIntervalWindowActive()).toBe(false);
+  });
+
+  it('is false in SLB mode', () => {
+    handleSetOHLCVData({
+      data: oneMinuteApart(3),
+      boundedIntervalWindow: true,
+      slbMode: true,
+      visibleFromMs: 0,
+    });
+    expect(isBoundedIntervalWindowActive()).toBe(false);
+  });
+
+  it('is false without visibleFromMs', () => {
+    handleSetOHLCVData({
+      data: oneMinuteApart(3),
+      boundedIntervalWindow: true,
+    });
+    expect(isBoundedIntervalWindowActive()).toBe(false);
+  });
+});
+
+describe('applyInitialVisibleRange', () => {
+  beforeEach(() => {
+    _resetStateForTests();
+    _resetOhlcvIngestionForTests();
+    delete window.ReactNativeWebView;
+  });
+
+  const buildChart = (
+    options: { withDataReady?: boolean } = {},
+  ): {
+    chart: TVActiveChart;
+    setVisibleRange: Mock;
+    onDataLoaded: Mock;
+    dataReady: Mock;
+    fireDataReady: () => void;
+  } => {
+    let dataReadyCb: (() => void) | undefined;
+    const setVisibleRange = vi.fn();
+    const onDataLoaded = vi.fn().mockReturnValue({
+      subscribe: vi.fn(),
+      unsubscribe: vi.fn(),
+    });
+    const dataReady = vi.fn((callback: () => void) => {
+      dataReadyCb = callback;
+    });
+    const chart = {
+      onDataLoaded,
+      setVisibleRange,
+      getTimeScale: vi.fn().mockReturnValue({ setRightOffset: vi.fn() }),
+      ...(options.withDataReady === false ? {} : { dataReady }),
+    } as unknown as TVActiveChart;
+    return {
+      chart,
+      setVisibleRange,
+      onDataLoaded,
+      dataReady,
+      fireDataReady: () => dataReadyCb?.(),
+    };
+  };
+
+  it('applies the clamped window immediately and again once data is ready when opted in', () => {
+    handleSetOHLCVData({
+      data: oneMinuteApart(3),
+      boundedIntervalWindow: true,
+      visibleFromMs: -600_000,
+    });
+    const { chart, setVisibleRange, fireDataReady } = buildChart();
+
+    applyInitialVisibleRange(chart);
+    expect(setVisibleRange).toHaveBeenCalledTimes(1);
+
+    fireDataReady();
+    expect(setVisibleRange).toHaveBeenCalledTimes(2);
+    for (const [range] of setVisibleRange.mock.calls as [{ from: number }][]) {
+      // Clamped up to the oldest loaded bar (t=0).
+      expect(range.from).toBe(0);
+    }
+  });
+
+  it('does not leave an onDataLoaded listener that would re-apply the window on a later history load', () => {
+    handleSetOHLCVData({
+      data: oneMinuteApart(3),
+      boundedIntervalWindow: true,
+      visibleFromMs: 0,
+    });
+    const { chart, onDataLoaded } = buildChart();
+
+    applyInitialVisibleRange(chart);
+
+    expect(onDataLoaded).not.toHaveBeenCalled();
+  });
+
+  it('skips the dataReady re-apply when newer data arrived before it fired', () => {
+    handleSetOHLCVData({
+      data: oneMinuteApart(3),
+      boundedIntervalWindow: true,
+      visibleFromMs: 0,
+    });
+    const { chart, setVisibleRange, fireDataReady } = buildChart();
+
+    applyInitialVisibleRange(chart);
+    expect(setVisibleRange).toHaveBeenCalledTimes(1);
+
+    // Chart is not ready in this test, so this only bumps the generation.
+    handleSetOHLCVData({
+      data: oneMinuteApart(3),
+      boundedIntervalWindow: true,
+      visibleFromMs: 0,
+    });
+    fireDataReady();
+
+    expect(setVisibleRange).toHaveBeenCalledTimes(1);
+  });
+
+  it('applies only the immediate window when dataReady is unavailable', () => {
+    handleSetOHLCVData({
+      data: oneMinuteApart(3),
+      boundedIntervalWindow: true,
+      visibleFromMs: 0,
+    });
+    const { chart, setVisibleRange, onDataLoaded } = buildChart({
+      withDataReady: false,
+    });
+
+    applyInitialVisibleRange(chart);
+
+    expect(setVisibleRange).toHaveBeenCalledTimes(1);
+    expect(onDataLoaded).not.toHaveBeenCalled();
+  });
+
+  it('no-ops when not opted in', () => {
+    handleSetOHLCVData({ data: oneMinuteApart(3), visibleFromMs: 0 });
+    const { chart, setVisibleRange, onDataLoaded, dataReady } = buildChart();
+
+    applyInitialVisibleRange(chart);
+
+    expect(setVisibleRange).not.toHaveBeenCalled();
+    expect(onDataLoaded).not.toHaveBeenCalled();
+    expect(dataReady).not.toHaveBeenCalled();
+  });
+
+  it('no-ops in SLB mode', () => {
+    handleSetOHLCVData({
+      data: oneMinuteApart(3),
+      boundedIntervalWindow: true,
+      slbMode: true,
+      visibleFromMs: 0,
+    });
+    const { chart, setVisibleRange, onDataLoaded } = buildChart();
+
+    applyInitialVisibleRange(chart);
+
+    expect(setVisibleRange).not.toHaveBeenCalled();
+    expect(onDataLoaded).not.toHaveBeenCalled();
   });
 });
