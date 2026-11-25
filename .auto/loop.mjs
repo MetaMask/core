@@ -13,7 +13,7 @@
 //     non-keep   -> revert production changes, preserve .auto/
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
+import { execSync, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -109,7 +109,9 @@ if (cmd === 'init') {
   if (status === 'keep') {
     sh('git add -A');
     const resultData = JSON.stringify({ status, [cfg.metricName || 'metric']: metric, ...metrics });
-    const out = sh(`git -c commit.gpgsign=false commit -m ${JSON.stringify(desc + '\n\nResult: ' + resultData)}`);
+    const out = execFileSync('git', ['-c', 'commit.gpgsign=false', 'commit', '-m',
+      desc + '\n\nResult: ' + resultData],
+      { cwd: root, encoding: 'utf8' });
     console.log('Git: committed — ' + out.split('\n')[0]);
   } else {
     sh(`git checkout -- . ':(exclude,glob)**/.auto' ':(exclude,glob)**/.auto/**'`);
