@@ -82,7 +82,7 @@ Follow the summary with links to the pull request(s) that introduced the change.
 
 ### Put supporting details in nested bullets
 
-If a change requires further details to communicate its impact to consumers, list them under the summary. If a summary contains multiple sentences, try extracting everything after the first to a nested list.
+If a change requires further details to communicate its impact to consumers, list them under the summary. If a summary contains multiple sentences, try extracting everything after the first sentence to a nested list.
 
 ```markdown
 <!-- ❌ There are multiple statements here -->
