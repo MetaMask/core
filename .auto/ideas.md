@@ -2,13 +2,14 @@
 
 Append ideas here instead of chasing them immediately. Delete a line once it has been tried.
 
-- Defer long non-canonical inputs (length > ~100) straight to BigNumber to
-  skip the ~30µs/512-char scanner path — only affects absurd inputs,
-  expected sub-noise on the corpus; skip unless a long-input workload
-  shows up in a future Hermes profile.
+- INVALID — do not implement: defer long non-canonical inputs (> ~100 chars)
+  to BigNumber. The scanner at ~73ns/char is far faster than a BigNumber
+  parse of the same string (the original implementation WAS that path);
+  deferral would regress long inputs, not speed them up. Long-input
+  per-char cost is already linear and flat (sweep len_1/len_8 metrics).
 - Re-measure the final build on an idle box (load < 5) to get a clean
   guard-cost delta and a trustworthy final number for the PR description
-  (132-135ms band today is contention-inflated; load avg ~15).
+  (132-135ms band today is contention-inflated; load avg ~15-28).
 - Terminal finding (do NOT retry): the exact-semantics per-call
   `BigNumber.config().RANGE` read cannot be made cheaper — bignumber.js
   allocates a 10-prop object + RANGE array on every no-arg `config()` call,
