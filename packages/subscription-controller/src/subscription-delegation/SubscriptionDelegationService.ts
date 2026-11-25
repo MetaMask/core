@@ -26,6 +26,7 @@ import {
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import {
+  hasTransactionType,
   TransactionStatus,
   TransactionType,
 } from '@metamask/transaction-controller';
@@ -215,8 +216,7 @@ export function isSubscriptionChargeRetryable(
 function isChargeRetryTransaction(transactionMeta: TransactionMeta): boolean {
   return (
     transactionMeta.status === TransactionStatus.confirmed &&
-    transactionMeta.type !== undefined &&
-    CHARGE_RETRY_TRANSACTION_TYPES.includes(transactionMeta.type)
+    hasTransactionType(transactionMeta, CHARGE_RETRY_TRANSACTION_TYPES)
   );
 }
 

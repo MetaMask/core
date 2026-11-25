@@ -1975,12 +1975,18 @@ describe('SubscriptionDelegationService charge retry', () => {
     {
       type = TransactionType.moneyAccountDeposit,
       status = TransactionStatus.confirmed,
-    }: { type?: TransactionType; status?: TransactionStatus } = {},
+      nestedTransactions,
+    }: {
+      type?: TransactionType;
+      status?: TransactionStatus;
+      nestedTransactions?: { type: TransactionType }[];
+    } = {},
   ): void {
     rootMessenger.publish('TransactionController:transactionConfirmed', {
       id: 'tx-1',
       type,
       status,
+      nestedTransactions,
     } as TransactionMeta);
   }
 
@@ -2048,6 +2054,23 @@ describe('SubscriptionDelegationService charge retry', () => {
         );
       },
     );
+
+    it('sends updatePaymentMethod when the deposit is nested in a batch', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+      });
+
+      publishConfirmed(rootMessenger, {
+        type: TransactionType.batch,
+        nestedTransactions: [
+          { type: TransactionType.tokenMethodApprove },
+          { type: TransactionType.moneyAccountDeposit },
+        ],
+      });
+      await flush();
+
+      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+    });
 
     it('ignores other transaction types', async () => {
       const { rootMessenger, mocks } = setup({
