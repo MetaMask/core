@@ -39,6 +39,9 @@ export function keyringTypeToName(keyringType: string): string {
     case KeyringTypes.lattice: {
       return 'Lattice';
     }
+    case KeyringTypes.keystone: {
+      return 'Keystone';
+    }
     case KeyringTypes.qr: {
       return 'QR';
     }
