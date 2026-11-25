@@ -110,18 +110,25 @@ export type SetOHLCVDataPayload = {
    */
   slbMode?: boolean;
   /**
-   * Opt-in. When true, the per-interval visible-range pin is clamped so its
-   * start never predates the oldest loaded bar. This keeps the framed window
-   * inside the bars already in memory, so framing never asks TradingView to
-   * fill an interval older than what is loaded — which otherwise triggers a
-   * deep backward pagination storm on coarse↔fine switches.
+   * Opt-in. Bounds each interval's data load to its own visible window
+   * (`visibleFromMs`) instead of a window inherited from another interval:
    *
-   * Off by default: when absent or false the visible-range pin uses the
-   * requested start unclamped, exactly like today. Only consumers that have
-   * validated this (currently the extension) should opt in; Social Leaderboard
-   * and every other consumer stay on today's behavior until they do.
+   * - The initial window is applied once the widget is ready rather than
+   * passed to the widget constructor as `timeframe`. TradingView keeps a
+   * constructor `timeframe` and sizes later interval switches from it, so a
+   * coarse first load (e.g. 1D, ~1 month) would make a later fine switch
+   * (e.g. 1m) request tens of thousands of bars and page backwards until
+   * rate-limited.
+   * - On every interval switch the new window is applied as soon as the new
+   * resolution is loaded.
+   * - The window start is clamped so it never predates the oldest loaded bar,
+   * keeping framing inside the bars already in memory.
+   *
+   * Off by default: when absent or false the constructor `timeframe` and the
+   * unclamped start are used, exactly like today. Social Leaderboard (`slbMode`)
+   * is never affected.
    */
-  atomicIntervalWindow?: boolean;
+  boundedIntervalWindow?: boolean;
 };
 
 export type RealtimeUpdateMessage = {
