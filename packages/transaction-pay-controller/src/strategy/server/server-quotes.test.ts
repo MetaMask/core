@@ -448,7 +448,7 @@ describe('server-quotes', () => {
       expect(fees.lighter?.usd).toBe('1');
     });
 
-    it('keeps the index of the quoted Lighter account for the transfer', async () => {
+    it('keeps the sender of the quote request for the transfer', async () => {
       vi.mocked(getLighterAccountIndex).mockResolvedValue('770167');
       fetchServerQuoteMock.mockResolvedValue({
         results: [
@@ -472,7 +472,7 @@ describe('server-quotes', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
-      expect(quotes[0].original.lighterAccountIndex).toBe(770167);
+      expect(quotes[0].original.sender).toBe('770167');
     });
 
     it('omits the Lighter fee when there is no transfer step', async () => {
@@ -927,6 +927,7 @@ describe('server-quotes', () => {
           input: quote.input,
           output: quote.output,
           provider: FULFILLED_RESULT_MOCK.provider,
+          sender: FROM_MOCK,
           steps: quote.steps,
         },
         request: {

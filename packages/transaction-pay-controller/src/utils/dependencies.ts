@@ -8,8 +8,12 @@ import type {
 
 const log = createModuleLogger(projectLogger, 'dependencies');
 
-/** Namespaces in {@link AllowedActions} that have no `getState` action. */
-type NamespacesWithoutState = 'SentinelApiService';
+/**
+ * Namespaces in {@link AllowedActions} that are not waited for: they either
+ * have no `getState` action, or are optional and only called when needed, such
+ * as `PerpsController` for a Lighter withdrawal.
+ */
+type NamespacesWithoutState = 'PerpsController' | 'SentinelApiService';
 
 type DependencyNamespace = Exclude<
   AllowedActions['type'] extends `${infer Namespace}:${string}`

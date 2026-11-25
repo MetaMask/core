@@ -42,20 +42,20 @@ export type ServerSignatureStep = {
  * sent to Lighter. It is how funds are withdrawn from Lighter.
  */
 export type ServerLighterTransferStep = {
-  type: 'lighterTransfer';
-  toAccountIndex: number;
+  amount: number;
   assetIndex: number;
   fromRouteType: number;
-  toRouteType: number;
-  amount: number;
-  usdcFee: number;
   memo: Hex;
+  toAccountIndex: number;
+  toRouteType: number;
+  type: 'lighterTransfer';
+  usdcFee: number;
 };
 
 export type ServerStep =
-  | ServerTransactionStep
+  | ServerLighterTransferStep
   | ServerSignatureStep
-  | ServerLighterTransferStep;
+  | ServerTransactionStep;
 
 /** A call to include in the quote request (for delegation flows). */
 export type ServerCall = {
@@ -161,14 +161,14 @@ export type ServerQuote = {
    */
   authorizationList?: ServerAuthorization[];
   id: string;
-  /**
-   * Index of the Lighter account the quote debits, kept for a Lighter
-   * withdrawal so the transfer is only sent from that same account.
-   */
-  lighterAccountIndex?: number;
   provider: string;
   input: ServerQuoteAmount;
   output: ServerQuoteAmount;
+  /**
+   * Sender of the quote request. An address, or the index of the account to
+   * debit when the source is not an EVM account, such as Lighter.
+   */
+  sender: string;
   fees: ServerQuoteFees;
   duration: number;
   client: ServerQuoteClient;

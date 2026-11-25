@@ -58,17 +58,17 @@ import {
 import { hasServerDepositStep } from './deposit-step.js';
 import {
   getLighterAccountIndex,
+  getLighterTransferFee,
   LighterNormalizer,
   SERVER_LIGHTER_CHAIN_ID,
   SERVER_LIGHTER_PERPS_USDC_ADDRESS,
+  subtractLighterTransferFee,
 } from './lighter.js';
 import { normalizeServerPerpsRequest } from './perps.js';
 import { fetchServerQuote } from './server-api.js';
 import { validateServerQuotes } from './server-validation.js';
 import type {
-  ServerLighterTransferStep,
   ServerQuote,
-  ServerQuoteAmount,
   ServerQuotePayload,
   ServerQuoteRequest,
   ServerQuoteResult,
@@ -82,7 +82,6 @@ const TRANSFER_INTERFACE = new Interface([
 ]);
 const ZERO_AMOUNT = { fiat: '0', human: '0', raw: '0', usd: '0' };
 const ZERO_FIAT_VALUE = { fiat: '0', usd: '0' };
-const LIGHTER_USDC_DECIMALS = 6;
 
 type FulfilledServerQuoteResult = ServerQuoteResult & {
   quote: NonNullable<ServerQuoteResult['quote']>;
@@ -752,32 +751,15 @@ async function normalizeQuote(
     usdToFiatRate,
   );
 
-  // Lighter takes its transfer fee from the account on top of the amount sent.
-  // The fee is in USDC, which is priced 1:1 with USD.
-  const lighterFeeUsdc = quote.steps
-    .filter(
-      (step): step is ServerLighterTransferStep =>
-        step.type === 'lighterTransfer',
-    )
-    .reduce((total, step) => total.plus(step.usdcFee), new BigNumber(0))
-    .shiftedBy(-LIGHTER_USDC_DECIMALS);
+  const lighterFee = getLighterTransferFee(quote.steps);
 
-  // For max Lighter withdrawals, subtract the fee from the input amount so the
-  // total (input + fee) does not exceed the account balance. The adjusted input
-  // is the amount that gets transferred out, while the fee is debited separately.
-  const adjustedInput: ServerQuoteAmount =
+  // For max Lighter withdrawals, the fee is debited on top of the amount sent,
+  // so it comes off the input to stay within the account balance.
+  const input =
     quoteRequest.isMaxAmount &&
     quoteRequest.isLighterSource &&
-    lighterFeeUsdc.isGreaterThan(0)
-      ? {
-          ...quote.input,
-          raw: new BigNumber(quote.input.raw)
-            .minus(lighterFeeUsdc.shiftedBy(LIGHTER_USDC_DECIMALS))
-            .toString(10),
-          formatted: new BigNumber(quote.input.formatted)
-            .minus(lighterFeeUsdc)
-            .toString(10),
-        }
+    lighterFee.isGreaterThan(0)
+      ? subtractLighterTransferFee(quote.input, lighterFee)
       : quote.input;
 
   return {
@@ -787,8 +769,8 @@ async function normalizeQuote(
       ...(sourceNetwork.isSourceGasFeeToken
         ? { isSourceGasFeeToken: true }
         : {}),
-      ...(lighterFeeUsdc.isGreaterThan(0)
-        ? { lighter: getFiatValueFromUsd(lighterFeeUsdc, usdToFiatRate) }
+      ...(lighterFee.isGreaterThan(0)
+        ? { lighter: getFiatValueFromUsd(lighterFee, usdToFiatRate) }
         : {}),
       metaMask,
       provider,
@@ -813,12 +795,10 @@ async function normalizeQuote(
       fees: quote.fees,
       gasless,
       id: quote.id,
-      input: adjustedInput,
-      ...(quoteRequest.isLighterSource
-        ? { lighterAccountIndex: Number(body.sender) }
-        : {}),
+      input,
       output: quote.output,
       provider: result.provider,
+      sender: body.sender,
       ...(quote.signature ? { signature: quote.signature } : {}),
       steps: quote.steps,
     },
@@ -826,14 +806,14 @@ async function normalizeQuote(
     requiresSecondLeg,
     sourceAmount: {
       fiat: sourceFiatRate
-        ? new BigNumber(adjustedInput.formatted)
+        ? new BigNumber(input.formatted)
             .multipliedBy(sourceFiatRate.fiatRate)
             .toString(10)
         : '0',
-      human: adjustedInput.formatted,
-      raw: adjustedInput.raw,
+      human: input.formatted,
+      raw: input.raw,
       usd: sourceFiatRate
-        ? new BigNumber(adjustedInput.formatted)
+        ? new BigNumber(input.formatted)
             .multipliedBy(sourceFiatRate.usdRate)
             .toString(10)
         : '0',

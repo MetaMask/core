@@ -128,18 +128,6 @@ export type TransactionPayControllerGetStrategyAction = {
 };
 
 /**
- * Signs a Lighter transfer and sends it to Lighter via the client-supplied
- * callback.
- *
- * @param args - The arguments forwarded to {@link LighterCallbacks.submitTransfer}.
- * @returns A promise resolving once Lighter accepts the transfer.
- */
-export type TransactionPayControllerLighterSubmitTransferAction = {
-  type: `TransactionPayController:lighterSubmitTransfer`;
-  handler: TransactionPayController['lighterSubmitTransfer'];
-};
-
-/**
  * Derives the Polymarket deposit-wallet address for an EOA via the
  * client-supplied callback.
  *
@@ -176,6 +164,5 @@ export type TransactionPayControllerMethodActions =
   | TransactionPayControllerGetFiatOptionsAction
   | TransactionPayControllerGetPaymentOverrideDataAction
   | TransactionPayControllerGetStrategyAction
-  | TransactionPayControllerLighterSubmitTransferAction
   | TransactionPayControllerPolymarketGetDepositWalletAddressAction
   | TransactionPayControllerPolymarketSubmitDepositWalletBatchAction;

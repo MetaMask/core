@@ -55,13 +55,17 @@ import {
 import { RELAY_DEPOSIT_TYPES } from '../relay/constants.js';
 import { getServerDepositData } from './deposit-step.js';
 import {
+  clearSubmittedLighterTransfers,
+  isLighterTransferStep,
+  submitLighterSteps,
+} from './lighter.js';
+import {
   getServerStatus,
   ServerApiError,
   submitServerIntent,
 } from './server-api.js';
 import type {
   ServerAuthorization,
-  ServerLighterTransferStep,
   ServerQuote,
   ServerSignatureStep,
   ServerTransactionStep,
@@ -79,14 +83,6 @@ const log = createModuleLogger(projectLogger, 'server-strategy');
  * from.
  */
 const MISSING_TARGET_HASH = '0x' as Hex;
-
-/**
- * Lighter transfers already sent, by server quote ID.
- *
- * Kept outside the quote because quotes come from the frozen controller state.
- * An entry is dropped once the quote is confirmed.
- */
-const submittedLighterTransfers = new Map<string, string>();
 
 const RETRYABLE_CLIENT_ERROR_STATUSES = [408, 429];
 
@@ -122,12 +118,6 @@ function isSignatureStep(
   step: ServerQuote['steps'][number],
 ): step is ServerSignatureStep {
   return step.type === 'signature';
-}
-
-function isLighterTransferStep(
-  step: ServerQuote['steps'][number],
-): step is ServerLighterTransferStep {
-  return step.type === 'lighterTransfer';
 }
 
 function isTransactionStep(
@@ -299,49 +289,12 @@ async function executeSingleServerQuote(
     await submitSignatureStep(step, quote.request.from, messenger);
   }
 
-  // A Lighter withdrawal is a transfer signed with the Lighter API key. It
-  // runs from the account that owns the Lighter account, which is the one the
-  // quote debited. It is skipped if this quote's transfer was already sent, so
-  // a retry does not debit the account twice.
-  const lighterSteps = quote.original.steps.filter(isLighterTransferStep);
-
-  if (lighterSteps.length > 0) {
-    const submittedTxHash = submittedLighterTransfers.get(quote.original.id);
-
-    if (submittedTxHash) {
-      log('Lighter transfer already submitted, skipping', {
-        txHash: submittedTxHash,
-      });
-    } else {
-      for (const { type: _type, ...transfer } of lighterSteps) {
-        const { lighterAccountIndex } = quote.original;
-
-        if (lighterAccountIndex === undefined) {
-          throw new Error('Lighter quote has no account index');
-        }
-
-        const result = await messenger.call(
-          'TransactionPayController:lighterSubmitTransfer',
-          {
-            ...transfer,
-            accountIndex: lighterAccountIndex,
-            eoa: transaction.txParams.from as Hex,
-          },
-        );
-
-        if (!result.success) {
-          throw new Error(result.error ?? 'Lighter transfer failed');
-        }
-
-        // The quote comes from the controller state, which is frozen, so the
-        // sent transfer is recorded here instead of on the quote.
-        submittedLighterTransfers.set(
-          quote.original.id,
-          result.txHash ?? 'submitted',
-        );
-      }
-    }
-  }
+  // A Lighter withdrawal is a transfer signed with the Lighter API key.
+  await submitLighterSteps({
+    eoa: transaction.txParams.from as Hex,
+    messenger,
+    quote: quote.original,
+  });
 
   // Phase 2: on-chain transaction steps (if any). A deposit wallet withdraw
   // replaces them with an unwrap straight to the provider deposit address.
@@ -369,7 +322,7 @@ async function executeSingleServerQuote(
   log('Server request completed', completion);
 
   if (completion.status === ServerStatus.Confirmed) {
-    submittedLighterTransfers.delete(quote.original.id);
+    clearSubmittedLighterTransfers(quote.original.id);
   }
 
   // A deposit wallet sweeps leftover USDC.e back into pUSD whatever the

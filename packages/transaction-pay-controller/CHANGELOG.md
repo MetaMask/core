@@ -36,9 +36,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The recipient is the index of the Lighter account owned by the transaction sender, looked up from the Lighter API.
 - Withdraw from Lighter through `ServerStrategy` when a transaction sets `isLighterSource` ([#11730](https://github.com/MetaMask/core/pull/11730))
   - The server quote uses `lighter:mainnet/perps:usdc` as the source asset and the Lighter account index as the sender.
-  - A `lighterTransfer` step is sent to the client through the new `lighter.submitTransfer` constructor callback (`LighterCallbacks`) and the `TransactionPayController:lighterSubmitTransfer` messenger action.
-  - `lighter.submitTransfer` resolves with `{ success, error?, txHash? }`, and a failed transfer stops the withdrawal before status polling.
+  - A `lighterTransfer` step is signed and sent through the `PerpsController:submitLighterTransfer` messenger action, which is now an allowed action of `TransactionPayControllerMessenger`.
+  - A failed transfer stops the withdrawal before status polling.
   - Return the flat Lighter transfer fee as `fees.lighter` on quotes and totals, and include it in the total.
+
+### Changed
+
+- Add `@metamask/perps-controller` as a dependency ([#11730](https://github.com/MetaMask/core/pull/11730))
 
 ## [33.0.0]
 

@@ -23,6 +23,7 @@ import type {
 } from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkConfigurationByChainIdAction } from '@metamask/network-controller';
+import type { PerpsControllerSubmitLighterTransferAction } from '@metamask/perps-controller';
 import type { Quote as RampsQuote } from '@metamask/ramps-controller';
 import type {
   RampsControllerGetOrderAction,
@@ -80,6 +81,7 @@ export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetNetworkConfigurationByChainIdAction
   | NetworkControllerGetStateAction
+  | PerpsControllerSubmitLighterTransferAction
   | RampsControllerGetOrderAction
   | RampsControllerGetQuoteWithFeesAction
   | RampsControllerGetStateAction
@@ -320,9 +322,6 @@ export type TransactionPayControllerOptions = {
 
   /** Callback to select ordered PayStrategies for a transaction. */
   getStrategies?: (transaction: TransactionMeta) => TransactionPayStrategy[];
-
-  /** Callbacks for Lighter; required only for withdrawing from Lighter. */
-  lighter?: LighterCallbacks;
 
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
@@ -1003,32 +1002,6 @@ export type GetDelegationTransactionCallback = ({
   to: Hex;
   value: Hex;
 }>;
-
-/** Client-supplied callbacks for Lighter. */
-export type LighterCallbacks = {
-  /**
-   * Sign a Lighter transfer with the account's Lighter API key and send it to
-   * Lighter. Resolves with `success: true` once Lighter accepts the transfer.
-   * A failed transfer must resolve with `success: false` or reject, so the
-   * withdrawal does not carry on as if the funds had been sent.
-   */
-  submitTransfer: (params: {
-    /** Index of the Lighter account the quote debits. */
-    accountIndex: number;
-    /** Address that owns the Lighter account to debit. */
-    eoa: Hex;
-    toAccountIndex: number;
-    assetIndex: number;
-    fromRouteType: number;
-    toRouteType: number;
-    /** Amount in the smallest unit of the asset. */
-    amount: number;
-    /** Fee in the smallest unit of USDC. */
-    usdcFee: number;
-    /** Hex-encoded request ID that ties the transfer to the quote. */
-    memo: Hex;
-  }) => Promise<{ success: boolean; error?: string; txHash?: string }>;
-};
 
 /** Client-supplied callbacks for the Polymarket relayer protocol. */
 export type PolymarketCallbacks = {
