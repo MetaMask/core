@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `unknownCurrency` option to `createFormatters` ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
+- Add optional `unknownCurrency` option to `createFormatters` ([#11771](https://github.com/MetaMask/core/pull/11771))
   - With `'code'`, the currency helpers (`formatCurrency`, `formatCurrencyCompact`, `formatCurrencyWithMinThreshold`, `formatCurrencyTokenPrice`) format a code that `Intl.NumberFormat` rejects, such as `USDC`, as the number followed by the code (`3.00 USDC`), and keep the caller's options
   - Defaults to `'number'`, which keeps the current output (`3.00`)
 
