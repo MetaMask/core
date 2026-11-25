@@ -6,17 +6,22 @@ A package's changelog should be updated in the same branch as changes that affec
 
 1. Look over the branch and identify changes you've made to the public API of the package.
 2. Look for the "Unreleased" section of the package's changelog.
-3. Decide which categories your changes belong to and ensure there are headers for those changes:
-   - Added (for new "features", i.e., new exports, methods, or options)
-   - Changed (for modifications to existing behavior)
-   - Deprecated (for exports or options that may be removed soon)
-   - Removed (for exports or options that _have_ been removed)
-   - Fixed (for corrections to existing behavior)
-   - Security (for patches to security vulnerabilities or other changes that enhance security)
-4. Add one or more entries under the corresponding headers.
+3. Decide which categories your changes belong to and ensure there are sections for those categories (see below for the full list).
+4. Add one or more entries to the end of the corresponding sections.
 5. After updating a changelog, run `yarn changelog:validate` and fix any errors reported.
 
 ## Guidelines for adding changelog entries
+
+### Place entries in matching categories
+
+Each entry should be placed in a category that matches the type of change. Here are the categories and how they are used:
+
+- **Added** — for new "features", i.e., new exports, methods, or options
+- **Changed** — for modifications to existing behavior)
+- **Deprecated** — for exports or options that may be removed soon)
+- **Removed** — for exports or options that _have_ been removed)
+- **Fixed** — for corrections to existing behavior
+- **Security** — for patches to security vulnerabilities or other changes that enhance security
 
 ### Describe one consumer-facing change per entry
 
@@ -44,7 +49,7 @@ One final note: Nested bullets should add detail to the summary, not add further
 ```
 
 ```markdown
-<!-- ✅ Now there are two separate entries; also, both response-shape changes are marked as breaking -->
+<!-- ✅ Now there are two separate entries, and both response-shape changes are marked as breaking -->
 
 - **BREAKING:** `PaymentMethod.networks` is now typed as `string[] | CardNetwork[]` instead of `string[]` ([#90210](https://github.com/MetaMask/core/pull/90210))
   - Clients that handle `listPaymentMethods` responses must handle both shapes.
@@ -85,7 +90,7 @@ Follow the summary with links to the pull request(s) that introduced the change.
 If a change requires further details to communicate its impact to consumers, list them under the summary. If a summary contains multiple sentences, try extracting everything after the first sentence to a nested list.
 
 ```markdown
-<!-- ❌ There are multiple statements here -->
+<!-- ❌ One line has multiple statements -->
 
 - Add `PARTIAL_FAILURE` and `failures` (`{ transferId, error }[]`) to `BulkTransferResult` and `BulkRefundResult`. When any transfer in a bulk request throws or returns an error, `error` is `PARTIAL_FAILURE` and `failures` keeps every transfer's error, so a combined bulk error stays a translatable code without hiding which transfers failed ([#90215](https://github.com/MetaMask/core/pull/90215))
 ```
@@ -102,7 +107,7 @@ If a change requires further details to communicate its impact to consumers, lis
 If multiple commits or pull requests represent the same change, consolidate their entries into one (including the list of pull request links).
 
 ```markdown
-<!-- ❌ Multiple entries for the same dependency bump -->
+<!-- ❌ There are multiple entries for the same dependency bump -->
 
 - Bump `@acme/fx-rates` to 3.0.0 ([#90100](https://github.com/MetaMask/core/pull/90100))
 - ... other entries ...
@@ -120,22 +125,7 @@ If multiple commits or pull requests represent the same change, consolidate thei
 Focus on what a change does and how it ought to be used rather than why it was added or how it works under the hood. Keep consumer-visible behavior and migration details when they are important to understand or use the change.
 
 ```markdown
-<!-- ❌ The second, third, and fourth sentences mention implementation details which don't seem necessary -->
-
-- Export `groupAccountsByHolder` to group accounts that share a holder ID and the currency `USD`. Each grouped row has a stable `rowId` and retains its original institution data, with the primary institution first. Rows without holder IDs, or with absent or different currencies, remain separate and omit `holderId`. Saved rows keep the bare account number on the primary institution and use `institution:<name>:<accountNumber>` on another institution ([#90216](https://github.com/MetaMask/core/pull/90216), [#90217](https://github.com/MetaMask/core/pull/90217))
-```
-
-```markdown
-<!-- ✅ Keep the concise summary and move important contract details into nested bullets -->
-
-- Export `groupAccountsByHolder` to group accounts that share a holder ID and the currency `USD` ([#90216](https://github.com/MetaMask/core/pull/90216), [#90217](https://github.com/MetaMask/core/pull/90217))
-  - Each grouped row has a stable `rowId` and retains its original institution data, with the primary institution first.
-  - Rows without holder IDs, or with absent or different currencies, remain separate and omit `holderId`.
-  - Saved rows keep the bare account number on the primary institution and use `institution:<name>:<accountNumber>` on another institution.
-```
-
-```markdown
-<!-- ❌ There is way too much information here -->
+<!-- ❌ This is an overwhelming amount of detail -->
 
 - The statements service reads its own balance snapshot. With `ledgerApi.snapshotUrl` set, `listAccounts` adds the snapshot's `nickname`, `description`, `iconUrl`, `accountType`, `tags`, `openedAt`, `balance`, `pendingBalance`, `creditLimit` and `holderId` to each credit union account it lists. Interest rates, fees, overdraft rules and the `getLimits` results stay with `CreditUnionProvider` ([#90218](https://github.com/MetaMask/core/pull/90218))
   - `SnapshotClient.fetch` accepts `provider: 'credit-union'` with `regions: ['us-west']`, and `SnapshotRequest.provider` is now `'bank' | 'credit-union'`
@@ -152,9 +142,9 @@ Focus on what a change does and how it ought to be used rather than why it was a
   - If the snapshot is unavailable or invalid, account data falls back to `CreditUnionProvider`.
 ```
 
-### Explain breaking changes
+### Isolate and explain breaking changes
 
-Highlight [breaking changes](./breaking-changes.md) by prefixing them with `**BREAKING:**`. List breaking changes above non-breaking changes in the same category section. Make sure to explain 1) what makes the change breaking and 2) how engineers need to adapt in consuming projects (you can use a nested list to do this).
+Highlight [breaking changes](./breaking-changes.md) by prefixing them with `**BREAKING:**`. List breaking changes above non-breaking changes in the same category section. Be sure to explain what makes the change breaking and, if not obvious, how engineers need to adapt in consuming projects (you can use a nested list to do this).
 
 ```markdown
 <!-- ❌ No explanation exists for why the change is breaking -->
@@ -163,7 +153,7 @@ Highlight [breaking changes](./breaking-changes.md) by prefixing them with `**BR
 ```
 
 ```markdown
-<!-- ✅ Now the breaking change is listed -->
+<!-- ✅ Now the effect of the bump on the public API is provided -->
 
 - **BREAKING:** Bump `@acme/payments-core` from `^4.0.0` to `^5.0.0` ([#90219](https://github.com/MetaMask/core/pull/90219))
   - Because of this bump, each `Charge` returned by `listCharges` now has a required `currency`.
