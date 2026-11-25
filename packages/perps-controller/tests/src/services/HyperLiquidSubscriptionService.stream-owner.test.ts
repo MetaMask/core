@@ -1042,6 +1042,7 @@ describe('shared streams over the HyperLiquid subscription service', () => {
       const callback = vi.fn();
       service.subscribeToMarketChanges({ callback });
       await settle();
+      deliver(main, 'assetCtxs', { ctxs: [ctx(), ctx()] });
 
       for (let index = 0; index < 20; index += 1) {
         deliver(main, 'assetCtxs', { ctxs: [ctx(), retired] });
@@ -1059,9 +1060,13 @@ describe('shared streams over the HyperLiquid subscription service', () => {
       await settle();
 
       deliver(main, 'assetCtxs', { ctxs: [ctx(), retired] });
+      expect(callback).toHaveBeenCalledTimes(1);
+
+      // A market that stays so, only idle or not, is not reported again.
       vi.advanceTimersByTime(60_000);
       deliver(main, 'assetCtxs', { ctxs: [ctx(), retired] });
-
+      vi.advanceTimersByTime(60_000);
+      deliver(main, 'assetCtxs', { ctxs: [ctx(), retired] });
       expect(callback).toHaveBeenCalledTimes(1);
     });
 
@@ -1094,8 +1099,6 @@ describe('shared streams over the HyperLiquid subscription service', () => {
       const idle = { ctxs: [ctx(), retired] };
       const stop = service.subscribeToMarketChanges({ callback });
       await settle();
-      deliver(main, 'assetCtxs', idle);
-      vi.advanceTimersByTime(60_000);
       deliver(main, 'assetCtxs', idle);
       expect(callback).toHaveBeenCalledTimes(1);
       stop();

@@ -5993,18 +5993,22 @@ export class HyperLiquidSubscriptionService {
       String(index),
       ctx.midPx === null && Number(ctx.openInterest) === 0,
     ]);
-    let detector = this.#marketDetectors.get(dex);
-    if (!detector) {
-      // A delisted market that still has open interest is not retired yet.
-      detector = new MarketChangeDetector(
-        universe.map(({ isDelisted }, index): [string, boolean] => [
-          String(index),
-          isDelisted === true && (frame[index]?.[1] ?? false),
-        ]),
-      );
-      this.#marketDetectors.set(dex, detector);
+    const detector = this.#marketDetectors.get(dex);
+    if (detector) {
+      if (detector.update(frame, true)) {
+        this.#notifyMarketChange();
+      }
+      return;
     }
-    if (detector.update(frame, true)) {
+    this.#marketDetectors.set(dex, new MarketChangeDetector(frame));
+    // The metadata may predate this frame. A market that is only idle differs
+    // too, so this is told apart by one read, at once and not again.
+    if (
+      frame.length !== universe.length ||
+      frame.some(
+        ([, isRetired], index) => isRetired && !universe[index].isDelisted,
+      )
+    ) {
       this.#notifyMarketChange();
     }
   }
