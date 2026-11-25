@@ -141,6 +141,73 @@ export type LighterSignWithdrawWireParams = [
   nonce: number,
 ];
 
+/**
+ * An L2 transfer to another Lighter account, as quoted by a provider that
+ * moves funds out of Lighter (for example a Relay withdrawal).
+ */
+export type LighterTransferParams = {
+  /**
+   * Index of the Lighter account the transfer was quoted for. The transfer is
+   * refused when the provider would sign for another account.
+   */
+  accountIndex: number;
+  /**
+   * Address that owns the Lighter account being debited. The transfer is
+   * signed by the selected wallet, so it is refused when that is another
+   * account.
+   */
+  eoa: string;
+  toAccountIndex: number;
+  assetIndex: number;
+  fromRouteType: number;
+  toRouteType: number;
+  /** Amount in the smallest unit of the asset. */
+  amount: number;
+  /** Fee in the smallest unit of USDC. */
+  usdcFee: number;
+  /** 32-byte hex string that identifies the transfer to its recipient. */
+  memo: string;
+};
+
+export type LighterTransferResult = {
+  success: boolean;
+  txHash?: string;
+  error?: string;
+};
+
+/**
+ * Wire params of `_getTransferTransaction`, which builds the plaintext the
+ * user signs with their L1 account to authorize an L2 transfer.
+ */
+export type LighterGetTransferTransactionWireParams = [
+  accountIndex: number,
+  nonce: number,
+  apiKeyIndex: number,
+  toAccountIndex: number,
+  assetIndex: number,
+  fromRouteType: number,
+  toRouteType: number,
+  amount: number,
+  usdcFee: number,
+  /** 32 bytes, as numbers. */
+  memo: number[],
+];
+
+export type LighterSignTransferWireParams = [
+  accountIndex: number,
+  l1Signature: string,
+  nonce: number,
+  apiKeyIndex: number,
+  toAccountIndex: number,
+  assetIndex: number,
+  fromRouteType: number,
+  toRouteType: number,
+  amount: number,
+  usdcFee: number,
+  /** 32 bytes, as numbers. */
+  memo: number[],
+];
+
 export type LighterCreateAuthTokenWireParams = [
   accountIndex: number,
   apiKeyIndex: number,
@@ -189,6 +256,14 @@ export type LighterSignerOperationMap = {
   >;
   _signWithdraw: LighterSignerOperationDefinition<
     LighterSignWithdrawWireParams,
+    LighterTxResult
+  >;
+  _getTransferTransaction: LighterSignerOperationDefinition<
+    LighterGetTransferTransactionWireParams,
+    LighterGetTransferTransactionResult
+  >;
+  _signTransfer: LighterSignerOperationDefinition<
+    LighterSignTransferWireParams,
     LighterTxResult
   >;
   _createAuthToken: LighterSignerOperationDefinition<
@@ -309,6 +384,17 @@ export type LighterCreateClientResult = {
    * ChangePubKey plaintext body to be signed with EIP-191 `personal_sign`
    * by the user's L1 (EVM) account.
    */
+  body: string;
+  error?: string;
+};
+
+/**
+ * Response of `_getTransferTransaction`.
+ */
+export type LighterGetTransferTransactionResult = {
+  success?: boolean;
+  pubKeySuccess?: boolean;
+  /** Transfer plaintext to be signed with EIP-191 `personal_sign`. */
   body: string;
   error?: string;
 };

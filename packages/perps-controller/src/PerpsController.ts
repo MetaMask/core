@@ -204,6 +204,8 @@ import type { SortDirection } from './types/index.js';
 import type {
   LighterAuthConfig,
   LighterSignerBridge,
+  LighterTransferParams,
+  LighterTransferResult,
 } from './types/lighter-types.js';
 import type {
   PerpsControllerAllowedActions,
@@ -263,6 +265,24 @@ import {
   subscribeToProviderHealthOf,
 } from './utils/providerHealth.js';
 import { wait } from './utils/wait.js';
+
+type LighterTransferProvider = PerpsProvider & {
+  submitTransfer: (
+    params: LighterTransferParams,
+  ) => Promise<LighterTransferResult>;
+};
+
+/**
+ * Whether a provider can send L2 transfers, as the Lighter provider does.
+ *
+ * @param provider - A registered provider.
+ * @returns True when the provider has `submitTransfer`.
+ */
+const isLighterTransferProvider = (
+  provider: PerpsProvider,
+): provider is LighterTransferProvider =>
+  typeof (provider as Partial<LighterTransferProvider>).submitTransfer ===
+  'function';
 
 /**
  * Keys that must never index into a persisted state record. Assigning under
@@ -1204,6 +1224,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'startMarketDataPreload',
   'stopEligibilityMonitoring',
   'stopMarketDataPreload',
+  'submitLighterTransfer',
   'subscribeToAccount',
   'subscribeToAvailableToTrade',
   'subscribeToCandles',
@@ -5243,6 +5264,33 @@ export class PerpsController extends BaseController<
         await this.getAccountState({ source: 'post_withdrawal' });
       },
     });
+  }
+
+  /**
+   * Send an L2 transfer from the user's Lighter account to another Lighter
+   * account, as a provider that moves funds out of Lighter (for example a
+   * Relay withdrawal) quotes it.
+   *
+   * Always goes through the Lighter provider, whichever provider is active,
+   * as long as it is registered or is the active provider. Exposed as the
+   * `PerpsController:submitLighterTransfer` messenger action.
+   *
+   * @param params - The transfer to sign and send. It fails when `eoa` is not
+   * the selected wallet.
+   * @returns Whether Lighter accepted the transfer.
+   * @throws When no Lighter provider is available (`PROVIDER_NOT_FOUND`).
+   */
+  async submitLighterTransfer(
+    params: LighterTransferParams,
+  ): Promise<LighterTransferResult> {
+    const activeProvider = await this.#getActiveProviderWhenReady();
+
+    const provider = this.providers.get('lighter') ?? activeProvider;
+    if (!isLighterTransferProvider(provider)) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+
+    return await provider.submitTransfer(params);
   }
 
   /**

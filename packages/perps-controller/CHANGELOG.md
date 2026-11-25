@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `PerpsController.submitLighterTransfer` and `LighterProvider.submitTransfer` to sign and send the Lighter L2 transfer that Relay returns for a Lighter withdrawal, with the new `LighterTransferParams` and `LighterTransferResult` types, and expose it as the `PerpsController:submitLighterTransfer` messenger action ([#11730](https://github.com/MetaMask/core/pull/11730))
+  - `LighterTransferParams.eoa` and `accountIndex` name the wallet and Lighter account the transfer was quoted for, and `submitTransfer` refuses it when the selected wallet or the Lighter account it would sign for is another one.
+
 ## [26.1.0]
 
 ### Added

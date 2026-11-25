@@ -15,6 +15,7 @@
  */
 
 import type { CaipAccountId } from '@metamask/utils';
+import { hexToBytes } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import type { CandlePeriod } from '../constants/chartConfig.js';
@@ -83,6 +84,7 @@ import {
   LIGHTER_TX_TYPE_CREATE_ORDER,
   LIGHTER_TX_TYPE_UPDATE_LEVERAGE,
   LIGHTER_TX_TYPE_UPDATE_MARGIN,
+  LIGHTER_TX_TYPE_TRANSFER,
   LIGHTER_TX_TYPE_WITHDRAW,
   LIGHTER_MARGIN_MODE_CROSS,
   LIGHTER_MARGIN_MODE_ISOLATED,
@@ -250,6 +252,8 @@ import type {
   LighterSignerOperation,
   LighterSignerResult,
   LighterWasmCall,
+  LighterTransferParams,
+  LighterTransferResult,
   LighterTxResult,
   LighterWebSocketCtor,
   LighterWebSocketLike,
@@ -17366,6 +17370,136 @@ export class LighterProvider implements PerpsProvider {
       this.#deps.debugLogger.log('[LighterProvider] withdraw failed', {
         error: String(wrappedError),
         ...this.#getErrorContext('withdraw'),
+      });
+      return { success: false, error: wrappedError.message };
+    }
+  }
+
+  /**
+   * Send an L2 transfer from the user's Lighter account to another Lighter
+   * account. The transfer is authorized with the user's L1 signature and
+   * signed with their Lighter API key.
+   *
+   * @param params - The transfer.
+   * @returns Whether Lighter accepted the transfer.
+   */
+  async submitTransfer(
+    params: LighterTransferParams,
+  ): Promise<LighterTransferResult> {
+    return await this.#runTradingFlow(
+      async () => await this.#submitTransfer(params),
+    );
+  }
+
+  async #submitTransfer(
+    params: LighterTransferParams,
+  ): Promise<LighterTransferResult> {
+    try {
+      const { toAccountIndex, assetIndex, fromRouteType, toRouteType } = params;
+      const { amount, usdcFee, memo } = params;
+      if (
+        ![
+          toAccountIndex,
+          assetIndex,
+          fromRouteType,
+          toRouteType,
+          usdcFee,
+        ].every((value) => Number.isSafeInteger(value) && value >= 0) ||
+        !Number.isSafeInteger(amount) ||
+        amount <= 0
+      ) {
+        return { success: false, error: 'transfer parameters are invalid' };
+      }
+      if (!/^0x[0-9a-fA-F]{64}$/u.test(memo)) {
+        return { success: false, error: 'transfer memo must be 32 bytes' };
+      }
+      // The transfer is L1-signed by the selected wallet and debits that
+      // wallet's Lighter account. Refuse it if it was quoted for another one.
+      if (
+        params.eoa.toLowerCase() !==
+        this.#walletService.getUserAddress().toLowerCase()
+      ) {
+        return {
+          success: false,
+          error: 'transfer account does not match the selected wallet',
+        };
+      }
+      this.#ensureSessionBinding();
+      const generationAtIntent = this.#sessionGeneration;
+      await this.#ensureSignerReady();
+      const accountIndex = await this.#ensureAccountIndex();
+      // The quote debits one Lighter account. Never sign a transfer from
+      // another one of the same wallet.
+      if (accountIndex !== params.accountIndex) {
+        return {
+          success: false,
+          error: 'transfer account does not match the Lighter account',
+        };
+      }
+      const memoBytes = Array.from(hexToBytes(memo));
+      const transfer = [
+        toAccountIndex,
+        assetIndex,
+        fromRouteType,
+        toRouteType,
+        amount,
+        usdcFee,
+      ] as const;
+      const result = await this.#withVenueNonce(
+        accountIndex,
+        async (nonce, submit) => {
+          const bridge = this.#getSignerBridge();
+          // The transfer plaintext embeds the nonce, so it is built for the
+          // nonce reserved here and signed with the user's L1 account.
+          const prepared = await bridge.execute({
+            function: '_getTransferTransaction',
+            params: [
+              accountIndex,
+              nonce,
+              this.#apiKeyIndex,
+              ...transfer,
+              memoBytes,
+            ],
+          });
+          if (prepared.error || !prepared.body) {
+            throw new Error(prepared.error ?? 'transfer plaintext is empty');
+          }
+          const l1Signature = await this.#walletService.signPersonalMessage(
+            prepared.body,
+          );
+          this.#assertSession(generationAtIntent);
+          const signed = await bridge.execute({
+            function: '_signTransfer',
+            params: [
+              accountIndex,
+              l1Signature,
+              nonce,
+              this.#apiKeyIndex,
+              ...transfer,
+              memoBytes,
+            ],
+          });
+          if (signed.error) {
+            throw new Error(signed.error);
+          }
+          return await submit(
+            LIGHTER_TX_TYPE_TRANSFER,
+            signed.txInfo,
+            undefined,
+            {
+              ...extractDispatchIdentity(signed),
+              intent: `transfer:${memo}`,
+            },
+          );
+        },
+        generationAtIntent,
+      );
+      return { success: true, txHash: result.txHash };
+    } catch (error) {
+      const wrappedError = ensureError(error, 'LighterProvider.submitTransfer');
+      this.#deps.debugLogger.log('[LighterProvider] submitTransfer failed', {
+        error: String(wrappedError),
+        ...this.#getErrorContext('submitTransfer'),
       });
       return { success: false, error: wrappedError.message };
     }
