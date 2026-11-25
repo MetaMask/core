@@ -7,9 +7,11 @@ import type { MutexInterface } from 'async-mutex';
 
 import type {
   AuthConnection,
+  PrimarySrpRepairType,
   SecretType,
   SeedlessOperationLifecycle,
 } from './constants.js';
+import type { SecretMetadata } from './SecretMetadata.js';
 
 /**
  * The backup state of the secret data.
@@ -391,6 +393,22 @@ export type DecodedNodeAuthToken = {
   verifier_id: string;
   scope: string;
   signature: string;
+};
+
+/**
+ * The result of comparing the remote primary SRP backup with the local primary
+ * SRP when they are not in sync.
+ *
+ * - `missing`: no remote mnemonic can be the primary secret.
+ * - `mismatch`: the remote primary SRP differs from the local one.
+ *
+ * `secretMetadata` is the parsed remote backup the result was derived from.
+ * `localPrimarySRP` is the local primary SRP read from the keyring.
+ */
+export type PrimarySrpRepairPlan = {
+  repairType: PrimarySrpRepairType;
+  secretMetadata: SecretMetadata[];
+  localPrimarySRP: Uint8Array;
 };
 
 export type DecodedBaseJWTToken = {

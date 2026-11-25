@@ -19,6 +19,7 @@ import {
   SRP2,
 } from '../../tests/__fixtures__/secret-metadata.js';
 import {
+  PrimarySrpRepairType,
   SecretType,
   SeedlessIdentityMismatchEventName,
   SeedlessIdentityMismatchReason,
@@ -170,10 +171,9 @@ describe('trackIncompleteMetadataBackupEvents', () => {
 
       await trackIncompleteMetadataBackupEvents({
         plan: {
-          type: 'missing',
+          repairType: PrimarySrpRepairType.Missing,
           secretMetadata: parseSecretMetadata(secretDataItems),
-          data: stringToBytes(SRP1.data),
-          dataType: EncAccountDataType.PrimarySrp,
+          localPrimarySRP: stringToBytes(SRP1.data),
         },
         trackEvent,
       });
@@ -219,8 +219,9 @@ describe('trackIncompleteMetadataBackupEvents', () => {
 
       await trackIncompleteMetadataBackupEvents({
         plan: {
-          type: 'mismatch',
+          repairType: PrimarySrpRepairType.Mismatch,
           secretMetadata: parseSecretMetadata(secretDataItems),
+          localPrimarySRP: stringToBytes(SRP1.data),
         },
         trackEvent,
       });
@@ -238,7 +239,11 @@ describe('trackIncompleteMetadataBackupEvents', () => {
     const trackEvent = vi.fn().mockRejectedValue(trackError);
 
     await trackIncompleteMetadataBackupEvents({
-      plan: { type: 'mismatch', secretMetadata: [] },
+      plan: {
+        repairType: PrimarySrpRepairType.Mismatch,
+        secretMetadata: [],
+        localPrimarySRP: stringToBytes(SRP1.data),
+      },
       trackEvent,
     });
 

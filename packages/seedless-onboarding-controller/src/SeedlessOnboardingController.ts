@@ -32,6 +32,7 @@ import {
   controllerName,
   PASSWORD_OUTDATED_CACHE_TTL_MS,
   PASSWORD_RECOVERY_OPERATIONS,
+  PrimarySrpRepairType,
   SecretType,
   SeedlessIdentityMismatchSource,
   SeedlessOnboardingControllerErrorMessage,
@@ -4400,10 +4401,9 @@ export class SeedlessOnboardingController<
         this.messenger.call('AnalyticsController:trackEvent', event),
     });
 
-    if (plan?.type === 'missing') {
+    if (plan?.repairType === PrimarySrpRepairType.Missing) {
       await this.#repairMissingPrimarySrpBackup({
-        data: plan.data,
-        dataType: plan.dataType,
+        localPrimarySRP: plan.localPrimarySRP,
         expectedIdentity: { userId, authConnectionId },
       });
     }
@@ -4417,18 +4417,15 @@ export class SeedlessOnboardingController<
    * it can't block the unlock flow.
    *
    * @param params - The repair to apply.
-   * @param params.data - The primary SRP to write.
-   * @param params.dataType - The data type to write it as.
+   * @param params.localPrimarySRP - The primary SRP to write.
    * @param params.expectedIdentity - The identity the repair was planned for.
    * The repair is aborted if the identity changed in the meantime.
    */
   async #repairMissingPrimarySrpBackup({
-    data,
-    dataType,
+    localPrimarySRP,
     expectedIdentity,
   }: {
-    data: Uint8Array;
-    dataType: EncAccountDataType.PrimarySrp;
+    localPrimarySRP: Uint8Array;
     expectedIdentity: { userId?: string; authConnectionId?: string };
   }): Promise<void> {
     try {
@@ -4451,11 +4448,14 @@ export class SeedlessOnboardingController<
             expectedIdentity,
           );
 
+          const primarySecretMeatdata = new SecretMetadata(localPrimarySRP, {
+            dataType: EncAccountDataType.PrimarySrp,
+          });
           await this.toprfClient.addSecretDataItem({
             encKey: toprfEncryptionKey,
-            secretData: new SecretMetadata(data, { dataType }).toBytes(),
+            secretData: primarySecretMeatdata.toBytes(),
             authKeyPair: toprfAuthKeyPair,
-            dataType,
+            dataType: EncAccountDataType.PrimarySrp,
           });
         }, 'repairMissingPrimarySrpBackup');
       });

@@ -16,7 +16,7 @@ import {
   SRP1,
   SRP2,
 } from '../../tests/__fixtures__/secret-metadata.js';
-import { SecretType } from '../constants.js';
+import { PrimarySrpRepairType, SecretType } from '../constants.js';
 import { serializeControlRecord } from '../envelope/envelope-keys.js';
 import type { ControlRecord } from '../envelope/envelope-keys.js';
 import { InvalidPrimarySecretDataTypeError } from './errors.js';
@@ -200,10 +200,9 @@ describe('secret data utilities', () => {
         });
 
         expect(repair).toStrictEqual({
-          type: 'missing',
+          repairType: PrimarySrpRepairType.Missing,
           secretMetadata: expect.any(Array),
-          data: localPrimarySrp,
-          dataType: EncAccountDataType.PrimarySrp,
+          localPrimarySRP: localPrimarySrp,
         });
         expect(repair?.secretMetadata).toHaveLength(secretDataItems.length);
         expect(logMock).not.toHaveBeenCalled();
@@ -229,8 +228,9 @@ describe('secret data utilities', () => {
       });
 
       expect(repair).toStrictEqual({
-        type: 'mismatch',
+        repairType: PrimarySrpRepairType.Mismatch,
         secretMetadata: expect.any(Array),
+        localPrimarySRP: localPrimarySrp,
       });
       expect(repair?.secretMetadata).toHaveLength(secretDataItems.length);
       expect(logMock).not.toHaveBeenCalled();

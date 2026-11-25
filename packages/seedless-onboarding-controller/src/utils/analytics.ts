@@ -8,6 +8,7 @@ import { sha256 } from '@noble/hashes/sha256';
 
 import {
   controllerName,
+  PrimarySrpRepairType,
   SecretType,
   SeedlessIdentityMismatchEventName,
   SeedlessIdentityMismatchReason,
@@ -19,9 +20,9 @@ import {
 import type { SeedlessIdentityMismatchSource } from '../constants.js';
 import { createModuleLogger, projectLogger } from '../logger.js';
 import { SecretMetadata } from '../SecretMetadata.js';
+import type { PrimarySrpRepairPlan } from '../types.js';
 import { isIdentityMismatchError } from './errors.js';
 import { isPrimarySecretCandidate } from './secret-data-utils.js';
-import type { PrimarySrpRepairPlan } from './secret-data-utils.js';
 
 export const SeedlessEnvelopeMigrationCheckpointEventName =
   'Seedless Onboarding Envelope Migration Checkpoint';
@@ -143,7 +144,7 @@ export async function trackIncompleteMetadataBackupEvents({
   try {
     await trackEvent({
       name:
-        plan.type === 'missing'
+        plan.repairType === PrimarySrpRepairType.Missing
           ? SeedlessPrimarySrpMissingEventName
           : SeedlessPrimarySrpMismatchEventName,
       properties: getIncompleteMetadataBackupEventProperties(
