@@ -1,5 +1,6 @@
 import type { DerivedIdentity } from '@metamask/chomp-api-service';
-import type { Hex } from '@metamask/utils';
+import { createDeferredPromise } from '@metamask/utils';
+import type { DeferredPromise, Hex } from '@metamask/utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -16,6 +17,7 @@ import {
   withController,
 } from '../tests/helpers.js';
 import { BindingMigrationIncompleteError } from './binding-migration.js';
+import type { BindingMigrationResult } from './binding-migration.js';
 
 const SUCCESSOR_CONTEXT = {
   migrationId:
@@ -175,6 +177,21 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
         ).toThrow("A binding migrator with the id 'vba' is already registered");
       });
     });
+
+    it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY, 2 ** 31])(
+      'throws when the timeout of the migrator is %d',
+      async (timeoutMs) => {
+        await withController(({ controller }) => {
+          expect(() =>
+            controller.registerBindingMigrator(
+              buildBindingMigrator({ id: 'vba', timeoutMs }),
+            ),
+          ).toThrow(
+            `The timeout of binding migrator 'vba' must be a positive number of milliseconds up to ${2 ** 31 - 1}`,
+          );
+        });
+      },
+    );
 
     it('records an unknown status and reports the error when the migrator cannot read its status', async () => {
       await withController(async ({ controller, mocks, init }) => {
@@ -570,6 +587,157 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
         expect(second.reconcile).not.toHaveBeenCalled();
         expect(controller.state.bindingMigrations).toStrictEqual({});
       });
+    });
+
+    it('keeps the last result of a migrator when its status is read again while the phase runs', async () => {
+      await withController(
+        async ({ controller, mocks, init, triggerMoneyAccountChange }) => {
+          await init();
+          mocks.getDerivedIdentities
+            .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+            .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+            .mockResolvedValueOnce({
+              identities: [MIGRATING_TO_SUCCESSOR_IDENTITY],
+            });
+          const first = buildBindingMigrator({ id: 'first' });
+          const second = buildBindingMigrator({ id: 'second' });
+          second.reconcile.mockImplementation(async () => {
+            await triggerMoneyAccountChange();
+            return { status: 'completed' };
+          });
+          controller.registerBindingMigrator(first);
+          controller.registerBindingMigrator(second);
+
+          await controller.startMigration();
+
+          expect(
+            controller.state.bindingMigrations.first?.lastResult,
+          ).toStrictEqual({ status: 'completed' });
+        },
+      );
+    });
+
+    describe('when a migrator takes too long', () => {
+      beforeEach(() => {
+        vi.useFakeTimers();
+      });
+
+      afterEach(() => {
+        vi.useRealTimers();
+      });
+
+      it('treats it as pending after 30 seconds, reports it, and runs the next migrator', async () => {
+        await withController(async ({ controller, mocks }) => {
+          mocks.getDerivedIdentities
+            .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+            .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+            .mockResolvedValue({
+              identities: [MIGRATING_TO_SUCCESSOR_IDENTITY],
+            });
+          const slow = buildBindingMigrator({ id: 'slow' });
+          slow.reconcile.mockReturnValue(new Promise(() => undefined));
+          const next = buildBindingMigrator({ id: 'next' });
+          controller.registerBindingMigrator(slow);
+          controller.registerBindingMigrator(next);
+
+          const migration = controller
+            .startMigration()
+            .catch((error: unknown) => error);
+          await vi.advanceTimersByTimeAsync(29_999);
+          expect(next.reconcile).not.toHaveBeenCalled();
+          await vi.advanceTimersByTimeAsync(1);
+
+          expect(await migration).toStrictEqual(
+            new BindingMigrationIncompleteError('afterLink', [
+              {
+                migratorId: 'slow',
+                result: {
+                  status: 'pending',
+                  reason: 'Timed out after 30000 ms',
+                },
+              },
+            ]),
+          );
+          expect(next.reconcile).toHaveBeenCalledTimes(1);
+          expect(mocks.captureException).toHaveBeenCalledWith(
+            new Error("Binding migrator 'slow' timed out after 30000 ms"),
+          );
+          expect(controller.state.bindingMigrations.slow?.lastError).toBe(
+            'Timed out after 30000 ms',
+          );
+        });
+      });
+
+      it('uses the timeout the migrator registered with', async () => {
+        await withController(async ({ controller }) => {
+          const slow = buildBindingMigrator({ id: 'slow', timeoutMs: 5000 });
+          slow.reconcile.mockReturnValue(new Promise(() => undefined));
+          controller.registerBindingMigrator(slow);
+
+          const migration = controller
+            .startMigration()
+            .catch((error: unknown) => error);
+          await vi.advanceTimersByTimeAsync(5000);
+
+          expect(await migration).toStrictEqual(
+            new BindingMigrationIncompleteError('afterLink', [
+              {
+                migratorId: 'slow',
+                result: {
+                  status: 'pending',
+                  reason: 'Timed out after 5000 ms',
+                },
+              },
+            ]),
+          );
+        });
+      });
+
+      it.each<{
+        description: string;
+        settle: (deferred: DeferredPromise<BindingMigrationResult>) => void;
+      }>([
+        {
+          description: 'completes',
+          settle: ({ resolve }): void => resolve({ status: 'completed' }),
+        },
+        {
+          description: 'fails',
+          settle: ({ reject }): void => reject(new Error('Too late')),
+        },
+      ])(
+        'ignores a migrator that $description after timing out',
+        async ({ settle }) => {
+          await withController(async ({ controller, mocks }) => {
+            mocks.getDerivedIdentities
+              .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+              .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+              .mockResolvedValue({
+                identities: [MIGRATING_TO_SUCCESSOR_IDENTITY],
+              });
+            const deferred = createDeferredPromise<BindingMigrationResult>();
+            const slow = buildBindingMigrator({ id: 'slow', timeoutMs: 1000 });
+            slow.reconcile.mockReturnValue(deferred.promise);
+            controller.registerBindingMigrator(slow);
+
+            const migration = controller
+              .startMigration()
+              .catch((error: unknown) => error);
+            await vi.advanceTimersByTimeAsync(1000);
+            await migration;
+            settle(deferred);
+            await vi.advanceTimersByTimeAsync(0);
+
+            expect(
+              controller.state.bindingMigrations.slow?.lastResult,
+            ).toStrictEqual({
+              status: 'pending',
+              reason: 'Timed out after 1000 ms',
+            });
+            expect(mocks.captureException).toHaveBeenCalledTimes(1);
+          });
+        },
+      );
     });
 
     it('does not wait for the migration to finish when no afterDone migrator is registered', async () => {

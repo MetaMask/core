@@ -60,6 +60,11 @@ export type BindingMigrator = {
   id: string;
   phase: BindingMigrationPhase;
   /**
+   * How long `reconcile` may take before it is treated as `pending`.
+   * Defaults to 30 seconds.
+   */
+  timeoutMs?: number;
+  /**
    * Brings the binding to the successor. Must be idempotent: safe to call any
    * number of times, after a crash, and concurrently from another device.
    * A thrown error is treated as `pending`.

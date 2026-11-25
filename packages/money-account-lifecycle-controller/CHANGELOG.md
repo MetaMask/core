@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Add `bindingMigrations` to `MoneyAccountLifecycleControllerState`, recording the status of each registered binding migrator while the Money Account is migrating or migrated ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
 - Add `registerBindingMigrator` method, also exposed through the messenger, so integrations bound to the Money Account address can be moved to the MPC Money Account during `startMigration` ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
+  - A migrator whose `reconcile` takes longer than its `timeoutMs` (30 seconds by default) is treated as pending
+- Add `moneyAccountLifecycleControllerSelectors.selectHasUnfinishedBindingMigrations`, which tells clients to call `startMigration` again ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
 
 ### Changed
 

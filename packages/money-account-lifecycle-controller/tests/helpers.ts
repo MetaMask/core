@@ -299,10 +299,14 @@ export type MockBindingMigrator = BindingMigrator & {
 export function buildBindingMigrator({
   id = 'test-migrator',
   phase = 'afterLink',
-}: Partial<Pick<BindingMigrator, 'id' | 'phase'>> = {}): MockBindingMigrator {
+  timeoutMs,
+}: Partial<
+  Pick<BindingMigrator, 'id' | 'phase' | 'timeoutMs'>
+> = {}): MockBindingMigrator {
   return {
     id,
     phase,
+    ...(timeoutMs === undefined ? {} : { timeoutMs }),
     reconcile: vi
       .fn<
         (context: BindingMigrationContext) => Promise<BindingMigrationResult>

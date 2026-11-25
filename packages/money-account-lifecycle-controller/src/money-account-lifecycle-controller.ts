@@ -78,6 +78,12 @@ const CONTROLLER_NAME = 'MoneyAccountLifecycleController';
 
 const FUNDS_TRANSFER_RETRY_DELAY_MS = 2000;
 
+const DEFAULT_BINDING_MIGRATOR_TIMEOUT_MS = 30_000;
+
+const MAX_TIMEOUT_MS = 2 ** 31 - 1;
+
+const TIMED_OUT = Symbol('timed out');
+
 const MIGRATION_DONE_TIMEOUT_MS = 60_000;
 
 const MIGRATION_DONE_FIRST_CHECK_DELAY_MS = 2000;
@@ -234,6 +240,11 @@ export class MoneyAccountLifecycleController extends BaseController<
   #isMigrationInFlight = false;
 
   readonly #bindingMigrators = new Map<string, BindingMigrator>();
+
+  readonly #bindingMigrationResults = new Map<
+    string,
+    Pick<BindingMigrationState, 'lastResult' | 'lastError'>
+  >();
 
   /**
    * Bumped by `clearState`. Upgrades and migrations capture it when they
@@ -574,6 +585,7 @@ export class MoneyAccountLifecycleController extends BaseController<
     this.#isFetchingDerivedIdentities = false;
     this.#derivedIdentities = undefined;
     this.#registrationStatusRequests.clear();
+    this.#bindingMigrationResults.clear();
 
     this.update(() => getDefaultMoneyAccountLifecycleControllerState());
   }
@@ -595,6 +607,15 @@ export class MoneyAccountLifecycleController extends BaseController<
     if (this.#bindingMigrators.has(migrator.id)) {
       throw new Error(
         `A binding migrator with the id '${migrator.id}' is already registered`,
+      );
+    }
+    const { timeoutMs } = migrator;
+    if (
+      timeoutMs !== undefined &&
+      !(timeoutMs > 0 && timeoutMs <= MAX_TIMEOUT_MS)
+    ) {
+      throw new Error(
+        `The timeout of binding migrator '${migrator.id}' must be a positive number of milliseconds up to ${MAX_TIMEOUT_MS}`,
       );
     }
     this.#bindingMigrators.set(migrator.id, migrator);
@@ -621,7 +642,7 @@ export class MoneyAccountLifecycleController extends BaseController<
     const bindingMigrations: MoneyAccountLifecycleControllerState['bindingMigrations'] =
       {};
     for (const migrator of this.#bindingMigrators.values()) {
-      const previous = this.state.bindingMigrations[migrator.id];
+      const previous = this.#bindingMigrationResults.get(migrator.id);
       bindingMigrations[migrator.id] = {
         phase: migrator.phase,
         status: this.#getBindingMigratorStatus(migrator, context),
@@ -832,15 +853,11 @@ export class MoneyAccountLifecycleController extends BaseController<
       );
       this.#assertReadyToMigrate();
 
-      this.#setBindingMigrations({
-        ...this.#buildBindingMigrations(context),
-        [migrator.id]: {
-          phase,
-          status: this.#getBindingMigratorStatus(migrator, context),
-          lastResult: result,
-          lastError: error ?? null,
-        },
+      this.#bindingMigrationResults.set(migrator.id, {
+        lastResult: result,
+        lastError: error ?? null,
       });
+      this.#setBindingMigrations(this.#buildBindingMigrations(context));
 
       if (result.status === 'pending' || result.status === 'blocked') {
         incomplete.push({ migratorId: migrator.id, result });
@@ -856,8 +873,26 @@ export class MoneyAccountLifecycleController extends BaseController<
     migrator: BindingMigrator,
     context: BindingMigrationContext,
   ): Promise<{ result: BindingMigrationResult; error?: string }> {
+    const timeoutMs = migrator.timeoutMs ?? DEFAULT_BINDING_MIGRATOR_TIMEOUT_MS;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
-      const result = await migrator.reconcile(context);
+      const reconciling = migrator.reconcile(context);
+      reconciling.catch(() => undefined);
+      const result = await Promise.race([
+        reconciling,
+        new Promise<typeof TIMED_OUT>((resolve) => {
+          timeoutId = setTimeout(() => resolve(TIMED_OUT), timeoutMs);
+        }),
+      ]);
+      if (result === TIMED_OUT) {
+        const reason = `Timed out after ${timeoutMs} ms`;
+        this.#reportError(
+          new Error(
+            `Binding migrator '${migrator.id}' timed out after ${timeoutMs} ms`,
+          ),
+        );
+        return { result: { status: 'pending', reason }, error: reason };
+      }
       if (result.status === 'blocked') {
         this.#reportError(
           new Error(
@@ -870,6 +905,8 @@ export class MoneyAccountLifecycleController extends BaseController<
       this.#reportError(error);
       const message = error instanceof Error ? error.message : String(error);
       return { result: { status: 'pending', reason: message }, error: message };
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
@@ -1115,6 +1152,7 @@ export class MoneyAccountLifecycleController extends BaseController<
         this.#derivedIdentitiesRequest = undefined;
         this.#isFetchingDerivedIdentities = false;
         this.#derivedIdentities = undefined;
+        this.#bindingMigrationResults.clear();
         this.#setBindingMigrations({});
         return;
       }

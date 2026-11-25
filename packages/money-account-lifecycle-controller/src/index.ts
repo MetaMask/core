@@ -14,6 +14,7 @@ export type {
   MoneyAccountLifecycleControllerStateChangedEvent,
 } from './money-account-lifecycle-controller.js';
 export type { MoneyAccountLifecycle } from './get-money-account-lifecycle.js';
+export { moneyAccountLifecycleControllerSelectors } from './selectors.js';
 export {
   BindingMigrationIncompleteError,
   getBindingMigrationId,
