@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The transaction does not need calldata.
   - The recipient is the index of the Lighter account owned by the transaction sender, looked up from the Lighter API.
 
+### Changed
+
+- Bump `@metamask/ramps-controller` from `^30.1.0` to `^31.0.0`
+
 ## [33.0.0]
 
 ### Added
