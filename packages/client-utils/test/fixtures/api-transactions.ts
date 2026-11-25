@@ -937,6 +937,36 @@ const transactions = {
       },
     ],
   },
+  mapsARelayedSponsoredErc20Send: {
+    hash: '0xrelayedsend',
+    timestamp: '2026-05-01T13:39:47.000Z',
+    chainId: 143,
+    blockNumber: 1,
+    blockHash: '0xrelayedblock',
+    gas: 100000,
+    gasUsed: 60000,
+    gasPrice: '1',
+    effectiveGasPrice: '1',
+    nonce: 0,
+    cumulativeGasUsed: 60000,
+    from: '0xrelayer',
+    to: '0xdelegationcontract',
+    methodId: '0xcef6d209',
+    value: '0',
+    transactionCategory: 'CONTRACT_CALL',
+    valueTransfers: [
+      {
+        from: addresses.subjectAddress,
+        to: addresses.baseRecipientAddress,
+        amount: '10000',
+        decimal: 6,
+        contractAddress: addresses.baseUsdc,
+        symbol: 'USDC',
+        name: 'USD Coin',
+        transferType: 'erc20',
+      },
+    ],
+  },
   mapsAFailedTransactionToA: {
     hash: '0xfailed',
     timestamp: '2026-05-12T13:37:47.000Z',
@@ -1249,6 +1279,10 @@ const mapArgs = {
   mapsAContractCallContractCall: {
     subjectAddress: addresses.subjectAddress,
     transaction: transactions.mapsAContractCallContractCall,
+  },
+  mapsARelayedSponsoredErc20Send: {
+    subjectAddress: addresses.subjectAddress,
+    transaction: transactions.mapsARelayedSponsoredErc20Send,
   },
   mapsAFailedTransactionToA: {
     subjectAddress: addresses.subjectAddress,
