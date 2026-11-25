@@ -41,6 +41,14 @@
       "types": "./dist/hmac.d.ts",
       "default": "./dist/hmac.js"
     },
+    "./ml-kem-768": {
+      "types": "./dist/ml-kem/ml-kem-768.d.ts",
+      "default": "./dist/ml-kem/ml-kem-768.js"
+    },
+    "./ml-kem-1024": {
+      "types": "./dist/ml-kem/ml-kem-1024.d.ts",
+      "default": "./dist/ml-kem/ml-kem-1024.js"
+    },
     "./pbkdf2": {
       "types": "./dist/pbkdf2.d.ts",
       "default": "./dist/pbkdf2.js"
