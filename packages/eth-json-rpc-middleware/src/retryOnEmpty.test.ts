@@ -414,6 +414,31 @@ describe('createRetryOnEmptyMiddleware', () => {
     });
   });
 
+  describe('when the block parameter is an EIP-1898 object selector', () => {
+    it.each([
+      { blockHash: `0x${'ab'.repeat(32)}`, requireCanonical: true },
+      { blockNumber: '0x123' },
+    ])('passes %o through to the next middleware', async (selector) => {
+      const finalMiddleware = createFinalMiddlewareWithDefaultResult();
+      const engine = createEngine(
+        createRetryOnEmptyMiddleware({ provider, blockTracker }),
+        finalMiddleware,
+      );
+      const request = createRequest({
+        method: 'eth_call',
+        params: [{ to: '0x1234' }, selector],
+      });
+      const requestSpy = stubProviderRequests(provider, [
+        createStubForBlockNumberRequest(),
+      ]);
+
+      await engine.handle(request);
+
+      expect(finalMiddleware).toHaveBeenCalledTimes(1);
+      expectProviderRequestNotToHaveBeenMade(requestSpy, request);
+    });
+  });
+
   describe('a method that does not take a block parameter', () => {
     // Using custom expect helper
     // eslint-disable-next-line vitest/expect-expect

@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/eth-sig-util` from `^10.0.0` to `^10.0.1` ([#11546](https://github.com/MetaMask/core/pull/11546))
 - Bump `safe-stable-stringify` from `^2.5.0` to `^3.0.1` ([#11581](https://github.com/MetaMask/core/pull/11581))
 
+### Fixed
+
+- Fix `createBlockCacheMiddleware` and `createRetryOnEmptyMiddleware` failing on EIP-1898 object block selectors (`{ blockHash }` / `{ blockNumber }`); such requests are now passed through to the next middleware without caching or retrying ([#11729](https://github.com/MetaMask/core/pull/11729))
+
 ## [26.0.1]
 
 ### Added

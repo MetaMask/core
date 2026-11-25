@@ -58,12 +58,17 @@ export function createRetryOnEmptyMiddleware({
       return next();
     }
     // skip if not exact block references
-    let blockRef: string | undefined =
+    let blockRef: Json | undefined =
       Array.isArray(request.params) && request.params[blockRefIndex]
-        ? (request.params[blockRefIndex] as string)
+        ? request.params[blockRefIndex]
         : undefined;
     // omitted blockRef implies "latest"
     blockRef ??= 'latest';
+
+    // skip EIP-1898 object selectors; leave them for the downstream to handle
+    if (typeof blockRef !== 'string') {
+      return next();
+    }
 
     // skip if non-number block reference
     if (['latest', 'pending'].includes(blockRef)) {
