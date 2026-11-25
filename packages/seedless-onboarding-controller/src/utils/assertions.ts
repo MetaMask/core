@@ -6,11 +6,15 @@ import type {
 import {
   SeedlessIdentityMismatchReason,
   SeedlessOnboardingControllerErrorMessage,
+  SeedlessOnboardingOperation,
 } from '../constants.js';
-import type { SeedlessIdentityMismatchSource } from '../constants.js';
-import { SeedlessOnboardingError } from '../errors.js';
+import type {
+  SeedlessIdentityMismatchSource,
+  SeedlessOperationLifecycle,
+} from '../constants.js';
 import type { AuthenticatedUserDetails, VaultData } from '../types.js';
 import { trackIdentityMismatchEvent } from './analytics.js';
+import { SeedlessOnboardingError } from './errors.js';
 import { decodeIdToken } from './token.js';
 
 /**
@@ -410,4 +414,32 @@ export function assertIdentityUnchangedAndTrackEvent({
     });
     throw error;
   }
+}
+
+/**
+ * Assert that no unresolved operation prevents starting a password change.
+ *
+ * Password changes have a specific recovery error. Any other unresolved
+ * operation uses the generic in-progress error so it is not misidentified as
+ * a password change.
+ *
+ * @param lifecycle - The lifecycle to check.
+ * @throws If the lifecycle is not empty and the operation is not a password change.
+ */
+export function assertCanChangePassword(
+  lifecycle?: SeedlessOperationLifecycle,
+): void {
+  if (lifecycle === undefined) {
+    return;
+  }
+
+  if (lifecycle.operation === SeedlessOnboardingOperation.PasswordChange) {
+    throw new SeedlessOnboardingError(
+      SeedlessOnboardingControllerErrorMessage.PasswordChangeInProgress,
+    );
+  }
+
+  throw new SeedlessOnboardingError(
+    SeedlessOnboardingControllerErrorMessage.OperationInProgress,
+  );
 }

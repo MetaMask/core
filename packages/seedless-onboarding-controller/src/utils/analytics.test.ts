@@ -30,13 +30,13 @@ import {
 } from '../constants.js';
 import { serializeControlRecord } from '../envelope/envelope-keys.js';
 import type { ControlRecord } from '../envelope/envelope-keys.js';
-import { SeedlessOnboardingError } from '../errors.js';
 import type { IncompleteMetadataBackupEventProperties } from './analytics.js';
 import {
   getIncompleteMetadataBackupEventProperties,
   trackIdentityMismatchEvent,
   trackIncompleteMetadataBackupEvents,
 } from './analytics.js';
+import { SeedlessOnboardingError } from './errors.js';
 import { parseSecretMetadata } from './secret-data-utils.js';
 
 const { logMock } = vi.hoisted(() => ({ logMock: vi.fn() }));

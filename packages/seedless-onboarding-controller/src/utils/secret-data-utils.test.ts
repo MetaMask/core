@@ -17,8 +17,9 @@ import {
 import { SecretType } from '../constants.js';
 import { serializeControlRecord } from '../envelope/envelope-keys.js';
 import type { ControlRecord } from '../envelope/envelope-keys.js';
-import { InvalidPrimarySecretDataTypeError } from '../errors.js';
+import { InvalidPrimarySecretDataTypeError } from './errors.js';
 import {
+  findSocialBackupMetadata,
   getCreatedAtMs,
   getDataTypeMigrationUpdates,
   getNewSocialBackupsMetadata,
@@ -456,6 +457,56 @@ describe('secret data utilities', () => {
       expect(results.map((result) => result.itemId)).toStrictEqual([
         'imported-srp',
       ]);
+    });
+  });
+
+  describe('findSocialBackupMetadata', () => {
+    it('finds a backup by its data hash and type', () => {
+      const data = stringToBytes('seed phrase');
+      const backup = {
+        hash: keccak256AndHexify(data),
+        type: SecretType.Mnemonic,
+        keyringId: 'keyring-id',
+      };
+
+      expect(
+        findSocialBackupMetadata([backup], data, SecretType.Mnemonic),
+      ).toBe(backup);
+    });
+
+    it('finds a backup by its data hash and `Mnemonic` type without specifying the type', () => {
+      const data = stringToBytes('seed phrase');
+      const backup = {
+        hash: keccak256AndHexify(data),
+        type: SecretType.Mnemonic,
+        keyringId: 'keyring-id',
+      };
+
+      expect(findSocialBackupMetadata([backup], data)).toBe(backup);
+    });
+
+    it('finds a private key backup when the type is specified', () => {
+      const data = stringToBytes('private key');
+      const backup = {
+        hash: keccak256AndHexify(data),
+        type: SecretType.PrivateKey,
+      };
+
+      expect(
+        findSocialBackupMetadata([backup], data, SecretType.PrivateKey),
+      ).toBe(backup);
+    });
+
+    it('returns undefined when the type does not match', () => {
+      const data = stringToBytes('same bytes');
+      const backup = {
+        hash: keccak256AndHexify(data),
+        type: SecretType.Mnemonic,
+      };
+
+      expect(
+        findSocialBackupMetadata([backup], data, SecretType.PrivateKey),
+      ).toBeUndefined();
     });
   });
 });

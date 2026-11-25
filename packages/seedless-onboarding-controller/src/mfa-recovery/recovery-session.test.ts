@@ -7,8 +7,8 @@ import type { Mock } from 'vitest';
 import { describe, expect, it, vi } from 'vitest';
 
 import { SeedlessOnboardingControllerErrorMessage } from '../constants.js';
-import { SeedlessOnboardingError } from '../errors.js';
 import type { RecoverySession } from '../types.js';
+import { SeedlessOnboardingError } from '../utils/errors.js';
 import {
   decodeAal2Token,
   isRecoverySessionValid,

@@ -83,6 +83,10 @@ export const SocialServiceErrorMessage = {
   FETCH_QUOTE_TOKENS_FAILED: 'SocialService: Quote tokens request failed',
   FETCH_QUOTE_TOKENS_INVALID_RESPONSE:
     'SocialService: Quote tokens returned invalid response',
+  FETCH_SUPPORTED_NETWORKS_FAILED:
+    'SocialService: Supported networks request failed',
+  FETCH_SUPPORTED_NETWORKS_INVALID_RESPONSE:
+    'SocialService: Supported networks returned invalid response',
   FETCH_TRENDING_GIFS_FAILED: 'SocialService: Trending GIFs request failed',
   FETCH_TRENDING_GIFS_INVALID_RESPONSE:
     'SocialService: Trending GIFs returned invalid response',

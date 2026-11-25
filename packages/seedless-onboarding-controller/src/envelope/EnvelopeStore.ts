@@ -10,8 +10,8 @@ import {
   controllerName,
   SeedlessOnboardingControllerErrorMessage,
 } from '../constants.js';
-import { SeedlessOnboardingError } from '../errors.js';
 import { createModuleLogger, projectLogger } from '../logger.js';
+import { SeedlessOnboardingError } from '../utils/errors.js';
 import { isAuthTokenError } from '../utils/index.js';
 import {
   sortNewestFirst,

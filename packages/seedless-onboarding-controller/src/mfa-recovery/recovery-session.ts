@@ -7,9 +7,9 @@ import {
   controllerName,
   SeedlessOnboardingControllerErrorMessage,
 } from '../constants.js';
-import { SeedlessOnboardingError } from '../errors.js';
 import { createModuleLogger, projectLogger } from '../logger.js';
 import type { RecoverySession } from '../types.js';
+import { SeedlessOnboardingError } from '../utils/errors.js';
 import { decodeJWTToken, isAuthTokenError } from '../utils/index.js';
 
 const log = createModuleLogger(projectLogger, controllerName);

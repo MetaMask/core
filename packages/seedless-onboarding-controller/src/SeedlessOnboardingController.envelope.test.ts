@@ -38,8 +38,11 @@ import {
 import { deriveTestEnvelopeKeys } from '../tests/mocks/envelopeKeys.js';
 import { createMockJWTToken } from '../tests/mocks/utils.js';
 import {
+  PasswordSyncInstruction,
+  SeedlessOnboardingCheckpoint,
   SeedlessOnboardingControllerErrorMessage,
   SeedlessOnboardingMigrationVersion,
+  SeedlessOnboardingOperation,
 } from './constants.js';
 import {
   packEnvelope,
@@ -50,7 +53,6 @@ import {
 } from './envelope/envelope-keys.js';
 import type { ControlRecord, VaultKeySet } from './envelope/envelope-keys.js';
 import { EnvelopeStore } from './envelope/EnvelopeStore.js';
-import { SeedlessOnboardingError } from './errors.js';
 import { SecretMetadata } from './SecretMetadata.js';
 import { getEnvelopeStatus } from './state.js';
 import type {
@@ -58,6 +60,7 @@ import type {
   SeedlessOnboardingControllerState,
 } from './types.js';
 import { SeedlessEnvelopeMigrationCheckpointEventName } from './utils/analytics.js';
+import { SeedlessOnboardingError } from './utils/errors.js';
 
 describe('SeedlessOnboardingController', () => {
   describe('MFA recovery', () => {
@@ -1233,7 +1236,7 @@ describe('SeedlessOnboardingController', () => {
             const network = mockNetwork(toprfClient);
             const socialLogin = socialLoginOf(controller.state);
 
-            baseMessenger.call('SeedlessOnboardingController:clearState');
+            await baseMessenger.call('SeedlessOnboardingController:clearState');
 
             vi.spyOn(toprfClient, 'authenticate').mockResolvedValueOnce({
               nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
@@ -2490,8 +2493,8 @@ describe('SeedlessOnboardingController', () => {
             expectNoMigrationWrites(network);
             expect(controller.state.envelope).toBeUndefined();
             expect(
-              await controller.checkIsPasswordOutdated({ skipCache: true }),
-            ).toBe(true);
+              await controller.resolvePasswordSyncState({ skipCache: true }),
+            ).toBe(PasswordSyncInstruction.PasswordOutdated);
           });
         });
 
@@ -2519,8 +2522,8 @@ describe('SeedlessOnboardingController', () => {
               expectedEnvelopeState(),
             );
             expect(
-              await controller.checkIsPasswordOutdated({ skipCache: true }),
-            ).toBe(true);
+              await controller.resolvePasswordSyncState({ skipCache: true }),
+            ).toBe(PasswordSyncInstruction.PasswordOutdated);
           });
         });
 
@@ -2534,9 +2537,11 @@ describe('SeedlessOnboardingController', () => {
               globalPassword: NEW_PASSWORD,
               recoverySecret: RECOVERY_SECRET_HEX,
             });
-            await controller.syncLatestGlobalPassword({
+            await controller.reconcilePassword({
               globalPassword: NEW_PASSWORD,
             });
+            await controller.markPasswordChangeKeySyncPending();
+            await controller.completePasswordChange();
             await authenticateAal2(args, { hasRecoveryShare: true });
 
             await migrateToEnvelope(args);
@@ -2558,9 +2563,11 @@ describe('SeedlessOnboardingController', () => {
               globalPassword: NEW_PASSWORD,
               recoverySecret: RECOVERY_SECRET_HEX,
             });
-            await controller.syncLatestGlobalPassword({
+            await controller.reconcilePassword({
               globalPassword: NEW_PASSWORD,
             });
+            await controller.markPasswordChangeKeySyncPending();
+            await controller.completePasswordChange();
             deleteControlRecords(network.store);
             await authenticateAal2(args, { hasRecoveryShare: true });
 
@@ -3145,8 +3152,13 @@ describe('SeedlessOnboardingController', () => {
           });
           expect(controller.state.authPubKey).toBe(authPubKeyOf(MOCK_PASSWORD));
           expect(
-            await controller.checkIsPasswordOutdated({ skipCache: true }),
-          ).toBe(false);
+            await controller.resolvePasswordSyncState({ skipCache: true }),
+          ).toBe(PasswordSyncInstruction.ReconcileKeyring);
+          await controller.markPasswordChangeKeySyncPending();
+          await controller.completePasswordChange();
+          expect(
+            await controller.resolvePasswordSyncState({ skipCache: true }),
+          ).toBe(PasswordSyncInstruction.InSync);
           expect(
             await controller.verifyVaultPassword(NEW_PASSWORD),
           ).toBeUndefined();
@@ -3209,6 +3221,8 @@ describe('SeedlessOnboardingController', () => {
             NEW_PASSWORD,
             MOCK_PASSWORD,
           );
+          await controller.markPasswordChangeKeySyncPending();
+          await controller.completePasswordChange();
           network.spies.persistLocalKey.mockClear();
 
           await baseMessenger.call(
@@ -3353,9 +3367,14 @@ describe('SeedlessOnboardingController', () => {
             authPubKey: keysFor('unknown').authKeyPair.pk,
             keyIndex: 1,
           });
-          vi.spyOn(controller, 'checkIsPasswordOutdated').mockResolvedValue(
-            false,
-          );
+          // @ts-expect-error Accessing protected method for testing
+          controller.update((state) => {
+            state.envelope = {
+              v: 1,
+              vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+              passwordAuthPubKey: authPubKeyOf('unknown'),
+            };
+          });
 
           await expect(
             baseMessenger.call(
@@ -3483,7 +3502,7 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    describe('syncLatestGlobalPassword on an envelope-managed vault', () => {
+    describe('reconcilePassword on an envelope-managed vault', () => {
       it('keeps the vault keys and re-encrypts the vault under the global password', async () => {
         const store: MetadataStore = new Map();
         await withUnlockedController(async (args) => {
@@ -3499,10 +3518,11 @@ describe('SeedlessOnboardingController', () => {
           mockNetwork(toprfClient, { store, globalPassword: NEW_PASSWORD });
           const { authPubKey } = controller.state;
 
-          await controller.syncLatestGlobalPassword({
+          const instruction = await controller.reconcilePassword({
             globalPassword: NEW_PASSWORD,
           });
 
+          expect(instruction).toBe(PasswordSyncInstruction.ReconcileKeyring);
           expect(controller.state.authPubKey).toBe(authPubKey);
           expect(controller.state.envelope).toStrictEqual({
             v: 1,
@@ -3513,8 +3533,13 @@ describe('SeedlessOnboardingController', () => {
             await controller.verifyVaultPassword(NEW_PASSWORD),
           ).toBeUndefined();
           expect(
-            await controller.checkIsPasswordOutdated({ skipCache: true }),
-          ).toBe(false);
+            await controller.resolvePasswordSyncState({ skipCache: true }),
+          ).toBe(PasswordSyncInstruction.ReconcileKeyring);
+          await controller.markPasswordChangeKeySyncPending();
+          await controller.completePasswordChange();
+          expect(
+            await controller.resolvePasswordSyncState({ skipCache: true }),
+          ).toBe(PasswordSyncInstruction.InSync);
         });
       });
 
@@ -3525,21 +3550,30 @@ describe('SeedlessOnboardingController', () => {
         });
         storeSeedPhrase(store, vaultKeySetFor());
 
-        await withUnlockedController(async ({ controller, toprfClient }) => {
-          mockNetwork(toprfClient, { store });
-          expect(controller.state.envelope).toBeUndefined();
+        await withUnlockedController(
+          async ({ controller, toprfClient }) => {
+            mockNetwork(toprfClient, { store });
+            vi.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValue({
+              pwEncKey: keysFor('stale-password').pwEncKey,
+            });
+            expect(controller.state.envelope).toBeUndefined();
 
-          await controller.syncLatestGlobalPassword({
-            globalPassword: MOCK_PASSWORD,
-          });
+            const instruction = await controller.reconcilePassword({
+              globalPassword: MOCK_PASSWORD,
+            });
 
-          expect(controller.state.authPubKey).toBe(authPubKeyOf(MOCK_PASSWORD));
-          expect(controller.state.envelope).toStrictEqual({
-            v: 1,
-            vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
-            passwordAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
-          });
-        });
+            expect(instruction).toBe(PasswordSyncInstruction.ReconcileKeyring);
+            expect(controller.state.authPubKey).toBe(
+              authPubKeyOf(MOCK_PASSWORD),
+            );
+            expect(controller.state.envelope).toStrictEqual({
+              v: 1,
+              vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+              passwordAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+            });
+          },
+          { password: 'stale-password' },
+        );
       });
 
       it('keeps the envelope state of a migrated vault that has no password envelope yet', async () => {
@@ -3547,10 +3581,11 @@ describe('SeedlessOnboardingController', () => {
           const { controller, toprfClient } = args;
           await migrate(args, mockNetwork(toprfClient));
 
-          await controller.syncLatestGlobalPassword({
+          const instruction = await controller.reconcilePassword({
             globalPassword: MOCK_PASSWORD,
           });
 
+          expect(instruction).toBe(PasswordSyncInstruction.InSync);
           expect(controller.state.envelope).toStrictEqual({
             v: 1,
             vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
@@ -3571,7 +3606,7 @@ describe('SeedlessOnboardingController', () => {
           const { vault, envelope, authPubKey } = controller.state;
 
           await expect(
-            controller.syncLatestGlobalPassword({
+            controller.reconcilePassword({
               globalPassword: NEW_PASSWORD,
             }),
           ).rejects.toThrow(
@@ -3599,7 +3634,7 @@ describe('SeedlessOnboardingController', () => {
           const { vault, envelope, authPubKey } = controller.state;
 
           await expect(
-            controller.syncLatestGlobalPassword({
+            controller.reconcilePassword({
               globalPassword: NEW_PASSWORD,
             }),
           ).rejects.toThrow(
@@ -3635,7 +3670,7 @@ describe('SeedlessOnboardingController', () => {
           const { vault } = controller.state;
 
           await expect(
-            controller.syncLatestGlobalPassword({
+            controller.reconcilePassword({
               globalPassword: NEW_PASSWORD,
             }),
           ).rejects.toThrow(
@@ -3658,11 +3693,14 @@ describe('SeedlessOnboardingController', () => {
 
         await withUnlockedController(async ({ controller, toprfClient }) => {
           mockNetwork(toprfClient, { store, globalPassword: NEW_PASSWORD });
+          vi.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValue({
+            pwEncKey: keysFor(MOCK_PASSWORD).pwEncKey,
+          });
           expect(controller.state.envelope).toBeUndefined();
           const { vault, authPubKey } = controller.state;
 
           await expect(
-            controller.syncLatestGlobalPassword({
+            controller.reconcilePassword({
               globalPassword: NEW_PASSWORD,
             }),
           ).rejects.toThrow(
@@ -3704,7 +3742,7 @@ describe('SeedlessOnboardingController', () => {
           const { vault, authPubKey } = controller.state;
 
           await expect(
-            controller.syncLatestGlobalPassword({
+            controller.reconcilePassword({
               globalPassword: NEW_PASSWORD,
             }),
           ).rejects.toThrow(
@@ -3734,7 +3772,7 @@ describe('SeedlessOnboardingController', () => {
           const { vault, envelope } = controller.state;
 
           await expect(
-            controller.syncLatestGlobalPassword({
+            controller.reconcilePassword({
               globalPassword: 'other-password',
             }),
           ).rejects.toThrow(
@@ -3754,15 +3792,17 @@ describe('SeedlessOnboardingController', () => {
           network.spies.fetchAllSecretDataItems.mockRejectedValue(
             new Error('network'),
           );
+          const recoverPwEncKeySpy = vi.spyOn(toprfClient, 'recoverPwEncKey');
           const { vault } = controller.state;
 
           await expect(
-            controller.syncLatestGlobalPassword({
+            controller.reconcilePassword({
               globalPassword: NEW_PASSWORD,
             }),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.FailedToFetchSecretMetadata,
+            SeedlessOnboardingControllerErrorMessage.CouldNotRecoverPassword,
           );
+          expect(recoverPwEncKeySpy).not.toHaveBeenCalled();
           expect(controller.state.vault).toBe(vault);
         });
       });
@@ -3788,7 +3828,7 @@ describe('SeedlessOnboardingController', () => {
             const { vault } = controller.state;
 
             await expect(
-              controller.syncLatestGlobalPassword({ globalPassword }),
+              controller.reconcilePassword({ globalPassword }),
             ).rejects.toThrow(expectedError);
 
             expect(network.spies.recoverEncKey).not.toHaveBeenCalled();
@@ -3799,10 +3839,8 @@ describe('SeedlessOnboardingController', () => {
           });
         },
       );
-    });
 
-    describe('submitGlobalPassword on an envelope-managed vault', () => {
-      it('unlocks with the vault keys sealed for the global password', async () => {
+      it('unlocks with the vault keys sealed for the global password when locked', async () => {
         const store: MetadataStore = new Map();
         await withUnlockedController(async (args) => {
           await migrate(args, mockNetwork(args.toprfClient, { store }));
@@ -3819,7 +3857,7 @@ describe('SeedlessOnboardingController', () => {
             const recoverPwEncKeySpy = vi.spyOn(toprfClient, 'recoverPwEncKey');
             await baseMessenger.call('SeedlessOnboardingController:setLocked');
 
-            await controller.submitGlobalPassword({
+            await controller.reconcilePassword({
               globalPassword: NEW_PASSWORD,
             });
 
@@ -3828,7 +3866,7 @@ describe('SeedlessOnboardingController', () => {
               true,
             );
             expect(
-              await controller.verifyVaultPassword(MOCK_PASSWORD),
+              await controller.verifyVaultPassword(NEW_PASSWORD),
             ).toBeUndefined();
           },
         );
@@ -3846,9 +3884,17 @@ describe('SeedlessOnboardingController', () => {
             const recoverPwEncKeySpy = vi
               .spyOn(toprfClient, 'recoverPwEncKey')
               .mockRejectedValue(new Error('unexpected recoverPwEncKey'));
+            // @ts-expect-error Accessing protected method for testing
+            controller.update((state) => {
+              state.envelope = {
+                v: 1,
+                vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+                passwordAuthPubKey: authPubKeyOf('stale-password'),
+              };
+            });
             await baseMessenger.call('SeedlessOnboardingController:setLocked');
 
-            await controller.submitGlobalPassword({
+            await controller.reconcilePassword({
               globalPassword: MOCK_PASSWORD,
             });
 
@@ -3863,11 +3909,45 @@ describe('SeedlessOnboardingController', () => {
         );
       });
 
+      it('throws PasswordEnvelopeNotFound when a migrated vault without a password envelope loses its control record', async () => {
+        const store: MetadataStore = new Map();
+        await withUnlockedController(async (args) => {
+          await migrate(args, mockNetwork(args.toprfClient, { store }));
+        });
+        deleteControlRecords(store);
+
+        await withUnlockedController(async ({ controller, toprfClient }) => {
+          mockNetwork(toprfClient, { store, globalPassword: MOCK_PASSWORD });
+          const envelope = {
+            v: 1 as const,
+            vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+            passwordAuthPubKey: authPubKeyOf('stale-password'),
+          };
+          // @ts-expect-error Accessing protected method for testing
+          controller.update((state) => {
+            state.envelope = envelope;
+          });
+          const { vault } = controller.state;
+
+          await expect(
+            controller.reconcilePassword({
+              globalPassword: MOCK_PASSWORD,
+            }),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.PasswordEnvelopeNotFound,
+          );
+
+          expect(controller.state.vault).toBe(vault);
+          expect(controller.state.envelope).toStrictEqual(envelope);
+        });
+      });
+
       it('walks the password key chain from the vault keys when the device lags behind', async () => {
         const store: MetadataStore = new Map();
         await withUnlockedController(async (args) => {
           await migrate(args, mockNetwork(args.toprfClient, { store }));
         });
+        storeSeedPhrase(store, vaultKeySetFor());
 
         await withUnlockedController(
           async ({ controller, toprfClient, baseMessenger }) => {
@@ -3879,7 +3959,7 @@ describe('SeedlessOnboardingController', () => {
               });
             await baseMessenger.call('SeedlessOnboardingController:setLocked');
 
-            await controller.submitGlobalPassword({
+            await controller.reconcilePassword({
               globalPassword: MOCK_PASSWORD,
             });
 
@@ -3891,32 +3971,10 @@ describe('SeedlessOnboardingController', () => {
               maxPwChainLength: 5,
             });
             expect(
-              await controller.verifyVaultPassword('stale-password'),
+              await controller.verifyVaultPassword(MOCK_PASSWORD),
             ).toBeUndefined();
           },
           { password: 'stale-password' },
-        );
-      });
-
-      it('does not treat a failed envelope fetch as a legacy vault', async () => {
-        await withUnlockedController(
-          async ({ controller, toprfClient, baseMessenger }) => {
-            const network = mockNetwork(toprfClient);
-            network.spies.fetchAllSecretDataItems.mockRejectedValue(
-              new Error('network'),
-            );
-            const recoverPwEncKeySpy = vi.spyOn(toprfClient, 'recoverPwEncKey');
-            await baseMessenger.call('SeedlessOnboardingController:setLocked');
-
-            await expect(
-              controller.submitGlobalPassword({
-                globalPassword: MOCK_PASSWORD,
-              }),
-            ).rejects.toThrow(
-              SeedlessOnboardingControllerErrorMessage.CouldNotRecoverPassword,
-            );
-            expect(recoverPwEncKeySpy).not.toHaveBeenCalled();
-          },
         );
       });
     });
@@ -4251,12 +4309,12 @@ describe('SeedlessOnboardingController', () => {
           });
           await paused;
 
-          controller.clearState();
+          const clearPromise = controller.clearState();
           vi.spyOn(toprfClient, 'authenticate').mockResolvedValueOnce({
             nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
             isNewUser: false,
           });
-          await baseMessenger.call(
+          const authPromise = baseMessenger.call(
             'SeedlessOnboardingController:authenticate',
             {
               ...login,
@@ -4266,7 +4324,6 @@ describe('SeedlessOnboardingController', () => {
               metadataAccessToken: 'other-metadata-access-token',
               refreshToken: 'other-refresh-token',
               revokeToken: 'other-revoke-token',
-              skipLock: true,
             },
           );
 
@@ -4274,6 +4331,8 @@ describe('SeedlessOnboardingController', () => {
           await expect(restorePromise).rejects.toThrow(
             'Session was cleared during token refresh',
           );
+          await clearPromise;
+          await authPromise;
 
           expect(controller.state.userId).toBe('other-user@example.com');
           expect(controller.state.accessToken).toBe('other-access-token');
@@ -4419,19 +4478,30 @@ describe('SeedlessOnboardingController', () => {
         });
       });
 
-      it('syncLatestGlobalPassword does not mark the vault envelope-managed when no control record matches the password', async () => {
-        await withUnlockedController(async ({ controller, toprfClient }) => {
-          const network = mockNetwork(toprfClient);
-          storeSeedPhrase(network.store, vaultKeySetFor());
-          storeControlRecord(network.store, controlRecordFor('other-password'));
+      it('reconcilePassword does not mark the vault envelope-managed when no control record matches the password', async () => {
+        await withUnlockedController(
+          async ({ controller, toprfClient }) => {
+            const network = mockNetwork(toprfClient);
+            vi.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValue({
+              pwEncKey: keysFor('stale-password').pwEncKey,
+            });
+            storeSeedPhrase(network.store, vaultKeySetFor());
+            storeControlRecord(
+              network.store,
+              controlRecordFor('other-password'),
+            );
 
-          await controller.syncLatestGlobalPassword({
-            globalPassword: MOCK_PASSWORD,
-          });
+            await controller.reconcilePassword({
+              globalPassword: MOCK_PASSWORD,
+            });
 
-          expect(controller.state.envelope).toBeUndefined();
-          expect(controller.state.authPubKey).toBe(authPubKeyOf(MOCK_PASSWORD));
-        });
+            expect(controller.state.envelope).toBeUndefined();
+            expect(controller.state.authPubKey).toBe(
+              authPubKeyOf(MOCK_PASSWORD),
+            );
+          },
+          { password: 'stale-password' },
+        );
       });
 
       it('runMigrations migrates the secrets and ignores the control records', async () => {
@@ -4521,7 +4591,7 @@ describe('SeedlessOnboardingController', () => {
       });
     });
 
-    describe('checkIsPasswordOutdated on an envelope-managed vault', () => {
+    describe('resolvePasswordSyncState on an envelope-managed vault', () => {
       it('compares against the password OPRF key the vault last synced with', async () => {
         await withUnlockedController(async (args) => {
           const { controller, toprfClient } = args;
@@ -4529,14 +4599,14 @@ describe('SeedlessOnboardingController', () => {
           await migrate(args, network);
 
           expect(
-            await controller.checkIsPasswordOutdated({ skipCache: true }),
-          ).toBe(false);
+            await controller.resolvePasswordSyncState({ skipCache: true }),
+          ).toBe(PasswordSyncInstruction.InSync);
 
           network.setGlobalPassword(NEW_PASSWORD);
 
           expect(
-            await controller.checkIsPasswordOutdated({ skipCache: true }),
-          ).toBe(true);
+            await controller.resolvePasswordSyncState({ skipCache: true }),
+          ).toBe(PasswordSyncInstruction.PasswordOutdated);
         });
       });
     });
@@ -4730,14 +4800,14 @@ describe('SeedlessOnboardingController', () => {
           await recover(args);
 
           expect(
-            await controller.checkIsPasswordOutdated({ skipCache: true }),
-          ).toBe(false);
+            await controller.resolvePasswordSyncState({ skipCache: true }),
+          ).toBe(PasswordSyncInstruction.InSync);
 
           network.setGlobalPassword('other-password');
 
           expect(
-            await controller.checkIsPasswordOutdated({ skipCache: true }),
-          ).toBe(true);
+            await controller.resolvePasswordSyncState({ skipCache: true }),
+          ).toBe(PasswordSyncInstruction.PasswordOutdated);
         });
       });
 
@@ -5213,12 +5283,12 @@ describe('SeedlessOnboardingController', () => {
           );
           await paused;
 
-          controller.clearState();
+          const clearPromise = controller.clearState();
           vi.spyOn(toprfClient, 'authenticate').mockResolvedValueOnce({
             nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
             isNewUser: false,
           });
-          await baseMessenger.call(
+          const authPromise = baseMessenger.call(
             'SeedlessOnboardingController:authenticate',
             {
               ...login,
@@ -5228,7 +5298,6 @@ describe('SeedlessOnboardingController', () => {
               metadataAccessToken: 'other-metadata-access-token',
               refreshToken: 'other-refresh-token',
               revokeToken: 'other-revoke-token',
-              skipLock: true,
             },
           );
 
@@ -5236,6 +5305,8 @@ describe('SeedlessOnboardingController', () => {
           await expect(recoverPromise).rejects.toThrow(
             'Session was cleared during token refresh',
           );
+          await clearPromise;
+          await authPromise;
 
           expect(controller.state.userId).toBe('other-user@example.com');
           expect(controller.state.accessToken).toBe('other-access-token');
@@ -5261,10 +5332,11 @@ describe('SeedlessOnboardingController', () => {
           });
           await recover(args);
 
-          await controller.syncLatestGlobalPassword({
+          const instruction = await controller.reconcilePassword({
             globalPassword: NEW_PASSWORD,
           });
 
+          expect(instruction).toBe(PasswordSyncInstruction.ReconcileKeyring);
           expect(controller.state.isLocalPassword).toBeUndefined();
           expect(controller.state.envelope).toStrictEqual({
             v: 1,
@@ -5272,8 +5344,13 @@ describe('SeedlessOnboardingController', () => {
             passwordAuthPubKey: authPubKeyOf(NEW_PASSWORD),
           });
           expect(
-            await controller.checkIsPasswordOutdated({ skipCache: true }),
-          ).toBe(false);
+            await controller.resolvePasswordSyncState({ skipCache: true }),
+          ).toBe(PasswordSyncInstruction.ReconcileKeyring);
+          await controller.markPasswordChangeKeySyncPending();
+          await controller.completePasswordChange();
+          expect(
+            await controller.resolvePasswordSyncState({ skipCache: true }),
+          ).toBe(PasswordSyncInstruction.InSync);
           expect(
             await controller.verifyVaultPassword(NEW_PASSWORD),
           ).toBeUndefined();
@@ -5309,8 +5386,13 @@ describe('SeedlessOnboardingController', () => {
             passwordAuthPubKey: authPubKeyOf('changed-password'),
           });
           expect(
-            await controller.checkIsPasswordOutdated({ skipCache: true }),
-          ).toBe(false);
+            await controller.resolvePasswordSyncState({ skipCache: true }),
+          ).toBe(PasswordSyncInstruction.ReconcileKeyring);
+          await controller.markPasswordChangeKeySyncPending();
+          await controller.completePasswordChange();
+          expect(
+            await controller.resolvePasswordSyncState({ skipCache: true }),
+          ).toBe(PasswordSyncInstruction.InSync);
           expect(
             await controller.verifyVaultPassword('changed-password'),
           ).toBeUndefined();
@@ -5537,7 +5619,7 @@ describe('SeedlessOnboardingController', () => {
               recoverySecret: RECOVERY_SECRET_HEX,
             });
             await recover(args);
-            await controller.checkIsPasswordOutdated({ skipCache: true });
+            await controller.resolvePasswordSyncState({ skipCache: true });
             expect(controller.state.recoverySession).toBeDefined();
             expect(controller.state.envelope).toBeDefined();
             expect(controller.state.isLocalPassword).toBe(true);
@@ -5684,8 +5766,8 @@ describe('SeedlessOnboardingController', () => {
           });
           expect(controller.state.isLocalPassword).toBeUndefined();
           expect(
-            await controller.checkIsPasswordOutdated({ skipCache: true }),
-          ).toBe(false);
+            await controller.resolvePasswordSyncState({ skipCache: true }),
+          ).toBe(PasswordSyncInstruction.InSync);
           expect(
             await controller.verifyVaultPassword(RECOVERED_PASSWORD),
           ).toBeUndefined();
@@ -6159,7 +6241,7 @@ describe('SeedlessOnboardingController', () => {
             recoverySecret: RECOVERY_SECRET_HEX,
           });
           await recover(args);
-          await controller.checkIsPasswordOutdated({ skipCache: true });
+          await controller.resolvePasswordSyncState({ skipCache: true });
           expect(controller.state.passwordOutdatedCache).toBeDefined();
           expect(controller.state.isLocalPassword).toBe(true);
 
@@ -6188,7 +6270,7 @@ describe('SeedlessOnboardingController', () => {
         });
       });
 
-      it('emits a single stateChange with complete state during syncLatestGlobalPassword', async () => {
+      it('emits a single vault stateChange with complete state during reconcilePassword', async () => {
         const store: MetadataStore = new Map();
         await withUnlockedController(async (args) => {
           await migrate(args, mockNetwork(args.toprfClient, { store }));
@@ -6202,8 +6284,9 @@ describe('SeedlessOnboardingController', () => {
         await withUnlockedController(
           async ({ controller, toprfClient, baseMessenger }) => {
             mockNetwork(toprfClient, { store, globalPassword: NEW_PASSWORD });
-            await controller.checkIsPasswordOutdated({ skipCache: true });
+            await controller.resolvePasswordSyncState({ skipCache: true });
             expect(controller.state.passwordOutdatedCache).toBeDefined();
+            const previousVault = controller.state.vault;
 
             const snapshots: SeedlessOnboardingControllerState[] = [];
             baseMessenger.subscribe(
@@ -6213,20 +6296,31 @@ describe('SeedlessOnboardingController', () => {
               },
             );
 
-            await controller.syncLatestGlobalPassword({
+            await controller.reconcilePassword({
               globalPassword: NEW_PASSWORD,
             });
 
-            expect(snapshots).toHaveLength(1);
-            expect(snapshots[0].vault).toBeDefined();
-            expect(snapshots[0].authPubKey).toBe(authPubKeyOf(MOCK_PASSWORD));
-            expect(snapshots[0].isLocalPassword).toBeUndefined();
-            expect(snapshots[0].envelope).toStrictEqual({
+            // 1st update: #checkIsPasswordOutdated updates passwordOutdatedCache
+            // 2nd update: single atomic vault + envelope + authPubKey + LocalPasswordPending + cache reset
+            const vaultUpdates = snapshots.filter(
+              (snapshot) => snapshot.vault !== previousVault,
+            );
+            expect(vaultUpdates).toHaveLength(1);
+            expect(vaultUpdates[0].vault).toBeDefined();
+            expect(vaultUpdates[0].authPubKey).toBe(
+              authPubKeyOf(MOCK_PASSWORD),
+            );
+            expect(vaultUpdates[0].isLocalPassword).toBeUndefined();
+            expect(vaultUpdates[0].envelope).toStrictEqual({
               v: 1,
               vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
               passwordAuthPubKey: authPubKeyOf(NEW_PASSWORD),
             });
-            expect(snapshots[0].passwordOutdatedCache).toBeUndefined();
+            expect(vaultUpdates[0].passwordOutdatedCache).toBeUndefined();
+            expect(vaultUpdates[0].seedlessOperationLifecycle).toStrictEqual({
+              operation: SeedlessOnboardingOperation.PasswordSync,
+              checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+            });
           },
         );
       });
@@ -6253,20 +6347,36 @@ describe('SeedlessOnboardingController', () => {
           );
 
           // 1st update: #assertPasswordInSync caches passwordOutdatedCache
-          // 2nd update: single atomic vault + envelope + authPubKey + cache reset
-          expect(snapshots).toHaveLength(2);
+          // 2nd update: RemotePasswordPending lifecycle checkpoint
+          // 3rd update: LocalStatePending lifecycle checkpoint
+          // 4th update: single atomic vault + envelope + authPubKey + LocalPasswordPending + cache reset
+          expect(snapshots).toHaveLength(4);
           expect(snapshots[0].vault).toBe(previousVault);
           expect(snapshots[0].passwordOutdatedCache).toBeDefined();
+          expect(snapshots[1].vault).toBe(previousVault);
+          expect(snapshots[1].seedlessOperationLifecycle).toStrictEqual({
+            operation: SeedlessOnboardingOperation.PasswordChange,
+            checkpoint: SeedlessOnboardingCheckpoint.RemotePasswordPending,
+          });
+          expect(snapshots[2].vault).toBe(previousVault);
+          expect(snapshots[2].seedlessOperationLifecycle).toStrictEqual({
+            operation: SeedlessOnboardingOperation.PasswordChange,
+            checkpoint: SeedlessOnboardingCheckpoint.LocalStatePending,
+          });
 
-          expect(snapshots[1].vault).not.toBe(previousVault);
-          expect(snapshots[1].authPubKey).toBe(authPubKeyOf(MOCK_PASSWORD));
-          expect(snapshots[1].isLocalPassword).toBeUndefined();
-          expect(snapshots[1].envelope).toStrictEqual({
+          expect(snapshots[3].vault).not.toBe(previousVault);
+          expect(snapshots[3].authPubKey).toBe(authPubKeyOf(MOCK_PASSWORD));
+          expect(snapshots[3].isLocalPassword).toBeUndefined();
+          expect(snapshots[3].envelope).toStrictEqual({
             v: 1,
             vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
             passwordAuthPubKey: authPubKeyOf(NEW_PASSWORD),
           });
-          expect(snapshots[1].passwordOutdatedCache).toBeUndefined();
+          expect(snapshots[3].passwordOutdatedCache).toBeUndefined();
+          expect(snapshots[3].seedlessOperationLifecycle).toStrictEqual({
+            operation: SeedlessOnboardingOperation.PasswordChange,
+            checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+          });
         });
       });
 
@@ -6281,7 +6391,7 @@ describe('SeedlessOnboardingController', () => {
             recoverySecret: RECOVERY_SECRET_HEX,
           });
           await recover(args);
-          await controller.checkIsPasswordOutdated({ skipCache: true });
+          await controller.resolvePasswordSyncState({ skipCache: true });
           expect(controller.state.passwordOutdatedCache).toBeDefined();
 
           const snapshots: SeedlessOnboardingControllerState[] = [];

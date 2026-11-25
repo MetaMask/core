@@ -16,7 +16,12 @@ import type { webcrypto } from 'node:crypto';
 import type { Mock, MockInstance } from 'vitest';
 import { vi } from 'vitest';
 
-import { AuthConnection, Web3AuthNetwork } from '../src/constants.js';
+import {
+  AuthConnection,
+  SeedlessOnboardingOperation,
+  Web3AuthNetwork,
+} from '../src/constants.js';
+import type { SeedlessOnboardingCheckpoint } from '../src/constants.js';
 import type {
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerOptions,
@@ -180,6 +185,12 @@ export async function withController<ReturnValue>(
   vi.spyOn(controller, 'checkAccessTokenExpired').mockReturnValue(false);
 
   const { toprfClient } = controller;
+
+  // By default the metadata store is empty. `submitPassword` fetches it in the
+  // background to look for incomplete backups, so it must never reach the
+  // network. Tests that need secret data override this mock.
+  vi.spyOn(toprfClient, 'fetchAllSecretDataItems').mockResolvedValue([]);
+
   return await fn({
     controller,
     encryptor,
@@ -311,6 +322,7 @@ export async function mockCreateToprfKeyAndBackupSeedPhrase<
  * @param options.encryptedSeedlessEncryptionKey - The mock encrypted seedless encryption key.
  * @param options.pendingToBeRevokedTokens - The mock pending to be revoked tokens.
  * @param options.migrationVersion - The mock migration version.
+ * @param options.passwordChangePhase - The mock password-change phase.
  * @returns The initial controller state with the mock authenticated user.
  */
 export function getMockInitialControllerState(options?: {
@@ -333,6 +345,7 @@ export function getMockInitialControllerState(options?: {
       }[]
     | undefined;
   migrationVersion?: number;
+  passwordChangePhase?: SeedlessOnboardingCheckpoint;
 }): Partial<SeedlessOnboardingControllerState> {
   const state = getInitialSeedlessOnboardingControllerStateWithDefaults();
 
@@ -384,6 +397,13 @@ export function getMockInitialControllerState(options?: {
 
   if (options?.migrationVersion !== undefined) {
     state.migrationVersion = options.migrationVersion;
+  }
+
+  if (options?.passwordChangePhase !== undefined) {
+    state.seedlessOperationLifecycle = {
+      operation: SeedlessOnboardingOperation.PasswordChange,
+      checkpoint: options.passwordChangePhase,
+    };
   }
 
   return state;

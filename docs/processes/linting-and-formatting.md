@@ -6,3 +6,4 @@ If you need to customize the behavior of Oxlint, see `oxlint.config.ts` in the r
 
 - Run `yarn lint` to lint all files and show possible violations across the monorepo.
 - Run `yarn lint:fix` to fix any automatically fixable violations.
+- Run `yarn changelog:validate` to check for formatting issues in changelogs.

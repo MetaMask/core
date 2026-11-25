@@ -5,7 +5,11 @@ import type {
 } from '@metamask/toprf-secure-backup';
 import type { MutexInterface } from 'async-mutex';
 
-import type { AuthConnection, SecretType } from './constants.js';
+import type {
+  AuthConnection,
+  SecretType,
+  SeedlessOperationLifecycle,
+} from './constants.js';
 
 /**
  * The backup state of the secret data.
@@ -167,6 +171,7 @@ export type EnvelopeState = {
 };
 
 // State
+
 export type SeedlessOnboardingControllerState =
   Partial<AuthenticatedUserDetails> &
     Partial<SRPBackedUpUserDetails> & {
@@ -256,7 +261,7 @@ export type SeedlessOnboardingControllerState =
        * Whether the vault password is local to this device rather than the
        * global password. Set by `recoverWithRecoverySecret` and cleared by a
        * successful `resetPasswordWithVaultKeys`, `changePassword`,
-       * `syncLatestGlobalPassword` or `restoreVaultWithPassword`.
+       * `reconcilePassword` or `restoreVaultWithPassword`.
        */
       isLocalPassword?: boolean;
 
@@ -270,6 +275,12 @@ export type SeedlessOnboardingControllerState =
        * Used to prevent re-running migrations.
        */
       migrationVersion: number;
+
+      /**
+       * The persisted lifecycle of the active stateful Seedless Onboarding
+       * operation. Missing or `undefined` means that no operation is active.
+       */
+      seedlessOperationLifecycle?: SeedlessOperationLifecycle;
     };
 
 /**

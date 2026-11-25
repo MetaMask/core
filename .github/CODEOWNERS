@@ -921,6 +921,7 @@
 /packages/wallet/src/initialization/instances/selected-network-controller/       @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/shield-api-service/                @MetaMask/web3auth
 /packages/wallet/src/initialization/instances/shield-controller/                 @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/signature-controller/              @MetaMask/confirmations
 /packages/wallet/src/initialization/instances/storage-service/                   @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/wallet/src/initialization/instances/subscription-controller/           @MetaMask/web3auth
 /packages/wallet/src/initialization/instances/subscription-service/              @MetaMask/web3auth
