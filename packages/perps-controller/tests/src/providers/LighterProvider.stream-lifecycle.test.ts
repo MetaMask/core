@@ -491,6 +491,105 @@ describe('LighterProvider stream lifecycle', () => {
     });
 
     it.each([
+      ['update/account_all_orders', 0],
+      ['subscribed/account_all_orders', 1],
+    ] as const)(
+      'retries a failed orders repair on the next delta after an empty %s',
+      async (initialType, expectedDeliveries) => {
+        const { provider, bridge } = buildStreamProvider();
+        try {
+          const callback = vi.fn();
+          const onError = vi.fn();
+          const fillError = vi.fn();
+          provider.subscribeToOrders({ callback, onError });
+          provider.subscribeToOrderFills({
+            callback: vi.fn(),
+            onError: fillError,
+          });
+          await settle();
+          const socket = latestSocket();
+          socket.open();
+          await settle();
+          const snapshot = 'subscribed/account_all_orders';
+          receive(socket, { type: initialType, orders: {} });
+          expect(callback).toHaveBeenCalledTimes(expectedDeliveries);
+          callback.mockClear();
+          const before = socket.sent.length;
+          vi.setSystemTime(Date.now() + 600_000);
+          const error = new Error('token refresh failed');
+          vi.mocked(bridge.execute).mockRejectedValueOnce(error);
+          receive(socket, { type: snapshot, orders: null });
+          await settle();
+          expect(onError).toHaveBeenCalledExactlyOnceWith(error);
+          expect(fillError).not.toHaveBeenCalled();
+          expect(socket.sent).toHaveLength(before);
+
+          const late = vi.fn();
+          provider.subscribeToOrders({ callback: late });
+          const delta = { type: 'update/account_all_orders', orders: {} };
+          receive(socket, delta);
+          receive(socket, delta);
+          await settle();
+          expect(
+            socket.sent
+              .slice(before)
+              .map((frame): unknown => JSON.parse(frame)),
+          ).toStrictEqual([
+            { type: 'unsubscribe', channel: 'account_all_orders/28' },
+            {
+              type: 'subscribe',
+              channel: 'account_all_orders/28',
+              auth: 'auth-token',
+            },
+          ]);
+          expect(callback).not.toHaveBeenCalled();
+          expect(late).not.toHaveBeenCalled();
+          receive(socket, { type: snapshot, orders: openOrders });
+          const open = [expect.objectContaining({ orderId: '42' })];
+          expect(callback).toHaveBeenCalledExactlyOnceWith(open);
+          expect(late).toHaveBeenCalledExactlyOnceWith(open);
+        } finally {
+          await provider.disconnect();
+        }
+      },
+    );
+
+    it('ignores a repair failure after a valid orders snapshot has arrived', async () => {
+      const { provider, bridge } = buildStreamProvider();
+      try {
+        const callback = vi.fn();
+        const onError = vi.fn();
+        provider.subscribeToOrders({ callback, onError });
+        await settle();
+        const socket = latestSocket();
+        socket.open();
+        await settle();
+        const before = socket.sent.length;
+        vi.setSystemTime(Date.now() + 600_000);
+        const mint = createDeferred<never>();
+        vi.mocked(bridge.execute).mockImplementationOnce(() => mint.promise);
+        const snapshot = 'subscribed/account_all_orders';
+        receive(socket, { type: snapshot, orders: null });
+        await settle();
+        receive(socket, { type: snapshot, orders: {} });
+        mint.reject(new Error('late token failure'));
+        await settle();
+        receive(socket, {
+          type: 'update/account_all_orders',
+          orders: openOrders,
+        });
+        await settle();
+        expect(callback).toHaveBeenLastCalledWith([
+          expect.objectContaining({ orderId: '42' }),
+        ]);
+        expect(onError).not.toHaveBeenCalled();
+        expect(socket.sent).toHaveLength(before);
+      } finally {
+        await provider.disconnect();
+      }
+    });
+
+    it.each([
       { cache: 'empty', orders: {}, count: 0 },
       { cache: 'populated', orders: openOrders, count: 1 },
     ])(

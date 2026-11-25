@@ -2013,8 +2013,8 @@ export class LighterProvider implements PerpsProvider {
   /** Null until this session has received a valid initial orders snapshot. */
   #wsOrders: Map<string, Order> | null = null;
 
-  /** One snapshot repair per gap. While incomplete, an empty cache is not a confirmed empty list. */
-  #ordersSnapshotRepair: symbol | null = null;
+  /** A gap stays open until a snapshot; only a failed repair may retry on the next frame. */
+  #ordersSnapshotRepair: symbol | 'retry' | null = null;
 
   /** Last validated fill history for this wallet session, including empty. */
   #wsFills: OrderFill[] | null = null;
@@ -19432,24 +19432,21 @@ export class LighterProvider implements PerpsProvider {
     ws: LighterWebSocketLike,
     channel: string,
     getToken: () => Promise<string>,
-    replaceWhile?: () => boolean,
+    repair?: symbol,
   ): void {
     const generation = this.#sessionGeneration;
+    const isCurrent = (): boolean =>
+      this.#priceWs === ws &&
+      ws.readyState === 1 &&
+      generation === this.#sessionGeneration &&
+      this.#wsWantedChannels.get(channel) === getToken &&
+      (repair === undefined || this.#ordersSnapshotRepair === repair);
     getToken()
       .then((token) => {
-        if (
-          this.#priceWs !== ws ||
-          ws.readyState !== 1 ||
-          generation !== this.#sessionGeneration ||
-          this.#wsWantedChannels.get(channel) !== getToken
-        ) {
+        if (!isCurrent()) {
           return;
         }
-        if (replaceWhile) {
-          // A full snapshot may already have repaired the gap during the mint.
-          if (!replaceWhile()) {
-            return;
-          }
+        if (repair !== undefined) {
           ws.send(JSON.stringify({ type: 'unsubscribe', channel }));
         }
         this.#sendSubscribe(channel, token);
@@ -19459,6 +19456,13 @@ export class LighterProvider implements PerpsProvider {
           '[LighterProvider] auth channel resubscribe failed',
           { channel, error: String(error) },
         );
+        if (repair !== undefined) {
+          this.#ensureSessionBinding();
+          if (isCurrent()) {
+            this.#ordersSnapshotRepair = 'retry';
+            this.#notifySubscriptionError(ensureError(error), ['orders']);
+          }
+        }
       });
   }
 
@@ -19761,6 +19765,9 @@ export class LighterProvider implements PerpsProvider {
           );
         }
         const isSnapshot = type.startsWith('subscribed');
+        if (!isSnapshot && this.#ordersSnapshotRepair === 'retry') {
+          this.#repairOrdersSnapshot();
+        }
         // A delta is not a complete list of open orders for this session.
         if (!isSnapshot && this.#wsOrders === null) {
           return;
@@ -19810,19 +19817,22 @@ export class LighterProvider implements PerpsProvider {
   }
 
   #repairOrdersSnapshot(): void {
-    if (this.#ordersSnapshotRepair !== null || this.#accountIndex === null) {
+    if (
+      typeof this.#ordersSnapshotRepair === 'symbol' ||
+      this.#accountIndex === null
+    ) {
       return;
     }
-    const repair = Symbol('orders snapshot repair');
-    this.#ordersSnapshotRepair = repair;
     const channel = `account_all_orders/${this.#accountIndex}`;
     const getToken = this.#wsWantedChannels.get(channel);
     if (this.#priceWs && getToken) {
+      const repair = Symbol('orders snapshot repair');
+      this.#ordersSnapshotRepair = repair;
       this.#resubscribeAuthenticatedChannel(
         this.#priceWs,
         channel,
         getToken,
-        () => this.#ordersSnapshotRepair === repair,
+        repair,
       );
     }
   }
