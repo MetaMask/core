@@ -154,7 +154,6 @@ import {
   addGasBuffer,
   estimateGas,
   estimateGasBatch,
-  isUpgradeWithDataTransaction,
   updateGas,
 } from './utils/gas.js';
 import {
@@ -723,7 +722,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'estimateGasFee',
   'failTransaction',
   'finalizeResumedTransaction',
-  'getGasEstimateBuffer',
   'getGasFeeTokens',
   'getLayer1GasFee',
   'getNonceLock',
@@ -1286,16 +1284,28 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Estimates required gas for a given transaction and add additional gas buffer with the given multiplier.
+   * Estimates gas for a transaction and applies a buffer.
    *
-   * @param transaction - The transaction params to estimate gas for.
-   * @param multiplier - The multiplier to use for the gas buffer.
-   * @param networkClientId - The network client id to use for the estimate.
-   * @returns The buffered estimated gas and whether the estimation failed.
+   * If `multiplier` is `undefined`, the buffer is resolved from the
+   * `confirmations_gas_buffer` feature flags for the network and transaction
+   * shape, as in the controller's own gas estimation.
+   *
+   * `simulationFails` does not disable the buffer, unlike the controller's own
+   * gas estimation. When estimation fails, `estimatedGas` is the fallback (a
+   * fixed value or a percentage of the block gas limit, capped by the chain's
+   * `maxGasLimit`); buffering it keeps callers that size amounts from the
+   * estimate conservative.
+   *
+   * @param transaction - The transaction parameters to estimate.
+   * @param multiplier - The buffer multiplier, or `undefined` to resolve it
+   * from feature flags.
+   * @param networkClientId - The network client to estimate on.
+   * @returns The gas estimate after buffering, and the simulation failure if
+   * the estimate failed.
    */
   async estimateGasBuffered(
     transaction: TransactionParams,
-    multiplier: number,
+    multiplier: number | undefined,
     networkClientId: NetworkClientId,
   ): Promise<{
     gas: string;
@@ -1306,15 +1316,21 @@ export class TransactionController extends BaseController<
       isSimulationEnabled = DEFAULT_IS_SIMULATION_ENABLED,
     } = this.#options;
 
-    const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas({
-      isSimulationEnabled: isSimulationEnabled(),
-      getSimulationConfig,
-      messenger: this.messenger,
-      networkClientId,
-      txParams: transaction,
-    });
+    const { blockGasLimit, estimatedGas, isUpgradeWithData, simulationFails } =
+      await estimateGas({
+        isSimulationEnabled: isSimulationEnabled(),
+        getSimulationConfig,
+        messenger: this.messenger,
+        networkClientId,
+        txParams: transaction,
+      });
 
-    const gas = addGasBuffer(estimatedGas, blockGasLimit, multiplier);
+    const gas = addGasBuffer(
+      estimatedGas,
+      blockGasLimit,
+      multiplier ??
+        this.#getGasEstimateBuffer(isUpgradeWithData, networkClientId),
+    );
 
     return {
       gas,
@@ -1323,19 +1339,17 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Returns the gas estimate buffer used by this controller's own gas
-   * estimation for the given transaction and network.
+   * Resolves the `confirmations_gas_buffer` value from the network client's
+   * chain ID and type, and whether the transaction is an upgrade with data,
+   * using the same flags as the controller's own gas estimation.
    *
-   * The controller applies this buffer only when estimation succeeds. It
-   * applies no buffer when the estimate is unavailable (`simulationFails`) or
-   * the transaction has `disableGasBuffer`.
-   *
-   * @param transaction - The transaction parameters.
-   * @param networkClientId - The ID of the network client used for the estimate.
+   * @param isUpgradeWithData - Whether the transaction is an EIP-7702 upgrade
+   * with data, as returned by `estimateGas`.
+   * @param networkClientId - The network client to resolve the buffer for.
    * @returns The gas estimate buffer.
    */
-  getGasEstimateBuffer(
-    transaction: TransactionParams,
+  #getGasEstimateBuffer(
+    isUpgradeWithData: boolean,
     networkClientId: NetworkClientId,
   ): number {
     const networkClient = this.#multichainTrackingHelper.getNetworkClient({
@@ -1345,7 +1359,7 @@ export class TransactionController extends BaseController<
     return getGasEstimateBufferFromFlags({
       chainId: networkClient.configuration.chainId,
       isCustomRPC: this.#isCustomNetwork(networkClient),
-      isUpgradeWithData: isUpgradeWithDataTransaction(transaction),
+      isUpgradeWithData,
       messenger: this.messenger,
     });
   }

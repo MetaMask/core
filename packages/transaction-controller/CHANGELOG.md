@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add public `getGasEstimateBuffer` method and the `TransactionController:getGasEstimateBuffer` messenger action, exposing the gas estimate buffer used by the controller's own gas estimation
+- Add support for passing `undefined` as `multiplier` to `estimateGasBuffered`, which then uses the value from `confirmations_gas_buffer`. The buffer is applied even when estimation fails ([#11756](https://github.com/MetaMask/core/pull/11756))
 
 ## [74.4.0]
 

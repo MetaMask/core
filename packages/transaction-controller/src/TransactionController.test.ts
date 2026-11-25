@@ -116,7 +116,6 @@ import {
   addGasBuffer,
   estimateGas,
   estimateGasBatch,
-  isUpgradeWithDataTransaction,
   updateGas,
 } from './utils/gas.js';
 import {
@@ -196,9 +195,6 @@ vi.mock(import('./utils/eip7702.js'), async (importOriginal) => ({
   getDelegationAddress: vi.fn(),
   doesChainSupportEIP7702: vi.fn(),
 }));
-
-const { isUpgradeWithDataTransaction: isUpgradeWithDataTransactionActual } =
-  await vi.importActual<typeof import('./utils/gas.js')>('./utils/gas.js');
 
 /**
  * Builds a mock block tracker with a canned block number that can be used in
@@ -554,7 +550,6 @@ describe('TransactionController', () => {
       actionHandlerMock: Mock;
     };
     mockGetSelectedAccount: Mock;
-    remoteFeatureFlagControllerGetStateMock: Mock;
     changeNetwork: (params: {
       selectedNetworkClientId: NetworkClientId;
     }) => void;
@@ -716,7 +711,6 @@ describe('TransactionController', () => {
       rootMessenger,
       mockTransactionApprovalRequest,
       mockGetSelectedAccount,
-      remoteFeatureFlagControllerGetStateMock,
       changeNetwork,
     };
   }
@@ -1675,80 +1669,18 @@ describe('TransactionController', () => {
   });
 
   describe('estimateGasBuffered', () => {
-    it('returns estimated gas and simulation fails', async () => {
-      const gasMock = '0x123';
-      const blockGasLimitMock = '0x1234';
-      const expectedEstimatedGas = '0x12345';
-      const multiplierMock = 1;
-      const transactionParamsMock = {
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      };
-
-      const simulationFailsMock = {
-        errorKey: 'testKey',
-        reason: 'testReason',
-        debug: {
-          blockNumber: '123',
-          blockGasLimit: '1234',
-        },
-      };
-
-      const { controller } = setupController();
-
-      estimateGasMock.mockResolvedValue({
-        estimatedGas: gasMock,
-        blockGasLimit: blockGasLimitMock,
-        simulationFails: simulationFailsMock,
-        isUpgradeWithData: false,
-      });
-
-      addGasBufferMock.mockReturnValue(expectedEstimatedGas);
-
-      const { gas, simulationFails } = await controller.estimateGasBuffered(
-        transactionParamsMock,
-        multiplierMock,
-        NETWORK_CLIENT_ID_MOCK,
-      );
-
-      expect(estimateGasMock).toHaveBeenCalledTimes(1);
-      expect(estimateGasMock).toHaveBeenCalledWith({
-        isSimulationEnabled: true,
-        getSimulationConfig: expect.any(Function),
-        messenger: expect.anything(),
-        networkClientId: NETWORK_CLIENT_ID_MOCK,
-        txParams: transactionParamsMock,
-      });
-
-      expect(addGasBufferMock).toHaveBeenCalledTimes(1);
-      expect(addGasBufferMock).toHaveBeenCalledWith(
-        gasMock,
-        blockGasLimitMock,
-        multiplierMock,
-      );
-
-      expect(gas).toBe(expectedEstimatedGas);
-      expect(simulationFails).toBe(simulationFailsMock);
-    });
-  });
-
-  describe('getGasEstimateBuffer', () => {
     const getGasEstimateBufferMock = vi.mocked(getGasEstimateBuffer);
-    const isUpgradeWithDataTransactionMock = vi.mocked(
-      isUpgradeWithDataTransaction,
-    );
+
+    const gasMock = '0x123';
+    const blockGasLimitMock = '0x1234';
+    const expectedEstimatedGas = '0x12345';
+    const bufferMultiplierMock = 1.5;
+    const multiplierMock = 1;
 
     const transactionMock: TransactionParams = {
       chainId: '0x1',
       from: ACCOUNT_MOCK,
       to: ACCOUNT_2_MOCK,
-    };
-
-    const upgradeTransactionMock: TransactionParams = {
-      ...transactionMock,
-      authorizationList: [{ address: ACCOUNT_2_MOCK }],
-      data: DATA_MOCK,
-      type: TransactionEnvelopeType.setCode,
     };
 
     /**
@@ -1776,18 +1708,74 @@ describe('TransactionController', () => {
         id: NETWORK_CLIENT_ID_MOCK,
       } as unknown as ReturnType<MultichainTrackingHelper['getNetworkClient']>);
 
-      getGasEstimateBufferMock.mockReturnValue(1.5);
-      isUpgradeWithDataTransactionMock.mockImplementation(
-        isUpgradeWithDataTransactionActual,
-      );
+      getGasEstimateBufferMock.mockReturnValue(bufferMultiplierMock);
+
+      estimateGasMock.mockResolvedValue({
+        estimatedGas: gasMock,
+        blockGasLimit: blockGasLimitMock,
+        simulationFails: undefined,
+        isUpgradeWithData: false,
+      });
+
+      addGasBufferMock.mockReturnValue(expectedEstimatedGas);
 
       return { controller, messenger };
     }
 
-    it('uses the chain id from the network client, not the transaction', () => {
+    it('returns estimated gas and simulation fails', async () => {
+      const simulationFailsMock = {
+        errorKey: 'testKey',
+        reason: 'testReason',
+        debug: {
+          blockNumber: '123',
+          blockGasLimit: '1234',
+        },
+      };
+
+      const { controller } = setupWithNetworkClient();
+
+      estimateGasMock.mockResolvedValue({
+        estimatedGas: gasMock,
+        blockGasLimit: blockGasLimitMock,
+        simulationFails: simulationFailsMock,
+        isUpgradeWithData: false,
+      });
+
+      const { gas, simulationFails } = await controller.estimateGasBuffered(
+        transactionMock,
+        multiplierMock,
+        NETWORK_CLIENT_ID_MOCK,
+      );
+
+      expect(estimateGasMock).toHaveBeenCalledTimes(1);
+      expect(estimateGasMock).toHaveBeenCalledWith({
+        isSimulationEnabled: true,
+        getSimulationConfig: expect.any(Function),
+        messenger: expect.anything(),
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        txParams: transactionMock,
+      });
+
+      expect(addGasBufferMock).toHaveBeenCalledTimes(1);
+      expect(addGasBufferMock).toHaveBeenCalledWith(
+        gasMock,
+        blockGasLimitMock,
+        multiplierMock,
+      );
+
+      expect(getGasEstimateBufferMock).not.toHaveBeenCalled();
+      expect(gas).toBe(expectedEstimatedGas);
+      expect(simulationFails).toBe(simulationFailsMock);
+    });
+
+    it('uses the controller gas estimate buffer when multiplier is omitted', async () => {
       const { controller } = setupWithNetworkClient({ chainId: '0x89' });
 
-      controller.getGasEstimateBuffer(transactionMock, NETWORK_CLIENT_ID_MOCK);
+      const { gas } = await controller.estimateGasBuffered(
+        transactionMock,
+        undefined,
+        NETWORK_CLIENT_ID_MOCK,
+      );
 
       expect(getGasEstimateBufferMock).toHaveBeenCalledWith({
         chainId: '0x89',
@@ -1795,14 +1783,26 @@ describe('TransactionController', () => {
         isUpgradeWithData: false,
         messenger: expect.anything(),
       });
+
+      expect(addGasBufferMock).toHaveBeenCalledWith(
+        gasMock,
+        blockGasLimitMock,
+        bufferMultiplierMock,
+      );
+
+      expect(gas).toBe(expectedEstimatedGas);
     });
 
-    it('passes a custom network client as isCustomRPC', () => {
+    it('passes a custom network client as isCustomRPC', async () => {
       const { controller } = setupWithNetworkClient({
         networkClientType: NetworkClientType.Custom,
       });
 
-      controller.getGasEstimateBuffer(transactionMock, NETWORK_CLIENT_ID_MOCK);
+      await controller.estimateGasBuffered(
+        transactionMock,
+        undefined,
+        NETWORK_CLIENT_ID_MOCK,
+      );
 
       expect(getGasEstimateBufferMock).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1812,11 +1812,19 @@ describe('TransactionController', () => {
       );
     });
 
-    it('passes a setCode transaction with data as isUpgradeWithData', () => {
+    it('passes isUpgradeWithData from the estimate', async () => {
       const { controller } = setupWithNetworkClient();
 
-      controller.getGasEstimateBuffer(
-        upgradeTransactionMock,
+      estimateGasMock.mockResolvedValue({
+        estimatedGas: gasMock,
+        blockGasLimit: blockGasLimitMock,
+        simulationFails: undefined,
+        isUpgradeWithData: true,
+      });
+
+      await controller.estimateGasBuffered(
+        transactionMock,
+        undefined,
         NETWORK_CLIENT_ID_MOCK,
       );
 
@@ -1828,16 +1836,34 @@ describe('TransactionController', () => {
       );
     });
 
-    it('is exposed as a messenger action', () => {
-      const { messenger } = setupWithNetworkClient();
+    it('applies the controller gas estimate buffer when simulation fails', async () => {
+      const simulationFailsMock = {
+        errorKey: 'testKey',
+      };
 
-      expect(
-        messenger.call(
-          'TransactionController:getGasEstimateBuffer',
-          transactionMock,
-          NETWORK_CLIENT_ID_MOCK,
-        ),
-      ).toBe(1.5);
+      const { controller } = setupWithNetworkClient();
+
+      estimateGasMock.mockResolvedValue({
+        estimatedGas: gasMock,
+        blockGasLimit: blockGasLimitMock,
+        simulationFails: simulationFailsMock,
+        isUpgradeWithData: false,
+      });
+
+      const { gas, simulationFails } = await controller.estimateGasBuffered(
+        transactionMock,
+        undefined,
+        NETWORK_CLIENT_ID_MOCK,
+      );
+
+      expect(addGasBufferMock).toHaveBeenCalledWith(
+        gasMock,
+        blockGasLimitMock,
+        bufferMultiplierMock,
+      );
+
+      expect(gas).toBe(expectedEstimatedGas);
+      expect(simulationFails).toBe(simulationFailsMock);
     });
   });
 
