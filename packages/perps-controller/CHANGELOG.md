@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Resume existing Lighter account, position, fill and order subscriptions by automatically checking for the account created by a first deposit, without reconnecting, prompting for a trading key, or replacing a ready trading signer. ([#11746](https://github.com/MetaMask/core/pull/11746))
 - After a Lighter signer reset, report the interrupted orders stream through `onError` and stop replaying its cached orders in both direct and multi-venue subscriptions until a fresh authenticated snapshot arrives. ([#11746](https://github.com/MetaMask/core/pull/11746))
+- Keep Lighter order updates flowing after a malformed frame on an initialized stream. Request a fresh authenticated orders snapshot without reconnecting unrelated channels or reporting an unconfirmed empty list. ([#11746](https://github.com/MetaMask/core/pull/11746))
 
 ## [26.2.0]
 

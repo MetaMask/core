@@ -409,6 +409,87 @@ describe('LighterProvider stream lifecycle', () => {
         },
       ],
     };
+
+    it('delivers live orders after a bad update to an empty snapshot without replaying a false empty', async () => {
+      const { provider } = buildStreamProvider({
+        registeredKey: '9c'.repeat(40),
+      });
+      try {
+        const existing = vi.fn();
+        provider.subscribeToOrders({ callback: existing });
+        await settle();
+        const socket = latestSocket();
+        socket.open();
+        await settle();
+        const snapshot = 'subscribed/account_all_orders';
+        const update = 'update/account_all_orders';
+        receive(socket, { type: snapshot, orders: {} });
+        expect(existing).toHaveBeenLastCalledWith([]);
+        existing.mockClear();
+
+        receive(socket, { type: update, orders: null });
+        const late = vi.fn();
+        provider.subscribeToOrders({ callback: late });
+        receive(socket, { type: update, orders: {} });
+        expect(late).not.toHaveBeenCalled();
+        expect(existing).not.toHaveBeenCalled();
+        receive(socket, { type: update, orders: openOrders });
+        const open = [expect.objectContaining({ orderId: '42' })];
+        expect(existing).toHaveBeenCalledExactlyOnceWith(open);
+        expect(late).toHaveBeenCalledExactlyOnceWith(open);
+
+        // A valid snapshot beats the pending repair; do not restart a healthy channel.
+        const sentBeforeSnapshot = socket.sent.length;
+        receive(socket, { type: snapshot, orders: {} });
+        await settle();
+        expect(late).toHaveBeenLastCalledWith([]);
+        expect(socket.sent).toHaveLength(sentBeforeSnapshot);
+      } finally {
+        await provider.disconnect();
+      }
+    });
+
+    it('requests a fresh authenticated snapshot once if the first orders snapshot is malformed', async () => {
+      const { provider } = buildStreamProvider({
+        registeredKey: '9c'.repeat(40),
+      });
+      try {
+        const callback = vi.fn();
+        provider.subscribeToOrders({ callback });
+        await settle();
+        const socket = latestSocket();
+        socket.open();
+        await settle();
+        const before = socket.sent.length;
+        const snapshot = 'subscribed/account_all_orders';
+        receive(socket, { type: snapshot, orders: null });
+        await settle();
+        receive(socket, { type: snapshot, orders: null });
+        receive(socket, {
+          type: 'update/account_all_orders',
+          orders: openOrders,
+        });
+        await settle();
+        expect(callback).not.toHaveBeenCalled();
+        expect(
+          socket.sent.slice(before).map((frame): unknown => JSON.parse(frame)),
+        ).toStrictEqual([
+          { type: 'unsubscribe', channel: 'account_all_orders/28' },
+          {
+            type: 'subscribe',
+            channel: 'account_all_orders/28',
+            auth: 'auth-token',
+          },
+        ]);
+        receive(socket, { type: snapshot, orders: openOrders });
+        expect(callback).toHaveBeenCalledExactlyOnceWith([
+          expect.objectContaining({ orderId: '42' }),
+        ]);
+      } finally {
+        await provider.disconnect();
+      }
+    });
+
     it.each([
       { cache: 'empty', orders: {}, count: 0 },
       { cache: 'populated', orders: openOrders, count: 1 },

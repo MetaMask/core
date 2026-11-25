@@ -2010,10 +2010,11 @@ export class LighterProvider implements PerpsProvider {
   /** Merged live position state from account_all_positions (keyed marketId). */
   readonly #wsPositions: Map<number, Position> = new Map();
 
-  /** Merged live open orders from account_all_orders (keyed orderId). */
-  readonly #wsOrders: Map<string, Order> = new Map();
+  /** Null until this session has received a valid initial orders snapshot. */
+  #wsOrders: Map<string, Order> | null = null;
 
-  #hasOrdersSnapshot = false;
+  /** One snapshot repair per gap. While incomplete, an empty cache is not a confirmed empty list. */
+  #ordersSnapshotRepair: symbol | null = null;
 
   /** Last validated fill history for this wallet session, including empty. */
   #wsFills: OrderFill[] | null = null;
@@ -2478,8 +2479,8 @@ export class LighterProvider implements PerpsProvider {
     this.#clearBridgeOwnership();
     // Retire the private orders channel and its replay cache together. Public
     // balances and positions remain live while waiting for a usable key.
-    this.#wsOrders.clear();
-    this.#hasOrdersSnapshot = false;
+    this.#wsOrders = null;
+    this.#ordersSnapshotRepair = null;
     if (this.#accountIndex !== null) {
       const channel = `account_all_orders/${this.#accountIndex}`;
       if (this.#wsWantedChannels.has(channel)) {
@@ -18869,8 +18870,9 @@ export class LighterProvider implements PerpsProvider {
       return NOOP_UNSUBSCRIBE;
     }
     this.#orderSubscribers.add(params);
-    if (this.#hasOrdersSnapshot || this.#wsOrders.size > 0) {
-      params.callback([...this.#wsOrders.values()]);
+    const orders = this.#knownStreamOrders();
+    if (orders) {
+      params.callback(orders);
     }
     this.#ensureAccountChannels({ existingKeysOnly: false });
     return () => {
@@ -19388,9 +19390,9 @@ export class LighterProvider implements PerpsProvider {
     this.#accountChannelSetup = null;
     this.#accountChannelsAwaiting = null;
     this.#wsPositions.clear();
-    this.#hasOrdersSnapshot = false;
+    this.#wsOrders = null;
+    this.#ordersSnapshotRepair = null;
     this.#wsFills = null;
-    this.#wsOrders.clear();
   };
 
   /**
@@ -19425,6 +19427,40 @@ export class LighterProvider implements PerpsProvider {
       ),
     );
   };
+
+  #resubscribeAuthenticatedChannel(
+    ws: LighterWebSocketLike,
+    channel: string,
+    getToken: () => Promise<string>,
+    replaceWhile?: () => boolean,
+  ): void {
+    const generation = this.#sessionGeneration;
+    getToken()
+      .then((token) => {
+        if (
+          this.#priceWs !== ws ||
+          ws.readyState !== 1 ||
+          generation !== this.#sessionGeneration ||
+          this.#wsWantedChannels.get(channel) !== getToken
+        ) {
+          return;
+        }
+        if (replaceWhile) {
+          // A full snapshot may already have repaired the gap during the mint.
+          if (!replaceWhile()) {
+            return;
+          }
+          ws.send(JSON.stringify({ type: 'unsubscribe', channel }));
+        }
+        this.#sendSubscribe(channel, token);
+      })
+      .catch((error) => {
+        this.#deps.debugLogger.log(
+          '[LighterProvider] auth channel resubscribe failed',
+          { channel, error: String(error) },
+        );
+      });
+  }
 
   /** Close the stream once it has had no listener for the idle period. */
   readonly #scheduleIdleClose = (): void => {
@@ -19503,33 +19539,13 @@ export class LighterProvider implements PerpsProvider {
       if (this.#priceWs !== ws) {
         return;
       }
-      const generationAtOpen = this.#sessionGeneration;
       this.#wsReconnectAttempts = 0;
       this.#clearSocketDown();
       this.#setConnectionState(WebSocketConnectionState.Connected);
       this.#pruneUnwatchedChannels();
       for (const [channel, getToken] of this.#wsWantedChannels) {
         if (getToken) {
-          getToken()
-            .then((freshToken) => {
-              // The async continuation may resolve after an account switch
-              // replaced the socket or the channel set: never reinsert a
-              // stale channel or pair it with the new session's token.
-              if (
-                this.#priceWs !== ws ||
-                generationAtOpen !== this.#sessionGeneration ||
-                this.#wsWantedChannels.get(channel) !== getToken
-              ) {
-                return;
-              }
-              this.#sendSubscribe(channel, freshToken);
-            })
-            .catch((error) => {
-              this.#deps.debugLogger.log(
-                '[LighterProvider] auth channel resubscribe failed',
-                { channel, error: String(error) },
-              );
-            });
+          this.#resubscribeAuthenticatedChannel(ws, channel, getToken);
         } else {
           this.#sendSubscribe(channel);
         }
@@ -19746,11 +19762,7 @@ export class LighterProvider implements PerpsProvider {
         }
         const isSnapshot = type.startsWith('subscribed');
         // A delta is not a complete list of open orders for this session.
-        if (
-          !isSnapshot &&
-          !this.#hasOrdersSnapshot &&
-          this.#wsOrders.size === 0
-        ) {
+        if (!isSnapshot && this.#wsOrders === null) {
           return;
         }
         const nextOrders = isSnapshot
@@ -19773,19 +19785,47 @@ export class LighterProvider implements PerpsProvider {
           }
         }
         if (isSnapshot) {
-          this.#hasOrdersSnapshot = true;
+          this.#ordersSnapshotRepair = null;
         }
-        this.#wsOrders.clear();
-        for (const [orderId, order] of nextOrders) {
-          this.#wsOrders.set(orderId, order);
+        this.#wsOrders = nextOrders;
+        const orders = this.#knownStreamOrders();
+        if (orders) {
+          this.#emitToOrderSubscribers(orders);
         }
-        this.#emitToOrderSubscribers([...this.#wsOrders.values()]);
       } catch (error) {
-        this.#hasOrdersSnapshot = false;
+        this.#repairOrdersSnapshot();
         throw error;
       }
     }
   };
+
+  #knownStreamOrders(): Order[] | undefined {
+    if (
+      this.#wsOrders === null ||
+      (this.#ordersSnapshotRepair !== null && this.#wsOrders.size === 0)
+    ) {
+      return undefined;
+    }
+    return [...this.#wsOrders.values()];
+  }
+
+  #repairOrdersSnapshot(): void {
+    if (this.#ordersSnapshotRepair !== null || this.#accountIndex === null) {
+      return;
+    }
+    const repair = Symbol('orders snapshot repair');
+    this.#ordersSnapshotRepair = repair;
+    const channel = `account_all_orders/${this.#accountIndex}`;
+    const getToken = this.#wsWantedChannels.get(channel);
+    if (this.#priceWs && getToken) {
+      this.#resubscribeAuthenticatedChannel(
+        this.#priceWs,
+        channel,
+        getToken,
+        () => this.#ordersSnapshotRepair === repair,
+      );
+    }
+  }
 
   /**
    * Apply an order_book snapshot/delta and fan the assembled book out.
