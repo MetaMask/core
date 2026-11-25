@@ -94,11 +94,11 @@ import {
   LIGHTER_MARGIN_METADATA_TTL_MS,
   LIGHTER_SCALE_SETTLEMENT_WINDOW_MS,
   LIGHTER_SCALE_SETTLEMENT_POLL_MS,
+  LIGHTER_ACCOUNT_DISCOVERY_CONFIG,
   parseLighterStrictDecimal,
   isLighterOrderSizeDecimals,
   toLighterInteger,
 } from '../constants/lighterConfig.js';
-import { LIGHTER_ACCOUNT_DISCOVERY_CONFIG } from '../constants/perpsConfig.js';
 import {
   createTpslLegReplaceUnsupportedError,
   PerpsControllerError,
@@ -2691,6 +2691,12 @@ export class LighterProvider implements PerpsProvider {
       return await this.#ensureAccountIndex();
     }
     if (master === undefined && this.#configuredAccountIndex === undefined) {
+      // A concurrent lookup may have recorded the index while this stale
+      // one was in flight; the cached index wins over an older empty
+      // result, so callers never read a registered wallet as absent.
+      if (this.#accountIndex !== null) {
+        return this.#accountIndex;
+      }
       throw new LighterAccountNotFoundError(address);
     }
     this.#assertStandardAccount(master?.accountType);
@@ -18855,7 +18861,11 @@ export class LighterProvider implements PerpsProvider {
       return NOOP_UNSUBSCRIBE;
     }
     this.#positionSubscribers.add(params);
-    if (this.#wsPositions.size > 0) {
+    if (this.#lastStreamAccount === EMPTY_ACCOUNT_STATE) {
+      // A venue-confirmed empty account settled earlier listeners; a
+      // listener that joins during the discovery window gets the same base.
+      params.callback([]);
+    } else if (this.#wsPositions.size > 0) {
       params.callback([...this.#wsPositions.values()]);
     }
     this.#ensureAccountChannels({ existingKeysOnly: true });
@@ -18873,6 +18883,10 @@ export class LighterProvider implements PerpsProvider {
     const orders = this.#knownStreamOrders();
     if (orders) {
       params.callback(orders);
+    } else if (this.#lastStreamAccount === EMPTY_ACCOUNT_STATE) {
+      // A venue-confirmed empty account settled earlier listeners; a
+      // listener that joins during the discovery window gets the same base.
+      params.callback([]);
     }
     this.#ensureAccountChannels({ existingKeysOnly: false });
     return () => {
@@ -19090,13 +19104,32 @@ export class LighterProvider implements PerpsProvider {
           return;
         }
         const channelAddress = this.#boundAddress;
-        const readOnly = options.existingKeysOnly;
+        // A deposit/status read must not turn an automatic stream rebuild
+        // into a wallet signature. Only explicit trading setup can create a key.
+        const refresh = (): Promise<string> =>
+          this.#getAccountChannelReadToken(accountIndex, generation);
+        // An explicit listener joining mid-flight can upgrade this setup's
+        // permission; re-read the live permission after a read-only failure
+        // and retry once with mint access instead of failing the upgrade.
+        const authenticate = async (): Promise<string> => {
+          const readOnlyAttempt = options.existingKeysOnly;
+          try {
+            return readOnlyAttempt
+              ? await refresh()
+              : await this.#getAuthToken();
+          } catch (error) {
+            if (
+              readOnlyAttempt &&
+              !options.existingKeysOnly &&
+              error instanceof LighterRecoveryReadAuthorityError
+            ) {
+              return await this.#getAuthToken();
+            }
+            throw error;
+          }
+        };
         try {
-          // A deposit/status read must not turn an automatic stream rebuild
-          // into a wallet signature. Only explicit trading setup can create a key.
-          const refresh = (): Promise<string> =>
-            this.#getAccountChannelReadToken(accountIndex, generation);
-          const auth = readOnly ? await refresh() : await this.#getAuthToken();
+          const auth = await authenticate();
           this.#assertSession(generation);
           if (this.#accountChannelSetup?.options !== options) {
             return;
@@ -19119,11 +19152,10 @@ export class LighterProvider implements PerpsProvider {
             channelAddress === this.#boundAddress &&
             this.#accountChannelSetup?.options === options
           ) {
-            if (
-              readOnly &&
-              error instanceof LighterRecoveryReadAuthorityError &&
-              this.#readyApiKeyIndex === null
-            ) {
+            // Any auth-step failure while no signer is ready keeps the
+            // resume marker, so a transient failure cannot leave the orders
+            // channel closed after the signer becomes ready.
+            if (this.#readyApiKeyIndex === null) {
               this.#accountChannelsAwaiting = 'tradingKey';
             }
             this.#notifySubscriptionError(ensureError(error));
@@ -19458,19 +19490,27 @@ export class LighterProvider implements PerpsProvider {
           '[LighterProvider] auth channel resubscribe failed',
           { channel, error: String(error) },
         );
+        this.#ensureSessionBinding();
+        if (!isCurrent()) {
+          return;
+        }
         if (repair !== undefined) {
-          this.#ensureSessionBinding();
-          if (isCurrent()) {
-            this.#ordersSnapshotRepair = 'retry';
-            if (unsubscribed) {
-              this.#wsOrders = null;
-            }
-            // A failed mint leaves the original subscription live. Only evict
-            // its multiplexed orders when direct subscribers cannot replay them.
-            if (!this.#wsOrders?.size) {
-              this.#notifySubscriptionError(ensureError(error), ['orders']);
-            }
+          this.#ordersSnapshotRepair = 'retry';
+          if (unsubscribed) {
+            this.#wsOrders = null;
           }
+          // A failed mint leaves the original subscription live. Only evict
+          // its multiplexed orders when direct subscribers cannot replay them.
+          if (!this.#wsOrders?.size) {
+            this.#notifySubscriptionError(ensureError(error), ['orders']);
+          }
+        } else if (channel.startsWith('account_all_orders/')) {
+          // On reconnect the venue never re-subscribed this channel: the
+          // cached orders are stale and no frame will arrive to trigger a
+          // snapshot repair on its own.
+          this.#ordersSnapshotRepair = 'retry';
+          this.#wsOrders = null;
+          this.#notifySubscriptionError(ensureError(error), ['orders']);
         }
       });
   }

@@ -5,8 +5,8 @@ import {
   LIGHTER_CHANNEL_RELEASE_DELAY_MS,
   LIGHTER_SOCKET_DOWN_GRACE_MS,
   LIGHTER_SOCKET_IDLE_CLOSE_MS,
+  LIGHTER_ACCOUNT_DISCOVERY_CONFIG,
 } from '../../../src/constants/lighterConfig.js';
-import { LIGHTER_ACCOUNT_DISCOVERY_CONFIG } from '../../../src/constants/perpsConfig.js';
 import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsProvider.js';
 import {
   getLighterReconnectDelayMs,
@@ -348,6 +348,51 @@ describe('LighterProvider stream lifecycle', () => {
       await settle();
       expect(venueChannels(socket)).toContain('account_all_orders/28');
       expect(bridge.createClient).toHaveBeenCalledTimes(1);
+      await provider.disconnect();
+    });
+
+    it('reopens the orders channel when the signer becomes ready after a transient auth failure', async () => {
+      const { provider, bridge } = buildStreamProvider({
+        registeredKey: '9c'.repeat(40),
+      });
+      const onError = vi.fn();
+      provider.subscribeToPrices({ symbols: [], callback: vi.fn() });
+      const socket = latestSocket();
+      socket.open();
+      await settle();
+      // The first signer setup fails transiently, so the orders channel is
+      // skipped while no signer is ready.
+      const transient = new Error('bridge temporarily unavailable');
+      vi.mocked(bridge.createClient).mockRejectedValueOnce(transient);
+      provider.subscribeToOrders({ callback: vi.fn(), onError });
+      await settle();
+      expect(venueChannels(socket)).not.toContain('account_all_orders/28');
+      expect(onError).toHaveBeenCalledExactlyOnceWith(transient);
+
+      // The signer becomes ready; the resume marker must reopen the channel.
+      await provider.getOpenOrders();
+      await settle();
+      expect(venueChannels(socket)).toContain('account_all_orders/28');
+      await provider.disconnect();
+    });
+
+    it('notifies orders subscribers when a reconnect token refresh fails', async () => {
+      const { provider, bridge } = buildStreamProvider();
+      const onError = vi.fn();
+      const fillError = vi.fn();
+      provider.subscribeToOrders({ callback: vi.fn(), onError });
+      provider.subscribeToOrderFills({ callback: vi.fn(), onError: fillError });
+      await settle();
+      // Expire the cached auth token so the reconnect must mint a new one.
+      vi.setSystemTime(Date.now() + 600_000);
+      await provider.reconnect();
+      const socket = latestSocket();
+      const error = new Error('token refresh failed');
+      vi.mocked(bridge.execute).mockRejectedValueOnce(error);
+      socket.open();
+      await settle();
+      expect(onError).toHaveBeenCalledExactlyOnceWith(error);
+      expect(fillError).not.toHaveBeenCalled();
       await provider.disconnect();
     });
 
