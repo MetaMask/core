@@ -173,12 +173,12 @@ export class PrimarySrpBackupRepair {
           assertIdentityUnchanged(this.#getIdentity(), expectedIdentity);
 
           // A v1 backup has not been migrated, so it must stay on the legacy
-          // schema: an untagged mnemonic has no data type. Every other backup
-          // (v2, none, mixed) is written as v2 with the `PrimarySrp` data type.
-          const dataType =
-            metadataSchemaVersion === 'v1'
-              ? undefined
-              : EncAccountDataType.PrimarySrp;
+          // schema: an untagged mnemonic with no data type. The SDK defaults
+          // to v2 and then requires a data type, so v1 must be explicit.
+          // Every other backup (v2, none, mixed) is written as v2 with the
+          // `PrimarySrp` data type.
+          const isV1 = metadataSchemaVersion === 'v1';
+          const dataType = isV1 ? undefined : EncAccountDataType.PrimarySrp;
           const primarySecretMetadata = new SecretMetadata(localPrimarySRP, {
             dataType,
           });
@@ -187,6 +187,7 @@ export class PrimarySrpBackupRepair {
             secretData: primarySecretMetadata.toBytes(),
             authKeyPair: toprfAuthKeyPair,
             dataType,
+            version: isV1 ? 'v1' : 'v2',
           });
         },
       );

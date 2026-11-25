@@ -7691,6 +7691,7 @@ describe('SeedlessOnboardingController', () => {
               encKey: expect.any(Uint8Array),
               authKeyPair: expect.any(Object),
               dataType: EncAccountDataType.PrimarySrp,
+              version: 'v2',
               secretData: expect.any(Uint8Array),
             });
 
@@ -7737,12 +7738,15 @@ describe('SeedlessOnboardingController', () => {
             await identify();
 
             expect(addSecretDataItem).toHaveBeenCalledTimes(1);
-            const { secretData, dataType } = addSecretDataItem.mock
+            const { secretData, dataType, version } = addSecretDataItem.mock
               .calls[0][0] as {
               secretData: Uint8Array;
               dataType?: EncAccountDataType;
+              version?: 'v1' | 'v2';
             };
             expect(dataType).toBeUndefined();
+            // The SDK defaults to v2, which requires a data type.
+            expect(version).toBe('v1');
 
             const metadata = SecretMetadata.fromRawMetadata(secretData, {});
             expect(metadata.data).toStrictEqual(MOCK_SEED_PHRASE);

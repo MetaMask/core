@@ -127,6 +127,7 @@ describe('PrimarySrpBackupRepair', () => {
         secretData: expect.any(Uint8Array),
         authKeyPair: VAULT_KEYS.toprfAuthKeyPair,
         dataType: EncAccountDataType.PrimarySrp,
+        version: 'v2',
       });
       const { secretData } = addSecretDataItem.mock.calls[0][0];
       const metadata = SecretMetadata.fromRawMetadata(secretData, {
@@ -144,8 +145,11 @@ describe('PrimarySrpBackupRepair', () => {
       await repair.run(PASSWORD);
 
       expect(addSecretDataItem).toHaveBeenCalledTimes(1);
-      const { secretData, dataType } = addSecretDataItem.mock.calls[0][0];
+      const { secretData, dataType, version } =
+        addSecretDataItem.mock.calls[0][0];
       expect(dataType).toBeUndefined();
+      // The SDK defaults to v2, which requires a data type.
+      expect(version).toBe('v1');
       const metadata = SecretMetadata.fromRawMetadata(secretData, {});
       expect(metadata.data).toStrictEqual(LOCAL_PRIMARY_SRP);
       expect(metadata.type).toBe(SecretType.Mnemonic);
