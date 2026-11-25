@@ -44,7 +44,6 @@ import {
 import {
   getPasswordNamespaceAuthKeyPair,
   nextControlSeq,
-  packEnvelope,
   pubKeysEqual,
   selectControlRecord,
   unpackEnvelope,
@@ -72,7 +71,6 @@ import type {
   MutuallyExclusiveCallback,
   SeedlessOnboardingControllerState,
   AuthenticatedUserDetails,
-  EnvelopeState,
   SeedlessAuthData,
   SocialBackupsMetadata,
   RefreshJWTToken,
@@ -117,10 +115,14 @@ import {
   serializeVaultData,
 } from './utils/index.js';
 import type { SecretBackupData } from './utils/index.js';
+import { assertIsRecoverySecret } from './utils/assertions.js';
 import { splitVaultItems } from './utils/secret-data-utils.js';
 import {
+  createEnvelopeState,
   isCouldNotDeriveEncryptionKeyError,
   isCouldNotDeriveThresholdAuthPubKeyError,
+  packFor,
+  toVaultKeySet,
 } from './utils/utils.js';
 
 export type {
@@ -134,73 +136,6 @@ export type {
 export { getInitialSeedlessOnboardingControllerStateWithDefaults } from './state.js';
 
 const log = createModuleLogger(projectLogger, controllerName);
-
-const RECOVERY_SECRET_LENGTH = 32;
-
-/**
- * @param vaultData - The decrypted vault data.
- * @returns The vault's key set, as the envelope vault key set `K_v`.
- */
-function toVaultKeySet(vaultData: DeserializedVaultData): VaultKeySet {
-  return {
-    authKeyPair: vaultData.toprfAuthKeyPair,
-    encKey: vaultData.toprfEncryptionKey,
-    localWrapKey: vaultData.toprfPwEncryptionKey,
-  };
-}
-
-/**
- * Build the persisted envelope state for an envelope-managed vault.
- *
- * @param vaultKeySet - The vault key set `K_v`.
- * @param passwordAuthPubKey - The password OPRF auth public key the local
- * password is synced with.
- * @returns The persisted envelope state.
- */
-function createEnvelopeState(
-  vaultKeySet: VaultKeySet,
-  passwordAuthPubKey: SEC1EncodedPublicKey,
-): EnvelopeState {
-  return {
-    v: 1,
-    vaultAuthPubKey: bytesToBase64(vaultKeySet.authKeyPair.pk),
-    passwordAuthPubKey: bytesToBase64(passwordAuthPubKey),
-  };
-}
-
-/**
- * Pack the vault key set for an envelope partition.
- *
- * @param keys - The envelope keys of the partition.
- * @param path - The path the keys were derived on.
- * @param vaultKeySet - The vault key set.
- * @returns The envelope and its partition keys.
- */
-function packFor(
-  keys: EnvelopeKeys,
-  path: Envelope['path'],
-  vaultKeySet: VaultKeySet,
-): PackedEnvelope {
-  return {
-    keys,
-    envelope: packEnvelope(path, vaultKeySet),
-  };
-}
-
-/**
- * @param recoverySecret - The Recovery Secret.
- * @throws `InvalidRecoverySecret` unless it is a 32-byte `Uint8Array`.
- */
-function assertIsRecoverySecret(recoverySecret: unknown): void {
-  if (
-    !(recoverySecret instanceof Uint8Array) ||
-    recoverySecret.length !== RECOVERY_SECRET_LENGTH
-  ) {
-    throw new SeedlessOnboardingError(
-      SeedlessOnboardingControllerErrorMessage.InvalidRecoverySecret,
-    );
-  }
-}
 
 type UpdatedVaultState = Pick<
   SeedlessOnboardingControllerState,

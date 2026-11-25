@@ -1,5 +1,9 @@
 import { SomeError } from '@metamask/auth-network-utils';
-import type { KeyPair } from '@metamask/toprf-secure-backup';
+import type {
+  EnvelopeKeys,
+  KeyPair,
+  SEC1EncodedPublicKey,
+} from '@metamask/toprf-secure-backup';
 import {
   EncAccountDataType,
   TOPRFError,
@@ -17,11 +21,18 @@ import {
   SeedlessOnboardingControllerErrorMessage,
   SecretType,
 } from '../constants.js';
+import type {
+  Envelope,
+  PackedEnvelope,
+  VaultKeySet,
+} from '../envelope/envelope-keys.js';
+import { packEnvelope } from '../envelope/envelope-keys.js';
 import type { SecretMetadata } from '../SecretMetadata.js';
 import type {
   DecodedBaseJWTToken,
   DecodedNodeAuthToken,
   DeserializedVaultData,
+  EnvelopeState,
   InvalidPrimarySecretDataTypeErrorData,
   VaultData,
 } from '../types.js';
@@ -33,6 +44,56 @@ import { decodeIdToken } from './token.js';
  * the verifier ID.
  */
 const NO_PUB_KEY_NODE_ERROR_MESSAGE = 'Error getting pub key';
+
+/**
+ * @param vaultData - The decrypted vault data.
+ * @returns The vault's key set, as the envelope vault key set `K_v`.
+ */
+export function toVaultKeySet(vaultData: DeserializedVaultData): VaultKeySet {
+  return {
+    authKeyPair: vaultData.toprfAuthKeyPair,
+    encKey: vaultData.toprfEncryptionKey,
+    localWrapKey: vaultData.toprfPwEncryptionKey,
+  };
+}
+
+/**
+ * Build the persisted envelope state for an envelope-managed vault.
+ *
+ * @param vaultKeySet - The vault key set `K_v`.
+ * @param passwordAuthPubKey - The password OPRF auth public key the local
+ * password is synced with.
+ * @returns The persisted envelope state.
+ */
+export function createEnvelopeState(
+  vaultKeySet: VaultKeySet,
+  passwordAuthPubKey: SEC1EncodedPublicKey,
+): EnvelopeState {
+  return {
+    v: 1,
+    vaultAuthPubKey: bytesToBase64(vaultKeySet.authKeyPair.pk),
+    passwordAuthPubKey: bytesToBase64(passwordAuthPubKey),
+  };
+}
+
+/**
+ * Pack the vault key set for an envelope partition.
+ *
+ * @param keys - The envelope keys of the partition.
+ * @param path - The path the keys were derived on.
+ * @param vaultKeySet - The vault key set.
+ * @returns The envelope and its partition keys.
+ */
+export function packFor(
+  keys: EnvelopeKeys,
+  path: Envelope['path'],
+  vaultKeySet: VaultKeySet,
+): PackedEnvelope {
+  return {
+    keys,
+    envelope: packEnvelope(path, vaultKeySet),
+  };
+}
 
 /**
  * Decode the node auth token from base64 to json object.
