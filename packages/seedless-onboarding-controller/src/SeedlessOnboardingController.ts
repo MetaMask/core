@@ -102,6 +102,7 @@ import {
   decryptStringWithKey,
   getDataTypeMigrationUpdates,
   getNewSocialBackupsMetadata,
+  assertIdentityUnchanged,
   assertIdentityUnchangedAndTrackEvent,
   assertIdTokenMismatchAndTrackEvent,
   findSocialBackupMetadata,
@@ -113,6 +114,7 @@ import {
   isTokenNearExpiry,
   parseVaultData,
   parseAndValidateSecretMetadataBackup,
+  planPrimarySrpRepair,
   serializeVaultData,
 } from './utils/index.js';
 import type { SecretBackupData } from './utils/index.js';
@@ -4374,20 +4376,92 @@ export class SeedlessOnboardingController<
   async #identifyIncompleteMetadataBackup(password: string): Promise<void> {
     const deserializedVaultData =
       this.#cachedDecryptedVaultData as DeserializedVaultData;
+    const { userId, authConnectionId } = this.state;
 
-    await trackIncompleteMetadataBackupEvents({
+    const plan = await planPrimarySrpRepair({
       fetchAllSecretDataFn: () =>
-        this.toprfClient.fetchAllSecretDataItems({
-          decKey: deserializedVaultData.toprfEncryptionKey,
-          authKeyPair: deserializedVaultData.toprfAuthKeyPair,
-        }),
+        this.#executeWithTokenRefresh(
+          () =>
+            this.toprfClient.fetchAllSecretDataItems({
+              decKey: deserializedVaultData.toprfEncryptionKey,
+              authKeyPair: deserializedVaultData.toprfAuthKeyPair,
+            }),
+          'identifyIncompleteMetadataBackup',
+        ),
       getPrimaryKeyringSeedPhraseFn: () =>
         this.messenger.call('KeyringController:exportSeedPhrase', {
           password,
         }),
+    });
+
+    await trackIncompleteMetadataBackupEvents({
+      plan,
       trackEvent: (event) =>
         this.messenger.call('AnalyticsController:trackEvent', event),
     });
+
+    if (plan?.type === 'missing') {
+      await this.#repairMissingPrimarySrpBackup({
+        data: plan.data,
+        dataType: plan.dataType,
+        expectedIdentity: { userId, authConnectionId },
+      });
+    }
+  }
+
+  /**
+   * Write the local primary SRP to the metadata service as the remote primary
+   * SRP.
+   *
+   * This is a best-effort repair: any failure is logged and never thrown, so
+   * it can't block the unlock flow.
+   *
+   * @param params - The repair to apply.
+   * @param params.data - The primary SRP to write.
+   * @param params.dataType - The data type to write it as.
+   * @param params.expectedIdentity - The identity the repair was planned for.
+   * The repair is aborted if the identity changed in the meantime.
+   */
+  async #repairMissingPrimarySrpBackup({
+    data,
+    dataType,
+    expectedIdentity,
+  }: {
+    data: Uint8Array;
+    dataType: EncAccountDataType.PrimarySrp;
+    expectedIdentity: { userId?: string; authConnectionId?: string };
+  }): Promise<void> {
+    try {
+      await this.#withControllerLock(async () => {
+        this.#assertIsUnlocked();
+
+        await this.#assertPasswordInSync({
+          skipCache: true,
+        });
+        const { toprfEncryptionKey, toprfAuthKeyPair } =
+          await this.#unlockVaultAndGetVaultData();
+
+        await this.#executeWithTokenRefresh(async () => {
+          // The identity may have changed since the repair was planned.
+          assertIdentityUnchanged(
+            {
+              userId: this.state.userId,
+              authConnectionId: this.state.authConnectionId,
+            },
+            expectedIdentity,
+          );
+
+          await this.toprfClient.addSecretDataItem({
+            encKey: toprfEncryptionKey,
+            secretData: new SecretMetadata(data, { dataType }).toBytes(),
+            authKeyPair: toprfAuthKeyPair,
+            dataType,
+          });
+        }, 'repairMissingPrimarySrpBackup');
+      });
+    } catch (error) {
+      log('Error repairing missing primary SRP backup', error);
+    }
   }
 }
 

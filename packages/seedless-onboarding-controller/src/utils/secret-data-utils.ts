@@ -1,6 +1,7 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import type { FetchedSecretDataItem } from '@metamask/toprf-secure-backup';
 import { EncAccountDataType } from '@metamask/toprf-secure-backup';
+import { areUint8ArraysEqual } from '@metamask/utils';
 
 import { controllerName, SecretType } from '../constants.js';
 import { parseControlRecord } from '../envelope/envelope-keys.js';
@@ -253,6 +254,93 @@ export function parseAndValidateSecretMetadataBackup(
   secretDataItems: FetchedSecretDataItem[],
 ): SecretMetadata[] {
   return validateSecretMetadataBackup(parseSecretMetadata(secretDataItems));
+}
+
+/**
+ * The result of comparing the remote primary SRP backup with the local primary
+ * SRP when they are not in sync.
+ *
+ * - `missing`: no remote mnemonic can be the primary secret. `data` and
+ * `dataType` describe the primary SRP to write to the remote backup.
+ * - `mismatch`: the remote primary SRP differs from the local one. There is
+ * nothing to repair yet.
+ *
+ * `secretMetadata` is the parsed remote backup the result was derived from.
+ */
+export type PrimarySrpRepairPlan =
+  | {
+      type: 'missing';
+      secretMetadata: SecretMetadata[];
+      data: Uint8Array;
+      dataType: EncAccountDataType.PrimarySrp;
+    }
+  | {
+      type: 'mismatch';
+      secretMetadata: SecretMetadata[];
+    };
+
+/**
+ * Compare the remote primary SRP backup with the local primary SRP, and decide
+ * which repair applies.
+ *
+ * Legacy metadata is ordered by the client-side timestamp and its first
+ * mnemonic is treated as the remote primary candidate. Newer metadata uses the
+ * explicit `PrimarySrp` data type. When no mnemonic can be the primary the
+ * backup is `missing`, otherwise the candidate is compared with the local
+ * primary SRP and a difference is a `mismatch`.
+ *
+ * This only reads data. It does not modify local or remote backup data. Fetch,
+ * parsing, and keyring failures are logged and result in no plan.
+ *
+ * @param params - Functions used to read the remote metadata and the local
+ * primary SRP.
+ * @param params.fetchAllSecretDataFn - Fetches the decrypted remote secret
+ * metadata items.
+ * @param params.getPrimaryKeyringSeedPhraseFn - Returns the local primary SRP
+ * bytes from the keyring.
+ * @returns The repair plan, or `undefined` if the backup is in sync or could
+ * not be read.
+ */
+export async function planPrimarySrpRepair({
+  fetchAllSecretDataFn,
+  getPrimaryKeyringSeedPhraseFn,
+}: {
+  fetchAllSecretDataFn: () => Promise<FetchedSecretDataItem[]>;
+  getPrimaryKeyringSeedPhraseFn: () => Promise<Uint8Array>;
+}): Promise<PrimarySrpRepairPlan | undefined> {
+  let secretMetadata: SecretMetadata[] = [];
+  try {
+    const secretDataItems = await fetchAllSecretDataFn();
+    secretMetadata = parseSecretMetadata(secretDataItems);
+
+    const [primarySecretMetadata] =
+      validateSecretMetadataBackup(secretMetadata);
+    const localPrimarySrp = await getPrimaryKeyringSeedPhraseFn();
+    if (areUint8ArraysEqual(primarySecretMetadata.data, localPrimarySrp)) {
+      return undefined;
+    }
+
+    return { type: 'mismatch', secretMetadata };
+  } catch (error) {
+    if (!(error instanceof InvalidPrimarySecretDataTypeError)) {
+      log('Error planning primary SRP repair', error);
+      return undefined;
+    }
+
+    // No mnemonic can be used as the primary secret, so the primary SRP is
+    // missing and the local primary SRP is the data to write.
+    try {
+      return {
+        type: 'missing',
+        secretMetadata,
+        data: await getPrimaryKeyringSeedPhraseFn(),
+        dataType: EncAccountDataType.PrimarySrp,
+      };
+    } catch (exportError) {
+      log('Error planning primary SRP repair', exportError);
+      return undefined;
+    }
+  }
 }
 
 /**

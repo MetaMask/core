@@ -2,12 +2,14 @@ import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import type { FetchedSecretDataItem } from '@metamask/toprf-secure-backup';
 import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 import { bigIntToHex, stringToBytes } from '@metamask/utils';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import {
   createFetchedSecretDataItem,
   createSecretMetadata,
   createSecretMetadataFromMock,
+  ImportedPrivateKey1,
   ImportedSRP1,
   PrimarySRP2,
   PrivateKey1,
@@ -26,9 +28,17 @@ import {
   isSecretDataType,
   parseAndValidateSecretMetadataBackup,
   parseSecretMetadata,
+  planPrimarySrpRepair,
   sortNewestFirst,
   splitVaultItems,
 } from './secret-data-utils.js';
+
+const { logMock } = vi.hoisted(() => ({ logMock: vi.fn() }));
+
+vi.mock('../logger.js', () => ({
+  projectLogger: {},
+  createModuleLogger: (): Mock => logMock,
+}));
 
 /**
  * @param overrides - The fields to set on the item.
@@ -156,6 +166,165 @@ describe('secret data utilities', () => {
         new InvalidPrimarySecretDataTypeError([EncAccountDataType.ImportedSrp]),
       );
     });
+  });
+
+  describe('planPrimarySrpRepair', () => {
+    const localPrimarySrp = stringToBytes(SRP1.data);
+
+    beforeEach(() => {
+      logMock.mockClear();
+    });
+
+    it.each([
+      {
+        description: 'the remote metadata is empty',
+        secretDataItems: [],
+      },
+      {
+        description: 'the remote metadata only has private keys',
+        secretDataItems: [createFetchedSecretDataItem(ImportedPrivateKey1)],
+      },
+      {
+        description: 'the remote metadata only has imported SRPs',
+        secretDataItems: [
+          createFetchedSecretDataItem(ImportedSRP1),
+          createFetchedSecretDataItem(ImportedPrivateKey1),
+        ],
+      },
+    ])(
+      'plans a missing primary SRP repair when $description',
+      async ({ secretDataItems }) => {
+        const repair = await planPrimarySrpRepair({
+          fetchAllSecretDataFn: async () => secretDataItems,
+          getPrimaryKeyringSeedPhraseFn: async () => localPrimarySrp,
+        });
+
+        expect(repair).toStrictEqual({
+          type: 'missing',
+          secretMetadata: expect.any(Array),
+          data: localPrimarySrp,
+          dataType: EncAccountDataType.PrimarySrp,
+        });
+        expect(repair?.secretMetadata).toHaveLength(secretDataItems.length);
+        expect(logMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      {
+        description: 'the remote primary SRP differs from the local one',
+        secretDataItems: [createFetchedSecretDataItem(PrimarySRP2)],
+      },
+      {
+        description: 'the earliest legacy SRP is not the local primary SRP',
+        secretDataItems: [
+          createFetchedSecretDataItem(PrivateKey1),
+          createFetchedSecretDataItem(SRP2),
+        ],
+      },
+    ])('plans a mismatch when $description', async ({ secretDataItems }) => {
+      const repair = await planPrimarySrpRepair({
+        fetchAllSecretDataFn: async () => secretDataItems,
+        getPrimaryKeyringSeedPhraseFn: async () => localPrimarySrp,
+      });
+
+      expect(repair).toStrictEqual({
+        type: 'mismatch',
+        secretMetadata: expect.any(Array),
+      });
+      expect(repair?.secretMetadata).toHaveLength(secretDataItems.length);
+      expect(logMock).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      {
+        description: 'the remote primary SRP matches the local one',
+        secretDataItems: [
+          createFetchedSecretDataItem({
+            ...SRP1,
+            dataType: EncAccountDataType.PrimarySrp,
+          }),
+        ],
+      },
+      {
+        description: 'the earliest legacy SRP is the local primary SRP',
+        secretDataItems: [
+          createFetchedSecretDataItem(PrivateKey1),
+          createFetchedSecretDataItem(SRP2),
+          createFetchedSecretDataItem(SRP1),
+        ],
+      },
+    ])('plans nothing when $description', async ({ secretDataItems }) => {
+      const repair = await planPrimarySrpRepair({
+        fetchAllSecretDataFn: async () => secretDataItems,
+        getPrimaryKeyringSeedPhraseFn: async () => localPrimarySrp,
+      });
+
+      expect(repair).toBeUndefined();
+      expect(logMock).not.toHaveBeenCalled();
+    });
+
+    it('logs fetch failures and plans nothing', async () => {
+      const error = new Error('network failure');
+
+      const repair = await planPrimarySrpRepair({
+        fetchAllSecretDataFn: async () => {
+          throw error;
+        },
+        getPrimaryKeyringSeedPhraseFn: async () => localPrimarySrp,
+      });
+
+      expect(repair).toBeUndefined();
+      expect(logMock).toHaveBeenCalledWith(
+        'Error planning primary SRP repair',
+        error,
+      );
+    });
+
+    it('logs parsing failures and plans nothing', async () => {
+      const repair = await planPrimarySrpRepair({
+        fetchAllSecretDataFn: async () => [
+          {
+            data: stringToBytes('not valid metadata'),
+            itemId: 'invalid',
+            version: 'v2',
+          },
+        ],
+        getPrimaryKeyringSeedPhraseFn: async () => localPrimarySrp,
+      });
+
+      expect(repair).toBeUndefined();
+      expect(logMock).toHaveBeenCalledWith(
+        'Error planning primary SRP repair',
+        expect.any(Error),
+      );
+    });
+
+    it.each([
+      { description: 'missing', secretDataItems: [] },
+      {
+        description: 'present',
+        secretDataItems: [createFetchedSecretDataItem(SRP1)],
+      },
+    ])(
+      'logs keyring failures and plans nothing when the primary SRP is $description',
+      async ({ secretDataItems }) => {
+        const error = new Error('export failed');
+
+        const repair = await planPrimarySrpRepair({
+          fetchAllSecretDataFn: async () => secretDataItems,
+          getPrimaryKeyringSeedPhraseFn: async () => {
+            throw error;
+          },
+        });
+
+        expect(repair).toBeUndefined();
+        expect(logMock).toHaveBeenCalledWith(
+          'Error planning primary SRP repair',
+          error,
+        );
+      },
+    );
   });
 
   describe('getDataTypeMigrationUpdates', () => {
