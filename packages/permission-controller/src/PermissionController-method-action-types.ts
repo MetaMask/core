@@ -362,6 +362,28 @@ export type PermissionControllerGetEndowmentsAction = {
 };
 
 /**
+ * Gets the RPC methods tied to the endowment permissions for a subject.
+ *
+ * @param origin - The origin of the subject whose RPC methods to retrieve.
+ * @returns The RPC method names, if any.
+ */
+export type PermissionControllerGetEndowmentsRpcMethodsAction = {
+  type: `PermissionController:getEndowmentsRpcMethods`;
+  handler: PermissionController['getEndowmentsRpcMethods'];
+};
+
+/**
+ * Checks whether an RPC method is tied to an endowment.
+ *
+ * @param method - The name of the RPC method.
+ * @returns True if the RPC method is tied to an endowment, otherwise false.
+ */
+export type PermissionControllerIsEndowmentRpcMethodAction = {
+  type: `PermissionController:isEndowmentRpcMethod`;
+  handler: PermissionController['isEndowmentRpcMethod'];
+};
+
+/**
  * Executes a restricted method as the subject with the given origin.
  * The specified params, if any, will be passed to the method implementation.
  *
@@ -416,4 +438,6 @@ export type PermissionControllerMethodActions =
   | PermissionControllerAcceptPermissionsRequestAction
   | PermissionControllerRejectPermissionsRequestAction
   | PermissionControllerGetEndowmentsAction
+  | PermissionControllerGetEndowmentsRpcMethodsAction
+  | PermissionControllerIsEndowmentRpcMethodAction
   | PermissionControllerExecuteRestrictedMethodAction;

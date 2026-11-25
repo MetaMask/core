@@ -177,6 +177,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'clearState',
   'executeRestrictedMethod',
   'getEndowments',
+  'getEndowmentsRpcMethods',
+  'isEndowmentRpcMethod',
   'getSubjectNames',
   'getPermissions',
   'hasPermission',
@@ -2732,11 +2734,56 @@ export class PermissionController<
       throw unauthorized({ data: { origin, targetName } });
     }
 
-    return this.#getTypedPermissionSpecification(
-      PermissionType.Endowment,
-      targetName,
-      origin,
-    ).endowmentGetter({ origin, requestData });
+    return (
+      this.#getTypedPermissionSpecification(
+        PermissionType.Endowment,
+        targetName,
+        origin,
+      ).endowmentGetter?.({ origin, requestData }) ?? null
+    );
+  }
+
+  /**
+   * Gets the RPC methods tied to the endowment permissions for a subject.
+   *
+   * @param origin - The origin of the subject whose RPC methods to retrieve.
+   * @returns The RPC method names, if any.
+   */
+  getEndowmentsRpcMethods(origin: string): string[] {
+    const permissions = Object.values(this.getPermissions(origin) ?? {});
+
+    return permissions.flatMap((permission) => {
+      const specification = this.#getPermissionSpecification(
+        permission.parentCapability,
+      );
+
+      if (
+        hasSpecificationType(specification, PermissionType.Endowment) &&
+        specification.rpcMethods
+      ) {
+        return specification.rpcMethods;
+      }
+
+      return [];
+    });
+  }
+
+  /**
+   * Checks whether an RPC method is tied to an endowment.
+   *
+   * @param method - The name of the RPC method.
+   * @returns True if the RPC method is tied to an endowment, otherwise false.
+   */
+  isEndowmentRpcMethod(method: string): boolean {
+    const specifications = Object.values(
+      this.#permissionSpecifications,
+    ) as PermissionSpecificationConstraint[];
+
+    return specifications.some(
+      (specification) =>
+        hasSpecificationType(specification, PermissionType.Endowment) &&
+        (specification.rpcMethods?.includes(method) ?? false),
+    );
   }
 
   /**
