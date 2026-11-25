@@ -19172,17 +19172,21 @@ export class LighterProvider implements PerpsProvider {
               this.#accountChannelsAwaiting = 'tradingKey';
             }
             // No retained key is a waiting state, not a failure: give
-            // clients a code so they need not match on the message.
-            this.#notifySubscriptionError(
-              error instanceof LighterRecoveryReadAuthorityError
-                ? new PerpsControllerError(
-                    PERPS_ERROR_CODES.ORDERS_STREAM_PAUSED,
-                    error.message,
-                    undefined,
-                    { cause: error },
-                  )
-                : ensureError(error),
-            );
+            // clients a code so they need not match on the message. Only
+            // orders wait on the key; the public fills channel stays live.
+            if (error instanceof LighterRecoveryReadAuthorityError) {
+              this.#notifySubscriptionError(
+                new PerpsControllerError(
+                  PERPS_ERROR_CODES.ORDERS_STREAM_PAUSED,
+                  error.message,
+                  undefined,
+                  { cause: error },
+                ),
+                ['orders'],
+              );
+            } else {
+              this.#notifySubscriptionError(ensureError(error));
+            }
           }
           // Setup failures are not authoritative empty order state. Account
           // switches and deselection already emit their synchronous reset.

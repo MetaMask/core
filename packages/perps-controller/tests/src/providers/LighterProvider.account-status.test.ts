@@ -400,7 +400,9 @@ describe('Lighter exchange account status', () => {
   it('reports a missing retained key to orders listeners as a paused stream, not a failure', async () => {
     const { provider, clientInstance, fireReset } = streamProvider();
     const onError = vi.fn();
+    const fillError = vi.fn();
     provider.subscribeToOrders({ callback: vi.fn(), onError });
+    provider.subscribeToOrderFills({ callback: vi.fn(), onError: fillError });
     await tick();
     const socket = StreamFakeWebSocket.instances[0];
     socket.open();
@@ -426,6 +428,8 @@ describe('Lighter exchange account status', () => {
         name: 'LighterRecoveryReadAuthorityError',
       }),
     });
+    // The public fills channel does not wait on a trading key.
+    expect(fillError).not.toHaveBeenCalled();
     await provider.disconnect();
   });
 
