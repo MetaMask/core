@@ -1036,6 +1036,8 @@ export type CrossMarginSummary = {
 
 // Using 'type' instead of 'interface' for BaseController Json compatibility
 export type AccountState = {
+  /** Registration of this wallet on this venue, when reported. */
+  exchangeAccountStatus?: ExchangeAccountStatus;
   /**
    * Venue account mode when confirmed by the current account stream or read
    * (Hyperliquid `userAbstraction`). Pass it to `calculateAccountSummary`.
@@ -3452,10 +3454,9 @@ export type GetAccountSupportParams = {
 export type GetExchangeAccountStatusParams = { providerId: PerpsProviderType };
 
 /** The selected wallet's venue registration and, when applicable, master index. */
-export type ExchangeAccountStatus = {
-  registered: boolean;
-  accountIndex?: number;
-};
+export type ExchangeAccountStatus =
+  | { registered: true; accountIndex?: number }
+  | { registered: false };
 
 /**
  * Selects the provider route whose withdrawal destination should be resolved.
@@ -3498,10 +3499,7 @@ export type PerpsProvider = {
   ): Promise<PerpsAccountSupport>;
 
   /**
-   * Read-only registration check; never requests a wallet signature. After a
-   * first Lighter deposit, poll every few seconds for up to about 2–3 minutes,
-   * stopping once `registered` is true. Read the balance from `subscribeToAccount`,
-   * `getAccountState().providerStates.lighter`, or per-venue `perpsBalances`.
+   * Check the selected wallet’s venue registration once, without signing.
    * Omit this hook for venues with no registration step.
    */
   getExchangeAccountStatus?(

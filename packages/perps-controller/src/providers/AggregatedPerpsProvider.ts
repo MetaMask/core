@@ -583,7 +583,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   async getExchangeAccountStatus(
     params: GetExchangeAccountStatusParams,
   ): Promise<ExchangeAccountStatus> {
-    const provider = this.#providers.get(params?.providerId);
+    const provider = this.#providers.get(params.providerId);
     if (!provider) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
     }

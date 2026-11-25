@@ -154,6 +154,13 @@ export const CHASE_ORDER_CONFIG = {
   OmissionGraceReads: 1,
 } as const;
 
+/** Bounded discovery while Lighter account streams await a first deposit. */
+export const LIGHTER_ACCOUNT_DISCOVERY_CONFIG = {
+  InitialIntervalMs: 3_000,
+  MaxIntervalMs: 15_000,
+  DeadlineMs: 180_000,
+} as const;
+
 /** Refresh cadence of a live TWAP list. */
 export const TWAP_ORDER_CONFIG = {
   /**

@@ -6,6 +6,7 @@ import {
   LIGHTER_SOCKET_DOWN_GRACE_MS,
   LIGHTER_SOCKET_IDLE_CLOSE_MS,
 } from '../../../src/constants/lighterConfig.js';
+import { LIGHTER_ACCOUNT_DISCOVERY_CONFIG } from '../../../src/constants/perpsConfig.js';
 import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsProvider.js';
 import {
   getLighterReconnectDelayMs,
@@ -26,6 +27,7 @@ import type {
   LighterWasmCall,
 } from '../../../src/types/lighter-types.js';
 import {
+  ACCOUNT,
   BTC_MARKET,
   buildProvider,
   fakeStreamCtor,
@@ -36,7 +38,10 @@ import {
 } from '../../helpers/lighterProvider.js';
 import type { BuiltProvider } from '../../helpers/lighterProvider.js';
 import { createMockHyperLiquidProvider } from '../../helpers/providerMocks.js';
-import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
+import {
+  createDeferred,
+  createMockInfrastructure,
+} from '../../helpers/serviceMocks.js';
 
 vi.mock(
   import('../../../src/services/LighterClientService'),
@@ -181,12 +186,273 @@ const openMarketScreen = (
 describe('LighterProvider stream lifecycle', () => {
   finishPendingTimersAfterEach();
 
+  describe('account discovery', () => {
+    it('streams registration after a deposit without a client read or a trading key', async () => {
+      const { provider, clientInstance, calls } = buildStreamProvider({
+        configuredAccountIndex: null,
+      });
+      const lookup = clientInstance.getAccountsByL1Address;
+      lookup
+        .mockResolvedValueOnce({ subAccounts: [] })
+        .mockRejectedValueOnce(new Error('offline'));
+      const callback = vi.fn();
+      provider.subscribeToAccount({ callback });
+      await settle();
+      const socket = latestSocket();
+      socket.open();
+      try {
+        expect(callback).toHaveBeenCalledExactlyOnceWith(
+          expect.objectContaining({
+            exchangeAccountStatus: { registered: false },
+          }),
+        );
+        const { InitialIntervalMs } = LIGHTER_ACCOUNT_DISCOVERY_CONFIG;
+        await vi.advanceTimersByTimeAsync(InitialIntervalMs);
+        expect(lookup).toHaveBeenCalledTimes(2);
+        await vi.advanceTimersByTimeAsync(2 * InitialIntervalMs - 1);
+        expect(lookup).toHaveBeenCalledTimes(2);
+        await vi.advanceTimersByTimeAsync(1);
+        expect(venueChannels(socket)).toContain('user_stats/28');
+        expect(venueChannels(socket)).not.toContain('account_all_orders/28');
+        receive(socket, {
+          type: 'subscribed/user_stats',
+          stats: {
+            collateral: '0',
+            portfolio_value: '0',
+            leverage: '0',
+            available_balance: '0',
+            margin_usage: '0',
+            buying_power: '0',
+          },
+        });
+        const registered = expect.objectContaining({
+          totalBalance: '0',
+          exchangeAccountStatus: { registered: true, accountIndex: 28 },
+        });
+        expect(callback).toHaveBeenLastCalledWith(registered);
+        const late = vi.fn();
+        provider.subscribeToAccount({ callback: late });
+        expect(late).toHaveBeenCalledExactlyOnceWith(registered);
+        await vi.advanceTimersByTimeAsync(
+          LIGHTER_ACCOUNT_DISCOVERY_CONFIG.DeadlineMs,
+        );
+        expect(lookup).toHaveBeenCalledTimes(3);
+        expect(calls).toStrictEqual([]);
+        expect(clientInstance.getApiKeys).not.toHaveBeenCalled();
+        expect(clientInstance.sendTx).not.toHaveBeenCalled();
+      } finally {
+        await provider.disconnect();
+      }
+    });
+
+    it('stops at the deadline without repeating the initial empty snapshot', async () => {
+      const { provider, clientInstance } = buildStreamProvider({
+        configuredAccountIndex: null,
+      });
+      const lookup = clientInstance.getAccountsByL1Address.mockResolvedValue({
+        subAccounts: [],
+      });
+      const callback = vi.fn();
+      provider.subscribeToAccount({ callback });
+      await settle();
+      await vi.advanceTimersByTimeAsync(
+        LIGHTER_ACCOUNT_DISCOVERY_CONFIG.DeadlineMs,
+      );
+      const attempts = lookup.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(
+        LIGHTER_ACCOUNT_DISCOVERY_CONFIG.DeadlineMs,
+      );
+      expect(attempts).toBeGreaterThan(1);
+      expect(lookup).toHaveBeenCalledTimes(attempts);
+      expect(callback).toHaveBeenCalledTimes(1);
+      await provider.disconnect();
+    });
+
+    it('starts a fresh discovery window for a new wallet and drops the old retry', async () => {
+      const { provider, clientInstance, getUserAddressMock } =
+        buildStreamProvider({ configuredAccountIndex: null });
+      const lookup = clientInstance.getAccountsByL1Address;
+      const old = createDeferred<unknown>();
+      const absent = { subAccounts: [] };
+      const next = { ...ACCOUNT, index: 91, l1Address: '0xbbbb' };
+      lookup
+        .mockResolvedValueOnce(absent)
+        .mockReturnValueOnce(old.promise)
+        .mockResolvedValueOnce(absent)
+        .mockResolvedValue({ subAccounts: [next] });
+      const callback = vi.fn();
+      provider.subscribeToAccount({ callback });
+      await settle();
+      const { InitialIntervalMs, DeadlineMs } =
+        LIGHTER_ACCOUNT_DISCOVERY_CONFIG;
+      await vi.advanceTimersByTimeAsync(InitialIntervalMs);
+      getUserAddressMock.mockReturnValue(next.l1Address);
+      latestSocket().open(); // Observes the switch and rebuilds the stream.
+      await settle();
+      latestSocket().open();
+      old.reject(new Error('stale wallet lookup'));
+      await settle();
+      await vi.advanceTimersByTimeAsync(InitialIntervalMs);
+      expect(venueChannels(latestSocket())).toContain('user_stats/91');
+      expect(venueChannels(latestSocket())).not.toContain('user_stats/28');
+      await vi.advanceTimersByTimeAsync(DeadlineMs);
+      expect(lookup.mock.calls).toStrictEqual([
+        [ACCOUNT.l1Address],
+        [ACCOUNT.l1Address],
+        [next.l1Address],
+        [next.l1Address],
+      ]);
+      await provider.disconnect();
+    });
+
+    it('stops discovery when the last account listener leaves, even with prices open', async () => {
+      const { provider, clientInstance } = buildStreamProvider({
+        configuredAccountIndex: null,
+      });
+      const lookup = clientInstance.getAccountsByL1Address.mockResolvedValue({
+        subAccounts: [],
+      });
+      provider.subscribeToPrices({ symbols: [], callback: vi.fn() });
+      const leave = provider.subscribeToAccount({ callback: vi.fn() });
+      await settle();
+      leave();
+      await vi.advanceTimersByTimeAsync(
+        LIGHTER_ACCOUNT_DISCOVERY_CONFIG.DeadlineMs,
+      );
+      expect(lookup).toHaveBeenCalledTimes(1);
+      await provider.disconnect();
+    });
+  });
+
+  describe('authentication after account discovery', () => {
+    it('resumes the orders channel using the signer that just became ready', async () => {
+      const { provider, bridge, clientInstance } = buildStreamProvider({
+        configuredAccountIndex: null,
+        registeredKey: '9c'.repeat(40),
+      });
+      clientInstance.getAccountsByL1Address.mockResolvedValueOnce({
+        subAccounts: [],
+      });
+      provider.subscribeToAccount({ callback: vi.fn() });
+      await settle();
+      const socket = latestSocket();
+      socket.open();
+      await provider.getExchangeAccountStatus({ providerId: 'lighter' });
+      await settle();
+      expect(venueChannels(socket)).not.toContain('account_all_orders/28');
+
+      await provider.getOpenOrders();
+      await settle();
+      expect(venueChannels(socket)).toContain('account_all_orders/28');
+      expect(bridge.createClient).toHaveBeenCalledTimes(1);
+      await provider.disconnect();
+    });
+
+    it('skips a delayed reconnect token after a new getter takes over the same channel', async () => {
+      const { provider, bridge } = buildStreamProvider();
+      provider.subscribeToPrices({ symbols: [], callback: vi.fn() });
+      const leave = provider.subscribeToOrders({ callback: vi.fn() });
+      await settle();
+      const originalTime = Date.now();
+      vi.setSystemTime(originalTime + 600_000);
+      const release = stallAuthToken(bridge);
+      await provider.reconnect();
+      const socket = latestSocket();
+      socket.open();
+      await settle();
+      leave();
+      await vi.advanceTimersByTimeAsync(LIGHTER_CHANNEL_RELEASE_DELAY_MS);
+      // The replacement can authenticate from cache before the old mint returns.
+      vi.setSystemTime(originalTime);
+      provider.subscribeToOrders({ callback: vi.fn() });
+      await settle();
+      const frames = (): string[] =>
+        socket.sent.filter(
+          (frame) =>
+            frame ===
+            JSON.stringify({
+              type: 'subscribe',
+              channel: 'account_all_orders/28',
+              auth: 'auth-token',
+            }),
+        );
+      try {
+        expect(frames()).toHaveLength(1);
+      } finally {
+        release();
+        await settle();
+        await provider.disconnect();
+      }
+      expect(frames()).toHaveLength(1);
+    });
+
+    it('uses current signer readiness when reconnecting a channel opened with a retained key', async () => {
+      const { provider, bridge, clientInstance, fireReset } =
+        buildStreamProvider({
+          configuredAccountIndex: null,
+          registeredKey: '9c'.repeat(40),
+        });
+      clientInstance.getAccountsByL1Address.mockResolvedValueOnce({
+        subAccounts: [],
+      });
+      provider.subscribeToOrders({ callback: vi.fn() });
+      await settle();
+      latestSocket().open();
+      await provider.getExchangeAccountStatus({ providerId: 'lighter' });
+      await settle();
+      expect(venueChannels(latestSocket())).toContain('account_all_orders/28');
+
+      await provider.getOpenOrders();
+      vi.mocked(bridge.execute).mockClear();
+      vi.mocked(bridge.createClient).mockClear();
+      clientInstance.getApiKeys.mockReset().mockResolvedValue({ apiKeys: [] });
+      await provider.reconnect();
+      latestSocket().open();
+      await settle();
+      expect(venueChannels(latestSocket())).toContain('account_all_orders/28');
+      expect(bridge.execute).not.toHaveBeenCalled();
+      expect(clientInstance.getApiKeys).not.toHaveBeenCalled();
+
+      vi.setSystemTime(Date.now() + 600_000); // Expire the trading read's token.
+      await provider.reconnect();
+      latestSocket().open();
+      await settle();
+      expect(venueChannels(latestSocket())).toContain('account_all_orders/28');
+      expect(bridge.execute).toHaveBeenCalledWith({
+        function: '_createAuthToken',
+        params: [28, 7],
+      });
+      expect(clientInstance.getApiKeys).not.toHaveBeenCalled();
+      expect(bridge.createClient).not.toHaveBeenCalled();
+
+      fireReset();
+      await provider.reconnect();
+      latestSocket().open();
+      await settle();
+      expect(venueChannels(latestSocket())).not.toContain(
+        'account_all_orders/28',
+      );
+      expect(clientInstance.sendTx).not.toHaveBeenCalled();
+      expect(bridge.createClient).not.toHaveBeenCalled();
+      // Trading setup in the new signer generation must install a new getter.
+      clientInstance.getApiKeys.mockResolvedValue({
+        apiKeys: [
+          { accountIndex: 28, apiKeyIndex: 7, publicKey: '9c'.repeat(40) },
+        ],
+      });
+      await provider.getOpenOrders();
+      await settle();
+      expect(venueChannels(latestSocket())).toContain('account_all_orders/28');
+      await provider.disconnect();
+    });
+  });
+
   describe('channel release', () => {
     it('keeps only watched channels plus the account channels after leaving 20 markets', async () => {
       const platformDependencies = createMockInfrastructure();
       const { provider } = buildStreamProvider({ platformDependencies });
       provider.subscribeToPrices({ symbols: [], callback: vi.fn() });
-      provider.subscribeToPositions({ callback: vi.fn() });
+      provider.subscribeToOrders({ callback: vi.fn() });
       await settle();
       const socket = latestSocket();
       socket.open();
@@ -286,12 +552,12 @@ describe('LighterProvider stream lifecycle', () => {
       socket.open();
       const releaseToken = stallAuthToken(bridge);
 
-      const leavePositions = provider.subscribeToPositions({
+      const leaveOrders = provider.subscribeToOrders({
         callback: vi.fn(),
       });
       await settle();
       expect(venueChannels(socket)).toContain('user_stats/28');
-      leavePositions();
+      leaveOrders();
       await vi.advanceTimersByTimeAsync(LIGHTER_CHANNEL_RELEASE_DELAY_MS);
       releaseToken();
       await settle();

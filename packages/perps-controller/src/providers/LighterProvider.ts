@@ -98,6 +98,7 @@ import {
   isLighterOrderSizeDecimals,
   toLighterInteger,
 } from '../constants/lighterConfig.js';
+import { LIGHTER_ACCOUNT_DISCOVERY_CONFIG } from '../constants/perpsConfig.js';
 import {
   createTpslLegReplaceUnsupportedError,
   PerpsControllerError,
@@ -1786,9 +1787,10 @@ const isDeclinedRegistration = (error: unknown): boolean =>
   );
 
 /**
- * Empty account state returned when reads fail or no account exists.
+ * Empty account state returned only for a venue-confirmed missing account.
  */
 const EMPTY_ACCOUNT_STATE: AccountState = {
+  exchangeAccountStatus: { registered: false },
   totalBalance: '0',
   spendableBalance: '0',
   withdrawableBalance: '0',
@@ -2046,8 +2048,15 @@ export class LighterProvider implements PerpsProvider {
   /** Cached candle series per `marketId:resolution` (keyed by open time). */
   readonly #candleSeries: Map<string, Map<number, CandleStick>> = new Map();
 
+  #lastStreamAccount: AccountState | null = null;
+
+  #accountDiscoveryTimer: ReturnType<typeof setTimeout> | null = null;
+
   /** Dedup for the async account-channel setup. */
-  #accountChannelsPromise: Promise<void> | null = null;
+  #accountChannelSetup: {
+    promise: Promise<void>;
+    options: { existingKeysOnly: boolean };
+  } | null = null;
 
   // Only a settled absence (not a transport failure) is retried on discovery.
   #accountChannelsAwaiting: 'account' | 'tradingKey' | null = null;
@@ -2467,6 +2476,16 @@ export class LighterProvider implements PerpsProvider {
     this.#readyApiKeyIndex = null;
     this.#authToken = null;
     this.#clearBridgeOwnership();
+    // Auth getters belong to one generation. Retire the private channel but
+    // leave public balances/positions live while waiting for a usable key.
+    if (this.#accountIndex !== null) {
+      const channel = `account_all_orders/${this.#accountIndex}`;
+      if (this.#wsWantedChannels.has(channel)) {
+        this.#releaseChannel(channel, true);
+        this.#accountChannelSetup = null;
+        this.#accountChannelsAwaiting = 'tradingKey';
+      }
+    }
     this.#deps.debugLogger.log(
       '[LighterProvider] signer session invalidated (client lost); will re-setup on next call',
     );
@@ -2583,6 +2602,7 @@ export class LighterProvider implements PerpsProvider {
    * the empty state only when the venue confirmed this wallet has no account.
    */
   readonly #emitAccountBindingReset = (account: AccountState | null): void => {
+    this.#lastStreamAccount = account;
     for (const subscriber of this.#accountSubscribers) {
       try {
         subscriber.callback(account);
@@ -2674,13 +2694,13 @@ export class LighterProvider implements PerpsProvider {
   async #lookupMasterAccount(
     address: string,
   ): Promise<LighterAccountSummary | undefined> {
+    if (this.#configuredAccountIndex !== undefined) {
+      const response = await this.#clientService.getAccountByIndex(
+        this.#configuredAccountIndex,
+      );
+      return response.accounts[0];
+    }
     try {
-      if (this.#configuredAccountIndex !== undefined) {
-        const response = await this.#clientService.getAccountByIndex(
-          this.#configuredAccountIndex,
-        );
-        return response.accounts[0];
-      }
       const { subAccounts } =
         await this.#clientService.getAccountsByL1Address(address);
       if (subAccounts.length === 0) {
@@ -2691,7 +2711,7 @@ export class LighterProvider implements PerpsProvider {
       );
     } catch (error) {
       if (error instanceof LighterApiError && error.code === 21100) {
-        throw new LighterAccountNotFoundError(address);
+        return undefined;
       }
       throw error;
     }
@@ -2699,16 +2719,15 @@ export class LighterProvider implements PerpsProvider {
 
   #recordAccountIndex(index: number): number {
     this.#accountIndex = index;
+    this.#cancelAccountDiscovery();
+    if (this.#lastStreamAccount === EMPTY_ACCOUNT_STATE) {
+      this.#lastStreamAccount = null;
+    }
     this.#resumeAccountChannels();
     return index;
   }
 
   /**
-   * Read-only registration check; never requests a wallet signature. After a
-   * first Lighter deposit, poll every few seconds for up to about 2–3 minutes,
-   * stopping once `registered` is true. Read the balance from `subscribeToAccount`,
-   * `getAccountState().providerStates.lighter`, or per-venue `perpsBalances`.
-   *
    * @param params - Lighter provider route.
    * @returns Registration status and the registered wallet's master index.
    */
@@ -2913,7 +2932,8 @@ export class LighterProvider implements PerpsProvider {
       );
     } catch (error) {
       this.#assertSession(generation);
-      if (error instanceof LighterAccountNotFoundError) {
+      // A missing configured index can still have local recovery records.
+      if (error instanceof LighterApiError && error.code === 21100) {
         return absent();
       }
       throw error;
@@ -7623,11 +7643,20 @@ export class LighterProvider implements PerpsProvider {
     this.#assertSession(generation);
     // Keep discovery and allocation together across provider lifetimes. The
     // inner venue lock separately protects each candidate's financial writes.
-    await withProcessMutex(
-      `lighterKeySetup:${this.#clientService.network}:${accountIndex}`,
-      async () => this.#setupSignerForAccount(accountIndex, generation),
+    await this.#withKeySetupLock(accountIndex, async () =>
+      this.#setupSignerForAccount(accountIndex, generation),
     );
   };
+
+  #withKeySetupLock<Result>(
+    accountIndex: number,
+    operation: () => Promise<Result>,
+  ): Promise<Result> {
+    return withProcessMutex(
+      `lighterKeySetup:${this.#clientService.network}:${accountIndex}`,
+      operation,
+    );
+  }
 
   /**
    * Select and settle a key while holding the account setup mutex.
@@ -8471,15 +8500,22 @@ export class LighterProvider implements PerpsProvider {
     bridgeClientOwners.set(this.#rawSignerBridge(), identity);
   };
 
-  readonly #getAuthToken = async (): Promise<string> => {
+  // Supplying a ready account mints with the current signer only: never start
+  // key setup or retry under a different wallet on behalf of a stream.
+  readonly #getAuthToken = async (
+    readyAccountIndex?: number,
+  ): Promise<string> => {
     this.#ensureSessionBinding();
     const nowSeconds = Math.floor(Date.now() / 1000);
     if (this.#authToken && this.#authToken.deadline - nowSeconds > 60) {
       return this.#authToken.token;
     }
     const generation = this.#sessionGeneration;
-    await this.#ensureSignerReady();
-    const accountIndex = await this.#ensureAccountIndex();
+    if (readyAccountIndex === undefined) {
+      await this.#ensureSignerReady();
+    }
+    const accountIndex =
+      readyAccountIndex ?? (await this.#ensureAccountIndex());
     // The auth-token mint is a singleton-client call like any other sign:
     // it runs under the BRIDGE LEASE, and re-establishes OUR client first
     // when another identity has since overwritten it — otherwise the
@@ -8487,6 +8523,7 @@ export class LighterProvider implements PerpsProvider {
     const token = await withProcessMutex(
       bridgeMutexKey(this.#rawSignerBridge()),
       async () => {
+        this.#assertSession(generation);
         if (
           this.#signerIdentity !== null &&
           this.#signerRecreateParams !== null &&
@@ -8518,7 +8555,9 @@ export class LighterProvider implements PerpsProvider {
     // that no longer exists must never be cached — re-mint under the new
     // captured session instead.
     this.#ensureSessionBinding();
-    if (generation !== this.#sessionGeneration) {
+    if (readyAccountIndex !== undefined) {
+      this.#assertSession(generation);
+    } else if (generation !== this.#sessionGeneration) {
       return await this.#getAuthToken();
     }
     this.#authToken = { token: token.token, deadline: token.deadline };
@@ -10574,9 +10613,11 @@ export class LighterProvider implements PerpsProvider {
         accountState,
       );
       this.#assertSession(generation);
-      return crossMarginSummary
-        ? { ...accountState, crossMarginSummary }
-        : accountState;
+      return {
+        ...accountState,
+        exchangeAccountStatus: { registered: true, accountIndex },
+        ...(crossMarginSummary && { crossMarginSummary }),
+      };
     } catch (caughtError) {
       if (
         this.#isUnsupportedCapabilityError(caughtError) ||
@@ -18790,8 +18831,12 @@ export class LighterProvider implements PerpsProvider {
         params.callback(account);
       },
     };
+    this.#ensureSessionBinding();
+    if (this.#lastStreamAccount) {
+      scopedParams.callback(this.#lastStreamAccount);
+    }
     this.#accountSubscribers.add(scopedParams);
-    this.#ensureAccountChannels();
+    this.#ensureAccountChannels({ existingKeysOnly: true });
     return () => {
       this.#accountSubscribers.delete(scopedParams);
       this.#onListenerRemoved(LIGHTER_ACCOUNT_CHANNELS_KEY);
@@ -18806,7 +18851,7 @@ export class LighterProvider implements PerpsProvider {
     if (this.#wsPositions.size > 0) {
       params.callback([...this.#wsPositions.values()]);
     }
-    this.#ensureAccountChannels();
+    this.#ensureAccountChannels({ existingKeysOnly: true });
     return () => {
       this.#positionSubscribers.delete(params);
       this.#onListenerRemoved(LIGHTER_ACCOUNT_CHANNELS_KEY);
@@ -18821,7 +18866,7 @@ export class LighterProvider implements PerpsProvider {
     if (this.#hasOrdersSnapshot || this.#wsOrders.size > 0) {
       params.callback([...this.#wsOrders.values()]);
     }
-    this.#ensureAccountChannels();
+    this.#ensureAccountChannels({ existingKeysOnly: false });
     return () => {
       this.#orderSubscribers.delete(params);
       this.#onListenerRemoved(LIGHTER_ACCOUNT_CHANNELS_KEY);
@@ -18833,16 +18878,16 @@ export class LighterProvider implements PerpsProvider {
       return NOOP_UNSUBSCRIBE;
     }
     this.#fillSubscribers.add(params);
-    this.#ensureAccountChannels();
+    this.#ensureAccountChannels({ existingKeysOnly: false });
     const generation = this.#sessionGeneration;
-    const channelsPromise = this.#accountChannelsPromise;
+    const setup = this.#accountChannelSetup;
     // A late subscriber may join after the venue's one initial trade snapshot.
     // Replay only after authentication succeeds for the same channel session.
-    channelsPromise
-      ?.then(() => {
+    setup?.promise
+      .then(() => {
         this.#assertSession(generation);
         if (
-          this.#accountChannelsPromise === channelsPromise &&
+          this.#accountChannelSetup === setup &&
           this.#fillSubscribers.has(params) &&
           this.#wsFills !== null
         ) {
@@ -18882,11 +18927,86 @@ export class LighterProvider implements PerpsProvider {
     }
   };
 
+  async #getAccountChannelReadToken(
+    accountIndex: number,
+    generation: number,
+  ): Promise<string> {
+    this.#assertSession(generation);
+    if (this.#readyApiKeyIndex !== null) {
+      return this.#getAuthToken(accountIndex);
+    }
+    // Decide under the setup lock: a signer can become ready while a stream
+    // refresh is queued. A temporary read client would displace it.
+    return this.#withKeySetupLock(accountIndex, async () => {
+      this.#assertSession(generation);
+      if (this.#readyApiKeyIndex !== null) {
+        return this.#getAuthToken(accountIndex);
+      }
+      return (await this.#getRegisteredReadToken(accountIndex, generation))
+        .token;
+    });
+  }
+
+  #cancelAccountDiscovery(): void {
+    if (this.#accountDiscoveryTimer !== null) {
+      clearTimeout(this.#accountDiscoveryTimer);
+      this.#accountDiscoveryTimer = null;
+    }
+  }
+
+  // One outstanding discovery per account stream. Keep the timer identity
+  // across the await so an old lookup cannot re-arm a released stream.
+  #scheduleAccountDiscovery(
+    deadline = Date.now() + LIGHTER_ACCOUNT_DISCOVERY_CONFIG.DeadlineMs,
+    interval: number = LIGHTER_ACCOUNT_DISCOVERY_CONFIG.InitialIntervalMs,
+  ): void {
+    const remaining = deadline - Date.now();
+    if (
+      remaining <= 0 ||
+      this.#accountDiscoveryTimer !== null ||
+      !this.#hasAccountSubscriber() ||
+      this.#accountChannelsAwaiting !== 'account'
+    ) {
+      return;
+    }
+    const timer = setTimeout(
+      () => {
+        if (Date.now() > deadline) {
+          this.#cancelAccountDiscovery();
+          return;
+        }
+        // A validated index immediately resumes the waiting channels.
+        this.#ensureAccountIndex().catch((error: unknown) => {
+          this.#ensureSessionBinding();
+          if (this.#accountDiscoveryTimer !== timer) {
+            return;
+          }
+          this.#accountDiscoveryTimer = null;
+          if (!(error instanceof LighterAccountNotFoundError)) {
+            this.#deps.debugLogger.log(
+              '[LighterProvider] account discovery failed',
+              { error: String(error) },
+            );
+          }
+          this.#scheduleAccountDiscovery(
+            deadline,
+            Math.min(
+              2 * interval,
+              LIGHTER_ACCOUNT_DISCOVERY_CONFIG.MaxIntervalMs,
+            ),
+          );
+        });
+      },
+      Math.min(interval, remaining),
+    );
+    this.#accountDiscoveryTimer = timer;
+  }
+
   #resumeAccountChannels(): void {
     if (
       !this.#isDisconnected &&
       this.#hasAccountSubscriber() &&
-      !this.#accountChannelsPromise &&
+      !this.#accountChannelSetup &&
       ((this.#accountChannelsAwaiting === 'account' &&
         this.#accountIndex !== null) ||
         (this.#accountChannelsAwaiting === 'tradingKey' &&
@@ -18904,25 +19024,30 @@ export class LighterProvider implements PerpsProvider {
    * @param options - Automatic rebuilds must not initiate key registration.
    * @param options.existingKeysOnly - Authenticate only with an existing key.
    */
-  readonly #ensureAccountChannels = (options?: {
+  readonly #ensureAccountChannels = (options: {
     existingKeysOnly: boolean;
   }): void => {
     if (this.#isDisconnected) {
       return;
     }
     this.#cancelChannelRelease(LIGHTER_ACCOUNT_CHANNELS_KEY);
-    if (this.#accountChannelsPromise) {
+    if (this.#accountChannelSetup) {
+      // A private listener can join while a public listener's lookup is in
+      // flight. Use its explicit setup permission for this request only.
+      if (!options.existingKeysOnly) {
+        this.#accountChannelSetup.options.existingKeysOnly = false;
+      }
+      this.#ensureStream();
+      return;
+    }
+    if (this.#accountDiscoveryTimer !== null) {
       this.#ensureStream();
       return;
     }
     const generation = this.#sessionGeneration;
-    const existingKeysOnly =
-      options?.existingKeysOnly ?? this.#accountChannelsAwaiting !== null;
     this.#accountChannelsAwaiting = null;
     let channelsRequested = false;
-    // Auth setup crosses awaits before consulting this promise identity.
-    let setupPromise: Promise<void> | undefined = undefined;
-    setupPromise = (async (): Promise<void> => {
+    const open = async (): Promise<void> => {
       try {
         // Warm the margin cache before any WS position frame is adapted.
         await this.#ensureMarketMargins().catch(() => undefined);
@@ -18935,7 +19060,7 @@ export class LighterProvider implements PerpsProvider {
         // account index alone must never subscribe user channels.
         this.#assertSession(generation);
         // Released (no account listener left) or replaced while resolving.
-        if (this.#accountChannelsPromise !== setupPromise) {
+        if (this.#accountChannelSetup?.options !== options) {
           return;
         }
         this.#requestChannel(`user_stats/${accountIndex}`);
@@ -18943,7 +19068,6 @@ export class LighterProvider implements PerpsProvider {
         this.#requestChannel(`account_all_trades/${accountIndex}`);
         channelsRequested = true;
         if (
-          existingKeysOnly &&
           this.#orderSubscribers.size === 0 &&
           this.#fillSubscribers.size === 0 &&
           this.#readyApiKeyIndex === null
@@ -18951,30 +19075,24 @@ export class LighterProvider implements PerpsProvider {
           // A deposit screen needs only public frames. Leave authentication to
           // a private listener or separately authorized trading session.
           this.#accountChannelsAwaiting = 'tradingKey';
-          this.#accountChannelsPromise = null;
+          this.#accountChannelSetup = null;
           return;
         }
         const channelAddress = this.#boundAddress;
+        const readOnly = options.existingKeysOnly;
         try {
           // A deposit/status read must not turn an automatic stream rebuild
           // into a wallet signature. Only explicit trading setup can create a key.
-          const getToken = existingKeysOnly
-            ? async (): Promise<string> =>
-                (
-                  await this.#getRegisteredReadToken(
-                    accountIndex,
-                    this.#sessionGeneration,
-                  )
-                ).token
-            : this.#getAuthToken;
-          const auth = await getToken();
+          const refresh = (): Promise<string> =>
+            this.#getAccountChannelReadToken(accountIndex, generation);
+          const auth = readOnly ? await refresh() : await this.#getAuthToken();
           this.#assertSession(generation);
-          if (this.#accountChannelsPromise !== setupPromise) {
+          if (this.#accountChannelSetup?.options !== options) {
             return;
           }
           this.#requestChannel(`account_all_orders/${accountIndex}`, {
             token: auth,
-            refresh: getToken,
+            refresh,
           });
         } catch (error) {
           this.#deps.debugLogger.log(
@@ -18988,10 +19106,10 @@ export class LighterProvider implements PerpsProvider {
             !this.#isDisconnected &&
             channelAddress !== null &&
             channelAddress === this.#boundAddress &&
-            this.#accountChannelsPromise === setupPromise
+            this.#accountChannelSetup?.options === options
           ) {
             if (
-              existingKeysOnly &&
+              readOnly &&
               error instanceof LighterRecoveryReadAuthorityError &&
               this.#readyApiKeyIndex === null
             ) {
@@ -19017,17 +19135,18 @@ export class LighterProvider implements PerpsProvider {
         if (
           error instanceof LighterAccountNotFoundError &&
           generation === this.#sessionGeneration &&
-          this.#accountChannelsPromise === setupPromise
+          this.#accountChannelSetup?.options === options
         ) {
           this.#accountChannelsAwaiting = 'account';
           if (this.#accountIndex === null) {
             this.#emitAccountBindingReset(EMPTY_ACCOUNT_STATE);
+            this.#scheduleAccountDiscovery();
           }
         } else if (
           !this.#isDisconnected &&
           this.#boundAddress !== null &&
           generation === this.#sessionGeneration &&
-          this.#accountChannelsPromise === setupPromise
+          this.#accountChannelSetup?.options === options
         ) {
           this.#notifySubscriptionError(ensureError(error));
         }
@@ -19037,18 +19156,16 @@ export class LighterProvider implements PerpsProvider {
         // authoritative empty account state. Explicit account switches and
         // deselection already emit their synchronous reset.
       }
-    })();
-    this.#accountChannelsPromise = setupPromise;
+    };
+    const setup = { options, promise: open() };
+    this.#accountChannelSetup = setup;
     // A setup that never requested channels (no wallet account yet, or an
     // aborted switch) must not satisfy future ensure calls — clear it so
     // the next bind retries, without clobbering a newer session's promise.
-    setupPromise
+    setup.promise
       .then(() => {
-        if (
-          !channelsRequested &&
-          this.#accountChannelsPromise === setupPromise
-        ) {
-          this.#accountChannelsPromise = null;
+        if (!channelsRequested && this.#accountChannelSetup === setup) {
+          this.#accountChannelSetup = null;
           // A concurrent lookup may have resolved before this setup settled.
           this.#resumeAccountChannels();
         }
@@ -19170,6 +19287,9 @@ export class LighterProvider implements PerpsProvider {
       !this.#isDisconnected &&
       !this.#channelHasListeners(channel)
     ) {
+      if (channel === LIGHTER_ACCOUNT_CHANNELS_KEY) {
+        this.#cancelAccountDiscovery();
+      }
       this.#scheduleChannelRelease(channel);
     }
     if (this.#isSocketDown && !this.#hasAnySubscriber()) {
@@ -19254,7 +19374,9 @@ export class LighterProvider implements PerpsProvider {
 
   /** Forget the account channel setup and the account data it streamed. */
   readonly #resetAccountStreamState = (): void => {
-    this.#accountChannelsPromise = null;
+    this.#cancelAccountDiscovery();
+    this.#lastStreamAccount = null;
+    this.#accountChannelSetup = null;
     this.#accountChannelsAwaiting = null;
     this.#wsPositions.clear();
     this.#hasOrdersSnapshot = false;
@@ -19403,6 +19525,12 @@ export class LighterProvider implements PerpsProvider {
           this.#sendSubscribe(channel);
         }
       }
+      if (
+        this.#accountChannelsAwaiting === 'tradingKey' &&
+        (this.#orderSubscribers.size > 0 || this.#fillSubscribers.size > 0)
+      ) {
+        this.#ensureAccountChannels({ existingKeysOnly: true });
+      }
       // The server closes idle sockets; any frame under 2 minutes keeps it up.
       // Unconditional replacement: `??=` would keep a timer bound to a dead
       // socket when a new one opens before the old socket's onclose fired.
@@ -19514,8 +19642,19 @@ export class LighterProvider implements PerpsProvider {
       this.#dispatchOICaps(Object.values(message.marketStats));
       return;
     }
-    if (type.includes('user_stats') && message.stats) {
-      const accountState = adaptAccountStateFromLighterUserStats(message.stats);
+    if (
+      type.includes('user_stats') &&
+      message.stats &&
+      this.#accountIndex !== null
+    ) {
+      const accountState: AccountState = {
+        ...adaptAccountStateFromLighterUserStats(message.stats),
+        exchangeAccountStatus: {
+          registered: true,
+          accountIndex: this.#accountIndex,
+        },
+      };
+      this.#lastStreamAccount = accountState;
       for (const subscriber of this.#accountSubscribers) {
         try {
           subscriber.callback(accountState);

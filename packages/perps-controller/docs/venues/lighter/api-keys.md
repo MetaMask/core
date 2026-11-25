@@ -20,9 +20,9 @@ Code: `src/constants/lighterConfig.ts` `LIGHTER_DEFAULT_API_KEY_INDEX`, `LIGHTER
 
 ## Checking registration after a first deposit
 
-Call `PerpsController:getExchangeAccountStatus` with `{ providerId: 'lighter' }` to check the selected wallet without a signature. A first deposit can take 2–3 minutes to create the account: poll every few seconds during that window and stop once `registered` is true. A timeout does not confirm a failed deposit. A missing account is not cached; a venue or network error rejects rather than reporting an unregistered wallet. The returned `accountIndex` identifies the master account, not a trading-key slot.
+Keep `subscribeToAccount` open after a first deposit. A confirmed missing account emits a zero balance with `exchangeAccountStatus: { registered: false }`. Lighter retries discovery after 3 seconds, doubling the interval up to 15 seconds for at most 3 minutes (`LIGHTER_ACCOUNT_DISCOVERY_CONFIG`). Discovery stops when the account is found or the last account-scoped listener leaves. A timeout does not confirm a failed deposit.
 
-Keep the existing `subscribeToAccount` subscription for the balance, or read the Lighter entry in `getAccountState().providerStates` or `perpsBalances`. Discovery resumes account channels for existing listeners. The private orders channel requires a registered key; stream recovery never registers one on the user's behalf.
+Once discovered, the existing stream delivers the venue balance and `exchangeAccountStatus: { registered: true, accountIndex }`, even for a zero balance. In a multi-venue aggregate, read the status from the available Lighter entry in `providerStates`. Recovery never registers a trading key. For a one-time registration check without a signature, call `PerpsController:getExchangeAccountStatus` with `{ providerId: 'lighter' }`. Venue and transport errors reject. The index identifies the master account, not a trading-key slot.
 
 ## Slot selection
 

@@ -87,10 +87,7 @@ export type PerpsControllerGetAccountSupportAction = {
 };
 
 /**
- * Read-only registration check; never requests a wallet signature. After a
- * first Lighter deposit, poll every few seconds for up to about 2–3 minutes,
- * stopping once `registered` is true. Read the balance from `subscribeToAccount`,
- * `getAccountState().providerStates.lighter`, or per-venue `perpsBalances`.
+ * Check the selected wallet’s venue registration once, without signing.
  *
  * @param params - Explicit provider route.
  * @returns Registration status and the account index when the venue has one.
