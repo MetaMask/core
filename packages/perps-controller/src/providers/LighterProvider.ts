@@ -2491,7 +2491,10 @@ export class LighterProvider implements PerpsProvider {
         this.#accountChannelSetup = null;
         this.#accountChannelsAwaiting = 'tradingKey';
         this.#notifySubscriptionError(
-          new Error('Lighter orders stream paused after signer reset'),
+          new PerpsControllerError(
+            PERPS_ERROR_CODES.ORDERS_STREAM_PAUSED,
+            'Lighter orders stream paused after signer reset',
+          ),
           ['orders'],
         );
       }
@@ -19168,7 +19171,18 @@ export class LighterProvider implements PerpsProvider {
             if (this.#readyApiKeyIndex === null) {
               this.#accountChannelsAwaiting = 'tradingKey';
             }
-            this.#notifySubscriptionError(ensureError(error));
+            // No retained key is a waiting state, not a failure: give
+            // clients a code so they need not match on the message.
+            this.#notifySubscriptionError(
+              error instanceof LighterRecoveryReadAuthorityError
+                ? new PerpsControllerError(
+                    PERPS_ERROR_CODES.ORDERS_STREAM_PAUSED,
+                    error.message,
+                    undefined,
+                    { cause: error },
+                  )
+                : ensureError(error),
+            );
           }
           // Setup failures are not authoritative empty order state. Account
           // switches and deselection already emit their synchronous reset.
@@ -19543,7 +19557,7 @@ export class LighterProvider implements PerpsProvider {
           }
         }
       });
-  }
+  };
 
   /** Close the stream once it has had no listener for the idle period. */
   readonly #scheduleIdleClose = (): void => {

@@ -208,6 +208,10 @@ describe('@metamask/perps-controller public API', () => {
     );
   });
 
+  it('exports the paused orders stream error code', () => {
+    expect(PERPS_ERROR_CODES.ORDERS_STREAM_PAUSED).toBe('ORDERS_STREAM_PAUSED');
+  });
+
   it('exports the trading configuration constants', () => {
     expect([
       LIGHTER_MIN_TRADING_API_KEY_INDEX,

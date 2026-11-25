@@ -8,6 +8,8 @@ import {
   LIGHTER_SOCKET_IDLE_CLOSE_MS,
   LIGHTER_ACCOUNT_DISCOVERY_CONFIG,
 } from '../../../src/constants/lighterConfig.js';
+import { PerpsControllerError } from '../../../src/errors.js';
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsProvider.js';
 import {
   getLighterReconnectDelayMs,
@@ -835,9 +837,12 @@ describe('LighterProvider stream lifecycle', () => {
           'hyperliquid',
         );
         expect(onError).toHaveBeenCalledExactlyOnceWith(
-          expect.any(Error),
+          expect.objectContaining({
+            errorCode: PERPS_ERROR_CODES.ORDERS_STREAM_PAUSED,
+          }),
           'lighter',
         );
+        expect(onError.mock.lastCall?.[0]).toBeInstanceOf(PerpsControllerError);
         expect(fillError).not.toHaveBeenCalled();
       } finally {
         await lighter.disconnect();

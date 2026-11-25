@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { PerpsControllerError } from '../../../src/errors.js';
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { LighterApiError } from '../../../src/services/LighterClientService.js';
 import {
   ACCOUNT,
@@ -314,7 +316,7 @@ describe('Lighter exchange account status', () => {
 
   it('does not read a registered wallet as absent when a stale empty lookup races the cached index', async () => {
     const { provider, clientInstance } = streamProvider();
-    type Lookup = typeof absent | { subAccounts: typeof ACCOUNT[] };
+    type Lookup = typeof absent | { subAccounts: (typeof ACCOUNT)[] };
     const pending: ((value: Lookup) => void)[] = [];
     clientInstance.getAccountsByL1Address.mockImplementation(
       () =>
@@ -392,6 +394,38 @@ describe('Lighter exchange account status', () => {
     // The upgraded setup re-authenticated with mint access on its own.
     expect(socket.sent.slice(sentBeforeUpgrade)).toContain(expected);
     expect(onError).not.toHaveBeenCalled();
+    await provider.disconnect();
+  });
+
+  it('reports a missing retained key to orders listeners as a paused stream, not a failure', async () => {
+    const { provider, clientInstance, fireReset } = streamProvider();
+    const onError = vi.fn();
+    provider.subscribeToOrders({ callback: vi.fn(), onError });
+    await tick();
+    const socket = StreamFakeWebSocket.instances[0];
+    socket.open();
+    await tick();
+    fireReset();
+    await tick();
+    expect(onError).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        errorCode: PERPS_ERROR_CODES.ORDERS_STREAM_PAUSED,
+      }),
+    );
+
+    // A read-only rebuild finds no retained key that matches the venue.
+    clientInstance.getApiKeys.mockResolvedValue({ code: 200, apiKeys: [] });
+    provider.subscribeToPositions({ callback: vi.fn() });
+    await waitFor(() => onError.mock.calls.length > 1);
+    expect(onError).toHaveBeenCalledTimes(2);
+    const paused = onError.mock.lastCall?.[0];
+    expect(paused).toBeInstanceOf(PerpsControllerError);
+    expect(paused).toMatchObject({
+      errorCode: PERPS_ERROR_CODES.ORDERS_STREAM_PAUSED,
+      cause: expect.objectContaining({
+        name: 'LighterRecoveryReadAuthorityError',
+      }),
+    });
     await provider.disconnect();
   });
 

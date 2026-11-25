@@ -423,6 +423,10 @@ export const PERPS_ERROR_COPY: Readonly<
     key: 'perps.errors.ordersFailed',
     defaultMessage: 'Unable to load orders. Please refresh and try again.',
   },
+  [PERPS_ERROR_CODES.ORDERS_STREAM_PAUSED]: {
+    key: 'perps.errors.ordersStreamPaused',
+    defaultMessage: 'Your open orders will appear once trading is set up.',
+  },
   [PERPS_ERROR_CODES.LIQUIDATION_PRICE_UNAVAILABLE]: {
     key: 'perps.errors.liquidationPriceUnavailable',
     defaultMessage:

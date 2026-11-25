@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Export `PERPS_EVENT_VALUE.INTERACTION_TYPE.TRADE_ON_SHEET_OPENED` and `TRADE_ON_VENUE_CHANGED` for the Lite market page's per-order venue selector ([#11778](https://github.com/MetaMask/core/pull/11778))
 - Report Lighter wallet registration in `AccountState.exchangeAccountStatus` on account reads and subscriptions. Export `LIGHTER_ACCOUNT_DISCOVERY_CONFIG` (from `constants/lighterConfig`) for the discovery interval and deadline. ([#11746](https://github.com/MetaMask/core/pull/11746))
 - Add `PerpsController:getExchangeAccountStatus` for read-only registration checks on an explicit venue. Export `GetExchangeAccountStatusParams`, `ExchangeAccountStatus`, `PerpsControllerGetExchangeAccountStatusAction`, and an optional provider hook. Lighter returns the master account index when registered; venues without a registration step return `{ registered: true }`. ([#11746](https://github.com/MetaMask/core/pull/11746))
+- Add `PERPS_ERROR_CODES.ORDERS_STREAM_PAUSED`. Lighter orders subscribers receive it through `onError` as a `PerpsControllerError` when the orders stream waits for a usable trading key, after a signer reset or when no retained key matches the venue. Show it as a waiting state, not a failure; the stream resumes once trading is set up. ([#11746](https://github.com/MetaMask/core/pull/11746))
 
 ### Changed
 
