@@ -1,23 +1,13 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import type { FetchedSecretDataItem } from '@metamask/toprf-secure-backup';
 import { EncAccountDataType } from '@metamask/toprf-secure-backup';
-import { areUint8ArraysEqual } from '@metamask/utils';
 
-import {
-  controllerName,
-  PrimarySrpRepairType,
-  SecretType,
-} from '../constants.js';
+import { controllerName, SecretType } from '../constants.js';
 import { parseControlRecord } from '../envelope/envelope-keys.js';
 import type { ControlRecord } from '../envelope/envelope-keys.js';
 import { createModuleLogger, projectLogger } from '../logger.js';
 import { SecretMetadata } from '../SecretMetadata.js';
-import type {
-  MetadataSchemaVersion,
-  PrimarySrpRepairPlan,
-  PrimarySrpRepairWrites,
-  SocialBackupsMetadata,
-} from '../types.js';
+import type { MetadataSchemaVersion, SocialBackupsMetadata } from '../types.js';
 import { InvalidPrimarySecretDataTypeError } from './errors.js';
 
 const log = createModuleLogger(projectLogger, controllerName);
@@ -291,127 +281,6 @@ export function getMetadataSchemaVersion(
   }
 
   return 'mixed';
-}
-
-/**
- * Compare the remote primary SRP backup with the local primary SRP, and decide
- * which repair applies.
- *
- * Legacy metadata is ordered by the client-side timestamp and its first
- * mnemonic is treated as the remote primary candidate. Newer metadata uses the
- * explicit `PrimarySrp` data type. When no mnemonic can be the primary the
- * backup is `missing`, otherwise the candidate is compared with the local
- * primary SRP and a difference is a `mismatch`. The plan also reports the
- * schema version of the remote backup, so a repair can write the same schema.
- *
- * This only reads data. It does not modify local or remote backup data. Fetch,
- * parsing, and keyring failures are logged and result in no plan.
- *
- * @param params - Functions used to read the remote metadata and the local
- * primary SRP.
- * @param params.fetchAllSecretDataFn - Fetches the decrypted remote secret
- * metadata items.
- * @param params.getPrimaryKeyringSeedPhraseFn - Returns the local primary SRP
- * bytes from the keyring.
- * @returns The repair plan, or `undefined` if the backup is in sync or could
- * not be read.
- */
-export async function planPrimarySrpRepair({
-  fetchAllSecretDataFn,
-  getPrimaryKeyringSeedPhraseFn,
-}: {
-  fetchAllSecretDataFn: () => Promise<FetchedSecretDataItem[]>;
-  getPrimaryKeyringSeedPhraseFn: () => Promise<Uint8Array>;
-}): Promise<PrimarySrpRepairPlan | undefined> {
-  let secretMetadata: SecretMetadata[] = [];
-  let localPrimarySRP: Uint8Array | undefined;
-  try {
-    const secretDataItems = await fetchAllSecretDataFn();
-    secretMetadata = parseSecretMetadata(secretDataItems);
-    // Read once up front, so both the mismatch and missing results reuse it.
-    localPrimarySRP = await getPrimaryKeyringSeedPhraseFn();
-
-    const [primarySecretMetadata] =
-      validateSecretMetadataBackup(secretMetadata);
-    if (areUint8ArraysEqual(primarySecretMetadata.data, localPrimarySRP)) {
-      return undefined;
-    }
-
-    return {
-      repairType: PrimarySrpRepairType.Mismatch,
-      secretMetadata,
-      metadataSchemaVersion: getMetadataSchemaVersion(secretMetadata),
-      localPrimarySRP,
-    };
-  } catch (error) {
-    // No mnemonic can be used as the primary secret, so the primary SRP is
-    // missing and the local primary SRP read above is the data to write.
-    if (error instanceof InvalidPrimarySecretDataTypeError && localPrimarySRP) {
-      return {
-        repairType: PrimarySrpRepairType.Missing,
-        secretMetadata,
-        metadataSchemaVersion: getMetadataSchemaVersion(secretMetadata),
-        localPrimarySRP,
-      };
-    }
-
-    log('Error planning primary SRP repair', error);
-    return undefined;
-  }
-}
-
-/**
- * Decide the remote writes that make the local primary SRP the remote primary
- * SRP, for a missing or mismatched primary SRP.
- *
- * Every remote secret item except the local primary SRP is retagged as
- * imported, which demotes the old primary. Items that are already imported are
- * left alone. The retag stores every changed item as `v2`, so a `v1` backup is
- * migrated. The local primary SRP is then promoted from its remote copy, or
- * added if there is none.
- *
- * This is pure: it only reads the plan.
- *
- * @param plan - The plan from {@link planPrimarySrpRepair}.
- * @param plan.secretMetadata - The parsed remote backup.
- * @param plan.localPrimarySRP - The local primary SRP.
- * @returns The writes to apply in order.
- */
-export function getPrimarySrpRepairWrites({
-  secretMetadata,
-  localPrimarySRP,
-}: PrimarySrpRepairPlan): PrimarySrpRepairWrites {
-  const localCopy = secretMetadata.find(
-    (secret) =>
-      SecretMetadata.matchesType(secret, SecretType.Mnemonic) &&
-      areUint8ArraysEqual(secret.data, localPrimarySRP),
-  );
-
-  const retag: PrimarySrpRepairWrites['retag'] = [];
-  for (const secret of secretMetadata) {
-    if (secret === localCopy || !secret.itemId) {
-      continue;
-    }
-    if (isPrimarySecretCandidate(secret)) {
-      retag.push({
-        itemId: secret.itemId,
-        dataType: EncAccountDataType.ImportedSrp,
-      });
-    } else if (!secret.dataType) {
-      // An untagged secret that can't be the primary is a legacy private key.
-      retag.push({
-        itemId: secret.itemId,
-        dataType: EncAccountDataType.ImportedPrivateKey,
-      });
-    }
-  }
-
-  return {
-    retag,
-    primary: localCopy?.itemId
-      ? { type: 'promote', itemId: localCopy.itemId }
-      : { type: 'add' },
-  };
 }
 
 /**

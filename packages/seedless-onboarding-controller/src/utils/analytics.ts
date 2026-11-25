@@ -93,14 +93,14 @@ const log = createModuleLogger(projectLogger, controllerName);
  * Report a missing or mismatched primary SRP in the remote TOPRF metadata
  * backup.
  *
- * The comparison of the remote backup with the local primary SRP is done by
- * `planPrimarySrpRepair`. This function only maps its result to a telemetry
- * event and emits it. It does not read or modify local or remote backup data.
+ * The comparison of the remote backup with the local primary SRP is done when
+ * the repair is planned. This function only maps the plan to a telemetry event
+ * and emits it. It does not read or modify local or remote backup data.
  * Tracking failures are logged and never thrown.
  *
  * @param params - The repair plan and the function to emit telemetry.
- * @param params.plan - The result of `planPrimarySrpRepair`. Nothing is
- * tracked when it is `undefined`.
+ * @param params.plan - The repair plan. Nothing is tracked when it is
+ * `undefined`.
  * @param params.trackEvent - Emits a non-sensitive analytics event.
  * @returns A promise that resolves after the best-effort telemetry has
  * completed.

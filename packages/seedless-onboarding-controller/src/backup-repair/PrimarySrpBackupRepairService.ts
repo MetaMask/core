@@ -5,16 +5,24 @@ import type {
   ToprfSecureBackup,
 } from '@metamask/toprf-secure-backup';
 import { EncAccountDataType } from '@metamask/toprf-secure-backup';
+import { areUint8ArraysEqual } from '@metamask/utils';
 
-import { controllerName } from '../constants.js';
+import {
+  controllerName,
+  PrimarySrpRepairType,
+  SecretType,
+} from '../constants.js';
 import { createModuleLogger, projectLogger } from '../logger.js';
 import { SecretMetadata } from '../SecretMetadata.js';
-import type { PrimarySrpRepairPlan } from '../types.js';
+import type { PrimarySrpRepairPlan, PrimarySrpRepairWrites } from '../types.js';
 import {
   assertIdentityUnchanged,
-  getPrimarySrpRepairWrites,
-  planPrimarySrpRepair,
+  getMetadataSchemaVersion,
+  InvalidPrimarySecretDataTypeError,
+  isPrimarySecretCandidate,
+  parseSecretMetadata,
   trackIncompleteMetadataBackupEvents,
+  validateSecretMetadataBackup,
 } from '../utils/index.js';
 
 const log = createModuleLogger(projectLogger, controllerName);
@@ -33,9 +41,9 @@ export type RepairVaultKeys = {
 };
 
 /**
- * Options for {@link PrimarySrpBackupRepair}.
+ * Options for {@link PrimarySrpBackupRepairService}.
  */
-export type PrimarySrpBackupRepairOptions = {
+export type PrimarySrpBackupRepairServiceOptions = {
   /**
    * Returns the current TOPRF client. A getter is used so the client is
    * resolved at call time.
@@ -70,18 +78,18 @@ export type PrimarySrpBackupRepairOptions = {
  * Identifies an incomplete or mismatched primary SRP backup at the metadata
  * service, reports it, and repairs it.
  */
-export class PrimarySrpBackupRepair {
-  readonly #getToprfClient: PrimarySrpBackupRepairOptions['getToprfClient'];
+export class PrimarySrpBackupRepairService {
+  readonly #getToprfClient: PrimarySrpBackupRepairServiceOptions['getToprfClient'];
 
-  readonly #fetchAllSecretData: PrimarySrpBackupRepairOptions['fetchAllSecretData'];
+  readonly #fetchAllSecretData: PrimarySrpBackupRepairServiceOptions['fetchAllSecretData'];
 
-  readonly #exportPrimarySeedPhrase: PrimarySrpBackupRepairOptions['exportPrimarySeedPhrase'];
+  readonly #exportPrimarySeedPhrase: PrimarySrpBackupRepairServiceOptions['exportPrimarySeedPhrase'];
 
-  readonly #trackEvent: PrimarySrpBackupRepairOptions['trackEvent'];
+  readonly #trackEvent: PrimarySrpBackupRepairServiceOptions['trackEvent'];
 
-  readonly #getIdentity: PrimarySrpBackupRepairOptions['getIdentity'];
+  readonly #getIdentity: PrimarySrpBackupRepairServiceOptions['getIdentity'];
 
-  readonly #withRepairContext: PrimarySrpBackupRepairOptions['withRepairContext'];
+  readonly #withRepairContext: PrimarySrpBackupRepairServiceOptions['withRepairContext'];
 
   /**
    * @param options - The options.
@@ -100,7 +108,7 @@ export class PrimarySrpBackupRepair {
     trackEvent,
     getIdentity,
     withRepairContext,
-  }: PrimarySrpBackupRepairOptions) {
+  }: PrimarySrpBackupRepairServiceOptions) {
     this.#getToprfClient = getToprfClient;
     this.#fetchAllSecretData = fetchAllSecretData;
     this.#exportPrimarySeedPhrase = exportPrimarySeedPhrase;
@@ -123,11 +131,7 @@ export class PrimarySrpBackupRepair {
   async run(password: string): Promise<void> {
     const expectedIdentity = this.#getIdentity();
 
-    const plan = await planPrimarySrpRepair({
-      fetchAllSecretDataFn: this.#fetchAllSecretData,
-      getPrimaryKeyringSeedPhraseFn: () =>
-        this.#exportPrimarySeedPhrase(password),
-    });
+    const plan = await this.#planRepair(password);
 
     await trackIncompleteMetadataBackupEvents({
       plan,
@@ -137,6 +141,119 @@ export class PrimarySrpBackupRepair {
     if (plan) {
       await this.#repairPrimarySrpBackup(plan, expectedIdentity);
     }
+  }
+
+  /**
+   * Compare the remote primary SRP backup with the local primary SRP, and
+   * decide which repair applies.
+   *
+   * Legacy metadata is ordered by the client-side timestamp and its first
+   * mnemonic is treated as the remote primary candidate. Newer metadata uses
+   * the explicit `PrimarySrp` data type. When no mnemonic can be the primary
+   * the backup is `missing`, otherwise the candidate is compared with the local
+   * primary SRP and a difference is a `mismatch`.
+   *
+   * This only reads data. Fetch, parsing, and keyring failures are logged and
+   * result in no plan.
+   *
+   * @param password - The password used to export the local primary SRP.
+   * @returns The repair plan, or `undefined` if the backup is in sync or could
+   * not be read.
+   */
+  async #planRepair(
+    password: string,
+  ): Promise<PrimarySrpRepairPlan | undefined> {
+    let secretMetadata: SecretMetadata[] = [];
+    let localPrimarySRP: Uint8Array | undefined;
+    try {
+      secretMetadata = parseSecretMetadata(await this.#fetchAllSecretData());
+      // Read once up front, so both the mismatch and missing results reuse it.
+      localPrimarySRP = await this.#exportPrimarySeedPhrase(password);
+
+      const [primarySecretMetadata] =
+        validateSecretMetadataBackup(secretMetadata);
+      if (areUint8ArraysEqual(primarySecretMetadata.data, localPrimarySRP)) {
+        return undefined;
+      }
+
+      return {
+        repairType: PrimarySrpRepairType.Mismatch,
+        secretMetadata,
+        metadataSchemaVersion: getMetadataSchemaVersion(secretMetadata),
+        localPrimarySRP,
+      };
+    } catch (error) {
+      // No mnemonic can be used as the primary secret, so the primary SRP is
+      // missing and the local primary SRP read above is the data to write.
+      if (
+        error instanceof InvalidPrimarySecretDataTypeError &&
+        localPrimarySRP
+      ) {
+        return {
+          repairType: PrimarySrpRepairType.Missing,
+          secretMetadata,
+          metadataSchemaVersion: getMetadataSchemaVersion(secretMetadata),
+          localPrimarySRP,
+        };
+      }
+
+      log('Error planning primary SRP repair', error);
+      return undefined;
+    }
+  }
+
+  /**
+   * Decide the remote writes that make the local primary SRP the remote
+   * primary SRP, for a missing or mismatched primary SRP.
+   *
+   * Every remote secret item except the local primary SRP is retagged as
+   * imported, which demotes the old primary. Items that are already imported
+   * are left alone. The retag stores every changed item as `v2`, so a `v1`
+   * backup is migrated. The local primary SRP is then promoted from its remote
+   * copy, or added if there is none.
+   *
+   * This is pure: it only reads the plan.
+   *
+   * @param plan - The repair plan.
+   * @param plan.secretMetadata - The parsed remote backup.
+   * @param plan.localPrimarySRP - The local primary SRP.
+   * @returns The writes to apply in order.
+   */
+  static #getWrites({
+    secretMetadata,
+    localPrimarySRP,
+  }: PrimarySrpRepairPlan): PrimarySrpRepairWrites {
+    const localCopy = secretMetadata.find(
+      (secret) =>
+        SecretMetadata.matchesType(secret, SecretType.Mnemonic) &&
+        areUint8ArraysEqual(secret.data, localPrimarySRP),
+    );
+
+    const retag: PrimarySrpRepairWrites['retag'] = [];
+    for (const secret of secretMetadata) {
+      if (secret === localCopy || !secret.itemId) {
+        continue;
+      }
+      if (isPrimarySecretCandidate(secret)) {
+        retag.push({
+          itemId: secret.itemId,
+          dataType: EncAccountDataType.ImportedSrp,
+        });
+      } else if (!secret.dataType) {
+        // An untagged secret that can't be the primary is a legacy private key.
+        retag.push({
+          itemId: secret.itemId,
+          dataType: EncAccountDataType.ImportedPrivateKey,
+        });
+      }
+    }
+
+    return {
+      retag,
+      primary: localCopy?.itemId
+        ? { type: 'promote', itemId: localCopy.itemId }
+        : { type: 'add' },
+    };
   }
 
   /**
@@ -160,7 +277,7 @@ export class PrimarySrpBackupRepair {
     expectedIdentity: Identity,
   ): Promise<void> {
     try {
-      const { retag, primary } = getPrimarySrpRepairWrites(plan);
+      const { retag, primary } = PrimarySrpBackupRepairService.#getWrites(plan);
 
       await this.#withRepairContext(
         async ({ toprfEncryptionKey, toprfAuthKeyPair }) => {
