@@ -77,6 +77,26 @@ describe('normalizeAmountString', () => {
     });
   });
 
+  describe('formatting without unnecessary padding', () => {
+    it('uses natural precision when no truncation is needed', () => {
+      expect(normalizeAmountString('1.5000', 18)).toBe('1.5');
+      expect(normalizeAmountString('1e-18', 18)).toBe('0.000000000000000001');
+      expect(normalizeAmountString('123.45000')).toBe('123.45');
+    });
+
+    it('preserves the distinction between zero and truncation to negative zero', () => {
+      expect(normalizeAmountString('-0', 18)).toBe('0');
+      expect(normalizeAmountString('-0.0000')).toBe('0');
+      expect(normalizeAmountString('-0.5', 0)).toBe('-0');
+      expect(normalizeAmountString('-1e-19', 18)).toBe('-0');
+    });
+
+    it('still rejects precision beyond BigNumber’s supported range', () => {
+      expect(() => normalizeAmountString('1', 1_000_000_001)).toThrow();
+      expect(() => normalizeAmountString('0', 1_000_000_001)).toThrow();
+    });
+  });
+
   describe('invalid input', () => {
     it('returns "0" for non-finite values', () => {
       expect(normalizeAmountString('NaN', 18)).toBe('0');

@@ -1,0 +1,780 @@
+// Hermes bench driver for normalizeAmountString. Runs inside bundle.js.
+// - Every invocation first runs the FULL parity self-check: the candidate
+//   (current production code) vs the frozen reference on an explicit suite
+//   covering empty/odd lengths, signs/negative zero, exponents, leading/
+//   trailing zeros, whitespace, radix, NaN/invalid, decimals
+//   undefined/negative/fractional/nonfinite, and length limits — plus a
+//   seeded fuzz sweep. Prints SELF_CHECK=FAIL and a reason on any mismatch.
+// - bench mode: times the hot-path corpus and prints METRIC primary_ms and
+//   METRIC per_call_us.
+// - sweep mode: times the corpus at 3 sizes to show per-call cost is flat.
+
+var PARITY = [
+  // empty / odd lengths
+  ['', 18],
+  ['', undefined],
+  ['1', 18],
+  ['123', undefined],
+  ['1234567', 3],
+  ['123456789012345678901234567890', 18],
+  // signs / negative zero
+  ['-0', 18],
+  ['-0.0', 18],
+  ['-0.000', undefined],
+  ['-1.5', 6],
+  ['-1.999', 2],
+  ['-1e-10', 18],
+  ['+1.5', 6],
+  ['+0', undefined],
+  // exponents
+  ['1e-18', 18],
+  ['1e-6', 18],
+  ['1E+5', 18],
+  ['2.5E2', 18],
+  ['1.5e-3', 6],
+  ['0e0', 18],
+  ['1e0', undefined],
+  ['5e-7', 6],
+  ['1e21', undefined],
+  ['1e-7', undefined],
+  ['1e40', undefined],
+  ['1e-40', undefined],
+  ['.5e2', 18],
+  ['1.23e4', 2],
+  // signed-exponent sign handling (pins the unsigned-exponent regression:
+  // '0.01e-2' must be classified by its SIGNED shifted magnitude)
+  ['0.01e-2', 18],
+  ['0.01e-2', undefined],
+  ['.001e-2', 6],
+  ['001e-3', 2],
+  ['100e-2', 2],
+  ['1000e-6', 18],
+  ['0.0001e-3', 6],
+  ['12.34e-2', 2],
+  ['+0.01e+2', 4],
+  ['-0.01e-2', 4],
+  ['0.01E-2', 18],
+  // leading / trailing zeros
+  ['007', 18],
+  ['0.500', 18],
+  ['000.5', 6],
+  ['5.000', undefined],
+  ['0.0', 18],
+  ['00', undefined],
+  ['0.000000000000000001', 18],
+  ['1.500', 18],
+  ['10.0100', 4],
+  // whitespace
+  [' 1.5', 18],
+  ['1.5 ', 18],
+  ['1.5\t', 6],
+  ['  ', 18],
+  // radix-ish / hex / octal / binary
+  ['0xff', 18],
+  ['0xFF', 0],
+  ['0b101', 18],
+  ['0o17', undefined],
+  // NaN / invalid
+  ['NaN', 18],
+  ['Infinity', 18],
+  ['-Infinity', 18],
+  ['abc', 18],
+  ['1.2.3', 6],
+  ['--1', 18],
+  ['1e', 6],
+  ['e5', undefined],
+  ['.', 18],
+  ['1,5', 6],
+  ['0x', 18],
+  // decimals variants
+  ['1.5', undefined],
+  ['1.5', -3],
+  ['1.5', NaN],
+  ['1.5', Infinity],
+  ['1.5', -Infinity],
+  ['1.5', -0.5],
+  ['1.234567', 2.9],
+  ['1.234567', 0],
+  ['1.234567', 100],
+  ['1.234567', '2'],
+  ['1.234567', null],
+  ['0.5', 0],
+  // length limits
+  ['1' + '0'.repeat(200), undefined],
+  ['1' + '0'.repeat(200), 18],
+  ['0.' + '123456789'.repeat(11), 18],
+  ['0.' + '123456789'.repeat(11), undefined],
+  ['0.' + '9'.repeat(50), 6],
+  ['1234567890123456789012345.6789', 2],
+  // pinned reference quirks (probed against frozen reference)
+  ['1.234567', 1e21],
+  ['1.5', -0],
+  ['+.5', 18],
+  ['1e+05', 18],
+  ['0e-3', undefined],
+  ['-0.5e2', 6],
+  ['1.5e-2', 4],
+  ['-1.5e2', 2],
+  ['5', -0],
+  // multiline / terminal newline: JS `$` (no `m` flag) must NOT admit a
+  // terminal newline, and BigNumber trims \n/\r/\t/space — these inputs
+  // must route to the BigNumber fallback to stay reference-identical.
+  ['1.5\n', 6],
+  ['1.5\n', undefined],
+  ['\n1.5', 6],
+  ['1.5\r', 6],
+  ['1.5\r\n', 18],
+  ['1.5\n\n', 6],
+  ['0\n', undefined],
+  ['\n', 18],
+  ['1\n5', 6],
+  ['-1.5\n', 6],
+  ['1.5 \n ', 18],
+  ['\t\n 1.5 \r\n', 6],
+  [' 0.000000000000000001\n', 18],
+  // negative-zero zoo
+  ['-0', 0],
+  ['-0.0', 0],
+  ['-0.00e0', undefined],
+  ['-0e5', 18],
+  ['-0e-5', undefined],
+  ['-.0', 2],
+  ['-0.', 18],
+  ['-0.000e999', 18],
+  ['-0.500', 1],
+  ['-0.5', 0],
+  ['-0.05', 1],
+  ['-0.005', 2],
+  ['-0e999', 6],
+  ['-0.0e999', 6],
+  // huge-length significands
+  ['1' + '0'.repeat(511), undefined],
+  ['1' + '0'.repeat(511), 18],
+  ['9'.repeat(512), 0],
+  ['0.' + '0'.repeat(511) + '1', undefined],
+  ['0.' + '0'.repeat(511) + '1', 18],
+  ['1.' + '2'.repeat(511), 18],
+  ['1' + '0'.repeat(511) + '.' + '0'.repeat(511), undefined],
+  ['12345678901234567890.12345e6', 18],
+  ['12345678901234567890.12345e-6', 18],
+  ['0.' + '0'.repeat(500) + '12345e3', 18],
+  ['1e999', undefined],
+  ['1e-999', undefined],
+  ['1.5e999', 6],
+  ['9'.repeat(600) + 'e999', undefined],
+  ['1' + '0'.repeat(2000), undefined],
+  // Huge unbounded input lengths (fast path is linear; BigNumber reference
+  // must stay byte-identical at 5k/10k digits).
+  ['1' + '0'.repeat(4999), undefined],
+  ['1' + '0'.repeat(4999), 18],
+  ['1.' + '9'.repeat(4998) + '5', 18],
+  ['0.' + '0'.repeat(4999) + '1', 18],
+  ['9'.repeat(9999), 0],
+  ['1' + '0'.repeat(9998) + '.' + '5', 18],
+];
+
+var DECIMALS_POOL = [
+  undefined, 0, 1, 2, 6, 18, 3.7, -1, -0.5, NaN, Infinity, 100,
+];
+
+function lcgSeed(seed) {
+  var s = seed >>> 0;
+  return function () {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
+}
+
+function buildFuzz(n) {
+  var rnd = lcgSeed(0xC0FFEE);
+  var digits = '0123456789';
+  var extra = '.eE+-';
+  var out = [];
+  for (var i = 0; i < n; i++) {
+    var len = 1 + Math.floor(rnd() * 24);
+    var s = '';
+    for (var j = 0; j < len; j++) {
+      var pick = rnd();
+      if (pick < 0.75) s += digits[Math.floor(rnd() * 10)];
+      else if (pick < 0.93) s += extra[Math.floor(rnd() * 5)];
+    }
+    if (rnd() < 0.35) {
+      s += (rnd() < 0.5 ? 'e' : 'E') + (rnd() < 0.5 ? '-' : '+') + Math.floor(rnd() * 30);
+    }
+    var dec = DECIMALS_POOL[Math.floor(rnd() * DECIMALS_POOL.length)];
+    out.push([s, dec]);
+  }
+  // Deterministic extra fuzz around plain decimals with tricky zeros.
+  var bases = ['0', '1', '9', '10', '007', '0.5', '0.0500', '-0.5', '123.456', '99999.99999'];
+  for (var k = 0; k < bases.length; k++) {
+    for (var d = 0; d < DECIMALS_POOL.length; d++) {
+      out.push([bases[k], DECIMALS_POOL[d]]);
+    }
+  }
+  return out;
+}
+
+var FUZZ = buildFuzz(600);
+
+// Parity under a NON-DEFAULT global BigNumber config. The reference (frozen
+// original) uses the same shared BigNumber instance, so both sides see the
+// mutated config. Entries: [configObj, cases]. Config is set IMMEDIATELY
+// before each case pair with no warm-up or cache-priming calls in between —
+// the very next call after a config change must already obey it.
+// bignumber.js 9.1.2 has no ERRORS config (errors always throw) — the ERRORS
+// key is silently ignored, which the last block demonstrates.
+// Systematic exponent-form config parity: signed exponents (positive and
+// negative, both 'e' and 'E', with and without '+') crossed with mantissa
+// shapes — sub-1 forms ('0.01', '.001'), leading-zero integers ('001'),
+// multi-digit integers ('100', '1000'), signed mantissas — under tight and
+// asymmetric RANGE configs, with and without truncation. Generated as a
+// full cross product so no hand-picked subset can mask a sign-handling bug
+// (a real regression this pins: the safety gate once classified magnitude
+// using the UNSIGNED exponent, so '0.01e-2' slipped past a RANGE:1 config
+// and returned '0.0001' instead of '0').
+var EXP_MANTISSAS = [
+  '0.01', '0.001', '.01', '.001', '001', '100', '1000', '0.5', '1.5',
+  '2.5', '1', '5', '-0.01', '-1.5', '+001', '0.0001', '999', '12.34',
+];
+var EXP_SIGNS = ['e', 'e-', 'e+', 'E', 'E-', 'E+'];
+var EXP_MAGS = ['0', '1', '2', '3', '6'];
+var EXP_DECIMALS = [undefined, 0, 2, 18];
+var EXPONENT_MATRIX = [];
+for (var emi = 0; emi < EXP_MANTISSAS.length; emi++) {
+  for (var esi = 0; esi < EXP_SIGNS.length; esi++) {
+    for (var egi = 0; egi < EXP_MAGS.length; egi++) {
+      for (var edi = 0; edi < EXP_DECIMALS.length; edi++) {
+        EXPONENT_MATRIX.push([
+          EXP_MANTISSAS[emi] + EXP_SIGNS[esi] + EXP_MAGS[egi],
+          EXP_DECIMALS[edi],
+        ]);
+      }
+    }
+  }
+}
+
+var CONFIG_PARITY = [
+  [
+    { RANGE: 5 },
+    [
+      ['1234567890', undefined],
+      ['1234567890', 18],
+      ['9'.repeat(25), 0],
+      ['0.00000000001', undefined],
+      ['0.00000000001', 18],
+      ['1e-20', 18],
+      ['1e-20', 6],
+      ['1e10', undefined],
+      ['1e3', 18],
+      ['0.5e2', 18],
+      ['0.001e1', 6],
+      ['999.99', 18],
+      ['0.1', 18],
+      ['0.000001', 18],
+      ['1e-999', 18],
+      ['-1.23e4', 2],
+      ['0.1234567890123', 18],
+      [' 1.5', 6],
+      ['1.5', 6],
+      ['1000000', undefined],
+      ['100000', undefined],
+      ['10000', undefined],
+      ['0.00001', undefined],
+    ],
+  ],
+  [
+    { RANGE: [-3, 50] },
+    [
+      ['9999', undefined],
+      ['999', 18],
+      ['1e-4', 18],
+      ['1e-30', 6],
+      ['1e40', undefined],
+      ['1e60', undefined],
+      ['0.001', 18],
+      ['1000', undefined],
+    ],
+  ],
+  [
+    { RANGE: 1e9 },
+    [
+      ['1e999', undefined],
+      ['1e-999', 6],
+      ['1234.567890123456789', 18],
+    ],
+  ],
+  [
+    // Extreme bound: RANGE 1. Values whose magnitude exponent is within
+    // [-1, 1] (or zero) must normalize identically — they are unconditionally
+    // config-safe — while anything larger/tiny must collapse to '0' exactly
+    // like the BigNumber fallback.
+    { RANGE: 1 },
+    [
+      // Unconditionally safe class (no config read may occur):
+      ['1.5', 6],
+      ['0.5', undefined],
+      ['0.5', 1],
+      ['42', undefined],
+      ['99.99', 2],
+      ['99.999', 2],
+      ['0', 18],
+      ['1.2345678901234567899', 18],
+      ['1.234567', 2.9],
+      ['0.25', 18],
+      ['1.0001', 4],
+      ['007.5', 2],
+      ['.5', undefined],
+      ['-1.5', 2],
+      ['-0.5', 0],
+      ['0.5e1', undefined],
+      ['1.5e1', undefined],
+      ['5.5e-1', 18],
+      ['0.05e2', 18],
+      ['1e0', 18],
+      // Beyond the bound — must collapse like the fallback:
+      ['100', undefined],
+      ['999', 18],
+      ['0.05', 18],
+      ['0.005', undefined],
+      ['1e2', 18],
+      ['1e-2', 18],
+      ['5e-6', 6],
+    ],
+  ],
+  [
+    // Full signed-exponent matrix under the tightest valid bound.
+    { RANGE: 1 },
+    EXPONENT_MATRIX.concat([['0.01e-2', 18], ['0.01e-2', undefined]]),
+  ],
+  [
+    { RANGE: 2 },
+    EXPONENT_MATRIX,
+  ],
+  [
+    { RANGE: 5 },
+    EXPONENT_MATRIX,
+  ],
+  [
+    { RANGE: [-3, 50] },
+    EXPONENT_MATRIX,
+  ],
+  [
+    { ERRORS: false, DECIMAL_PLACES: 3, EXPONENTIAL_AT: 0, CRYPTO: false },
+    [
+      // ERRORS does not exist in 9.1.2 — throws must still match.
+      ['1.234567', 1e21],
+      ['1.234567', undefined],
+      ['1.5', 6],
+      ['NaN', 18],
+    ],
+  ],
+];
+
+// Warm-then-change: fast-path calls under the default config (1 through 63
+// consecutive calls, covering any conceivable sampled/cached refresh window)
+// followed by a config change — the IMMEDIATE next call must obey the new
+// config with no intervening priming call.
+var WARM_THEN_CHANGE = [
+  // [warmFastCalls, configObj, amount, decimals]
+  [1, { RANGE: 5 }, '1000000', undefined],
+  [2, { RANGE: 5 }, '1000000', 18],
+  [7, { RANGE: 5 }, '1234567890', undefined],
+  [31, { RANGE: 5 }, '0.00000001', 18],
+  [62, { RANGE: 5 }, '1e10', undefined],
+  [63, { RANGE: 5 }, '1000000', undefined],
+  [63, { RANGE: 5 }, '0.000001', undefined],
+  [1, { RANGE: 1 }, '10', undefined],
+  [63, { RANGE: 1 }, '0.01', undefined],
+  [63, { RANGE: [-3, 50] }, '9999', undefined],
+  [63, { RANGE: 1e9 }, '1e999', undefined],
+];
+
+// Interleaved: change the config before EVERY call. Each invocation must
+// read the ambient config exactly.
+var INTERLEAVED_CONFIG_CASES = [
+  // [amount, decimals] — config alternates per case between RANGE 5 and the
+  // default.
+  ['1000000', undefined],
+  ['1000000', undefined],
+  ['999999', undefined],
+  ['0.000001', 18],
+  ['1234567890', 2],
+  ['99999', undefined],
+  ['1e-7', 18],
+  ['1000000', undefined],
+];
+
+function selfCheck() {
+  var failures = [];
+  var suites = [
+    ['parity', PARITY],
+    ['fuzz', FUZZ],
+  ];
+  for (var si = 0; si < suites.length; si++) {
+    var name = suites[si][0];
+    var cases = suites[si][1];
+    for (var i = 0; i < cases.length; i++) {
+      var amount = cases[i][0];
+      var decimals = cases[i][1];
+      var expected;
+      var actual;
+      try {
+        expected = __referenceImpl(amount, decimals);
+      } catch (e) {
+        expected = 'THREW:' + e.message;
+      }
+      try {
+        actual = normalizeAmountString(amount, decimals);
+      } catch (e) {
+        actual = 'THREW:' + e.message;
+      }
+      if (expected !== actual) {
+        failures.push(
+          name + '[' + i + '] input=' + JSON.stringify(amount) +
+            ' decimals=' + String(decimals) +
+            ' expected=' + JSON.stringify(expected) +
+            ' actual=' + JSON.stringify(actual),
+        );
+        if (failures.length >= 10) return failures;
+      }
+    }
+  }
+  // Parity under non-default global BigNumber config (RANGE etc.). Config
+  // is set immediately before each case — no warm-up or cache-priming calls.
+  for (var ci = 0; ci < CONFIG_PARITY.length; ci++) {
+    var cfg = CONFIG_PARITY[ci][0];
+    var cases = CONFIG_PARITY[ci][1];
+    BigNumberJS.config(cfg);
+    for (var i = 0; i < cases.length; i++) {
+      var amount = cases[i][0];
+      var decimals = cases[i][1];
+      var expected;
+      var actual;
+      try {
+        expected = __referenceImpl(amount, decimals);
+      } catch (e) {
+        expected = 'THREW:' + e.message;
+      }
+      try {
+        actual = normalizeAmountString(amount, decimals);
+      } catch (e) {
+        actual = 'THREW:' + e.message;
+      }
+      if (expected !== actual) {
+        failures.push(
+          'config' + ci + '[' + i + '] config=' + JSON.stringify(cfg) +
+            ' input=' + JSON.stringify(amount) +
+            ' decimals=' + String(decimals) +
+            ' expected=' + JSON.stringify(expected) +
+            ' actual=' + JSON.stringify(actual),
+        );
+        if (failures.length >= 10) {
+          BigNumberJS.config({ RANGE: [-1e7, 1e7] });
+          BigNumber.DEBUG = false;
+          return failures;
+        }
+      }
+    }
+  }
+  // Warm-then-change: run N consecutive fast-path calls under the default
+  // config, then flip the config and compare the VERY NEXT call — no
+  // priming/warm-up call in between.
+  BigNumberJS.config({ RANGE: [-1e7, 1e7] });
+  for (var wi = 0; wi < WARM_THEN_CHANGE.length; wi++) {
+    var warmN = WARM_THEN_CHANGE[wi][0];
+    var warmCfg = WARM_THEN_CHANGE[wi][1];
+    var warmAmount = WARM_THEN_CHANGE[wi][2];
+    var warmDecimals = WARM_THEN_CHANGE[wi][3];
+    for (var wj = 0; wj < warmN; wj++) {
+      normalizeAmountString('1.5', 6); // fast-path warm call
+    }
+    BigNumberJS.config(warmCfg);
+    var warmExpected;
+    var warmActual;
+    try {
+      warmExpected = __referenceImpl(warmAmount, warmDecimals);
+    } catch (e) {
+      warmExpected = 'THREW:' + e.message;
+    }
+    try {
+      warmActual = normalizeAmountString(warmAmount, warmDecimals);
+    } catch (e) {
+      warmActual = 'THREW:' + e.message;
+    }
+    if (warmExpected !== warmActual) {
+      failures.push(
+        'warmThenChange[' + wi + '] warm=' + warmN +
+          ' config=' + JSON.stringify(warmCfg) +
+          ' input=' + JSON.stringify(warmAmount) +
+          ' decimals=' + String(warmDecimals) +
+          ' expected=' + JSON.stringify(warmExpected) +
+          ' actual=' + JSON.stringify(warmActual),
+      );
+    }
+    BigNumberJS.config({ RANGE: [-1e7, 1e7] });
+  }
+  // Interleaved: flip the config before EVERY call; each call must read the
+  // ambient config exactly.
+  for (var ii = 0; ii < INTERLEAVED_CONFIG_CASES.length; ii++) {
+    var intCase = INTERLEAVED_CONFIG_CASES[ii];
+    BigNumberJS.config(ii % 2 === 0 ? { RANGE: 5 } : { RANGE: [-1e7, 1e7] });
+    var intExpected;
+    var intActual;
+    try {
+      intExpected = __referenceImpl(intCase[0], intCase[1]);
+    } catch (e) {
+      intExpected = 'THREW:' + e.message;
+    }
+    try {
+      intActual = normalizeAmountString(intCase[0], intCase[1]);
+    } catch (e) {
+      intActual = 'THREW:' + e.message;
+    }
+    if (intExpected !== intActual) {
+      failures.push(
+        'interleaved[' + ii + '] input=' + JSON.stringify(intCase[0]) +
+          ' decimals=' + String(intCase[1]) +
+          ' expected=' + JSON.stringify(intExpected) +
+          ' actual=' + JSON.stringify(intActual),
+      );
+    }
+  }
+  BigNumberJS.config({ RANGE: [-1e7, 1e7] });
+  // BigNumber.DEBUG = true pins invalid-input behavior (bignumber.js 9.1.2
+  // throws 'Not a number' for base conversions and >15-digit Number
+  // primitives in debug mode; plain decimal strings are unaffected). Both
+  // sides share the instance, so outputs must match call-for-call.
+  BigNumber.DEBUG = true;
+  var DEBUG_CASES = [
+    ['1.5', 6],
+    ['0', undefined],
+    ['0x1f', 18],
+    ['0b101', 18],
+    ['0o17', 18],
+    [' 1.5', 6],
+    ['1.5 ', 6],
+    ['NaN', 18],
+    ['Infinity', undefined],
+    ['-Infinity', 6],
+    ['', 18],
+    ['1.5abc', 6],
+    ['abc', 18],
+    ['1e999', 18],
+    ['1e-999', 18],
+    ['9'.repeat(512), 18],
+    ['1' + '0'.repeat(2000), undefined],
+    ['1.5e18', undefined],
+    ['007.500', 2],
+  ];
+  for (var di = 0; di < DEBUG_CASES.length; di++) {
+    var dbgExpected;
+    var dbgActual;
+    try {
+      dbgExpected = __referenceImpl(DEBUG_CASES[di][0], DEBUG_CASES[di][1]);
+    } catch (e) {
+      dbgExpected = 'THREW:' + e.message;
+    }
+    try {
+      dbgActual = normalizeAmountString(DEBUG_CASES[di][0], DEBUG_CASES[di][1]);
+    } catch (e) {
+      dbgActual = 'THREW:' + e.message;
+    }
+    if (dbgExpected !== dbgActual) {
+      failures.push(
+        'debug[' + di + '] input=' + JSON.stringify(DEBUG_CASES[di][0]) +
+          ' decimals=' + String(DEBUG_CASES[di][1]) +
+          ' expected=' + JSON.stringify(dbgExpected) +
+          ' actual=' + JSON.stringify(dbgActual),
+      );
+    }
+  }
+  BigNumber.DEBUG = false;
+  // Restore defaults.
+  BigNumberJS.config({ RANGE: [-1e7, 1e7] });
+  return failures;
+}
+
+// Hot-path corpus: realistic balance strings hitting the controller boundary.
+var HOT = [
+  ['1234.567890123456789', 18],
+  ['0.000000000000000001', 18],
+  ['1e-18', 18],
+  ['0.5', undefined],
+  ['1000000000', 0],
+  ['1.5', 6],
+  ['2.5E2', 18],
+  ['0', 18],
+  ['1.2345678901234567899', 18],
+  ['5e-6', 6],
+  ['1.234567', 2.9],
+  ['3.14159265358979', 18],
+  ['99.999', 2],
+  ['0.000001', 18],
+  ['1e-6', 18],
+  ['42', undefined],
+  ['1.0001', 4],
+  ['0.25', 18],
+];
+
+function timeCorpus(rounds) {
+  var t0 = Date.now();
+  var sink = 0;
+  for (var r = 0; r < rounds; r++) {
+    for (var i = 0; i < HOT.length; i++) {
+      sink += normalizeAmountString(HOT[i][0], HOT[i][1]).length;
+    }
+  }
+  var ms = Date.now() - t0;
+  if (sink === -1) print('impossible');
+  return ms;
+}
+
+var failures = selfCheck();
+if (failures.length > 0) {
+  for (var f = 0; f < failures.length; f++) {
+    print('PARITY_FAIL ' + failures[f]);
+  }
+  print('SELF_CHECK=FAIL ' + failures.length + ' mismatches');
+  // Nonzero exit so the harness fails THIS run, not just the aggregate grep.
+  throw new Error('parity self-check failed: ' + failures.length + ' mismatches');
+} else if (BENCH_MODE === 'compare') {
+  // Real baseline-vs-candidate comparison: the FROZEN reference (the
+  // original BigNumber implementation from origin/main) and the candidate
+  // (current production code) timed on the identical corpus, in ABBA order
+  // to cancel thermal/scheduler drift, after a warmup. Emits both per-call
+  // costs and the speedup so the report can quote a same-process delta.
+  var CMP_ROUNDS = 8000;
+  function timeRef(rounds) {
+    var t0 = Date.now();
+    var sink = 0;
+    for (var rr = 0; rr < rounds; rr++) {
+      for (var ii = 0; ii < HOT.length; ii++) {
+        sink += __referenceImpl(HOT[ii][0], HOT[ii][1]).length;
+      }
+    }
+    if (sink === -1) print('impossible');
+    return Date.now() - t0;
+  }
+  timeRef(500);
+  timeCorpus(500);
+  var refA = timeRef(CMP_ROUNDS);
+  var candA = timeCorpus(CMP_ROUNDS);
+  var candB = timeCorpus(CMP_ROUNDS);
+  var refB = timeRef(CMP_ROUNDS);
+  var refMs = (refA + refB) / 2;
+  var candMs = (candA + candB) / 2;
+  print('METRIC baseline_ms=' + refMs);
+  print('METRIC candidate_ms=' + candMs);
+  print('METRIC speedup_pct=' + ((1 - candMs / refMs) * 100).toFixed(1));
+  print(
+    'METRIC baseline_percall_us=' +
+      ((refMs * 1000) / (CMP_ROUNDS * HOT.length)).toFixed(4),
+  );
+  print(
+    'METRIC candidate_percall_us=' +
+      ((candMs * 1000) / (CMP_ROUNDS * HOT.length)).toFixed(4),
+  );
+  print('SELF_CHECK=OK');
+} else if (BENCH_MODE === 'workloads') {
+  // Separate distributions expose the trade-off hidden by an aggregate corpus.
+  var groups = [
+    ['already_precise', [['1.5', 18], ['42', 18], ['0', 18], ['1e-6', 18], ['0.25', 18], ['1000000000', 0]]],
+    ['needs_truncation', [['1.123456789', 6], ['-0.5', 0], ['9.9999', 2], ['5e-7', 6], ['-1.23456', 3], ['0.00000199', 6]]],
+    ['unknown_precision', [['1.5', undefined], ['1e-18', undefined], ['-0', undefined], ['42', undefined], ['0.000001', undefined], ['123.45000', undefined]]],
+  ];
+  function timeWorkload(fn, inputs, rounds) {
+    var sink = 0;
+    var start = Date.now();
+    for (var r = 0; r < rounds; r++) {
+      for (var i = 0; i < inputs.length; i++) sink += fn(inputs[i][0], inputs[i][1]).length;
+    }
+    if (sink === -1) print('impossible');
+    return Date.now() - start;
+  }
+  for (var gi = 0; gi < groups.length; gi++) {
+    var label = groups[gi][0];
+    var inputs = groups[gi][1];
+    var rounds = 144000 / inputs.length;
+    timeWorkload(__referenceImpl, inputs, 500);
+    timeWorkload(normalizeAmountString, inputs, 500);
+    var before = timeWorkload(__referenceImpl, inputs, rounds);
+    var after = timeWorkload(normalizeAmountString, inputs, rounds);
+    after += timeWorkload(normalizeAmountString, inputs, rounds);
+    before += timeWorkload(__referenceImpl, inputs, rounds);
+    print('METRIC ' + label + '_baseline_ms=' + before / 2);
+    print('METRIC ' + label + '_candidate_ms=' + after / 2);
+  }
+  print('SELF_CHECK=OK');
+} else if (BENCH_MODE === 'sweep') {
+  var s1 = timeCorpus(2000);
+  var s2 = timeCorpus(8000);
+  var s4 = timeCorpus(32000);
+  print('METRIC sweep_2k_ms=' + s1);
+  print('METRIC sweep_8k_ms=' + s2);
+  print('METRIC sweep_32k_ms=' + s4);
+  print('METRIC sweep_2k_percall_us=' + ((s1 * 1000) / (2000 * HOT.length)).toFixed(4));
+  print('METRIC sweep_8k_percall_us=' + ((s2 * 1000) / (8000 * HOT.length)).toFixed(4));
+  print('METRIC sweep_32k_percall_us=' + ((s4 * 1000) / (32000 * HOT.length)).toFixed(4));
+
+  // Input-length scaling: per-call cost must grow linearly with digit count
+  // (constant per-char cost, no quadratic surprises).
+  var LENGTH_ROUNDS = 4000;
+  var lengths = [1, 8, 32, 128, 512];
+  for (var li = 0; li < lengths.length; li++) {
+    var n = lengths[li];
+    var intDigits = '1' + (n > 1 ? '9'.repeat(n - 1) : '');
+    var lenInputs = [
+      [intDigits, undefined],
+      ['0.' + (n > 1 ? '9'.repeat(n - 1) : '') + '1', undefined],
+      ['1.' + (n > 1 ? '9'.repeat(n - 1) : ''), 18],
+    ];
+    var t0 = Date.now();
+    var sink2 = 0;
+    for (var r2 = 0; r2 < LENGTH_ROUNDS; r2++) {
+      for (var k2 = 0; k2 < lenInputs.length; k2++) {
+        sink2 += normalizeAmountString(lenInputs[k2][0], lenInputs[k2][1]).length;
+      }
+    }
+    var lms = Date.now() - t0;
+    if (sink2 === -1) print('impossible');
+    print('METRIC len_' + n + '_ms=' + lms);
+    print('METRIC len_' + n + '_percall_us=' +
+      ((lms * 1000) / (LENGTH_ROUNDS * lenInputs.length)).toFixed(4));
+    print('METRIC len_' + n + '_perchar_ns=' +
+      ((lms * 1e6) / (LENGTH_ROUNDS * lenInputs.length * n)).toFixed(2));
+  }
+
+  // Corpus cardinality: per-call cost must be independent of the number of
+  // distinct inputs (no hidden caching effects).
+  var CARD_ROUNDS = 4000;
+  var cardinalities = [1, 4, 18, 64];
+  for (var ci2 = 0; ci2 < cardinalities.length; ci2++) {
+    var m = cardinalities[ci2];
+    var cardInputs = [];
+    for (var k3 = 0; k3 < m; k3++) {
+      var base = HOT[k3 % HOT.length];
+      cardInputs.push([
+        base[0].slice(0, -1) + String.fromCharCode(48 + (k3 % 10)),
+        base[1],
+      ]);
+    }
+    var t1 = Date.now();
+    var sink3 = 0;
+    for (var r3 = 0; r3 < CARD_ROUNDS; r3++) {
+      for (var k4 = 0; k4 < cardInputs.length; k4++) {
+        sink3 += normalizeAmountString(cardInputs[k4][0], cardInputs[k4][1]).length;
+      }
+    }
+    var cms = Date.now() - t1;
+    if (sink3 === -1) print('impossible');
+    print('METRIC card_' + m + '_ms=' + cms);
+    print('METRIC card_' + m + '_percall_us=' +
+      ((cms * 1000) / (CARD_ROUNDS * m)).toFixed(4));
+  }
+  print('SELF_CHECK=OK');
+} else {
+  var ms = timeCorpus(8000);
+  print('METRIC primary_ms=' + ms);
+  print('METRIC per_call_us=' + ((ms * 1000) / (8000 * HOT.length)).toFixed(4));
+  print('SELF_CHECK=OK');
+}

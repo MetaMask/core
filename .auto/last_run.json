@@ -1,0 +1,20 @@
+{
+  "command": "BENCH_MODE=workloads ./.auto/measure.sh",
+  "exitCode": 0,
+  "metrics": {
+    "already_precise_baseline_ms": 644.5,
+    "already_precise_candidate_ms": 375.0,
+    "needs_truncation_baseline_ms": 629.5,
+    "needs_truncation_candidate_ms": 681.5,
+    "unknown_precision_baseline_ms": 455.0,
+    "unknown_precision_candidate_ms": 360.0
+  },
+  "checksPass": true,
+  "tests": {
+    "passed": 1296,
+    "failed": 0,
+    "files": 50,
+    "success": true
+  },
+  "supersedes": "Previous parser implementation metrics are historical only."
+}

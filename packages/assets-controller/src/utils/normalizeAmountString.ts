@@ -48,9 +48,15 @@ export function normalizeAmountString(
   let fixed: string;
   if (decimals === undefined || !Number.isFinite(decimals) || decimals < 0) {
     // Metadata unknown — preserve full precision, just defeat exponent form.
-    fixed = bn.toFixed();
+    return bn.toFixed();
   } else {
-    fixed = bn.toFixed(Math.floor(decimals), BigNumberJS.ROUND_DOWN);
+    const precision = Math.floor(decimals);
+    // Do not pad zeros just to trim them below. Keep invalid precision values
+    // on the original path so BigNumber still validates and rejects them.
+    if (precision <= 1e9 && precision >= (bn.decimalPlaces() ?? 0)) {
+      return bn.toFixed();
+    }
+    fixed = bn.toFixed(precision, BigNumberJS.ROUND_DOWN);
   }
 
   if (!fixed.includes('.')) {

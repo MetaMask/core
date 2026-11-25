@@ -1,0 +1,63 @@
+{
+  "status": "current; supersedes historical parser experiment results",
+  "implementation": "BigNumber parsing retained; skip unnecessary padding and trimming",
+  "compare": {
+    "baseline_ms": 686.0,
+    "candidate_ms": 497.5,
+    "speedup_pct": 27.5,
+    "baseline_percall_us": 4.764,
+    "candidate_percall_us": 3.455
+  },
+  "workloads": {
+    "already_precise_baseline_ms": 644.5,
+    "already_precise_candidate_ms": 375.0,
+    "needs_truncation_baseline_ms": 629.5,
+    "needs_truncation_candidate_ms": 681.5,
+    "unknown_precision_baseline_ms": 455.0,
+    "unknown_precision_candidate_ms": 360.0
+  },
+  "scaling": {
+    "sweep_2k_ms": 127.0,
+    "sweep_8k_ms": 495.0,
+    "sweep_32k_ms": 1987.0,
+    "sweep_2k_percall_us": 3.528,
+    "sweep_8k_percall_us": 3.438,
+    "sweep_32k_percall_us": 3.45,
+    "len_1_ms": 25.0,
+    "len_1_percall_us": 2.083,
+    "len_1_perchar_ns": 2083.33,
+    "len_8_ms": 30.0,
+    "len_8_percall_us": 2.5,
+    "len_8_perchar_ns": 312.5,
+    "len_32_ms": 51.0,
+    "len_32_percall_us": 4.25,
+    "len_32_perchar_ns": 132.81,
+    "len_128_ms": 88.0,
+    "len_128_percall_us": 7.333,
+    "len_128_perchar_ns": 57.29,
+    "len_512_ms": 221.0,
+    "len_512_percall_us": 18.417,
+    "len_512_perchar_ns": 35.97,
+    "card_1_ms": 11.0,
+    "card_1_percall_us": 2.75,
+    "card_4_ms": 50.0,
+    "card_4_percall_us": 3.125,
+    "card_18_ms": 253.0,
+    "card_18_percall_us": 3.514,
+    "card_64_ms": 892.0,
+    "card_64_percall_us": 3.484
+  },
+  "tests": {
+    "passed": 1296,
+    "failed": 0,
+    "files": 50,
+    "success": true
+  },
+  "limitations": [
+    "synthetic corpus, actual frequency distribution unknown",
+    "truncation-required corpus regresses ~8.3%",
+    "no device confirmation",
+    "shared-host timing noise",
+    "package tests use isolated npm registry dependencies, legacy peer resolution, not full Yarn workspace installation"
+  ]
+}
