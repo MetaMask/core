@@ -40,10 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `authenticate` validates that the first idToken belongs to the provided `userId` before making any network request. The token user id is derived the same way clients derive it: `sub`, then Telegram `user_id` when `sub` is nullish, then `email`
   - Token refreshes validate that the refreshed idTokens match the identity in state before re-authenticating
   - A missing idToken, an idToken that cannot be decoded, or an idToken with no `sub`, `user_id`, or `email` claim throws `IdentityMismatch` instead of being sent to the nodes
-- Repair a missing primary SRP backup after `submitPassword` ([#11748](https://github.com/MetaMask/core/pull/11748))
-  - When the remote metadata has no primary SRP, the local primary SRP is written as the remote primary SRP. The repair is best-effort, runs in the background, and never blocks unlock
-  - The primary SRP is written with the legacy (v1) schema only when the remote backup is v1, and with the v2 schema otherwise
-  - The repair is aborted if the user identity changes after the check, and the remote metadata is fetched and the local primary SRP is exported once for both the repair and the analytics event
+- Repair a missing or mismatched primary SRP backup after `submitPassword` ([#11748](https://github.com/MetaMask/core/pull/11748), [#11766](https://github.com/MetaMask/core/pull/11766))
+  - When the remote primary SRP is missing, or it differs from the local primary SRP, the local primary SRP becomes the single remote `PrimarySrp`. The repair is best-effort, runs in the background, and never blocks unlock
+  - Existing items are kept. Every other secret is retagged as imported, which also migrates legacy items to v2 without changing the encrypted data. The local primary SRP is promoted from its remote copy, or added as a new v2 item
+  - Overlapping repairs for the same user share the in-flight run. The repair stops if the identity changes, and a failed write is logged and picked up on the next unlock
 
 ### Changed
 
