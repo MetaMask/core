@@ -161,6 +161,11 @@ export class MultichainAccountWallet<
     if (!this.#initialized) {
       this.#initialized = true;
       this.#status = 'ready';
+      this.#messenger.publish(
+        'MultichainAccountService:walletStatusChange',
+        this.id,
+        this.#status,
+      );
     }
 
     this.#log('Finished initializing wallet state...');
@@ -477,44 +482,61 @@ export class MultichainAccountWallet<
   }
 
   /**
-   * Create or update a multichain account group state for a given group index and group state.
+   * Create or update a multichain account group state for a given group index
+   * and group state.
    *
-   * @param groupIndex The group's index.
-   * @param groupState The group's state to create or update the group with.
+   * State application is always wrapped in a `withState` call, which
+   * transitions the group through `groupStatus` and then auto-finalizes to
+   * `'aligned'` or `'misaligned'`. The group is created on-demand if it does
+   * not yet exist, so callers do not need to assert its prior existence.
+   *
+   * @param groupIndex - The group's index.
+   * @param groupState - The group's state to create or update the group with.
+   * @param groupStatus - The in-progress status to set on the group while
+   * applying state.
    * @returns The created or updated multichain account group.
    */
-  #createOrUpdateMultichainAccountGroup(
+  async #createOrUpdateMultichainAccountGroup(
     groupIndex: number,
     groupState: GroupState,
-  ): MultichainAccountGroup<Account> {
-    let group = this.#accountGroups.get(groupIndex);
+    groupStatus: 'in-progress:create-accounts' | 'in-progress:alignment',
+  ): Promise<MultichainAccountGroup<Account>> {
+    const group = this.#accountGroups.get(groupIndex);
+
     if (group) {
-      // NOTE: This will publish an update event automatically.
-      group.update(groupState);
+      return group.withState(groupStatus, async () => {
+        // NOTE: This will publish an update event automatically.
+        group.update(groupState);
 
-      this.#log(`Group updated: [${group.id}]`);
-    } else {
-      group = new MultichainAccountGroup({
-        wallet: this,
-        providers: this.#providers,
-        groupIndex,
-        messenger: this.#messenger,
+        this.#log(`Group updated: [${group.id}]`);
+
+        return group;
       });
-      group.init(groupState);
+    }
 
-      this.#accountGroups.set(groupIndex, group);
+    const newGroup = new MultichainAccountGroup({
+      wallet: this,
+      providers: this.#providers,
+      groupIndex,
+      messenger: this.#messenger,
+    });
 
-      this.#log(`Group created: [${group.id}]`);
+    this.#accountGroups.set(groupIndex, newGroup);
+
+    return newGroup.withState(groupStatus, async () => {
+      newGroup.init(groupState);
+
+      this.#log(`Group created: [${newGroup.id}]`);
 
       if (this.#initialized) {
         this.#messenger.publish(
           'MultichainAccountService:multichainAccountGroupCreated',
-          group,
+          newGroup,
         );
       }
-    }
 
-    return group;
+      return newGroup;
+    });
   }
 
   /**
@@ -673,9 +695,10 @@ export class MultichainAccountWallet<
           const groupState = groupStateByGroupIndex.get(groupIndex);
 
           if (groupState) {
-            const group = this.#createOrUpdateMultichainAccountGroup(
+            const group = await this.#createOrUpdateMultichainAccountGroup(
               groupIndex,
               groupState,
+              'in-progress:create-accounts',
             );
 
             groups.push(group);
@@ -741,12 +764,18 @@ export class MultichainAccountWallet<
    * @param options - Options.
    * @param options.trace - Trace options.
    * @param options.trace.data - Optional trace data.
+   * @param options.groupStatus - Optional status to set on groups during alignment or post-creation alignment (defaults to 'in-progress:alignment').
    */
   async #alignAccountsForRange(
     { from, to }: Required<GroupIndexRange>,
     providers: Bip44AccountProvider<Account>[],
-    options: { trace?: { data?: TraceRequest['data'] } } = {},
+    options: {
+      trace?: { data?: TraceRequest['data'] };
+      groupStatus?: 'in-progress:create-accounts' | 'in-progress:alignment';
+    } = {},
   ): Promise<void> {
+    const groupStatus = options.groupStatus ?? 'in-progress:alignment';
+
     await this.#trace(
       {
         name: TraceName.WalletAlignment,
@@ -775,7 +804,11 @@ export class MultichainAccountWallet<
         for (let groupIndex = from; groupIndex <= to; groupIndex++) {
           const groupState = groupStateByGroupIndex.get(groupIndex);
           if (groupState) {
-            this.#createOrUpdateMultichainAccountGroup(groupIndex, groupState);
+            await this.#createOrUpdateMultichainAccountGroup(
+              groupIndex,
+              groupState,
+              groupStatus,
+            );
           }
         }
       },
@@ -1024,6 +1057,7 @@ export class MultichainAccountWallet<
                 post: true, // Tag to identify post-alignment traces in analytics.
               },
             },
+            groupStatus: 'in-progress:create-accounts',
           });
         });
 

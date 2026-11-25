@@ -167,6 +167,7 @@ describe('EntropyRule', () => {
         ),
         type: AccountGroupType.MultichainAccount,
         accounts: [mockEvmAccount.id],
+        status: 'uninitialized',
         metadata: {
           name: '',
           entropy: {
@@ -198,6 +199,7 @@ describe('EntropyRule', () => {
         ),
         type: AccountGroupType.MultichainAccount,
         accounts: ['non-existent-account'],
+        status: 'uninitialized',
         metadata: {
           name: '',
           entropy: {
@@ -244,6 +246,7 @@ describe('EntropyRule', () => {
         ),
         type: AccountGroupType.MultichainAccount,
         accounts: [mockSolanaAccount.id],
+        status: 'uninitialized',
         metadata: {
           name: '',
           entropy: {
@@ -301,6 +304,7 @@ describe('EntropyRule', () => {
         ),
         type: AccountGroupType.MultichainAccount,
         accounts: [mockSolanaAccount.id, mockEvmAccount.id], // Solana first, EVM second
+        status: 'uninitialized',
         metadata: {
           name: '',
           entropy: {

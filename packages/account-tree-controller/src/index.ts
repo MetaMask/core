@@ -1,4 +1,5 @@
 export type { AccountWalletObject } from './wallet.js';
+export { isMultichainAccountWallet } from './wallet.js';
 export type { AccountGroupObject } from './group.js';
 export { isAccountGroupNameUnique } from './group.js';
 
