@@ -2,6 +2,7 @@ import type { Infer } from '@metamask/superstruct';
 import {
   array,
   boolean,
+  define,
   enums,
   is,
   nullable,
@@ -9,7 +10,6 @@ import {
   object,
   optional,
   string,
-  tuple,
   type,
   union,
 } from '@metamask/superstruct';
@@ -52,7 +52,23 @@ const DECIMAL_PATTERN = /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/u;
 const NON_NEGATIVE_DECIMAL_PATTERN = /^(?:0|[1-9]\d*)(?:\.\d+)?$/u;
 const DEX_PATTERN = /^(?:main|[a-z0-9][a-z0-9-]*)$/u;
 
-const GlobalSnapshotMarketStruct = type({
+const isTrend = (value: unknown): value is [number, string][] =>
+  Array.isArray(value) &&
+  value.every(
+    (point) =>
+      Array.isArray(point) &&
+      point.length === 2 &&
+      typeof point[0] === 'number' &&
+      !Number.isNaN(point[0]) &&
+      typeof point[1] === 'string',
+  );
+
+// `array(tuple([number(), string()]))` makes superstruct create generators and
+// copy its path/branch arrays for every point of every market, which dominated
+// validation time on Hermes. One `define` checks the whole trend in one pass.
+const TrendStruct = define<[number, string][]>('Trend', isTrend);
+
+export const GlobalSnapshotMarketStruct = type({
   id: string(),
   symbol: string(),
   network: string(),
@@ -80,7 +96,7 @@ const GlobalSnapshotMarketStruct = type({
   keywords: nullable(array(string())),
   tags: nullable(array(string())),
   listedAt: nullable(number()),
-  trend: array(tuple([number(), string()])),
+  trend: TrendStruct,
   onlyIsolated: optional(nullable(boolean())),
   marginMode: optional(nullable(enums(HYPERLIQUID_VENUE_MARGIN_MODES))),
   marketKey: optional(nullable(string())),

@@ -1,10 +1,14 @@
+import { is } from '@metamask/superstruct';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mocked } from 'vitest';
 
 import { TERMINAL_API_CONFIG } from '../../../src/constants/perpsConfig.js';
 import { groupMarketsByMarketKey } from '../../../src/index.js';
 import { MarketDataService } from '../../../src/services/MarketDataService.js';
-import { TerminalMarketService } from '../../../src/services/TerminalMarketService.js';
+import {
+  GlobalSnapshotMarketStruct,
+  TerminalMarketService,
+} from '../../../src/services/TerminalMarketService.js';
 import type { PerpsPlatformDependencies } from '../../../src/types/index.js';
 import { getPerpsWatchlistReferences } from '../../../src/utils/marketUtils.js';
 import { createMockHyperLiquidProvider } from '../../helpers/providerMocks.js';
@@ -1027,6 +1031,138 @@ describe('TerminalMarketService', () => {
           enabledDexes: ['main'],
         }),
       ).rejects.toThrow('failed schema validation');
+    });
+
+    // `GlobalSnapshotMarketStruct` is the row schema. Whatever it rejects, the
+    // service must reject with the schema error, whichever way rows are checked.
+    const MISSING = Symbol('missing');
+    const BAD_VALUES: unknown[] = [
+      MISSING,
+      null,
+      0,
+      '',
+      'x',
+      '1',
+      [],
+      {},
+      true,
+    ];
+    const BAD_TRENDS: unknown[] = [
+      [[1, '1', 1]],
+      [[1]],
+      [['1', 1]],
+      [1],
+      [null],
+      'x',
+    ];
+    const schemaKeys = Object.keys(GlobalSnapshotMarketStruct.schema);
+    const mutatedMarkets: [string, unknown][] = [
+      ...schemaKeys.flatMap((key) =>
+        BAD_VALUES.map((value): [string, unknown] => {
+          const { [key]: _removed, ...rest } = createSnapshotMarket();
+          const market = value === MISSING ? rest : { ...rest, [key]: value };
+          return [
+            `${key}=${value === MISSING ? 'missing' : JSON.stringify(value)}`,
+            market,
+          ];
+        }),
+      ),
+      ...BAD_TRENDS.map((trend): [string, unknown] => [
+        `trend=${JSON.stringify(trend)}`,
+        createSnapshotMarket({ trend }),
+      ]),
+      [
+        'marginMode=crossOnly',
+        createSnapshotMarket({ marginMode: 'crossOnly' }),
+      ],
+      ['row=null', null],
+      ['row="BTC"', 'BTC'],
+      ['row=[]', []],
+    ];
+
+    it('covers every field of the market schema', () => {
+      expect(schemaKeys).toHaveLength(33);
+    });
+
+    const schemaRejected = mutatedMarkets.filter(
+      ([, market]) => !is(market, GlobalSnapshotMarketStruct),
+    );
+    const schemaAccepted = mutatedMarkets.filter(([, market]) =>
+      is(market, GlobalSnapshotMarketStruct),
+    );
+
+    it.each(schemaRejected)(
+      'rejects what the market schema rejects: %s',
+      async (_name, market) => {
+        const fetchSpy = vi
+          .spyOn(globalThis, 'fetch')
+          .mockResolvedValue(
+            okJsonResponse(createGlobalSnapshot({ markets: [market] })),
+          );
+        const request = {
+          provider: 'hyperliquid' as const,
+          network: 'mainnet' as const,
+          enabledDexes: ['main'],
+        };
+
+        await expect(service.fetchGlobalSnapshot(request)).rejects.toThrow(
+          'failed schema validation',
+        );
+        await expect(service.fetchGlobalSnapshot(request)).rejects.toThrow(
+          'failed schema validation',
+        );
+        expect(fetchSpy).toHaveBeenCalledTimes(2);
+      },
+    );
+
+    it.each(schemaAccepted)(
+      'does not reject on schema grounds what the market schema accepts: %s',
+      async (_name, market) => {
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+          okJsonResponse(createGlobalSnapshot({ markets: [market] })),
+        );
+
+        const outcome = await service
+          .fetchGlobalSnapshot({
+            provider: 'hyperliquid',
+            network: 'mainnet',
+            enabledDexes: ['main'],
+          })
+          .then(
+            () => 'accepted',
+            (error: Error) => error.message,
+          );
+
+        expect(outcome).not.toContain('failed schema validation');
+      },
+    );
+
+    it('accepts null optional fields, an empty trend and unknown keys', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        okJsonResponse(
+          createGlobalSnapshot({
+            markets: [
+              createSnapshotMarket({
+                onlyIsolated: null,
+                marginMode: null,
+                marketKey: null,
+                priceScale: null,
+                venueMarketId: null,
+                trend: [],
+                extraUnknownField: 'ignored',
+              }),
+            ],
+          }),
+        ),
+      );
+
+      const result = await service.fetchGlobalSnapshot({
+        provider: 'hyperliquid',
+        network: 'mainnet',
+        enabledDexes: ['main'],
+      });
+
+      expect(result.markets).toHaveLength(1);
     });
 
     it('rejects a rolling field with the wrong type', async () => {
