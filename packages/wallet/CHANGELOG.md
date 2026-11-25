@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **BREAKING:** Add `SignatureController` to the default initialization configurations ([#11717](https://github.com/MetaMask/core/pull/11717))
+  - Hosts that already register `SignatureController` on the wallet root messenger must remove it before upgrading, or messenger registration will collide.
 
 ### Changed
 
