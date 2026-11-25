@@ -109,10 +109,8 @@ function normalizePlainOrExponent(
   const length = amount.length;
   let i = 0;
   let negative = false;
-  let hasSign = false;
   let c = amount.charCodeAt(0);
   if (c === CHAR_PLUS || c === CHAR_MINUS) {
-    hasSign = true;
     negative = c === CHAR_MINUS;
     i = 1;
   }
@@ -133,9 +131,7 @@ function normalizePlainOrExponent(
   // Optional fractional part.
   let fracStart = i;
   let fracLen = 0;
-  let hasDot = false;
   if (c === CHAR_DOT) {
-    hasDot = true;
     i += 1;
     fracStart = i;
     c = i < length ? amount.charCodeAt(i) : -1;
@@ -163,8 +159,6 @@ function normalizePlainOrExponent(
     return undefined;
   }
 
-  let intPart: string;
-  let fracPart: string;
   if (c === CHAR_e || c === CHAR_E) {
     // Exponent notation: shift the decimal point in string space.
     i += 1;
@@ -197,6 +191,50 @@ function normalizePlainOrExponent(
       amount.slice(intStart, intStart + intLen) +
       (fracLen > 0 ? amount.slice(fracStart, fracStart + fracLen) : '');
     const point = intLen + exponent;
+
+    // Zero significand ('0e5', '0.00e-3') is exactly zero regardless of sign.
+    if (!hasNonZero) {
+      return '0';
+    }
+
+    const firstIsZero = digits.charCodeAt(0) === CHAR_0;
+    const lastIsZero =
+      digits.charCodeAt(digits.length - 1) === CHAR_0;
+
+    // Common exponent shapes with no cleanup needed assemble in one
+    // expression, avoiding intermediate string allocations.
+    if (point <= 0) {
+      const fracTotal = -point + digits.length;
+      if (!lastIsZero && (!truncate || fracTotal <= dp)) {
+        // e.g. '1e-18' -> '0.000000000000000001'
+        return (negative ? '-0.' : '0.') + '0'.repeat(-point) + digits;
+      }
+    } else if (point >= digits.length) {
+      if (digits.length === 1 || !firstIsZero) {
+        // e.g. '2.5E2' -> '250'
+        return (
+          (negative ? '-' : '') +
+          digits +
+          '0'.repeat(point - digits.length)
+        );
+      }
+    } else if (
+      !firstIsZero &&
+      !lastIsZero &&
+      (!truncate || digits.length - point <= dp)
+    ) {
+      // e.g. '1.5e2' -> '150'
+      return (
+        (negative ? '-' : '') +
+        digits.slice(0, point) +
+        '.' +
+        digits.slice(point)
+      );
+    }
+
+    // General exponent handling: shift the point, then run the shared tail.
+    let intPart: string;
+    let fracPart: string;
     if (point <= 0) {
       intPart = '0';
       fracPart = '0'.repeat(-point) + digits;
@@ -207,28 +245,65 @@ function normalizePlainOrExponent(
       intPart = digits.slice(0, point);
       fracPart = digits.slice(point);
     }
+    return finishNormalize(intPart, fracPart, negative, truncate, dp, hasNonZero);
   } else if (i === length) {
-    // Zero-allocation fast return: the input is already canonical (no sign,
-    // no leading integer zeros, no dangling dot, no trailing fractional
-    // zeros, and no truncation required) — BigNumber#toFixed would return it
-    // verbatim.
-    if (
-      !hasSign &&
-      intLen > 0 &&
-      (intLen === 1 || amount.charCodeAt(intStart) !== CHAR_0) &&
-      (!hasDot ||
-        (fracLen > 0 &&
-          amount.charCodeAt(fracStart + fracLen - 1) !== CHAR_0)) &&
-      (!truncate || fracLen <= dp)
+    // Plain decimal: compute every normalization decision by index over the
+    // original string, allocating only the final result slices.
+    const fracCut = truncate ? Math.min(fracLen, dp) : fracLen;
+    let fracEnd = fracStart + fracCut;
+    while (
+      fracEnd > fracStart &&
+      amount.charCodeAt(fracEnd - 1) === CHAR_0
     ) {
-      return amount;
+      fracEnd -= 1;
     }
-    intPart = amount.slice(intStart, intStart + intLen);
-    fracPart = fracLen > 0 ? amount.slice(fracStart, fracStart + fracLen) : '';
-  } else {
-    return undefined; // Trailing junk — defer to BigNumber.
+    let intZeroEnd = 0;
+    while (
+      intZeroEnd < intLen - 1 &&
+      amount.charCodeAt(intStart + intZeroEnd) === CHAR_0
+    ) {
+      intZeroEnd += 1;
+    }
+    const intDigits = intLen - intZeroEnd;
+    const intIsZero =
+      intDigits === 0 ||
+      (intDigits === 1 &&
+        amount.charCodeAt(intStart + intZeroEnd) === CHAR_0);
+    if (intIsZero && fracEnd === fracStart) {
+      // BigNumber drops the sign for a value that parsed as exactly zero
+      // ('-0.000' -> '0'), but keeps it when a nonzero value is truncated
+      // toward zero to zero ('-0.5' at 0 decimals -> '-0').
+      if (negative && hasNonZero) {
+        return '-0';
+      }
+      return '0';
+    }
+    const intStr =
+      intDigits === 0
+        ? '0'
+        : amount.slice(intStart + intZeroEnd, intStart + intLen);
+    if (fracEnd === fracStart) {
+      return negative ? `-${intStr}` : intStr;
+    }
+    const fracStr = amount.slice(fracStart, fracEnd);
+    return negative ? `-${intStr}.${fracStr}` : `${intStr}.${fracStr}`;
   }
+  return undefined; // Trailing junk — defer to BigNumber.
+}
 
+/**
+ * Shared normalization tail for the general (non-fast-exit) paths: truncate
+ * fractional digits to `dp`, strip leading integer zeros, trim trailing
+ * fractional zeros, and apply BigNumber's zero-sign rule.
+ */
+function finishNormalize(
+  intPart: string,
+  fracPart: string,
+  negative: boolean,
+  truncate: boolean,
+  dp: number,
+  hasNonZero: boolean,
+): string {
   // Truncate fractional digits to the asset's precision (round toward zero).
   if (truncate && fracPart.length > dp) {
     fracPart = fracPart.slice(0, dp);
