@@ -318,7 +318,6 @@ type Caip25EndowmentSpecification = ValidPermissionSpecification<{
 const CAIP25_ENDOWMENT_RPC_METHODS = [
   'eth_sendTransaction',
   'eth_signTransaction',
-  'eth_sendRawTransaction',
   'eth_signTypedData',
   'eth_signTypedData_v3',
   'eth_signTypedData_v4',
