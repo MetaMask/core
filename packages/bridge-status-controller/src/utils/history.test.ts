@@ -558,34 +558,34 @@ describe('History Utils', () => {
     });
 
     it('does not match STX pre-submit parent by batchId for the first trade', () => {
-      const match = getMatchingHistoryEntryForTxMeta(
-        { [batchId]: stxParent },
-        makeTxMeta({ id: 'first' }),
-      );
+      const match = getMatchingHistoryEntryForTxMeta({
+        txHistory: { [batchId]: stxParent },
+        txMeta: makeTxMeta({ id: 'first' }),
+      });
       expect(match).toMatchInlineSnapshot(`undefined`);
     });
 
     it('does not match STX pre-submit parent by batchId for a sibling trade', () => {
-      const match = getMatchingHistoryEntryForTxMeta(
-        { [batchId]: stxParent },
-        makeTxMeta({
+      const match = getMatchingHistoryEntryForTxMeta({
+        txHistory: { [batchId]: stxParent },
+        txMeta: makeTxMeta({
           id: 'sibling',
           txParams: { from: '0xfrom', data: siblingData },
         }),
-      );
+      });
       expect(match).toBeUndefined();
     });
 
     it('matches STX history by txMeta.id after rekey', () => {
-      const match = getMatchingHistoryEntryForTxMeta(
-        {
+      const match = getMatchingHistoryEntryForTxMeta({
+        txHistory: {
           tx1: { ...stxParent, txMetaId: 'tx1' },
         },
-        makeTxMeta({
+        txMeta: makeTxMeta({
           id: 'tx1',
           txParams: { from: '0xfrom', data: siblingData },
         }),
-      );
+      });
       expect(match?.[0]).toBe('tx1');
     });
 
@@ -615,16 +615,16 @@ describe('History Utils', () => {
       });
 
       expect(
-        getMatchingHistoryEntryForTxMeta(
-          { [actionId]: historyItem },
-          approvalTx,
-        ),
+        getMatchingHistoryEntryForTxMeta({
+          txHistory: { [actionId]: historyItem },
+          txMeta: approvalTx,
+        }),
       ).toBeUndefined();
       expect(
-        getMatchingHistoryEntryForApprovalTxMeta(
-          { [actionId]: historyItem },
-          approvalTx,
-        )?.[0],
+        getMatchingHistoryEntryForApprovalTxMeta({
+          txHistory: { [actionId]: historyItem },
+          txMeta: approvalTx,
+        })?.[0],
       ).toBe(actionId);
     });
 
@@ -645,28 +645,28 @@ describe('History Utils', () => {
         startTime: 1,
       } as unknown as BridgeHistoryItem;
 
-      const match = getMatchingHistoryEntryForTxMeta(
-        { [actionId]: historyItem },
-        makeTxMeta({
+      const match = getMatchingHistoryEntryForTxMeta({
+        txHistory: { [actionId]: historyItem },
+        txMeta: makeTxMeta({
           id: 'trade-tx-id',
           actionId,
           type: TransactionType.swap,
           batchId: undefined,
         }),
-      );
+      });
 
       expect(match?.[0]).toBe(actionId);
     });
 
     it('matches 7702 batch-sell parent by batchId', () => {
-      const match = getMatchingHistoryEntryForTxMeta(
-        { [batchId]: stxParent },
-        makeTxMeta({
+      const match = getMatchingHistoryEntryForTxMeta({
+        txHistory: { [batchId]: stxParent },
+        txMeta: makeTxMeta({
           id: '7702-batch',
           type: TransactionType.batch,
           txParams: { from: '0xfrom', data: '0xother' },
         }),
-      );
+      });
       expect(match?.[0]).toBe(batchId);
     });
   });
@@ -691,15 +691,13 @@ describe('History Utils', () => {
       expect(
         resolveHistoryKeyForTxMeta(
           {
-            transactionMeta: {
-              id: 'withdraw-tx',
-              batchId: withdrawBatchId,
-              status: TransactionStatus.unapproved,
-              chainId: '0xa',
-              time: 1,
-              networkClientId: 'n',
-              txParams: { from: '0xfrom' },
-            },
+            id: 'withdraw-tx',
+            batchId: withdrawBatchId,
+            status: TransactionStatus.unapproved,
+            chainId: '0xa',
+            time: 1,
+            networkClientId: 'n',
+            txParams: { from: '0xfrom' },
           },
           { 'swap-tx': historyItem },
         ).historyKey,
