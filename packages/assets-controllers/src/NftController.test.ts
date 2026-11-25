@@ -185,6 +185,8 @@ vi.mock(import('./multicall.js'), async (importOriginal) => ({
  * @param args.publishInitialPreferences - Whether setup publishes an initial
  * preferences state change. Defaults to true.
  * @param args.callInit - Whether setup calls `init`. Defaults to true.
+ * @param args.publishSelectedAccount - Whether setup publishes a selected
+ * account change for the default owner account. Defaults to true.
  * @param args.captureException - Reports messenger errors from `init`.
  * @returns A collection of test controllers and mocks.
  */
@@ -205,6 +207,7 @@ function setupController({
   preferencesState,
   publishInitialPreferences = true,
   callInit = true,
+  publishSelectedAccount = true,
   captureException,
 }: {
   options?: Partial<ConstructorParameters<typeof NftController>[0]>;
@@ -264,6 +267,7 @@ function setupController({
   preferencesState?: PreferencesState & { openSeaEnabled?: boolean };
   publishInitialPreferences?: boolean;
   callInit?: boolean;
+  publishSelectedAccount?: boolean;
   captureException?: (error: Error) => void;
 } = {}) {
   const messenger: RootMessenger = new Messenger({
@@ -466,7 +470,9 @@ function setupController({
     );
   };
 
-  triggerSelectedAccountChange(OWNER_ACCOUNT);
+  if (publishSelectedAccount) {
+    triggerSelectedAccountChange(OWNER_ACCOUNT);
+  }
 
   return {
     nftController,
@@ -664,6 +670,77 @@ describe('NftController', () => {
       });
 
       expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it('applies persisted NFT preferences when the selected account lookup throws during init', async () => {
+      const preferences = {
+        ...getDefaultPreferencesState(),
+        ipfsGateway: 'https://persisted.example/ipfs/',
+        isIpfsGatewayEnabled: false,
+        displayNftMedia: true,
+      };
+      const getSelectedAccount = vi
+        .fn()
+        .mockImplementationOnce(() => {
+          throw new Error('Accounts not ready');
+        })
+        .mockReturnValue(OWNER_ACCOUNT);
+      const { nftController, triggerPreferencesStateChange, mockGetAccount } =
+        setupController({
+          getSelectedAccount,
+          preferencesState: preferences,
+          publishInitialPreferences: false,
+          publishSelectedAccount: false,
+          callInit: false,
+        });
+
+      expect(() => nftController.init()).toThrow('Accounts not ready');
+
+      const spy = vi.spyOn(nftController, 'updateNftMetadata');
+      mockGetAccount.mockReturnValue(OWNER_ACCOUNT);
+      await nftController.addNft('0xtest', '3', 'mainnet', {
+        nftMetadata: { name: '', description: '', image: '', standard: '' },
+      });
+
+      triggerPreferencesStateChange(preferences);
+
+      expect(spy).not.toHaveBeenCalled();
+
+      triggerPreferencesStateChange({
+        ...preferences,
+        ipfsGateway: 'https://changed.example/ipfs/',
+      });
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it('retries the selected account lookup when init failed before and reads preferences only once', () => {
+      const getPreferencesState = vi
+        .fn()
+        .mockReturnValue(getDefaultPreferencesState());
+      const getSelectedAccount = vi
+        .fn()
+        .mockImplementationOnce(() => {
+          throw new Error('Accounts not ready');
+        })
+        .mockReturnValue(OWNER_ACCOUNT);
+      const { nftController, messenger } = setupController({
+        getSelectedAccount,
+        publishInitialPreferences: false,
+        publishSelectedAccount: false,
+        callInit: false,
+      });
+      messenger.registerActionHandler(
+        'PreferencesController:getState',
+        getPreferencesState,
+      );
+
+      expect(() => nftController.init()).toThrow('Accounts not ready');
+      nftController.init();
+      nftController.init();
+
+      expect(getSelectedAccount).toHaveBeenCalledTimes(2);
+      expect(getPreferencesState).toHaveBeenCalledTimes(1);
     });
 
     it('reports a missing PreferencesController during init and continues', () => {

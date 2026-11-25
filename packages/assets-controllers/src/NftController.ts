@@ -496,19 +496,24 @@ export class NftController extends BaseController<
    * defaults. A `PreferencesController:stateChange` that arrives before this
    * call is kept and is not overwritten by `PreferencesController:getState`.
    * A missing `PreferencesController:getState` is reported once.
-   * Calling this more than once has no effect.
+   * Calling this more than once has no effect. If reading the selected account
+   * throws, the preferences are still read, the error is rethrown, and a later
+   * call retries the account lookup.
    */
   init(): void {
     if (this.#initialized) {
       return;
     }
+
+    try {
+      this.#selectedAccountId ??= this.messenger.call(
+        'AccountsController:getSelectedAccount',
+      ).id;
+    } finally {
+      this.#readPersistedNftPreferences();
+    }
+
     this.#initialized = true;
-
-    this.#selectedAccountId ??= this.messenger.call(
-      'AccountsController:getSelectedAccount',
-    ).id;
-
-    this.#readPersistedNftPreferences();
   }
 
   /**
