@@ -303,6 +303,26 @@ describe('PerpsController stream subscriptions', () => {
       });
     });
 
+    it('keeps a change heard on one route until that route is read afresh', async () => {
+      provider.getMarkets.mockResolvedValue([market('BTC')]);
+      const { report } = watchMarkets();
+      const routed = { callback: vi.fn(), providerId: 'hyperliquid' } as const;
+      const stop = controller.subscribeToMarketMeta(routed);
+      await flush();
+      report();
+      stop();
+
+      const stopOther = controller.subscribeToMarketMeta({ callback: vi.fn() });
+      await flush();
+      stopOther();
+      controller.subscribeToMarketMeta(routed);
+      await flush();
+
+      expect(provider.getMarkets).toHaveBeenLastCalledWith(
+        expect.objectContaining({ skipCache: true }),
+      );
+    });
+
     it('does not read when the market data preload refreshes', async () => {
       provider.getMarkets.mockResolvedValue([market('BTC')]);
       controller.subscribeToMarketMeta({ callback: vi.fn() });
@@ -835,10 +855,13 @@ describe('PerpsController stream subscriptions', () => {
           throw new Error('PROVIDER_NOT_AVAILABLE');
         })
         .mockReturnValue(vi.fn());
+      const callback = vi.fn();
       const onError = vi.fn();
-      controller.subscribeToAccount({ callback: vi.fn(), onError });
+      controller.subscribeToAccount({ callback, onError });
       await flush();
       expect(onError).toHaveBeenCalledTimes(1);
+      // As from a direct provider: no wallet to read is no data.
+      expect(callback).toHaveBeenCalledExactlyOnceWith(null);
 
       await vi.advanceTimersByTimeAsync(1_000);
 

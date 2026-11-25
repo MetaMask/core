@@ -2297,7 +2297,14 @@ export class AggregatedPerpsProvider implements PerpsProvider {
         method: 'subscribeToAccount',
         providerId,
         provider,
-        onError: params.onError,
+        onError: (error) => {
+          // As from the provider itself: a venue that cannot open the
+          // account's wallet has no data for it.
+          if (error.message === PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE) {
+            params.callback(null);
+          }
+          params.onError?.(error);
+        },
         open: (emit, fail) =>
           provider.subscribeToAccount({
             ...(params.accountId !== undefined && {

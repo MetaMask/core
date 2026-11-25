@@ -651,9 +651,9 @@ export class StreamChannelManager {
   /**
    * Handle a source failure: tell the readers and reopen the source with a
    * bounded backoff, also when it delivers meanwhile: one part of a source may
-   * stream while the part that failed does not. Once the attempts are spent the source stays attached as it is, and the channel reopens it
-   * when the connection comes back, on a move, on `reopenAll` and for a new
-   * reader.
+   * stream while the part that failed does not. Once the attempts are spent the
+   * source stays attached as it is, and the channel reopens it when the
+   * connection comes back, on a move, on `reopenAll` and for a new reader.
    *
    * @param channel - The failing channel.
    * @param error - The failure.

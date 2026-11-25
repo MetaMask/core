@@ -152,6 +152,21 @@ describe('HyperLiquidProvider stream subscriptions', () => {
       expect(vi.getTimerCount()).toBe(timers);
     });
 
+    it('closes the account stream when the position stream cannot open', () => {
+      const { provider, stopAccount } = createStreamingProvider();
+      vi.spyOn(provider, 'subscribeToPositions').mockImplementation(() => {
+        throw new Error('PROVIDER_NOT_AVAILABLE');
+      });
+
+      expect(() =>
+        provider.subscribeToMarginAdjustmentLimits({
+          symbol: 'ETH',
+          callback: vi.fn(),
+        }),
+      ).toThrow('PROVIDER_NOT_AVAILABLE');
+      expect(stopAccount).toHaveBeenCalledTimes(1);
+    });
+
     it('adds from the DEX withdrawable in Standard mode and follows position changes', async () => {
       const { provider, pushAccount, pushPositions } =
         createStreamingProvider();

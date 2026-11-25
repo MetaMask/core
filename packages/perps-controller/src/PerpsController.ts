@@ -4055,7 +4055,11 @@ export class PerpsController extends BaseController<
     let readAgain = false;
     let last: string | undefined;
     let settleTimer: ReturnType<typeof setTimeout> | undefined;
-    const isStale = this.#staleMarketMeta.has(provider);
+    const stale =
+      this.#staleMarketMeta.get(provider) ??
+      new Set<PerpsProviderType | undefined>();
+    this.#staleMarketMeta.set(provider, stale);
+    const isStale = stale.size > 0;
     const fail = (error: unknown): void => {
       if (!closed) {
         params.onError?.(
@@ -4084,7 +4088,7 @@ export class PerpsController extends BaseController<
             throw new Error(PERPS_ERROR_CODES.MARKETS_FAILED);
           }
           if (fresh) {
-            this.#staleMarketMeta.delete(provider);
+            stale.delete(params.providerId);
           }
           const list = JSON.stringify(metas);
           if (list !== last) {
@@ -4109,7 +4113,7 @@ export class PerpsController extends BaseController<
         // Changes come in bursts; one read after they settle covers them all.
         callback: () => {
           // Kept until a fresh read, in case this stream closes before its own.
-          this.#staleMarketMeta.add(provider);
+          stale.add(params.providerId);
           settleTimer ??= setTimeout(() => {
             settleTimer = undefined;
             read(true);
@@ -6659,8 +6663,11 @@ export class PerpsController extends BaseController<
 
   #preloadTimer: ReturnType<typeof setInterval> | null = null;
 
-  /** Providers whose markets changed since they were last read afresh. */
-  readonly #staleMarketMeta = new WeakSet<PerpsProvider>();
+  /** Routes of each provider whose markets changed since a fresh read. */
+  readonly #staleMarketMeta = new WeakMap<
+    PerpsProvider,
+    Set<PerpsProviderType | undefined>
+  >();
 
   /** Fee rate reads to repeat when subscription benefits are invalidated. */
   readonly #feeRateRefreshers = new Set<() => void>();

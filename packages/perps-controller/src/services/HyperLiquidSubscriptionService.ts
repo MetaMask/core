@@ -5760,7 +5760,9 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
-   * Compare a DEX's markets with its previous frame and report a change.
+   * Compare a DEX's markets with its previous frame and report a change. The
+   * last frame is kept while the feed is closed, so markets that differ from
+   * the metadata without being delisted are reported once, not on each open.
    *
    * @param dex - DEX key ('' for the main DEX).
    * @param ctxs - The frame's asset contexts, in listing order.
@@ -5772,23 +5774,18 @@ export class HyperLiquidSubscriptionService {
     ctxs: AssetCtxsWsEvent['ctxs'],
     universe: readonly { isDelisted?: boolean }[],
   ): void {
-    const getSignature = (
-      markets: readonly unknown[],
-      isRetired: (index: number) => boolean,
-    ): string =>
-      `${markets.length}:${markets
-        .flatMap((_market, index) => (isRetired(index) ? [index] : []))
-        .join(',')}`;
-    const signature = getSignature(
-      ctxs,
-      (index) =>
-        ctxs[index].midPx === null && Number(ctxs[index].openInterest) === 0,
+    const retired = ctxs.flatMap((ctx, index) =>
+      ctx.midPx === null && Number(ctx.openInterest) === 0 ? [index] : [],
     );
-    const previous =
-      this.#marketSignatures.get(dex) ??
-      getSignature(universe, (index) => universe[index].isDelisted === true);
+    const signature = `${ctxs.length}:${retired.join(',')}`;
+    const previous = this.#marketSignatures.get(dex);
     this.#marketSignatures.set(dex, signature);
-    if (previous !== signature) {
+    if (
+      previous === undefined
+        ? ctxs.length !== universe.length ||
+          retired.some((index) => !universe[index].isDelisted)
+        : previous !== signature
+    ) {
       this.#notifyMarketChange();
     }
   }
@@ -5845,7 +5842,6 @@ export class HyperLiquidSubscriptionService {
 
       this.#assetCtxsSubscriptions.delete(dexKey);
       this.#dexAssetCtxsCache.delete(dexKey);
-      this.#marketSignatures.delete(dexKey);
       this.#assetCtxsSubscriptionPromises.delete(dexKey);
       this.#dexSubscriberCounts.delete(dexKey);
 

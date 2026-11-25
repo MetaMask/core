@@ -1417,6 +1417,22 @@ describe('HyperLiquidProvider', () => {
         ).rejects.toThrow('xyz DEX unavailable');
       });
 
+      it('rejects a list that must be complete when the DEX list cannot be read', async () => {
+        const hip3Provider = createTestProvider({
+          hip3Enabled: true,
+          allowlistMarkets: ['xyz:*'],
+        });
+        mockClientService.getInfoClient = vi.fn().mockReturnValue(
+          createMockInfoClient({
+            perpDexs: vi.fn().mockRejectedValue(new Error('no DEX list')),
+          }),
+        );
+
+        await expect(
+          hip3Provider.getMarkets({ skipCache: true, requireComplete: true }),
+        ).rejects.toThrow('PROVIDER_NOT_AVAILABLE');
+      });
+
       it('reports partial balances and rejects incomplete position reads when a DEX fails', async () => {
         const hip3Provider = createTestProvider({
           hip3Enabled: true,

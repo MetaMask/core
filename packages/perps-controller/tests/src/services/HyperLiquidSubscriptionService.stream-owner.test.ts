@@ -700,6 +700,43 @@ describe('shared streams over the HyperLiquid subscription service', () => {
       expect(callback).not.toHaveBeenCalled();
     });
 
+    it('reports nothing for a delisted market that still has open interest', async () => {
+      meta.mockResolvedValue({
+        universe: [
+          { name: 'BTC', szDecimals: 5, maxLeverage: 40 },
+          { name: 'OLD', szDecimals: 4, maxLeverage: 25, isDelisted: true },
+        ],
+      });
+      const callback = vi.fn();
+      service.subscribeToMarketChanges({ callback });
+      await settle();
+
+      deliver(main, 'assetCtxs', { ctxs: [ctx(), ctx({ midPx: null })] });
+
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it('reports a listed market without trading once, not each time the feed opens', async () => {
+      const callback = vi.fn();
+      const idle = {
+        ctxs: [ctx(), ctx({ midPx: null, openInterest: '0' })],
+      };
+      const stop = service.subscribeToMarketChanges({ callback });
+      await settle();
+      deliver(main, 'assetCtxs', idle);
+      expect(callback).toHaveBeenCalledTimes(1);
+      stop();
+      await settle();
+
+      service.subscribeToMarketChanges({ callback });
+      await settle();
+      deliver(main, 'assetCtxs', idle);
+      expect(callback).toHaveBeenCalledTimes(1);
+
+      deliver(main, 'assetCtxs', { ctxs: [ctx(), ctx()] });
+      expect(callback).toHaveBeenCalledTimes(2);
+    });
+
     it('reports markets listed before the feed opened', async () => {
       const callback = vi.fn();
       service.subscribeToMarketChanges({ callback });
