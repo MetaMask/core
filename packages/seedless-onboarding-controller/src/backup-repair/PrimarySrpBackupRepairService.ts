@@ -92,6 +92,12 @@ export class PrimarySrpBackupRepairService {
   readonly #withRepairContext: PrimarySrpBackupRepairServiceOptions['withRepairContext'];
 
   /**
+   * In-flight repair run and the identity it was started for, used to coalesce
+   * overlapping calls for the same user.
+   */
+  #pendingRun: { identity: Identity; promise: Promise<void> } | undefined;
+
+  /**
    * @param options - The options.
    * @param options.getToprfClient - Returns the current TOPRF client.
    * @param options.fetchAllSecretData - Fetches the remote secret data items.
@@ -121,6 +127,9 @@ export class PrimarySrpBackupRepairService {
    * Identify an incomplete or mismatched primary SRP backup, report it, and
    * repair it.
    *
+   * Concurrent calls for the same identity share the in-flight run rather than
+   * planning and writing twice.
+   *
    * Never rejects, so it is safe to call without awaiting. It must not be
    * awaited while the controller lock is held: the repair takes that lock.
    *
@@ -130,7 +139,34 @@ export class PrimarySrpBackupRepairService {
    */
   async run(password: string): Promise<void> {
     const expectedIdentity = this.#getIdentity();
+    if (
+      this.#pendingRun &&
+      this.#pendingRun.identity.userId === expectedIdentity.userId &&
+      this.#pendingRun.identity.authConnectionId ===
+        expectedIdentity.authConnectionId
+    ) {
+      return this.#pendingRun.promise;
+    }
 
+    const promise = this.#executeRun(password, expectedIdentity).finally(() => {
+      if (this.#pendingRun?.promise === promise) {
+        this.#pendingRun = undefined;
+      }
+    });
+    this.#pendingRun = { identity: expectedIdentity, promise };
+    return promise;
+  }
+
+  /**
+   * Execute one identification, telemetry, and repair pass for `expectedIdentity`.
+   *
+   * @param password - The password used to export the local primary SRP.
+   * @param expectedIdentity - The identity this run was started for.
+   */
+  async #executeRun(
+    password: string,
+    expectedIdentity: Identity,
+  ): Promise<void> {
     const plan = await this.#planRepair(password);
 
     await trackIncompleteMetadataBackupEvents({

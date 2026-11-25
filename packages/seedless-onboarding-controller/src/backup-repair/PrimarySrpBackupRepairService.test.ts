@@ -710,8 +710,6 @@ describe('PrimarySrpBackupRepairService', () => {
           description: 'the primary SRP is missing',
           remoteItems: [createFetchedSecretDataItem(ImportedPrivateKey1)],
           expectedItemCount: 2,
-          // The second repair adds the primary SRP again, and is rejected.
-          expectedErrors: 1,
         },
         {
           description: 'the primary SRP mismatches and must be added',
@@ -720,7 +718,6 @@ describe('PrimarySrpBackupRepairService', () => {
             createFetchedSecretDataItem(ImportedPrivateKey1),
           ],
           expectedItemCount: 3,
-          expectedErrors: 1,
         },
         {
           description: 'the primary SRP mismatches and must be promoted',
@@ -729,22 +726,18 @@ describe('PrimarySrpBackupRepairService', () => {
             createFetchedSecretDataItem(ImportedSRP1),
           ],
           expectedItemCount: 2,
-          // The second repair promotes the same item again, which is accepted.
-          expectedErrors: 0,
         },
       ])(
-        'leaves one correct backup when $description',
-        async ({ remoteItems, expectedItemCount, expectedErrors }) => {
-          const { service, metadataService, withRepairContext, trackEvent } =
-            setup({ remoteItems });
+        'coalesces onto the in-flight run when $description',
+        async ({ remoteItems, expectedItemCount }) => {
+          const {
+            service,
+            metadataService,
+            fetchAllSecretData,
+            exportPrimarySeedPhrase,
+            trackEvent,
+          } = setup({ remoteItems });
           const originalItems = structuredClone(metadataService.items);
-          // The controller lock runs one repair at a time.
-          let lock = Promise.resolve();
-          withRepairContext.mockImplementation(async (fn) => {
-            const repair = lock.then(async () => fn(VAULT_KEYS));
-            lock = repair.catch(() => undefined);
-            return repair;
-          });
 
           await Promise.all([service.run(PASSWORD), service.run(PASSWORD)]);
 
@@ -753,11 +746,59 @@ describe('PrimarySrpBackupRepairService', () => {
             originalItems,
             expectedItemCount,
           });
-          expect(logMock).toHaveBeenCalledTimes(expectedErrors);
-          // Both repairs planned before either wrote, so both report it.
-          expect(trackEvent).toHaveBeenCalledTimes(2);
+          expect(fetchAllSecretData).toHaveBeenCalledTimes(1);
+          expect(exportPrimarySeedPhrase).toHaveBeenCalledTimes(1);
+          expect(trackEvent).toHaveBeenCalledTimes(1);
+          expect(logMock).not.toHaveBeenCalled();
         },
       );
+
+      it('starts a fresh run instead of coalescing when the identity changed in flight', async () => {
+        const {
+          service,
+          identity,
+          fetchAllSecretData,
+          addSecretDataItem,
+          metadataService,
+        } = setup();
+
+        let finishFirstFetch!: (items: FetchedSecretDataItem[]) => void;
+        fetchAllSecretData.mockImplementationOnce(
+          async () =>
+            new Promise<FetchedSecretDataItem[]>((resolve) => {
+              finishFirstFetch = resolve;
+            }),
+        );
+
+        const firstRun = service.run(PASSWORD);
+
+        // Switch identity while the first run is still fetching, then start a
+        // second run for the new identity.
+        identity.userId = 'second-user-id';
+        const secondRun = service.run(PASSWORD);
+
+        // Let the first run finish after the second run has already claimed
+        // `#pendingRun` — the first run must abort on the identity mismatch and
+        // must not clear the second run's pending state.
+        finishFirstFetch([]);
+        await Promise.all([firstRun, secondRun]);
+
+        expect(fetchAllSecretData).toHaveBeenCalledTimes(2);
+        // Only the second run's write went through; the first run aborted.
+        expect(addSecretDataItem).toHaveBeenCalledTimes(1);
+        expect(metadataService.items).toHaveLength(1);
+        expect(logMock).toHaveBeenCalledTimes(1);
+        expect(logMock).toHaveBeenCalledWith(
+          'Error repairing primary SRP backup',
+          expect.any(Error),
+        );
+
+        // A third call while the second run is settled must also start cleanly
+        // (proving `#pendingRun` was cleared when the second run finished).
+        fetchAllSecretData.mockClear();
+        await service.run(PASSWORD);
+        expect(fetchAllSecretData).toHaveBeenCalledTimes(1);
+      });
     });
 
     describe('when the backup does not need a repair', () => {

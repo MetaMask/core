@@ -55,30 +55,28 @@ So the retag, which never contains `PrimarySrp`, goes first. The primary write f
 
 ### The repair runs twice
 
-`submitPassword` doesn't await the repair, so quick consecutive unlocks start several runs. Each run plans from the remote state it read **before** taking the controller lock, so the second run applies a stale plan after the first one finishes.
+`submitPassword` doesn't await the repair, so fast consecutive unlocks — or an unlock followed immediately by `identifyIncompleteMetadataBackup` — can invoke `run` while a previous run is still in flight.
+
+`PrimarySrpBackupRepairService` keeps an in-memory `#pendingRun` (`{ identity, promise }`) and coalesces overlapping calls for the same `{ userId, authConnectionId }`:
 
 ```mermaid
 sequenceDiagram
-    participant A as Run A
-    participant B as Run B
+    participant A as Caller A (submitPassword)
+    participant B as Caller B (second unlock / identify)
+    participant R as RepairService
     participant S as Metadata service
-    A->>S: fetch (primary missing)
-    B->>S: fetch (primary missing)
-    Note over A,B: both plan the same repair and track an event
-    A->>S: add PrimarySrp (controller lock)
-    S-->>A: ok
-    B->>S: add PrimarySrp (waits for the lock)
-    S-->>B: rejected, a primary already exists
-    Note over B: error logged, nothing duplicated
+    A->>R: run(password)
+    R->>S: fetch + plan + repair
+    B->>R: run(password) (same identity)
+    Note over B,R: returns in-flight #pendingRun.promise
+    S-->>R: ok
+    R-->>A: resolved (clears #pendingRun)
+    R-->>B: resolved
 ```
 
-| Situation                                | Result of the second run                                                        |
-| ---------------------------------------- | ------------------------------------------------------------------------------- |
-| Primary SRP is missing, or must be added | The add is rejected by the service and logged. No duplicate.                    |
-| The local copy is promoted               | The same retag and promotion are applied again. The service accepts them.       |
-| Always                                   | The analytics event is tracked twice, because both runs planned before a write. |
-
-The backup is correct in every case, since the service allows one primary and the retag is idempotent. The cost is a logged error and a double event. Re-planning under the controller lock would remove both, because the second run would see a backup in sync.
+- **Same identity:** Only one fetch, one analytics event, and one set of writes run; both callers resolve when that run settles.
+- **Identity changed in flight** (e.g., sign-out and sign-in as another user): `#pendingRun` is not reused; the new user gets a fresh run while the old run aborts on `assertIdentityUnchanged`.
+- **Sequential re-run** (after `#pendingRun` settles): Fetches the repaired backup, sees it is in sync, and exits with no writes and no event.
 
 ### Other cases
 
@@ -92,7 +90,3 @@ The backup is correct in every case, since the service allows one primary and th
 | Fetching, parsing, or exporting the local primary SRP fails           | The error is logged and nothing is written.                                             |
 | A healthy account, including a v1 backup with the local primary first | No write and no event.                                                                  |
 | The remote copy of the local primary SRP has no item id               | The local primary SRP is added.                                                         |
-
-## Not done yet
-
-- Re-plan under the controller lock.
