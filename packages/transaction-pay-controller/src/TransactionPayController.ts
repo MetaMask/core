@@ -1,6 +1,10 @@
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import {
+  TransactionType,
+  hasTransactionType,
+} from '@metamask/transaction-controller';
 import type { Draft } from 'immer';
 import { noop } from 'lodash-es';
 
@@ -20,6 +24,7 @@ import type {
   GetBalanceCallback,
   GetDelegationTransactionCallback,
   GetPaymentOverrideDataCallback,
+  LighterCallbacks,
   PolymarketCallbacks,
   TransactionConfig,
   TransactionConfigCallback,
@@ -47,6 +52,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getFiatOptions',
   'getPaymentOverrideData',
   'getStrategy',
+  'lighterSubmitTransfer',
   'polymarketGetDepositWalletAddress',
   'polymarketSubmitDepositWalletBatch',
   'setTransactionConfig',
@@ -94,6 +100,8 @@ export class TransactionPayController extends BaseController<
     transaction: TransactionMeta,
   ) => TransactionPayStrategy[];
 
+  readonly #lighter?: LighterCallbacks;
+
   readonly #polymarket?: PolymarketCallbacks;
 
   constructor({
@@ -105,6 +113,7 @@ export class TransactionPayController extends BaseController<
     getPaymentOverrideData,
     getStrategy,
     getStrategies,
+    lighter,
     messenger,
     polymarket,
     state,
@@ -124,6 +133,7 @@ export class TransactionPayController extends BaseController<
     this.#getPaymentOverrideData = getPaymentOverrideData;
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
+    this.#lighter = lighter;
     this.#polymarket = polymarket;
 
     this.messenger.registerMethodActionHandlers(
@@ -179,6 +189,7 @@ export class TransactionPayController extends BaseController<
         accountOverride: transactionData.accountOverride,
         atomic: transactionData.atomic,
         isHyperliquidSource: transactionData.isHyperliquidSource,
+        isLighterSource: transactionData.isLighterSource,
         isMaxAmount: transactionData.isMaxAmount,
         isPolymarketDepositWallet: transactionData.isPolymarketDepositWallet,
         isPostQuote: transactionData.isPostQuote,
@@ -317,6 +328,19 @@ export class TransactionPayController extends BaseController<
   }
 
   /**
+   * Signs a Lighter transfer and sends it to Lighter via the client-supplied
+   * callback.
+   *
+   * @param args - The arguments forwarded to {@link LighterCallbacks.submitTransfer}.
+   * @returns A promise resolving once Lighter accepts the transfer.
+   */
+  lighterSubmitTransfer(
+    ...args: Parameters<LighterCallbacks['submitTransfer']>
+  ): ReturnType<LighterCallbacks['submitTransfer']> {
+    return this.#requireLighter().submitTransfer(...args);
+  }
+
+  /**
    * Derives the Polymarket deposit-wallet address for an EOA via the
    * client-supplied callback.
    *
@@ -340,6 +364,13 @@ export class TransactionPayController extends BaseController<
     ...args: Parameters<PolymarketCallbacks['submitDepositWalletBatch']>
   ): ReturnType<PolymarketCallbacks['submitDepositWalletBatch']> {
     return this.#requirePolymarket().submitDepositWalletBatch(...args);
+  }
+
+  #requireLighter(): LighterCallbacks {
+    if (!this.#lighter) {
+      throw new Error('TransactionPayController: Lighter callbacks missing');
+    }
+    return this.#lighter;
   }
 
   #requirePolymarket(): PolymarketCallbacks {
@@ -479,7 +510,10 @@ export class TransactionPayController extends BaseController<
       this.messenger,
       evmPaymentToken?.chainId,
       evmPaymentToken?.address,
-      transaction.type,
+      // The Lighter withdraw is created as a batch, so its type is nested.
+      hasTransactionType(transaction, [TransactionType.perpsLighterWithdraw])
+        ? TransactionType.perpsLighterWithdraw
+        : transaction.type,
       transactionData?.fiatPayment?.selectedPaymentMethodId,
     );
   }

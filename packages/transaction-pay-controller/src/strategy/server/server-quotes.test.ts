@@ -17,6 +17,7 @@ import {
 import type {
   GetDelegationTransactionCallback,
   QuoteRequest,
+  TransactionPayFees,
 } from '../../types.js';
 import {
   getFeatureFlags,
@@ -48,7 +49,7 @@ import { getLighterAccountIndex } from './lighter.js';
 import { fetchServerQuote } from './server-api.js';
 import { getServerQuotes } from './server-quotes.js';
 import { validateServerQuotes } from './server-validation.js';
-import type { ServerQuote } from './types.js';
+import type { ServerQuote, ServerStep } from './types.js';
 
 vi.mock(import('../../utils/feature-flags.js'), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -372,6 +373,113 @@ describe('server-quotes', () => {
     // The account index is used in the request body, but the original
     // recipient (FROM_MOCK) is preserved in the quote result.
     expect(result[0].request.recipient).toBe(FROM_MOCK);
+  });
+
+  it('requests the Lighter perps asset with the account index as sender when the source is Lighter', async () => {
+    vi.mocked(getLighterAccountIndex).mockResolvedValue('770167');
+
+    await getServerQuotes({
+      accountSupports7702: true,
+      from: FROM_MOCK,
+      messenger,
+      requests: [
+        { ...QUOTE_REQUEST_MOCK, isLighterSource: true, isPostQuote: true },
+      ],
+      transaction: TRANSACTION_META_MOCK,
+    });
+
+    expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+      messenger,
+      expect.objectContaining({
+        sourceAsset: SERVER_LIGHTER_PERPS_USDC_ASSET,
+        sender: '770167',
+        recipient: FROM_MOCK,
+        supportsGasless: false,
+      }),
+      undefined,
+    );
+    expect(fetchServerQuoteMock.mock.calls[0][1].calls).toBeUndefined();
+    expect(getLighterAccountIndex).toHaveBeenCalledWith(
+      TRANSACTION_META_MOCK.txParams.from,
+    );
+  });
+
+  describe('Lighter transfer fee', () => {
+    const LIGHTER_STEP_MOCK = {
+      type: 'lighterTransfer',
+      toAccountIndex: 731033,
+      assetIndex: 3,
+      fromRouteType: 0,
+      toRouteType: 0,
+      amount: 1000000,
+      usdcFee: 1000000,
+      memo: `0x${'ab'.repeat(32)}`,
+    } as const;
+
+    async function getQuoteFees(
+      steps: ServerStep[],
+    ): Promise<TransactionPayFees> {
+      vi.mocked(getLighterAccountIndex).mockResolvedValue('770167');
+      fetchServerQuoteMock.mockResolvedValue({
+        results: [
+          {
+            ...FULFILLED_RESULT_MOCK,
+            quote: { ...FULFILLED_RESULT_MOCK.quote, steps },
+          },
+        ],
+      });
+
+      const quotes = await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [
+          { ...QUOTE_REQUEST_MOCK, isLighterSource: true, isPostQuote: true },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      return quotes[0].fees;
+    }
+
+    it('returns the transfer fee in USD', async () => {
+      const fees = await getQuoteFees([LIGHTER_STEP_MOCK]);
+
+      expect(fees.lighter?.usd).toBe('1');
+    });
+
+    it('keeps the index of the quoted Lighter account for the transfer', async () => {
+      vi.mocked(getLighterAccountIndex).mockResolvedValue('770167');
+      fetchServerQuoteMock.mockResolvedValue({
+        results: [
+          {
+            ...FULFILLED_RESULT_MOCK,
+            quote: {
+              ...FULFILLED_RESULT_MOCK.quote,
+              steps: [LIGHTER_STEP_MOCK],
+            },
+          },
+        ],
+      });
+
+      const quotes = await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [
+          { ...QUOTE_REQUEST_MOCK, isLighterSource: true, isPostQuote: true },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(quotes[0].original.lighterAccountIndex).toBe(770167);
+    });
+
+    it('omits the Lighter fee when there is no transfer step', async () => {
+      const fees = await getQuoteFees([DEPOSIT_STEP_MOCK]);
+
+      expect(fees.lighter).toBeUndefined();
+    });
   });
 
   it('requests native tokens as SLIP-44 assets', async () => {

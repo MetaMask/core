@@ -215,6 +215,7 @@ describe('submitServerQuotes', () => {
     getKeyringControllerStateMock,
     getPaymentOverrideDataMock,
     getTransactionControllerStateMock,
+    lighterSubmitTransferMock,
     messenger,
     updateTransactionMock,
   } = getMessengerMock();
@@ -1511,7 +1512,7 @@ describe('submitServerQuotes', () => {
         buildNonGaslessRequest({
           steps: [
             {
-              ...ORIGINAL_QUOTE_MOCK.steps[0],
+              ...(ORIGINAL_QUOTE_MOCK.steps[0] as ServerTransactionStep),
               gasLimit: '21000',
               maxFeePerGas: '1000000000',
               maxPriorityFeePerGas: '500000000',
@@ -1540,7 +1541,7 @@ describe('submitServerQuotes', () => {
         },
         steps: [
           {
-            ...ORIGINAL_QUOTE_MOCK.steps[0],
+            ...(ORIGINAL_QUOTE_MOCK.steps[0] as ServerTransactionStep),
             gasLimit: '30000',
           },
         ],
@@ -1753,6 +1754,136 @@ describe('submitServerQuotes', () => {
       await submitServerQuotes(req);
 
       expect(successfulFetchMock).toHaveBeenCalled();
+    });
+  });
+
+  function deepFreeze<Value>(value: Value): Value {
+    if (typeof value === 'object' && value !== null) {
+      Object.values(value).forEach(deepFreeze);
+      Object.freeze(value);
+    }
+
+    return value;
+  }
+
+  describe('Lighter transfer steps', () => {
+    const LIGHTER_STEP_MOCK = {
+      type: 'lighterTransfer' as const,
+      toAccountIndex: 723071,
+      assetIndex: 3,
+      fromRouteType: 0,
+      toRouteType: 0,
+      amount: 1000000,
+      usdcFee: 3000000,
+      memo: `0x${'ab'.repeat(32)}` as const,
+    };
+
+    const buildLighterRequest = (): PayStrategyExecuteRequest<ServerQuote> => {
+      const quote = cloneDeep(QUOTE_MOCK);
+      quote.original = {
+        ...quote.original,
+        lighterAccountIndex: 770167,
+        steps: [LIGHTER_STEP_MOCK],
+        gasless: false,
+      };
+      return {
+        accountSupports7702: true,
+        isSmartTransaction: (): boolean => false,
+        messenger,
+        quotes: [quote],
+        transaction: cloneDeep(TRANSACTION_META_MOCK),
+      };
+    };
+
+    const mockTransferResult = (result: {
+      success: boolean;
+      error?: string;
+      txHash?: string;
+    }): void => {
+      lighterSubmitTransferMock.mockResolvedValue(result);
+    };
+
+    beforeEach(() => {
+      mockTransferResult({ success: true, txHash: '0x1234' });
+    });
+
+    it('sends the transfer to Lighter for the account that owns the Lighter account', async () => {
+      await submitServerQuotes(buildLighterRequest());
+
+      expect(lighterSubmitTransferMock).toHaveBeenCalledTimes(1);
+      expect(lighterSubmitTransferMock).toHaveBeenCalledWith({
+        accountIndex: 770167,
+        eoa: ORIGINAL_FROM_MOCK,
+        toAccountIndex: LIGHTER_STEP_MOCK.toAccountIndex,
+        assetIndex: LIGHTER_STEP_MOCK.assetIndex,
+        fromRouteType: LIGHTER_STEP_MOCK.fromRouteType,
+        toRouteType: LIGHTER_STEP_MOCK.toRouteType,
+        amount: LIGHTER_STEP_MOCK.amount,
+        usdcFee: LIGHTER_STEP_MOCK.usdcFee,
+        memo: LIGHTER_STEP_MOCK.memo,
+      });
+    });
+
+    it('throws with the Lighter error and does not poll status when the transfer fails', async () => {
+      mockTransferResult({ success: false, error: 'nonce too low' });
+
+      await expect(submitServerQuotes(buildLighterRequest())).rejects.toThrow(
+        'nonce too low',
+      );
+      expect(getServerStatusMock).not.toHaveBeenCalled();
+    });
+
+    it('throws without sending when the quote has no Lighter account index', async () => {
+      const lighterRequest = buildLighterRequest();
+      lighterRequest.quotes[0].original.lighterAccountIndex = undefined;
+
+      await expect(submitServerQuotes(lighterRequest)).rejects.toThrow(
+        'Lighter quote has no account index',
+      );
+      expect(lighterSubmitTransferMock).not.toHaveBeenCalled();
+    });
+
+    it('throws a generic error when a failed transfer has no message', async () => {
+      mockTransferResult({ success: false });
+
+      await expect(submitServerQuotes(buildLighterRequest())).rejects.toThrow(
+        'Lighter transfer failed',
+      );
+    });
+
+    it('records the transfer even when the quote is frozen, like controller state', async () => {
+      const lighterRequest = buildLighterRequest();
+      lighterRequest.quotes[0].original.id = 'frozen-lighter-quote';
+      deepFreeze(lighterRequest.quotes);
+
+      await submitServerQuotes(lighterRequest);
+
+      expect(lighterSubmitTransferMock).toHaveBeenCalledTimes(1);
+      expect(getServerStatusMock).toHaveBeenCalled();
+    });
+
+    it('does not send the transfer again when the same quote is retried', async () => {
+      const lighterRequest = buildLighterRequest();
+      lighterRequest.quotes[0].original.id = 'retried-lighter-quote';
+      getServerStatusMock.mockResolvedValueOnce({
+        status: ServerStatus.Failed,
+      });
+
+      await expect(submitServerQuotes(lighterRequest)).rejects.toThrow(
+        'Server intent failed',
+      );
+      await submitServerQuotes(lighterRequest);
+
+      expect(lighterSubmitTransferMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not submit on-chain transactions for a Lighter-only quote', async () => {
+      await submitServerQuotes(buildLighterRequest());
+
+      expect(addTxMock).not.toHaveBeenCalled();
+      expect(addTxBatchMock).not.toHaveBeenCalled();
+      expect(submitServerIntentMock).not.toHaveBeenCalled();
+      expect(getServerStatusMock).toHaveBeenCalled();
     });
   });
 

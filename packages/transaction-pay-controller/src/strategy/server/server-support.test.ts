@@ -81,6 +81,33 @@ describe('server-support', () => {
     });
 
     it.each([
+      {
+        type: TransactionType.perpsLighterDeposit,
+      },
+      {
+        type: TransactionType.perpsLighterDepositAndOrder,
+      },
+      {
+        type: TransactionType.batch,
+        nestedTransactions: [{ type: TransactionType.perpsLighterWithdraw }],
+      },
+    ])(
+      'does not support a Lighter transaction when only the Hyperliquid types are allowlisted: $type',
+      (transaction) => {
+        expect(
+          getReason({
+            enabledTransactionTypes: [
+              TransactionType.perpsDeposit,
+              TransactionType.perpsDepositAndOrder,
+              TransactionType.perpsWithdraw,
+            ],
+            transaction: transaction as TransactionMeta,
+          }),
+        ).toBe(ServerUnsupportedReason.DisabledTransactionType);
+      },
+    );
+
+    it.each([
       TransactionType.perpsDepositAndOrder,
       TransactionType.predictDepositAndOrder,
     ])(

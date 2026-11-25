@@ -182,6 +182,7 @@ export async function updateQuotes(
     atomic: requestedAtomic,
     fiatPayment,
     isHyperliquidSource,
+    isLighterSource,
     isMaxAmount,
     isPolymarketDepositWallet,
     isPostQuote,
@@ -247,6 +248,7 @@ export async function updateQuotes(
       atomic: requestedAtomic,
       from,
       isHyperliquidSource,
+      isLighterSource,
       isMaxAmount: isMaxAmount ?? false,
       isPolymarketDepositWallet,
       isPostQuote,
@@ -588,6 +590,7 @@ function getSourceAmounts(
  * @param request.atomic - Whether the target transaction is executed atomically with the Relay quote.
  * @param request.from - Address from which the transaction is sent.
  * @param request.isHyperliquidSource - Whether the source of funds is HyperLiquid.
+ * @param request.isLighterSource - Whether the source of funds is Lighter.
  * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.isPolymarketDepositWallet - Whether the source of funds is a Polymarket deposit wallet.
  * @param request.isPostQuote - Whether this is a post-quote flow.
@@ -605,6 +608,7 @@ function buildQuoteRequests({
   atomic,
   from,
   isHyperliquidSource,
+  isLighterSource,
   isMaxAmount,
   isPolymarketDepositWallet,
   isPostQuote,
@@ -620,6 +624,7 @@ function buildQuoteRequests({
   atomic?: boolean;
   from: Hex;
   isHyperliquidSource?: boolean;
+  isLighterSource?: boolean;
   isMaxAmount: boolean;
   isPolymarketDepositWallet?: boolean;
   isPostQuote?: boolean;
@@ -648,6 +653,7 @@ function buildQuoteRequests({
       destinationToken: evmPaymentToken,
       from,
       isHyperliquidSource,
+      isLighterSource,
       isMaxAmount,
       isPolymarketDepositWallet,
       paymentOverride,
@@ -699,6 +705,7 @@ function buildQuoteRequests({
  * @param request.destinationToken - Destination token (paymentToken in post-quote mode).
  * @param request.from - Address from which the transaction is sent.
  * @param request.isHyperliquidSource - Whether the source of funds is HyperLiquid.
+ * @param request.isLighterSource - Whether the source of funds is Lighter.
  * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.isPolymarketDepositWallet - Whether the source of funds is a Polymarket deposit wallet.
  * @param request.paymentOverride - Optional payment override type for the transaction.
@@ -713,6 +720,7 @@ function buildPostQuoteRequests({
   destinationToken,
   from,
   isHyperliquidSource,
+  isLighterSource,
   isMaxAmount,
   isPolymarketDepositWallet,
   paymentOverride,
@@ -725,6 +733,7 @@ function buildPostQuoteRequests({
   destinationToken: EvmPaymentToken;
   from: Hex;
   isHyperliquidSource?: boolean;
+  isLighterSource?: boolean;
   isMaxAmount: boolean;
   isPolymarketDepositWallet?: boolean;
   paymentOverride?: PaymentOverride;
@@ -761,6 +770,7 @@ function buildPostQuoteRequests({
     atomic,
     from,
     isHyperliquidSource,
+    isLighterSource,
     isMaxAmount,
     isPolymarketDepositWallet,
     isPostQuote: true,

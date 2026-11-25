@@ -143,6 +143,13 @@ export type TransactionConfig = {
    */
   isHyperliquidSource?: boolean;
 
+  /**
+   * Whether the source of funds is Lighter.
+   * When true, the Server strategy quotes the Lighter perps balance as the
+   * source and signs a Lighter transfer to withdraw from it.
+   */
+  isLighterSource?: boolean;
+
   /** Whether the source of funds is a Polymarket deposit wallet. */
   isPolymarketDepositWallet?: boolean;
 
@@ -314,6 +321,9 @@ export type TransactionPayControllerOptions = {
   /** Callback to select ordered PayStrategies for a transaction. */
   getStrategies?: (transaction: TransactionMeta) => TransactionPayStrategy[];
 
+  /** Callbacks for Lighter; required only for withdrawing from Lighter. */
+  lighter?: LighterCallbacks;
+
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
 
@@ -380,6 +390,9 @@ export type TransactionData = {
 
   /** Whether the source of funds is HyperLiquid (HyperCore). */
   isHyperliquidSource?: boolean;
+
+  /** Whether the source of funds is Lighter. */
+  isLighterSource?: boolean;
 
   /** Whether the source of funds is a Polymarket deposit wallet. */
   isPolymarketDepositWallet?: boolean;
@@ -631,6 +644,9 @@ export type QuoteRequest = {
   /** Whether the source of funds is HyperLiquid (HyperCore). */
   isHyperliquidSource?: boolean;
 
+  /** Whether the source of funds is Lighter. */
+  isLighterSource?: boolean;
+
   /** Whether the source of funds is a Polymarket deposit wallet. */
   isPolymarketDepositWallet?: boolean;
 
@@ -693,6 +709,12 @@ export type TransactionPayFees = {
 
   /** Whether a gas fee token is used to pay target network fees. */
   isTargetGasFeeToken?: boolean;
+
+  /**
+   * Fee Lighter charges for the withdrawal transfer, on top of the amount
+   * sent. Only set for Lighter withdrawals.
+   */
+  lighter?: FiatValue;
 
   /** Fee charged by MetaMask. */
   metaMask: FiatValue;
@@ -981,6 +1003,32 @@ export type GetDelegationTransactionCallback = ({
   to: Hex;
   value: Hex;
 }>;
+
+/** Client-supplied callbacks for Lighter. */
+export type LighterCallbacks = {
+  /**
+   * Sign a Lighter transfer with the account's Lighter API key and send it to
+   * Lighter. Resolves with `success: true` once Lighter accepts the transfer.
+   * A failed transfer must resolve with `success: false` or reject, so the
+   * withdrawal does not carry on as if the funds had been sent.
+   */
+  submitTransfer: (params: {
+    /** Index of the Lighter account the quote debits. */
+    accountIndex: number;
+    /** Address that owns the Lighter account to debit. */
+    eoa: Hex;
+    toAccountIndex: number;
+    assetIndex: number;
+    fromRouteType: number;
+    toRouteType: number;
+    /** Amount in the smallest unit of the asset. */
+    amount: number;
+    /** Fee in the smallest unit of USDC. */
+    usdcFee: number;
+    /** Hex-encoded request ID that ties the transfer to the quote. */
+    memo: Hex;
+  }) => Promise<{ success: boolean; error?: string; txHash?: string }>;
+};
 
 /** Client-supplied callbacks for the Polymarket relayer protocol. */
 export type PolymarketCallbacks = {

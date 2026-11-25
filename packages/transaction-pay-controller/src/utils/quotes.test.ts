@@ -2809,6 +2809,26 @@ describe('Quotes Utils', () => {
       );
     });
 
+    it('passes isLighterSource through to post-quote request', async () => {
+      await run({
+        transactionData: {
+          ...POST_QUOTE_TRANSACTION_DATA,
+          isLighterSource: true,
+        },
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: [
+            expect.objectContaining({
+              isPostQuote: true,
+              isLighterSource: true,
+            }),
+          ],
+        }),
+      );
+    });
+
     it('does not fetch quotes when sourceAmounts is empty (same-token filtered in source-amounts)', async () => {
       const sameTokenData: TransactionData = {
         ...POST_QUOTE_TRANSACTION_DATA,

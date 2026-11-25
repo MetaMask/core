@@ -36,6 +36,7 @@ import type {
   TransactionPayControllerGetFiatOptionsAction,
   TransactionPayControllerGetPaymentOverrideDataAction,
   TransactionPayControllerGetStrategyAction,
+  TransactionPayControllerLighterSubmitTransferAction,
   TransactionPayControllerPolymarketGetDepositWalletAddressAction,
   TransactionPayControllerPolymarketSubmitDepositWalletBatchAction,
 } from '../src/TransactionPayController-method-action-types.js';
@@ -137,6 +138,10 @@ export function getMessengerMock({
   const getPaymentOverrideDataMock: MockedFunction<
     TransactionPayControllerGetPaymentOverrideDataAction['handler']
   > = vi.fn().mockResolvedValue({ calls: [] });
+
+  const lighterSubmitTransferMock: MockedFunction<
+    TransactionPayControllerLighterSubmitTransferAction['handler']
+  > = vi.fn().mockResolvedValue({ success: true, txHash: '0xabc123' });
 
   const polymarketGetDepositWalletAddressMock: MockedFunction<
     TransactionPayControllerPolymarketGetDepositWalletAddressAction['handler']
@@ -271,6 +276,11 @@ export function getMessengerMock({
     );
 
     messenger.registerActionHandler(
+      'TransactionPayController:lighterSubmitTransfer',
+      lighterSubmitTransferMock,
+    );
+
+    messenger.registerActionHandler(
       'TransactionPayController:polymarketGetDepositWalletAddress',
       polymarketGetDepositWalletAddressMock,
     );
@@ -336,6 +346,7 @@ export function getMessengerMock({
     getRemoteFeatureFlagControllerStateMock,
     getStrategyMock,
     getTransactionControllerStateMock,
+    lighterSubmitTransferMock,
     messenger: messenger as TransactionPayControllerMessenger,
     polymarketGetDepositWalletAddressMock,
     polymarketSubmitDepositWalletBatchMock,

@@ -37,7 +37,25 @@ export type ServerSignatureStep = {
   };
 };
 
-export type ServerStep = ServerTransactionStep | ServerSignatureStep;
+/**
+ * A transfer between Lighter accounts, signed with the Lighter API key and
+ * sent to Lighter. It is how funds are withdrawn from Lighter.
+ */
+export type ServerLighterTransferStep = {
+  type: 'lighterTransfer';
+  toAccountIndex: number;
+  assetIndex: number;
+  fromRouteType: number;
+  toRouteType: number;
+  amount: number;
+  usdcFee: number;
+  memo: Hex;
+};
+
+export type ServerStep =
+  | ServerTransactionStep
+  | ServerSignatureStep
+  | ServerLighterTransferStep;
 
 /** A call to include in the quote request (for delegation flows). */
 export type ServerCall = {
@@ -66,7 +84,9 @@ export type ServerQuoteRequest = {
 
   amount: string;
   tradeType: TradeType;
-  sender: Hex;
+
+  /** Address of the sender, or the index of the Lighter account to withdraw from. */
+  sender: string;
 
   /** Address of the recipient, or another identifier such as a Lighter account index. */
   recipient: string;
@@ -141,6 +161,11 @@ export type ServerQuote = {
    */
   authorizationList?: ServerAuthorization[];
   id: string;
+  /**
+   * Index of the Lighter account the quote debits, kept for a Lighter
+   * withdrawal so the transfer is only sent from that same account.
+   */
+  lighterAccountIndex?: number;
   provider: string;
   input: ServerQuoteAmount;
   output: ServerQuoteAmount;

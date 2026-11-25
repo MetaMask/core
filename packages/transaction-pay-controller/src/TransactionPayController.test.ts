@@ -296,6 +296,18 @@ describe('TransactionPayController', () => {
       ).toBe(true);
     });
 
+    it('updates isLighterSource in state', () => {
+      const controller = createController();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.isLighterSource = true;
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].isLighterSource,
+      ).toBe(true);
+    });
+
     it('updates paymentOverride in state', () => {
       const controller = createController();
 
@@ -686,6 +698,51 @@ describe('TransactionPayController', () => {
     });
   });
 
+  describe('lighter callbacks', () => {
+    const TRANSFER_MOCK = {
+      accountIndex: 770167,
+      eoa: '0x1111111111111111111111111111111111111111' as Hex,
+      toAccountIndex: 723071,
+      assetIndex: 3,
+      fromRouteType: 0,
+      toRouteType: 0,
+      amount: 1000000,
+      usdcFee: 3000000,
+      memo: `0x${'ab'.repeat(32)}` as const,
+    };
+
+    it('delegates lighterSubmitTransfer to the callback', async () => {
+      const submitTransferMock = vi.fn().mockResolvedValue({ success: true });
+
+      new TransactionPayController({
+        getDelegationTransaction: vi.fn(),
+        lighter: { submitTransfer: submitTransferMock },
+        messenger,
+      });
+
+      await messenger.call(
+        'TransactionPayController:lighterSubmitTransfer',
+        TRANSFER_MOCK,
+      );
+
+      expect(submitTransferMock).toHaveBeenCalledWith(TRANSFER_MOCK);
+    });
+
+    it('throws if lighterSubmitTransfer is invoked without callbacks supplied', () => {
+      new TransactionPayController({
+        getDelegationTransaction: vi.fn(),
+        messenger,
+      });
+
+      expect(() =>
+        messenger.call(
+          'TransactionPayController:lighterSubmitTransfer',
+          TRANSFER_MOCK,
+        ),
+      ).toThrow('Lighter callbacks missing');
+    });
+  });
+
   describe('polymarket callbacks', () => {
     const EOA_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
     const DEPOSIT_WALLET_MOCK =
@@ -921,6 +978,24 @@ describe('TransactionPayController', () => {
         CHAIN_ID_MOCK,
         TOKEN_ADDRESS_MOCK,
         'perpsDeposit',
+        undefined,
+      );
+    });
+
+    it('routes a batch with a nested Lighter withdraw as a Lighter withdraw', () => {
+      createController();
+
+      messenger.call('TransactionPayController:getStrategy', {
+        id: TRANSACTION_ID_MOCK,
+        type: 'batch',
+        nestedTransactions: [{ type: 'perpsLighterWithdraw' }],
+      } as TransactionMeta);
+
+      expect(getStrategyOrderMock).toHaveBeenCalledWith(
+        messenger,
+        undefined,
+        undefined,
+        'perpsLighterWithdraw',
         undefined,
       );
     });

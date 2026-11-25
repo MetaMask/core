@@ -1,4 +1,5 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import { BigNumber } from 'bignumber.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TransactionPayStrategy } from '../index.js';
@@ -438,6 +439,45 @@ describe('Totals Utils', () => {
 
       expect(result.fees.provider.fiat).toBe('8.88');
       expect(result.fees.provider.usd).toBe('11.1');
+    });
+
+    it('adds the Lighter fee to the total and returns it', () => {
+      const lighterQuote = {
+        ...QUOTE_1_MOCK,
+        fees: { ...QUOTE_1_MOCK.fees, lighter: { fiat: '1.5', usd: '1' } },
+      };
+      const base = calculateTotals({
+        quotes: [QUOTE_1_MOCK],
+        tokens: [TOKEN_1_MOCK],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const result = calculateTotals({
+        quotes: [lighterQuote],
+        tokens: [TOKEN_1_MOCK],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.fees.lighter).toStrictEqual({ fiat: '1.5', usd: '1' });
+      expect(
+        new BigNumber(result.total.usd).minus(base.total.usd).toString(10),
+      ).toBe('1');
+      expect(
+        new BigNumber(result.total.fiat).minus(base.total.fiat).toString(10),
+      ).toBe('1.5');
+    });
+
+    it('omits the Lighter fee when no quote has one', () => {
+      const result = calculateTotals({
+        quotes: [QUOTE_1_MOCK],
+        tokens: [],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.fees.lighter).toBeUndefined();
     });
 
     it('returns source network fees', () => {

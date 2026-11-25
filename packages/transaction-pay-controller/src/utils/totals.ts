@@ -38,6 +38,10 @@ export function calculateTotals({
 }): TransactionPayTotals {
   const metaMaskFee = sumFiat(quotes.map((quote) => quote.fees.metaMask));
   const providerFee = sumFiat(quotes.map((quote) => quote.fees.provider));
+  const lighterFee = sumFiat(
+    quotes.map((quote) => quote.fees.lighter ?? { fiat: '0', usd: '0' }),
+  );
+  const hasLighterFee = quotes.some((quote) => quote.fees.lighter);
   const providerFiatFee = sumFiat(
     quotes.map((quote) => quote.fees.providerFiat ?? { fiat: '0', usd: '0' }),
   );
@@ -106,6 +110,7 @@ export function calculateTotals({
   );
 
   const totalFiat = new BigNumber(providerFee.fiat)
+    .plus(lighterFee.fiat)
     .plus(metaMaskFee.fiat)
     .plus(sourceNetworkFeeEstimate.fiat)
     .plus(targetNetworkFee.fiat)
@@ -114,6 +119,7 @@ export function calculateTotals({
     .toString(10);
 
   const totalUsd = new BigNumber(providerFee.usd)
+    .plus(lighterFee.usd)
     .plus(metaMaskFee.usd)
     .plus(sourceNetworkFeeEstimate.usd)
     .plus(targetNetworkFee.usd)
@@ -138,6 +144,7 @@ export function calculateTotals({
     fees: {
       isSourceGasFeeToken,
       isTargetGasFeeToken,
+      ...(hasLighterFee ? { lighter: lighterFee } : {}),
       providerFiat: providerFiatFee,
       metaMask: metaMaskFee,
       provider: providerFee,
@@ -162,6 +169,7 @@ function getQuoteFeeTotal(
   currency: keyof FiatValue,
 ): string {
   return new BigNumber(quote.fees.provider[currency])
+    .plus(quote.fees.lighter?.[currency] ?? 0)
     .plus(quote.fees.metaMask[currency])
     .plus(quote.fees.sourceNetwork.estimate[currency])
     .plus(quote.fees.targetNetwork[currency])

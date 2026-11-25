@@ -857,6 +857,41 @@ describe('Source Amounts Utils', () => {
         ]);
       });
 
+      it('does not filter out same token when isLighterSource is true in post-quote flow', () => {
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isPostQuote: true,
+          isLighterSource: true,
+          paymentToken: {
+            ...DESTINATION_TOKEN_MOCK,
+            assetId: `eip155:42161/erc20:${ARBITRUM_USDC_ADDRESS}`,
+            decimals: 6,
+            symbol: 'USDC',
+          },
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              address: ARBITRUM_USDC_ADDRESS,
+              chainId: CHAIN_ID_ARBITRUM,
+              skipIfBalance: false,
+            },
+          ],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(transactionData.sourceAmounts).toStrictEqual([
+          {
+            sourceAmountHuman: TRANSACTION_TOKEN_MOCK.amountHuman,
+            sourceAmountRaw: TRANSACTION_TOKEN_MOCK.amountRaw,
+            sourceBalanceRaw: TRANSACTION_TOKEN_MOCK.balanceRaw,
+            sourceChainId: CHAIN_ID_ARBITRUM,
+            sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
+            targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+          },
+        ]);
+      });
+
       it('still filters out same token when isHyperliquidSource is false in post-quote flow', () => {
         const transactionData: TransactionData = {
           isLoading: false,
@@ -1016,6 +1051,7 @@ describe('Source Amounts Utils', () => {
 
       it.each([
         ['a HyperLiquid source', { isHyperliquidSource: true }],
+        ['a Lighter source', { isLighterSource: true }],
         [
           'a Polymarket deposit wallet source',
           { isPolymarketDepositWallet: true },

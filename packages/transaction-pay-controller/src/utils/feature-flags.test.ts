@@ -2718,4 +2718,195 @@ describe('Feature Flags Utils', () => {
       expect(result).toHaveProperty('0x1');
     });
   });
+
+  describe('Lighter transactions', () => {
+    // Flags keyed by transaction type must be configured for the Lighter types
+    // explicitly. A record for the Hyperliquid `perpsDeposit` /
+    // `perpsDepositAndOrder` / `perpsWithdraw` types never applies to them.
+    const LIGHTER_TRANSACTIONS: [string, TransactionMeta][] = [
+      [
+        'perpsLighterDeposit',
+        { type: TransactionType.perpsLighterDeposit } as TransactionMeta,
+      ],
+      [
+        'perpsLighterDepositAndOrder',
+        {
+          type: TransactionType.perpsLighterDepositAndOrder,
+        } as TransactionMeta,
+      ],
+      [
+        'batch with a nested perpsLighterWithdraw',
+        {
+          type: TransactionType.batch,
+          nestedTransactions: [{ type: TransactionType.perpsLighterWithdraw }],
+        } as TransactionMeta,
+      ],
+    ];
+
+    const HYPERLIQUID_ONLY_TOGGLE = {
+      default: false,
+      transactionTypes: {
+        [TransactionType.perpsDeposit]: true,
+        [TransactionType.perpsDepositAndOrder]: true,
+        [TransactionType.perpsWithdraw]: true,
+      },
+    };
+
+    function mockExtendedFlags(flags: Json): void {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: { confirmations_pay_extended: flags },
+      });
+    }
+
+    it.each(LIGHTER_TRANSACTIONS)(
+      'does not enable server validation from Hyperliquid types for %s',
+      (_name, transaction) => {
+        mockExtendedFlags({
+          payStrategies: {
+            server: { validationEnabled: HYPERLIQUID_ONLY_TOGGLE },
+          },
+        });
+
+        expect(isServerValidationEnabled(messenger, transaction)).toBe(false);
+      },
+    );
+
+    it.each(LIGHTER_TRANSACTIONS)(
+      'does not enable relay validation from Hyperliquid types for %s',
+      (_name, transaction) => {
+        mockExtendedFlags({
+          payStrategies: {
+            relay: { validationEnabled: HYPERLIQUID_ONLY_TOGGLE },
+          },
+        });
+
+        expect(isRelayValidationEnabled(messenger, transaction)).toBe(false);
+      },
+    );
+
+    it.each(LIGHTER_TRANSACTIONS)(
+      'does not enable atomic max from Hyperliquid types for %s',
+      (_name, transaction) => {
+        mockExtendedFlags({
+          payStrategies: {
+            relay: { atomicMaxEnabled: HYPERLIQUID_ONLY_TOGGLE },
+          },
+        });
+
+        expect(isAtomicMaxEnabled(messenger, transaction)).toBe(false);
+      },
+    );
+
+    it.each(LIGHTER_TRANSACTIONS)(
+      'does not apply a Hyperliquid max balance refresh interval to %s',
+      (_name, transaction) => {
+        mockExtendedFlags({
+          maxBalanceRefreshInterval: {
+            [TransactionType.perpsDeposit]: 1000,
+            [TransactionType.perpsDepositAndOrder]: 1000,
+            [TransactionType.perpsWithdraw]: 1000,
+          },
+        });
+
+        expect(
+          getMaxBalanceRefreshInterval(
+            messenger as TransactionPayControllerMessenger,
+            transaction,
+          ),
+        ).toBeUndefined();
+      },
+    );
+
+    it.each([
+      TransactionType.perpsLighterDeposit,
+      TransactionType.perpsLighterDepositAndOrder,
+      TransactionType.perpsLighterWithdraw,
+    ])('does not enable resume from Hyperliquid types for %s', (type) => {
+      mockExtendedFlags({
+        resume: {
+          [TransactionPayStrategy.Server]: {
+            default: false,
+            transactionTypes: {
+              [TransactionType.perpsDeposit]: true,
+              [TransactionType.perpsDepositAndOrder]: true,
+              [TransactionType.perpsWithdraw]: true,
+            },
+          },
+        },
+      });
+
+      expect(
+        isResumeEnabled(messenger, TransactionPayStrategy.Server, type),
+      ).toBe(false);
+    });
+
+    it.each([
+      TransactionType.perpsLighterDeposit,
+      TransactionType.perpsLighterDepositAndOrder,
+      TransactionType.perpsLighterWithdraw,
+    ])(
+      'does not use the Hyperliquid strategy overrides for %s',
+      (lighterType) => {
+        getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+          ...getDefaultRemoteFeatureFlagControllerState(),
+          remoteFeatureFlags: {
+            confirmations_pay: {
+              payStrategies: { across: { enabled: true } },
+              strategyOverrides: {
+                transactionTypes: {
+                  [TransactionType.perpsDeposit]: {
+                    default: [TransactionPayStrategy.Across],
+                  },
+                  [TransactionType.perpsDepositAndOrder]: {
+                    default: [TransactionPayStrategy.Across],
+                  },
+                  [TransactionType.perpsWithdraw]: {
+                    default: [TransactionPayStrategy.Across],
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        expect(
+          getStrategyOrder(messenger, undefined, undefined, lighterType),
+        ).toStrictEqual([
+          TransactionPayStrategy.Relay,
+          TransactionPayStrategy.Across,
+        ]);
+      },
+    );
+
+    it('uses the strategy override of the Lighter type itself', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: { across: { enabled: true } },
+            strategyOverrides: {
+              transactionTypes: {
+                [TransactionType.perpsWithdraw]: {
+                  default: [TransactionPayStrategy.Relay],
+                },
+                [TransactionType.perpsLighterWithdraw]: {
+                  default: [TransactionPayStrategy.Across],
+                },
+              },
+            },
+          },
+        },
+      });
+
+      expect(
+        getStrategyOrder(
+          messenger,
+          undefined,
+          undefined,
+          TransactionType.perpsLighterWithdraw,
+        ),
+      ).toStrictEqual([TransactionPayStrategy.Across]);
+    });
+  });
 });

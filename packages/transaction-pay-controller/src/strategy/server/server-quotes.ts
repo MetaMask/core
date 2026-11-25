@@ -5,7 +5,7 @@ import type {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { CaipAssetType, Hex } from '@metamask/utils';
-import { createModuleLogger } from '@metamask/utils';
+import { createModuleLogger, isStrictHexString } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { CHAIN_ID_HYPERCORE, TransactionPayStrategy } from '../../constants.js';
@@ -66,7 +66,9 @@ import { normalizeServerPerpsRequest } from './perps.js';
 import { fetchServerQuote } from './server-api.js';
 import { validateServerQuotes } from './server-validation.js';
 import type {
+  ServerLighterTransferStep,
   ServerQuote,
+  ServerQuoteAmount,
   ServerQuotePayload,
   ServerQuoteRequest,
   ServerQuoteResult,
@@ -80,6 +82,7 @@ const TRANSFER_INTERFACE = new Interface([
 ]);
 const ZERO_AMOUNT = { fiat: '0', human: '0', raw: '0', usd: '0' };
 const ZERO_FIAT_VALUE = { fiat: '0', usd: '0' };
+const LIGHTER_USDC_DECIMALS = 6;
 
 type FulfilledServerQuoteResult = ServerQuoteResult & {
   quote: NonNullable<ServerQuoteResult['quote']>;
@@ -287,6 +290,7 @@ async function buildServerQuoteRequest(
   const {
     atomic,
     from,
+    isLighterSource,
     isMaxAmount,
     isPolymarketDepositWallet,
     isPostQuote,
@@ -343,6 +347,7 @@ async function buildServerQuoteRequest(
   const supportsGasless =
     isServerGaslessEnabled(messenger) &&
     !isHypercoreSource &&
+    !isLighterSource &&
     !isPolymarketDepositWallet &&
     accountSupports7702 &&
     isEIP7702Chain(messenger, sourceChainId);
@@ -376,6 +381,13 @@ async function buildServerQuoteRequest(
     );
   }
 
+  if (isLighterSource) {
+    // Lighter debits the account by index, so the source is the Lighter perps
+    // balance and the sender is the index of the account that owns it.
+    body.sourceAsset = SERVER_LIGHTER_PERPS_USDC_ASSET;
+    body.sender = await getLighterAccountIndex(executionAccount);
+  }
+
   const hasNoData = singleData === undefined || singleData === '0x';
   const isLighter = LighterNormalizer.isLighterRequest(normalizedRequest);
   const skipDelegation =
@@ -384,6 +396,7 @@ async function buildServerQuoteRequest(
     isHypercore ||
     isHypercoreSource ||
     isLighter ||
+    (isLighterSource ?? false) ||
     // Explicitly non-atomic requests want the calls run after settlement, so
     // they must not be embedded in the quote.
     atomic === false ||
@@ -700,7 +713,9 @@ async function normalizeQuote(
     gasless: gasless || isSignatureOnly,
     messenger,
     quoteRequest,
-    sender: body.sender,
+    // A Lighter account index is not an address, and only matters for gas
+    // estimation of the transaction steps, which a Lighter withdrawal has none of.
+    sender: isStrictHexString(body.sender) ? body.sender : quoteRequest.from,
     steps: transactionSteps,
     transaction,
   });
@@ -737,12 +752,43 @@ async function normalizeQuote(
     usdToFiatRate,
   );
 
+  // Lighter takes its transfer fee from the account on top of the amount sent.
+  // The fee is in USDC, which is priced 1:1 with USD.
+  const lighterFeeUsdc = quote.steps
+    .filter(
+      (step): step is ServerLighterTransferStep =>
+        step.type === 'lighterTransfer',
+    )
+    .reduce((total, step) => total.plus(step.usdcFee), new BigNumber(0))
+    .shiftedBy(-LIGHTER_USDC_DECIMALS);
+
+  // For max Lighter withdrawals, subtract the fee from the input amount so the
+  // total (input + fee) does not exceed the account balance. The adjusted input
+  // is the amount that gets transferred out, while the fee is debited separately.
+  const adjustedInput: ServerQuoteAmount =
+    quoteRequest.isMaxAmount &&
+    quoteRequest.isLighterSource &&
+    lighterFeeUsdc.isGreaterThan(0)
+      ? {
+          ...quote.input,
+          raw: new BigNumber(quote.input.raw)
+            .minus(lighterFeeUsdc.shiftedBy(LIGHTER_USDC_DECIMALS))
+            .toString(10),
+          formatted: new BigNumber(quote.input.formatted)
+            .minus(lighterFeeUsdc)
+            .toString(10),
+        }
+      : quote.input;
+
   return {
     dust: ZERO_FIAT_VALUE,
     estimatedDuration: quote.duration,
     fees: {
       ...(sourceNetwork.isSourceGasFeeToken
         ? { isSourceGasFeeToken: true }
+        : {}),
+      ...(lighterFeeUsdc.isGreaterThan(0)
+        ? { lighter: getFiatValueFromUsd(lighterFeeUsdc, usdToFiatRate) }
         : {}),
       metaMask,
       provider,
@@ -767,7 +813,10 @@ async function normalizeQuote(
       fees: quote.fees,
       gasless,
       id: quote.id,
-      input: quote.input,
+      input: adjustedInput,
+      ...(quoteRequest.isLighterSource
+        ? { lighterAccountIndex: Number(body.sender) }
+        : {}),
       output: quote.output,
       provider: result.provider,
       ...(quote.signature ? { signature: quote.signature } : {}),
@@ -777,14 +826,14 @@ async function normalizeQuote(
     requiresSecondLeg,
     sourceAmount: {
       fiat: sourceFiatRate
-        ? new BigNumber(quote.input.formatted)
+        ? new BigNumber(adjustedInput.formatted)
             .multipliedBy(sourceFiatRate.fiatRate)
             .toString(10)
         : '0',
-      human: quote.input.formatted,
-      raw: quote.input.raw,
+      human: adjustedInput.formatted,
+      raw: adjustedInput.raw,
       usd: sourceFiatRate
-        ? new BigNumber(quote.input.formatted)
+        ? new BigNumber(adjustedInput.formatted)
             .multipliedBy(sourceFiatRate.usdRate)
             .toString(10)
         : '0',

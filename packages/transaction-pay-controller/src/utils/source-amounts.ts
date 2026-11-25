@@ -74,13 +74,17 @@ export function updateSourceAmounts(
       throw new Error('Post-quote payment tokens must be EVM tokens');
     }
 
-    const { isHyperliquidSource, isPolymarketDepositWallet, paymentOverride } =
-      transactionData;
+    const {
+      isHyperliquidSource,
+      isLighterSource,
+      isPolymarketDepositWallet,
+      paymentOverride,
+    } = transactionData;
     const sourceAmounts = calculatePostQuoteSourceAmounts(
       tokens,
       evmPaymentToken,
       isMaxAmount ?? false,
-      isHyperliquidSource,
+      isHyperliquidSource === true || isLighterSource === true,
       isPolymarketDepositWallet,
       balanceOverride,
       Boolean(paymentOverride),
@@ -119,7 +123,7 @@ export function updateSourceAmounts(
  * @param tokens - Required tokens from the transaction.
  * @param paymentToken - Selected payment/destination token.
  * @param isMaxAmount - Whether the transaction is a maximum amount transaction.
- * @param isHyperliquidSource - Whether the source is HyperLiquid (perps withdrawal).
+ * @param isHyperliquidSource - Whether the source is HyperLiquid or Lighter (perps withdrawal).
  * @param isPolymarketDepositWallet - Whether the source is a Polymarket deposit wallet.
  * @param balanceOverride - Optional balance override from the `getBalance` callback.
  * @param hasPaymentOverride - Whether the source calls are rebuilt from the quote amount.
