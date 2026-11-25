@@ -17,6 +17,7 @@ export type {
   SeedlessOnboardingControllerCreateToprfKeyAndBackupSeedPhraseAction,
   SeedlessOnboardingControllerAddNewSecretDataAction,
   SeedlessOnboardingControllerFetchAllSecretDataAction,
+  SeedlessOnboardingControllerRestoreVaultWithPasswordAction,
   SeedlessOnboardingControllerChangePasswordAction,
   SeedlessOnboardingControllerCompletePasswordChangeAction,
   SeedlessOnboardingControllerMarkPasswordChangeKeySyncPendingAction,
@@ -40,12 +41,18 @@ export type {
   SeedlessOnboardingControllerRunMigrationsAction,
   SeedlessOnboardingControllerResolvePasswordSyncStateAction,
   SeedlessOnboardingControllerReconcilePasswordAction,
+  SeedlessOnboardingControllerAuthenticateForRecoveryAction,
+  SeedlessOnboardingControllerMigrateToEnvelopeAction,
+  SeedlessOnboardingControllerRecoverWithRecoverySecretAction,
+  SeedlessOnboardingControllerResetPasswordWithVaultKeysAction,
 } from './SeedlessOnboardingController-method-action-types.js';
 export type {
   AuthenticatedUserDetails,
+  EnvelopeState,
   SeedlessAuthData,
   SocialBackupsMetadata,
   SeedlessOnboardingControllerState,
+  RecoverySession,
   ToprfKeyDeriver,
   RecoveryErrorData,
   InvalidPrimarySecretDataTypeErrorData,
@@ -70,6 +77,8 @@ export {
 } from './utils/errors.js';
 
 export { EncAccountDataType } from '@metamask/toprf-secure-backup';
+export { getEnvelopeStatus } from './state.js';
+export type { SeedlessOnboardingEnvelopeStatus } from './state.js';
 export { parseSeedlessAuthData } from './utils/seedless-auth-data.js';
 export {
   convertUrlSafeBase64StringToBase64String,

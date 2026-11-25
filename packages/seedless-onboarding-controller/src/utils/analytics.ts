@@ -34,6 +34,9 @@ import {
   validateSecretMetadataBackup,
 } from './secret-data-utils.js';
 
+export const SeedlessEnvelopeMigrationCheckpointEventName =
+  'Seedless Onboarding Envelope Migration Checkpoint';
+
 export type IncompleteMetadataBackupEventProperties = {
   metadata_schema_version: 'v1' | 'v2' | 'mixed' | 'none';
   number_of_imported_wallets: number;
