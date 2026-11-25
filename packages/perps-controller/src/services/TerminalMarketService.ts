@@ -12,6 +12,7 @@ import {
   string,
   type,
   union,
+  unknown,
 } from '@metamask/superstruct';
 import { bytesToHex, sha256, stringToBytes } from '@metamask/utils';
 
@@ -120,11 +121,114 @@ const GlobalSnapshotStruct = type({
       error: string(),
     }),
   ),
-  markets: array(GlobalSnapshotMarketStruct),
+  // Rows are checked by `assertSnapshotMarketTypes`, not by this struct.
+  markets: array(unknown()),
 });
 
 type GlobalSnapshotMarket = Infer<typeof GlobalSnapshotMarketStruct>;
-type GlobalSnapshot = Infer<typeof GlobalSnapshotStruct>;
+type GlobalSnapshot = Omit<Infer<typeof GlobalSnapshotStruct>, 'markets'> & {
+  markets: GlobalSnapshotMarket[];
+};
+
+const REQUIRED_STRING_FIELDS = [
+  'id',
+  'symbol',
+  'network',
+  'provider',
+  'dex',
+  'markPrice',
+  'price',
+  'oraclePrice',
+  'change24h',
+  'funding',
+  'volume24h',
+  'openInterest',
+];
+const REQUIRED_NUMBER_FIELDS = [
+  'szDecimals',
+  'maxLeverage',
+  'changePercent24h',
+];
+const NULLABLE_STRING_FIELDS = [
+  'name',
+  'description',
+  'iconUrl',
+  'midPrice',
+  'change5m',
+  'change1h',
+  'category',
+];
+const NULLABLE_NUMBER_FIELDS = [
+  'changePercent5m',
+  'changePercent1h',
+  'listedAt',
+];
+const NULLABLE_STRING_LIST_FIELDS = ['keywords', 'tags'];
+const OPTIONAL_NULLABLE_FIELDS: [string, 'string' | 'number' | 'boolean'][] = [
+  ['onlyIsolated', 'boolean'],
+  ['marketKey', 'string'],
+  ['venueMarketId', 'string'],
+  ['priceScale', 'number'],
+];
+
+const isString = (value: unknown): value is string => typeof value === 'string';
+const isNumber = (value: unknown): value is number =>
+  typeof value === 'number' && !Number.isNaN(value);
+
+/**
+ * Check every market row against `GlobalSnapshotMarketStruct`, field by field,
+ * with plain `typeof` checks.
+ *
+ * `GlobalSnapshotMarketStruct` stays the schema and the source of the row type,
+ * but running it over every row makes superstruct allocate several generators
+ * and path copies per value, which blocked the Hermes JS thread for hundreds of
+ * milliseconds per refresh. The tests assert that this check and the struct
+ * accept and reject the same rows.
+ *
+ * @param markets - Raw market rows from the parsed snapshot.
+ * @throws If any row does not match `GlobalSnapshotMarketStruct`.
+ */
+function assertSnapshotMarketTypes(
+  markets: unknown[],
+): asserts markets is GlobalSnapshotMarket[] {
+  const valid = markets.every((row) => {
+    if (typeof row !== 'object' || row === null) {
+      return false;
+    }
+    const market = row as Record<string, unknown>;
+    return (
+      REQUIRED_STRING_FIELDS.every((name) => isString(market[name])) &&
+      REQUIRED_NUMBER_FIELDS.every((name) => isNumber(market[name])) &&
+      NULLABLE_STRING_FIELDS.every(
+        (name) => market[name] === null || isString(market[name]),
+      ) &&
+      NULLABLE_NUMBER_FIELDS.every(
+        (name) => market[name] === null || isNumber(market[name]),
+      ) &&
+      NULLABLE_STRING_LIST_FIELDS.every((name) => {
+        const list = market[name];
+        return list === null || (Array.isArray(list) && list.every(isString));
+      }) &&
+      isTrend(market.trend) &&
+      OPTIONAL_NULLABLE_FIELDS.every(([name, kind]) => {
+        const value = market[name];
+        return (
+          value === undefined ||
+          value === null ||
+          (kind === 'number' ? isNumber(value) : typeof value === kind)
+        );
+      }) &&
+      (market.marginMode === undefined ||
+        market.marginMode === null ||
+        (HYPERLIQUID_VENUE_MARGIN_MODES as readonly unknown[]).includes(
+          market.marginMode,
+        ))
+    );
+  });
+  if (!valid) {
+    throw new Error('Terminal global snapshot failed schema validation');
+  }
+}
 
 /**
  * Runtime validation schema for a single market item returned by
@@ -360,7 +464,12 @@ export class TerminalMarketService {
       if (!is(body, GlobalSnapshotStruct)) {
         throw new Error('Terminal global snapshot failed schema validation');
       }
-      return this.#validateAndMapGlobalSnapshot(body, identity, Date.now());
+      assertSnapshotMarketTypes(body.markets);
+      return this.#validateAndMapGlobalSnapshot(
+        body as GlobalSnapshot,
+        identity,
+        Date.now(),
+      );
     } finally {
       clearTimeout(timeoutId);
     }

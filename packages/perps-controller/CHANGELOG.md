@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Reduce the JS-thread block when validating the Terminal global snapshot: market `trend` data is now checked with a single struct instead of per-point tuples ([TAT-4706](https://consensyssoftware.atlassian.net/browse/TAT-4706)) ([#11757](https://github.com/MetaMask/core/pull/11757))
+- Check Terminal global snapshot market rows with plain type checks that mirror `GlobalSnapshotMarketStruct`, instead of running the struct over every row ([TAT-4706](https://consensyssoftware.atlassian.net/browse/TAT-4706)) ([#11758](https://github.com/MetaMask/core/pull/11758))
 
 ## [26.1.0]
 
