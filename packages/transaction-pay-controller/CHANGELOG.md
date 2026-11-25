@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [33.2.0]
+## [33.1.1]
 
 ### Changed
 
@@ -1997,8 +1997,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@33.2.0...HEAD
-[33.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@33.1.0...@metamask/transaction-pay-controller@33.2.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@33.1.1...HEAD
+[33.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@33.1.0...@metamask/transaction-pay-controller@33.1.1
 [33.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@33.0.0...@metamask/transaction-pay-controller@33.1.0
 [33.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.1.1...@metamask/transaction-pay-controller@33.0.0
 [32.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.1.0...@metamask/transaction-pay-controller@32.1.1
