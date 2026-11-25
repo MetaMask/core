@@ -603,6 +603,7 @@ describe('HyperLiquidSubscriptionService', () => {
         2,
         { user: '0x456' },
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
       expect(callback).toHaveBeenCalled();
       stopB();
@@ -668,6 +669,7 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(mockSubscriptionClient.webData3).toHaveBeenCalledExactlyOnceWith(
         { user: '0x123' },
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
       expect(mockSpotClearinghouseState).toHaveBeenCalledExactlyOnceWith({
         user: '0x123',
@@ -756,6 +758,7 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(mockSubscriptionClient.webData3).toHaveBeenCalledExactlyOnceWith(
         { user: '0x123' },
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
       expect(mockSubscriptionClient.spotState).not.toHaveBeenCalledWith(
         { user: '0x456' },
@@ -771,6 +774,7 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(mockSubscriptionClient.webData3).toHaveBeenLastCalledWith(
         { user: '0x456' },
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
       const reopenedAccount = reopened.mock.lastCall?.[0];
       expect(reopenedAccount).toEqual(
@@ -2547,6 +2551,7 @@ describe('HyperLiquidSubscriptionService', () => {
       ).toHaveBeenLastCalledWith(
         { user: userAddress, dex: 'xyz' },
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
       expect(accountCallback.mock.lastCall?.[0]).toMatchObject({
         unavailableSubAccounts: ['xyz'],
@@ -2599,6 +2604,7 @@ describe('HyperLiquidSubscriptionService', () => {
       ).toHaveBeenLastCalledWith(
         expect.objectContaining({ dex: 'xyz' }),
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
 
       unsubscribe();
@@ -3057,6 +3063,7 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(mockSubscriptionClient.spotState).toHaveBeenCalledWith(
         expect.objectContaining({ user: expect.stringMatching(/^0x/) }),
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
       expect(mockClientService.getInfoClient).toHaveBeenCalledWith({
         useHttp: true,

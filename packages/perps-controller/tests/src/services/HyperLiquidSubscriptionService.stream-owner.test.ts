@@ -152,6 +152,7 @@ describe('shared streams over the HyperLiquid subscription service', () => {
   let selected: Hex;
   let main: FakeSocket;
   let meta: Mock;
+  let isTerminated: boolean;
   let ensureTransportReady: Mock<() => Promise<void>>;
 
   const open = (type: string): FakeSubscription[] =>
@@ -161,6 +162,7 @@ describe('shared streams over the HyperLiquid subscription service', () => {
     sdk.sockets.length = 0;
     sdk.refused.clear();
     selected = WALLET_A;
+    isTerminated = false;
     const client = new SubscriptionClient({
       transport: new WebSocketTransport(),
     });
@@ -177,6 +179,7 @@ describe('shared streams over the HyperLiquid subscription service', () => {
       getSubscriptionClient: () => client,
       isTestnetMode: () => true,
       getConnectionEpoch: () => 1,
+      isConnectionTerminated: () => isTerminated,
       ensureTransportReady,
       getInfoClient: vi.fn().mockReturnValue({
         meta,
@@ -500,7 +503,199 @@ describe('shared streams over the HyperLiquid subscription service', () => {
     });
   });
 
+  describe('a confirmed subscription the venue did not take back', () => {
+    const refuse = (type: string): void => {
+      const [failed] = open(type);
+      failed.isOpen = false;
+      failed.options?.onError?.(new Error(`${type} refused`));
+    };
+
+    it.each(['allMids', 'fastAssetCtxs', 'assetCtxs', 'activeAssetCtx', 'bbo'])(
+      'reports %s to price readers, who open it again',
+      async (type) => {
+        const onError = vi.fn();
+        const subscribe = async (): Promise<() => void> =>
+          await service.subscribeToPrices({
+            symbols: ['BTC'],
+            callback: vi.fn(),
+            includeMarketData: true,
+            includeOrderBook: true,
+            onError,
+          });
+        const stop = await subscribe();
+        await settle();
+        expect(open(type)).toHaveLength(1);
+
+        refuse(type);
+        expect(onError).toHaveBeenCalledWith(
+          expect.objectContaining({ message: `${type} refused` }),
+        );
+
+        stop();
+        await subscribe();
+        await settle();
+        expect(open(type)).toHaveLength(1);
+      },
+    );
+
+    it.each(['webData3', 'clearinghouseState', 'openOrders', 'spotState'])(
+      'reports %s to user data readers, who open it again beside the others',
+      async (type) => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        const onError = vi.fn();
+        const sources: Record<
+          string,
+          (
+            callback: (value: unknown) => void,
+            fail: (error: Error) => void,
+          ) => () => void
+        > = {
+          positions: (callback, fail) =>
+            service.subscribeToPositions({ callback, onError: fail }),
+          orders: (callback, fail) =>
+            service.subscribeToOrders({ callback, onError: fail }),
+          account: (callback, fail) =>
+            service.subscribeToAccount({ callback, onError: fail }),
+        };
+        for (const [stream, source] of Object.entries(sources)) {
+          manager.subscribe<[unknown]>(
+            { stream, options: {} },
+            { open: source },
+            { callback: vi.fn(), onError },
+          );
+        }
+        await settle();
+        expect(open(type)).toHaveLength(1);
+
+        refuse(type);
+        expect(onError).toHaveBeenCalledTimes(3);
+        await vi.advanceTimersByTimeAsync(1_000);
+        await settle();
+
+        expect(open(type)).toHaveLength(1);
+      },
+    );
+
+    it('reports a fills stream and opens it again', async () => {
+      const onError = vi.fn();
+      const stop = service.subscribeToOrderFills({
+        callback: vi.fn(),
+        onError,
+      });
+      await settle();
+
+      refuse('userFills');
+      expect(onError).toHaveBeenCalledTimes(1);
+      stop();
+      service.subscribeToOrderFills({ callback: vi.fn(), onError });
+      await settle();
+      expect(open('userFills')).toHaveLength(1);
+    });
+
+    it('opens both TWAP channels again when one is refused', async () => {
+      const onError = vi.fn();
+      const subscribe = (): (() => void) =>
+        service.subscribeToTwapOrders({
+          callback: vi.fn(),
+          adapt: { history: () => [], sliceFills: () => [] },
+          onError,
+        });
+      const stop = subscribe();
+      await settle();
+
+      refuse('userTwapSliceFills');
+      await settle();
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(open('userTwapHistory')).toStrictEqual([]);
+      stop();
+      subscribe();
+      await settle();
+      expect(open('userTwapHistory')).toHaveLength(1);
+      expect(open('userTwapSliceFills')).toHaveLength(1);
+    });
+
+    it('reports a market feed to market change readers and holds it again', async () => {
+      const onError = vi.fn();
+      const other = service.subscribeToMarketChanges({ callback: vi.fn() });
+      const stop = service.subscribeToMarketChanges({
+        callback: vi.fn(),
+        onError,
+      });
+      await settle();
+
+      refuse('assetCtxs');
+      expect(onError).toHaveBeenCalledTimes(1);
+      stop();
+      const stopAgain = service.subscribeToMarketChanges({
+        callback: vi.fn(),
+      });
+      await settle();
+      expect(open('assetCtxs')).toHaveLength(1);
+      other();
+      stopAgain();
+      await settle();
+      expect(open('assetCtxs')).toStrictEqual([]);
+    });
+
+    it('says nothing of a connection that ended for good', async () => {
+      const onError = vi.fn();
+      service.subscribeToOrderFills({ callback: vi.fn(), onError });
+      await settle();
+
+      isTerminated = true;
+      refuse('userFills');
+
+      expect(onError).not.toHaveBeenCalled();
+    });
+
+    it('opens everything again after a restore that could not start', async () => {
+      const onError = vi.fn();
+      const stop = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: vi.fn(),
+        includeMarketData: true,
+        includeOrderBook: true,
+        onError,
+      });
+      await settle();
+      const before = open('allMids').length;
+      ensureTransportReady.mockRejectedValueOnce(new Error('not ready'));
+      await service.restoreSubscriptions();
+
+      stop();
+      await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: vi.fn(),
+        includeMarketData: true,
+        includeOrderBook: true,
+      });
+      await settle();
+      for (const type of ['allMids', 'assetCtxs', 'activeAssetCtx', 'bbo']) {
+        expect(open(type)).toHaveLength(before + 1);
+      }
+    });
+  });
+
   describe('price feed failures', () => {
+    it('keeps the market feed for the other holder when one could not open it', async () => {
+      sdk.refused.add('assetCtxs');
+      const stop = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: vi.fn(),
+        includeMarketData: true,
+      });
+      await settle();
+      sdk.refused.clear();
+      service.subscribeToMarketChanges({ callback: vi.fn() });
+      await settle();
+      expect(open('assetCtxs')).toHaveLength(1);
+
+      stop();
+      await settle();
+
+      expect(open('assetCtxs')).toHaveLength(1);
+    });
+
     it.each(['allMids', 'activeAssetCtx', 'bbo', 'assetCtxs'])(
       'reports a %s feed that cannot open to its readers',
       async (channel) => {

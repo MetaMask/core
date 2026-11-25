@@ -997,6 +997,16 @@ export class HyperLiquidClientService {
           callback(trades);
         }
       },
+      {
+        // A confirmed subscription the venue did not take back.
+        onError: (error) => {
+          if (!isUnsubscribed && !this.isConnectionTerminated()) {
+            onError?.(
+              ensureError(error, 'HyperLiquidClientService.subscribeToTrades'),
+            );
+          }
+        },
+      },
     );
     subscriptionPromise.catch((error: unknown) => {
       if (!isUnsubscribed) {
@@ -1175,6 +1185,19 @@ export class HyperLiquidClientService {
             }
 
             callback(currentCandleData);
+          },
+          {
+            // A confirmed subscription the venue did not take back.
+            onError: (error) => {
+              if (!isUnsubscribed && !this.isConnectionTerminated()) {
+                onError?.(
+                  ensureError(
+                    error,
+                    'HyperLiquidClientService.subscribeToCandles',
+                  ),
+                );
+              }
+            },
           },
         );
 
@@ -1426,6 +1449,16 @@ export class HyperLiquidClientService {
    */
   public getConnectionState(): WebSocketConnectionState {
     return this.#connectionState;
+  }
+
+  /**
+   * Whether the WebSocket connection ended for good, so that a reconnect opens
+   * a new one. Every subscription on it fails with it.
+   *
+   * @returns True once the connection is terminated.
+   */
+  public isConnectionTerminated(): boolean {
+    return this.#wsTransport?.socket.terminationSignal.aborted === true;
   }
 
   /**

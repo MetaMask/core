@@ -1852,6 +1852,46 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(userFees).toHaveBeenCalledTimes(2);
     });
 
+    it('rejects rather than quote base rates when a fresh read fails, and keeps the cached ones', async () => {
+      const userFees = vi
+        .fn()
+        .mockResolvedValueOnce(mainnetFees)
+        .mockRejectedValueOnce(new Error('429'));
+      useStrategyClients({ info: { userFees } });
+      const params = {
+        orderType: 'market' as const,
+        amount: '1000',
+        symbol: 'ETH',
+      };
+      await provider.calculateFees(params);
+
+      await expect(
+        provider.calculateFees({ ...params, skipCache: true }),
+      ).rejects.toThrow('429');
+      expect((await provider.calculateFees(params)).protocolFeeRate).toBe(
+        0.0003,
+      );
+    });
+
+    it('shares one venue read between fresh quotes asked for at once', async () => {
+      const userFees = vi.fn().mockResolvedValue(mainnetFees);
+      useStrategyClients({ info: { userFees } });
+      const params = {
+        orderType: 'market' as const,
+        amount: '1000',
+        symbol: 'ETH',
+        skipCache: true,
+      };
+
+      await Promise.all([
+        provider.calculateFees(params),
+        provider.calculateFees(params),
+      ]);
+      expect(userFees).toHaveBeenCalledTimes(1);
+      await provider.calculateFees(params);
+      expect(userFees).toHaveBeenCalledTimes(2);
+    });
+
     it('does not cache user fee rates that resolve after a network change', async () => {
       const requestStarted = createDeferred<void>();
       const pendingUserFees = createDeferred<typeof mainnetFees>();

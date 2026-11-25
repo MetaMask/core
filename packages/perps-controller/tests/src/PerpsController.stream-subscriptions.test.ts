@@ -479,6 +479,12 @@ describe('PerpsController stream subscriptions', () => {
     let stopFills: Mock<() => void>;
     let tier: number;
 
+    /** Let the read after a burst of fills run. */
+    const settleFills = async (): Promise<void> => {
+      await vi.advanceTimersByTimeAsync(1_000);
+      await flush();
+    };
+
     beforeEach(() => {
       fills = undefined;
       stopFills = vi.fn<() => void>();
@@ -538,7 +544,8 @@ describe('PerpsController stream subscriptions', () => {
       vi.mocked(controller.calculateFees).mockClear();
 
       fills?.callback([]);
-      await flush();
+      fills?.callback([]);
+      await settleFills();
 
       expect(vi.mocked(controller.calculateFees).mock.calls).toStrictEqual([
         [expect.objectContaining({ isMaker: false, skipCache: true })],
@@ -557,7 +564,7 @@ describe('PerpsController stream subscriptions', () => {
 
       tier = 1;
       fills?.callback([]);
-      await flush();
+      await settleFills();
       expect(callback).toHaveBeenCalledTimes(2);
       expect(callback).toHaveBeenLastCalledWith(
         expect.objectContaining({
@@ -612,7 +619,7 @@ describe('PerpsController stream subscriptions', () => {
 
       vi.mocked(controller.calculateFees).mockRejectedValue(new Error('down'));
       fills?.callback([]);
-      await flush();
+      await settleFills();
 
       expect(callback).toHaveBeenCalledTimes(1);
       expect(onError).toHaveBeenCalledWith(
@@ -627,7 +634,7 @@ describe('PerpsController stream subscriptions', () => {
         new Error('down'),
       );
       fills?.callback([]);
-      await flush();
+      await settleFills();
       vi.mocked(controller.calculateFees).mockClear();
 
       await vi.advanceTimersByTimeAsync(1_000);
@@ -647,7 +654,7 @@ describe('PerpsController stream subscriptions', () => {
         new Error('down'),
       );
       fills?.callback([]);
-      await flush();
+      await settleFills();
 
       tier = 4;
       switchAccount('0x2222222222222222222222222222222222222222');
@@ -657,7 +664,7 @@ describe('PerpsController stream subscriptions', () => {
       expect(callback).toHaveBeenCalledTimes(2);
       tier = 5;
       fills?.callback([]);
-      await flush();
+      await settleFills();
       expect(callback).toHaveBeenCalledTimes(3);
     });
 

@@ -1244,6 +1244,9 @@ const getChaseScope = (
   context: Pick<AccountSupportContext, 'network' | 'userAddress'>,
 ): string => `${context.network}:${context.userAddress.toLowerCase()}`;
 
+/** An account's fees as the venue answers. */
+type UserFeesResponse = Awaited<ReturnType<InfoClient['userFees']>>;
+
 /**
  * Delay before another read of a chase that could not be settled.
  *
@@ -1768,6 +1771,12 @@ export class HyperLiquidProvider implements PerpsProvider {
   readonly #symbolToAssetId = new Map<string, number>();
 
   // Cache for user fee rates to avoid excessive API calls
+  /** Venue fee reads under way, by client and account. */
+  readonly #userFeeReads = new WeakMap<
+    InfoClient,
+    Map<Hex, Promise<UserFeesResponse>>
+  >();
+
   readonly #userFeeCache = new Map<
     string,
     {
@@ -19219,6 +19228,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     });
 
     // Try to get user-specific rates if wallet is connected
+    let mustRead = false;
     try {
       const userAddress = await this.#walletService.getUserAddressWithDefault();
       this.#assertProviderLifecycleCurrent(
@@ -19263,6 +19273,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           });
         }
       } else {
+        mustRead = params.skipCache === true;
         this.#deps.debugLogger.log(
           'Fetching Fresh Fee Rates from HyperLiquid API',
           {
@@ -19284,9 +19295,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         );
         this.#clientService.ensureInitialized();
         const infoClient = this.#clientService.getInfoClient();
-        const userFees = await infoClient.userFees({
-          user: userAddress,
-        });
+        const userFees = await this.#readUserFees(infoClient, userAddress);
 
         this.#deps.debugLogger.log('HyperLiquid userFees API Response', {
           userCrossRate: userFees.userCrossRate,
@@ -19434,7 +19443,11 @@ export class HyperLiquidProvider implements PerpsProvider {
         error,
         'HyperLiquidProvider.getFeeSchedule',
       );
-      if (safeError.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE) {
+      // A caller that asked for the venue's own rates gets no base rates.
+      if (
+        mustRead ||
+        safeError.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE
+      ) {
         throw safeError;
       }
       this.#deps.debugLogger.log(
@@ -19549,6 +19562,32 @@ export class HyperLiquidProvider implements PerpsProvider {
       return false;
     }
     return Date.now() - cached.timestamp < cached.ttl;
+  }
+
+  /**
+   * Read an account's venue fees, sharing a read that is under way: one change
+   * makes every open fee stream ask at once.
+   *
+   * @param infoClient - The client to read with.
+   * @param userAddress - The account.
+   * @returns The venue's answer.
+   */
+  async #readUserFees(
+    infoClient: InfoClient,
+    userAddress: Hex,
+  ): Promise<UserFeesResponse> {
+    const reads =
+      this.#userFeeReads.get(infoClient) ??
+      new Map<Hex, Promise<UserFeesResponse>>();
+    this.#userFeeReads.set(infoClient, reads);
+    let read = reads.get(userAddress);
+    if (!read) {
+      read = infoClient.userFees({ user: userAddress }).finally(() => {
+        reads.delete(userAddress);
+      });
+      reads.set(userAddress, read);
+    }
+    return await read;
   }
 
   /**

@@ -526,6 +526,7 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(mockSubscriptionClient.bbo).toHaveBeenCalledWith(
         { coin: 'BTC' },
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
 
       // Verify callback received bid/ask data

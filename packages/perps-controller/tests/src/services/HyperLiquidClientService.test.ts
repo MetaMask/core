@@ -1101,6 +1101,7 @@ describe('HyperLiquidClientService', () => {
       expect((mockSubscriptionClient as any).trades).toHaveBeenCalledWith(
         { coin: 'BTC' },
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
       expect(callback.mock.calls).toStrictEqual([[[sdkTrade]]]);
       expect(mockUnsubscribe).toHaveBeenCalledTimes(1);

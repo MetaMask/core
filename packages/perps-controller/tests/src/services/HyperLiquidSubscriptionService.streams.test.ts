@@ -544,10 +544,12 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(mockSubscriptionClient.activeAssetCtx).toHaveBeenCalledWith(
         { coin: 'BTC' },
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
       expect(mockSubscriptionClient.activeAssetCtx).toHaveBeenCalledWith(
         { coin: 'ETH' },
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
 
       // Advance timers to trigger async callbacks
@@ -727,6 +729,7 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(mockSubscriptionClient.fastAssetCtxs).toHaveBeenCalledTimes(1);
       expect(mockSubscriptionClient.fastAssetCtxs).toHaveBeenCalledWith(
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
 
       unsubscribe();
@@ -1814,14 +1817,17 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(mockSubscriptionClient.clearinghouseState).toHaveBeenCalledWith(
         { user: '0x123', dex: undefined },
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
       expect(mockSubscriptionClient.openOrders).toHaveBeenCalledWith(
         { user: '0x123', dex: undefined },
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
       expect(mockSubscriptionClient.webData3).toHaveBeenCalledWith(
         { user: '0x123' },
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
       expect(mockCallback).toHaveBeenCalled();
       expect(typeof unsubscribe).toBe('function');
@@ -1933,6 +1939,7 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(mockSubscriptionClient.userFills).toHaveBeenCalledWith(
         { user: '0x123' },
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
       expect(mockCallback).toHaveBeenCalled();
       expect(typeof unsubscribe).toBe('function');
@@ -2817,14 +2824,17 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(mockSubscriptionClient.clearinghouseState).toHaveBeenCalledWith(
         expect.objectContaining({ user: '0x123' }),
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
       expect(mockSubscriptionClient.openOrders).toHaveBeenCalledWith(
         expect.objectContaining({ user: '0x123' }),
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
       expect(mockSubscriptionClient.webData3).toHaveBeenCalledWith(
         { user: '0x123' },
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
 
       expect(positionCallback).toHaveBeenCalledWith(
