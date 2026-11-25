@@ -183,7 +183,6 @@ export class TransactionPayController extends BaseController<
         accountOverride: transactionData.accountOverride,
         atomic: transactionData.atomic,
         isHyperliquidSource: transactionData.isHyperliquidSource,
-        isLighterSource: transactionData.isLighterSource,
         isMaxAmount: transactionData.isMaxAmount,
         isPolymarketDepositWallet: transactionData.isPolymarketDepositWallet,
         isPostQuote: transactionData.isPostQuote,

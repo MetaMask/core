@@ -29,6 +29,9 @@ const LIGHTER_ACCOUNTS_BY_L1_ADDRESS_URL =
 /** `account_type` of the main Lighter account. Other types are sub-accounts. */
 const LIGHTER_MAIN_ACCOUNT_TYPE = 0;
 
+/** Namespace prefix of the CAIP-19 asset types of Lighter balances. */
+const LIGHTER_ASSET_PREFIX = 'lighter:';
+
 /** Decimals of USDC on Lighter, in which transfer amounts and fees are set. */
 const LIGHTER_USDC_DECIMALS = 6;
 
@@ -125,6 +128,29 @@ export async function getLighterAccountIndex(l1Address: Hex): Promise<string> {
   }
 
   return String(mainAccount.index);
+}
+
+/**
+ * Check if an asset is held on Lighter, such as the Lighter perps balance.
+ *
+ * @param assetId - CAIP-19 asset type.
+ * @returns Whether the asset is on Lighter.
+ */
+export function isLighterAsset(assetId: string | undefined): boolean {
+  return assetId?.startsWith(LIGHTER_ASSET_PREFIX) ?? false;
+}
+
+/**
+ * Check if the source of a quote request is a Lighter balance, as declared by
+ * the client on the required asset.
+ *
+ * @param request - Quote request from the transaction-pay controller.
+ * @returns Whether the request withdraws from Lighter.
+ */
+export function isLighterSourceRequest(
+  request: Pick<QuoteRequest, 'sourceAssetIdOverride'>,
+): boolean {
+  return isLighterAsset(request.sourceAssetIdOverride);
 }
 
 /**

@@ -6,6 +6,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   getLighterAccountIndex,
   getLighterTransferFee,
+  isLighterAsset,
+  isLighterSourceRequest,
   isLighterTransferStep,
   subtractLighterTransferFee,
 } from './lighter.js';
@@ -112,6 +114,36 @@ describe('Lighter transfer steps', () => {
       expect(subtractLighterTransferFee(input, new BigNumber(3))).toStrictEqual(
         { ...input, formatted: '7', raw: '7000000' },
       );
+    });
+  });
+});
+
+describe('Lighter assets', () => {
+  describe('isLighterAsset', () => {
+    it('is true for a Lighter asset', () => {
+      expect(isLighterAsset('lighter:mainnet/perps:usdc')).toBe(true);
+    });
+
+    it('is false for another asset', () => {
+      expect(isLighterAsset('hyperliq:mainnet/perps:usdc')).toBe(false);
+    });
+
+    it('is false without an asset', () => {
+      expect(isLighterAsset(undefined)).toBe(false);
+    });
+  });
+
+  describe('isLighterSourceRequest', () => {
+    it('is true when the client declared a Lighter source asset', () => {
+      expect(
+        isLighterSourceRequest({
+          sourceAssetIdOverride: 'lighter:mainnet/perps:usdc',
+        }),
+      ).toBe(true);
+    });
+
+    it('is false without a declared source asset', () => {
+      expect(isLighterSourceRequest({})).toBe(false);
     });
   });
 });

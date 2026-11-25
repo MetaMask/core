@@ -857,11 +857,10 @@ describe('Source Amounts Utils', () => {
         ]);
       });
 
-      it('does not filter out same token when isLighterSource is true in post-quote flow', () => {
+      it('does not filter out same token when the required token is a Lighter asset in post-quote flow', () => {
         const transactionData: TransactionData = {
           isLoading: false,
           isPostQuote: true,
-          isLighterSource: true,
           paymentToken: {
             ...DESTINATION_TOKEN_MOCK,
             assetId: `eip155:42161/erc20:${ARBITRUM_USDC_ADDRESS}`,
@@ -872,6 +871,7 @@ describe('Source Amounts Utils', () => {
             {
               ...TRANSACTION_TOKEN_MOCK,
               address: ARBITRUM_USDC_ADDRESS,
+              assetId: 'lighter:mainnet/perps:usdc',
               chainId: CHAIN_ID_ARBITRUM,
               skipIfBalance: false,
             },
@@ -884,6 +884,7 @@ describe('Source Amounts Utils', () => {
           {
             sourceAmountHuman: TRANSACTION_TOKEN_MOCK.amountHuman,
             sourceAmountRaw: TRANSACTION_TOKEN_MOCK.amountRaw,
+            sourceAssetId: 'lighter:mainnet/perps:usdc',
             sourceBalanceRaw: TRANSACTION_TOKEN_MOCK.balanceRaw,
             sourceChainId: CHAIN_ID_ARBITRUM,
             sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
@@ -1051,7 +1052,6 @@ describe('Source Amounts Utils', () => {
 
       it.each([
         ['a HyperLiquid source', { isHyperliquidSource: true }],
-        ['a Lighter source', { isLighterSource: true }],
         [
           'a Polymarket deposit wallet source',
           { isPolymarketDepositWallet: true },
@@ -1101,6 +1101,46 @@ describe('Source Amounts Utils', () => {
           ]);
         },
       );
+
+      it('uses the balance on max when the required token is a Lighter asset with no encoded amount', () => {
+        const getBalance = vi.fn().mockReturnValue({
+          balanceRaw: '21046127',
+        });
+
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isMaxAmount: true,
+          isPostQuote: true,
+          paymentToken: DESTINATION_TOKEN_MOCK,
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              amountRaw: '0',
+              assetId: 'lighter:mainnet/perps:usdc',
+              skipIfBalance: false,
+            },
+          ],
+        };
+
+        updateSourceAmounts(
+          TRANSACTION_ID_MOCK,
+          transactionData,
+          messenger,
+          getBalance,
+        );
+
+        expect(transactionData.sourceAmounts).toStrictEqual([
+          {
+            sourceAmountHuman: TRANSACTION_TOKEN_MOCK.balanceHuman,
+            sourceAmountRaw: '21046127',
+            sourceAssetId: 'lighter:mainnet/perps:usdc',
+            sourceBalanceRaw: '21046127',
+            sourceChainId: TRANSACTION_TOKEN_MOCK.chainId,
+            sourceTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+            targetTokenAddress: DESTINATION_TOKEN_ADDRESS_MOCK,
+          },
+        ]);
+      });
 
       it('does not cap the max source amount for a HyperLiquid source', () => {
         const getBalance = vi.fn().mockReturnValue({

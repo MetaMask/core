@@ -59,6 +59,8 @@ import { hasServerDepositStep } from './deposit-step.js';
 import {
   getLighterAccountIndex,
   getLighterTransferFee,
+  isLighterAsset,
+  isLighterSourceRequest,
   LighterNormalizer,
   SERVER_LIGHTER_CHAIN_ID,
   SERVER_LIGHTER_PERPS_USDC_ADDRESS,
@@ -289,11 +291,11 @@ async function buildServerQuoteRequest(
   const {
     atomic,
     from,
-    isLighterSource,
     isMaxAmount,
     isPolymarketDepositWallet,
     isPostQuote,
     refundTo,
+    sourceAssetIdOverride,
     sourceTokenAmount,
     targetAmountMinimum,
     targetChainId,
@@ -346,7 +348,7 @@ async function buildServerQuoteRequest(
   const supportsGasless =
     isServerGaslessEnabled(messenger) &&
     !isHypercoreSource &&
-    !isLighterSource &&
+    !isLighterSourceRequest(normalizedRequest) &&
     !isPolymarketDepositWallet &&
     accountSupports7702 &&
     isEIP7702Chain(messenger, sourceChainId);
@@ -380,10 +382,11 @@ async function buildServerQuoteRequest(
     );
   }
 
-  if (isLighterSource) {
-    // Lighter debits the account by index, so the source is the Lighter perps
-    // balance and the sender is the index of the account that owns it.
-    body.sourceAsset = SERVER_LIGHTER_PERPS_USDC_ASSET;
+  if (sourceAssetIdOverride && isLighterSourceRequest(normalizedRequest)) {
+    // Lighter debits the account by index, so the source is the Lighter
+    // balance the client declared and the sender is the index of the account
+    // that owns it.
+    body.sourceAsset = sourceAssetIdOverride;
     body.sender = await getLighterAccountIndex(executionAccount);
   }
 
@@ -395,7 +398,7 @@ async function buildServerQuoteRequest(
     isHypercore ||
     isHypercoreSource ||
     isLighter ||
-    (isLighterSource ?? false) ||
+    isLighterSourceRequest(normalizedRequest) ||
     // Explicitly non-atomic requests want the calls run after settlement, so
     // they must not be embedded in the quote.
     atomic === false ||
@@ -669,7 +672,7 @@ function isSecondLegRequired(
 
   if (
     body.sourceAsset === SERVER_HYPERLIQUID_PERPS_USDC_ASSET ||
-    body.sourceAsset === SERVER_LIGHTER_PERPS_USDC_ASSET
+    isLighterAsset(body.sourceAsset)
   ) {
     return false;
   }
@@ -757,7 +760,7 @@ async function normalizeQuote(
   // so it comes off the input to stay within the account balance.
   const input =
     quoteRequest.isMaxAmount &&
-    quoteRequest.isLighterSource &&
+    isLighterSourceRequest(quoteRequest) &&
     lighterFee.isGreaterThan(0)
       ? subtractLighterTransferFee(quote.input, lighterFee)
       : quote.input;

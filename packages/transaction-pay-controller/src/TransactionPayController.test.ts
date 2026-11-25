@@ -296,18 +296,6 @@ describe('TransactionPayController', () => {
       ).toBe(true);
     });
 
-    it('updates isLighterSource in state', () => {
-      const controller = createController();
-
-      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
-        config.isLighterSource = true;
-      });
-
-      expect(
-        controller.state.transactionData[TRANSACTION_ID_MOCK].isLighterSource,
-      ).toBe(true);
-    });
-
     it('updates paymentOverride in state', () => {
       const controller = createController();
 

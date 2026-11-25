@@ -2809,11 +2809,16 @@ describe('Quotes Utils', () => {
       );
     });
 
-    it('passes isLighterSource through to post-quote request', async () => {
+    it('passes the declared source asset through to post-quote request', async () => {
       await run({
         transactionData: {
           ...POST_QUOTE_TRANSACTION_DATA,
-          isLighterSource: true,
+          sourceAmounts: [
+            {
+              ...POST_QUOTE_TRANSACTION_DATA.sourceAmounts?.[0],
+              sourceAssetId: 'lighter:mainnet/perps:usdc',
+            } as TransactionPaySourceAmount,
+          ],
         },
       });
 
@@ -2822,7 +2827,7 @@ describe('Quotes Utils', () => {
           requests: [
             expect.objectContaining({
               isPostQuote: true,
-              isLighterSource: true,
+              sourceAssetIdOverride: 'lighter:mainnet/perps:usdc',
             }),
           ],
         }),

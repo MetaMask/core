@@ -34,8 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ServerStrategy` quotes into the Lighter perps balance (`lighter:mainnet/perps:usdc`) when `paymentOverride` is `perpsLighter` ([#11705](https://github.com/MetaMask/core/pull/11705))
   - The transaction does not need calldata.
   - The recipient is the index of the Lighter account owned by the transaction sender, looked up from the Lighter API.
-- Withdraw from Lighter through `ServerStrategy` when a transaction sets `isLighterSource` ([#11730](https://github.com/MetaMask/core/pull/11730))
-  - The server quote uses `lighter:mainnet/perps:usdc` as the source asset and the Lighter account index as the sender.
+- Withdraw from Lighter through `ServerStrategy` when a required asset of the transaction has a Lighter `assetId` ([#11730](https://github.com/MetaMask/core/pull/11730))
+  - The client declares the source with the new optional `assetId` on the transaction's `requiredAssets`, such as `lighter:mainnet/perps:usdc`. It is exposed as `TransactionPayRequiredToken.assetId` and `QuoteRequest.sourceAssetIdOverride`, so no transaction config is needed.
+  - The server quote uses that asset as the source asset and the Lighter account index as the sender.
   - A `lighterTransfer` step is signed and sent through the `PerpsController:submitLighterTransfer` messenger action, which is now an allowed action of `TransactionPayControllerMessenger`.
   - A failed transfer stops the withdrawal before status polling.
   - Return the flat Lighter transfer fee as `fees.lighter` on quotes and totals, and include it in the total.

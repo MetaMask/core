@@ -383,7 +383,11 @@ describe('server-quotes', () => {
       from: FROM_MOCK,
       messenger,
       requests: [
-        { ...QUOTE_REQUEST_MOCK, isLighterSource: true, isPostQuote: true },
+        {
+          ...QUOTE_REQUEST_MOCK,
+          isPostQuote: true,
+          sourceAssetIdOverride: 'lighter:mainnet/perps:usdc',
+        },
       ],
       transaction: TRANSACTION_META_MOCK,
     });
@@ -434,7 +438,11 @@ describe('server-quotes', () => {
         from: FROM_MOCK,
         messenger,
         requests: [
-          { ...QUOTE_REQUEST_MOCK, isLighterSource: true, isPostQuote: true },
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            sourceAssetIdOverride: 'lighter:mainnet/perps:usdc',
+          },
         ],
         transaction: TRANSACTION_META_MOCK,
       });
@@ -467,7 +475,11 @@ describe('server-quotes', () => {
         from: FROM_MOCK,
         messenger,
         requests: [
-          { ...QUOTE_REQUEST_MOCK, isLighterSource: true, isPostQuote: true },
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            sourceAssetIdOverride: 'lighter:mainnet/perps:usdc',
+          },
         ],
         transaction: TRANSACTION_META_MOCK,
       });

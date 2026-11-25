@@ -145,13 +145,6 @@ export type TransactionConfig = {
    */
   isHyperliquidSource?: boolean;
 
-  /**
-   * Whether the source of funds is Lighter.
-   * When true, the Server strategy quotes the Lighter perps balance as the
-   * source and signs a Lighter transfer to withdraw from it.
-   */
-  isLighterSource?: boolean;
-
   /** Whether the source of funds is a Polymarket deposit wallet. */
   isPolymarketDepositWallet?: boolean;
 
@@ -390,9 +383,6 @@ export type TransactionData = {
   /** Whether the source of funds is HyperLiquid (HyperCore). */
   isHyperliquidSource?: boolean;
 
-  /** Whether the source of funds is Lighter. */
-  isLighterSource?: boolean;
-
   /** Whether the source of funds is a Polymarket deposit wallet. */
   isPolymarketDepositWallet?: boolean;
 
@@ -485,6 +475,14 @@ export type TransactionPayRequiredToken = {
   /** Balance of the required token in USD. */
   balanceUsd: string;
 
+  /**
+   * CAIP-19 asset type the client declared for the required token, when
+   * `address` alone does not identify it, for example a Lighter perps balance
+   * (`lighter:mainnet/perps:usdc`). `address` and `chainId` then stand in for
+   * it in balance, price and amount lookups.
+   */
+  assetId?: CaipAssetType;
+
   /** Chain ID of the required token. */
   chainId: Hex;
 
@@ -505,6 +503,12 @@ export type TransactionPaySourceAmount = {
 
   /** Amount of payment token required in atomic format without factoring token decimals. */
   sourceAmountRaw: string;
+
+  /**
+   * CAIP-19 asset type the client declared for the source token, when it is
+   * not the EVM token below (for post-quote flows).
+   */
+  sourceAssetId?: CaipAssetType;
 
   /** Balance of the source token in atomic format (for post-quote flows). */
   sourceBalanceRaw?: string;
@@ -643,9 +647,6 @@ export type QuoteRequest = {
   /** Whether the source of funds is HyperLiquid (HyperCore). */
   isHyperliquidSource?: boolean;
 
-  /** Whether the source of funds is Lighter. */
-  isLighterSource?: boolean;
-
   /** Whether the source of funds is a Polymarket deposit wallet. */
   isPolymarketDepositWallet?: boolean;
 
@@ -670,6 +671,13 @@ export type QuoteRequest = {
 
   /** CAIP-10 account ID of the account holding the source token. */
   sourceAccountId: CaipAccountId;
+
+  /**
+   * CAIP-19 asset type the client declared for the source, when it is not
+   * `sourceAssetId`, for example a Lighter perps balance. `sourceAssetId`
+   * then holds the EVM token that stands in for it.
+   */
+  sourceAssetIdOverride?: CaipAssetType;
 
   /**
    * CAIP-19 asset type of the source token. The protocol of its chain selects
