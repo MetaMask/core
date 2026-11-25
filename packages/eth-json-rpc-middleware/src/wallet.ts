@@ -395,6 +395,7 @@ export function createWalletMiddleware({
       context,
     );
     const message = normalizeTypedMessage(params[1]);
+    validateTypedMessageKeys(message);
     validatePrimaryType(message);
     validateVerifyingContract(message);
     validateTypedDataForPrototypePollution(message);
