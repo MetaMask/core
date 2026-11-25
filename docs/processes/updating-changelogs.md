@@ -24,7 +24,7 @@ Each entry should describe a single change that a consumer would adopt, be affec
 
 - Split changes into separate entries when they require different kinds of actions from consumers or when consumers can adopt them independently.
   - For instance, breaking changes shouldn't be grouped with non-breaking changes because they require more explanation.
-  - Tip: If the summary include "and" or "also" to join unrelated things, split it.
+  - Tip: If the summary includes "and" or "also" to join unrelated things, split it.
 - Keep changes together when they belong to the same category (Added, Changed, etc.), they have the same compatibility status, and they function together to support a feature or address a problem.
 
 One final note: Nested bullets should add detail to the summary, not add further changes.
@@ -32,32 +32,32 @@ One final note: Nested bullets should add detail to the summary, not add further
 ```markdown
 <!-- ❌ There are two separate changes in one (tip: look for use of "also") -->
 
-- **BREAKING:** `TransakAdditionalRequirement.metadata.options` is now typed as `string[] | TransakAdditionalRequirementOption[]` instead of `string[]`. Clients that handle `getAdditionalRequirements` responses must handle both shapes. All `metadata` fields are also now optional ([#11672](https://github.com/MetaMask/core/pull/11672))
+- **BREAKING:** `PaymentMethod.networks` is now typed as `string[] | CardNetwork[]` instead of `string[]`. Clients that handle `listPaymentMethods` responses must handle both shapes. All `limits` fields are also now optional ([#90210](https://github.com/MetaMask/core/pull/90210))
 ```
 
 ```markdown
 <!-- ❌ Two separate changes are still listed in the same group -->
 
-- **BREAKING:** `TransakAdditionalRequirement.metadata.options` is now typed as `string[] | TransakAdditionalRequirementOption[]` instead of `string[]` ([#11672](https://github.com/MetaMask/core/pull/11672))
-  - Clients that handle `getAdditionalRequirements` responses must handle both shapes.
-  - All `metadata` fields are also now optional.
+- **BREAKING:** `PaymentMethod.networks` is now typed as `string[] | CardNetwork[]` instead of `string[]` ([#90210](https://github.com/MetaMask/core/pull/90210))
+  - Clients that handle `listPaymentMethods` responses must handle both shapes.
+  - All `limits` fields are also now optional.
 ```
 
 ```markdown
 <!-- ✅ Now there are two separate entries; also, both response-shape changes are marked as breaking -->
 
-- **BREAKING:** `TransakAdditionalRequirement.metadata.options` is now typed as `string[] | TransakAdditionalRequirementOption[]` instead of `string[]` ([#11672](https://github.com/MetaMask/core/pull/11672))
-  - Clients that handle `getAdditionalRequirements` responses must handle both shapes.
-- **BREAKING:** Make all properties in `TransakAdditionalRequirement.metadata` optional ([#11672](https://github.com/MetaMask/core/pull/11672))
-  - Clients that handle `getAdditionalRequirements` responses must handle these properties being absent.
+- **BREAKING:** `PaymentMethod.networks` is now typed as `string[] | CardNetwork[]` instead of `string[]` ([#90210](https://github.com/MetaMask/core/pull/90210))
+  - Clients that handle `listPaymentMethods` responses must handle both shapes.
+- **BREAKING:** Make all properties in `PaymentMethod.limits` optional ([#90210](https://github.com/MetaMask/core/pull/90210))
+  - Clients that handle `listPaymentMethods` responses must handle these properties being absent.
 ```
 
 ```markdown
 <!-- ✅ Related API changes that consumers use together are grouped as one feature -->
 
-- Add market-key support for watchlist and recently viewed market references ([#11698](https://github.com/MetaMask/core/pull/11698), [#11702](https://github.com/MetaMask/core/pull/11702))
-  - `PerpsController.toggleWatchlistMarket`, `isWatchlistMarket`, `recordMarketViewed` and `selectIsWatchlistMarket` accept a market key, grouped venue rows and an optional `legacyProvider` to save or match the correct reference.
-  - `resolveSavedPerpsMarkets` resolves legacy symbols to their original venue, `venue:` references to the named venue, and `market-key:` references to a matching unit-scale row. `selectRecentlyViewedMarkets` returns saved references for callers to resolve.
+- Add payee-key support for pinned and recently paid payees ([#90211](https://github.com/MetaMask/core/pull/90211), [#90214](https://github.com/MetaMask/core/pull/90214))
+  - `PayeeController.togglePinnedPayee`, `isPinnedPayee`, `recordPayment` and `selectIsPinnedPayee` accept a `payeeKey`, the payee's linked bank accounts and an optional `legacyBank` to save or match the correct reference.
+  - `resolveSavedPayees` resolves bare account numbers to their original bank, `bank:` references to the named bank, and `payee-key:` references to the matching linked payee. `selectRecentlyPaidPayees` returns saved references for callers to resolve.
 ```
 
 ### Write concise, consumer-focused summaries
@@ -67,13 +67,13 @@ Write a concise summary of the change in one sentence or sentence fragment. Do n
 ```markdown
 <!-- ❌ PR title is restated -->
 
-- Fix: Bridge Txs ([#44](https://github.com/MetaMask/core/pull/44))
+- Fix: Transfer statuses ([#90042](https://github.com/MetaMask/core/pull/90042))
 ```
 
 ```markdown
 <!-- ✅ Changes to API are spelled out -->
 
-- **BREAKING:** Rename `Actions.BRIDGE_IN` to `Actions.BRIDGE_DEPOSIT` and `Actions.BRIDGE_OUT` to `Actions.BRIDGE_WITHDRAW` ([#44](https://github.com/MetaMask/core/pull/44))
+- **BREAKING:** Rename `TransferStatus.WAITING` to `TransferStatus.PENDING` and `TransferStatus.DONE` to `TransferStatus.SETTLED` ([#90042](https://github.com/MetaMask/core/pull/90042))
 ```
 
 ### Link to pull requests
@@ -87,14 +87,14 @@ If a change requires further details to communicate its impact to consumers, lis
 ```markdown
 <!-- ❌ There are multiple statements here -->
 
-- Add `PERPS_ERROR_CODES.BATCH_INCOMPLETE` and `failures` (`{ providerId, error }[]`) on `ClosePositionsResult` and `CancelOrdersResult`. When any venue's batch throws or returns an error, `error` is `BATCH_INCOMPLETE` and `failures` keeps every venue's error, so a merged batch error stays a translatable code without hiding which venues failed ([#11461](https://github.com/MetaMask/core/pull/11461))
+- Add `PARTIAL_FAILURE` and `failures` (`{ transferId, error }[]`) to `BulkTransferResult` and `BulkRefundResult`. When any transfer in a bulk request throws or returns an error, `error` is `PARTIAL_FAILURE` and `failures` keeps every transfer's error, so a combined bulk error stays a translatable code without hiding which transfers failed ([#90215](https://github.com/MetaMask/core/pull/90215))
 ```
 
 ```markdown
 <!-- ✅ Multiple statements are split up into one summary line + details listed below that -->
 
-- Add `PERPS_ERROR_CODES.BATCH_INCOMPLETE` and `failures` (`{ providerId, error }[]`) on `ClosePositionsResult` and `CancelOrdersResult` ([#11461](https://github.com/MetaMask/core/pull/11461))
-  - When any venue's batch throws or returns an error, `error` is `BATCH_INCOMPLETE` and `failures` keeps every venue's error, so a merged batch error stays a translatable code without hiding which venues failed
+- Add `PARTIAL_FAILURE` and `failures` (`{ transferId, error }[]`) to `BulkTransferResult` and `BulkRefundResult` ([#90215](https://github.com/MetaMask/core/pull/90215))
+  - When any transfer in a bulk request throws or returns an error, `error` is `PARTIAL_FAILURE` and `failures` keeps every transfer's error, so a combined bulk error stays a translatable code without hiding which transfers failed
 ```
 
 ### Consolidate entries covering the same change
@@ -104,15 +104,15 @@ If multiple commits or pull requests represent the same change, consolidate thei
 ```markdown
 <!-- ❌ Multiple entries for the same dependency bump -->
 
-- Bump `@metamask/transaction-controller` to 30.0.0 ([#100](https://github.com/MetaMask/tx-categorize/pull/100))
+- Bump `@acme/fx-rates` to 3.0.0 ([#90100](https://github.com/MetaMask/core/pull/90100))
 - ... other entries ...
-- Bump `@metamask/transaction-controller` to 32.0.0 ([#130](https://github.com/MetaMask/tx-categorize/pull/130))
+- Bump `@acme/fx-rates` to 3.2.0 ([#90130](https://github.com/MetaMask/core/pull/90130))
 ```
 
 ```markdown
 <!-- ✅ Like entries are consolidated -->
 
-- Bump `@metamask/transaction-controller` to 32.0.0 ([#100](https://github.com/MetaMask/tx-categorize/pull/100), [#130](https://github.com/MetaMask/tx-categorize/pull/130))
+- Bump `@acme/fx-rates` to 3.2.0 ([#90100](https://github.com/MetaMask/core/pull/90100), [#90130](https://github.com/MetaMask/core/pull/90130))
 ```
 
 ### Omit non-essential information
@@ -122,34 +122,34 @@ Focus on what a change does and how it ought to be used rather than why it was a
 ```markdown
 <!-- ❌ The second, third, and fourth sentences mention implementation details which don't seem necessary -->
 
-- Export `groupMarketsByMarketKey` to group rows with an explicit backend key and `priceScale: 1`. Each grouped row has a stable `rowId` and retains its original venue data, with the default venue first. Rows without keys, or with absent or different scales, remain separate and omit `marketKey`. Saved rows keep the bare symbol on the legacy venue and use `venue:<provider>:<symbol>` on another venue ([#11698](https://github.com/MetaMask/core/pull/11698), [#11702](https://github.com/MetaMask/core/pull/11702))
+- Export `groupAccountsByHolder` to group accounts that share a holder ID and the currency `USD`. Each grouped row has a stable `rowId` and retains its original institution data, with the primary institution first. Rows without holder IDs, or with absent or different currencies, remain separate and omit `holderId`. Saved rows keep the bare account number on the primary institution and use `institution:<name>:<accountNumber>` on another institution ([#90216](https://github.com/MetaMask/core/pull/90216), [#90217](https://github.com/MetaMask/core/pull/90217))
 ```
 
 ```markdown
 <!-- ✅ Keep the concise summary and move important contract details into nested bullets -->
 
-- Export `groupMarketsByMarketKey` to group rows with an explicit backend key and `priceScale: 1` ([#11698](https://github.com/MetaMask/core/pull/11698), [#11702](https://github.com/MetaMask/core/pull/11702))
-  - Each grouped row has a stable `rowId` and retains its original venue data, with the default venue first.
-  - Rows without keys, or with absent or different scales, remain separate and omit `marketKey`.
-  - Saved rows keep the bare symbol on the legacy venue and use `venue:<provider>:<symbol>` on another venue.
+- Export `groupAccountsByHolder` to group accounts that share a holder ID and the currency `USD` ([#90216](https://github.com/MetaMask/core/pull/90216), [#90217](https://github.com/MetaMask/core/pull/90217))
+  - Each grouped row has a stable `rowId` and retains its original institution data, with the primary institution first.
+  - Rows without holder IDs, or with absent or different currencies, remain separate and omit `holderId`.
+  - Saved rows keep the bare account number on the primary institution and use `institution:<name>:<accountNumber>` on another institution.
 ```
 
 ```markdown
 <!-- ❌ There is way too much information here -->
 
-- Lighter reads its own Terminal global snapshot. With `terminalApi.globalSnapshotUrl` set, `getMarketDataWithPrices` adds the snapshot's `name`, `description`, `iconUrl`, `marketType`, `categories`, `keywords`, `tags`, `listedAt`, `volume`, `openInterest` and `marketKey` to each Lighter market it lists. Price, change, funding, leverage and the `getMarkets` trading rules stay with `LighterProvider` ([#11698](https://github.com/MetaMask/core/pull/11698))
-  - `TerminalMarketService.fetchGlobalSnapshot` accepts `provider: 'lighter'` with `enabledDexes: ['main']`, and `PerpsGlobalSnapshotRequest.provider` is now `'hyperliquid' | 'lighter'`
-  - A Lighter row's `category` sets its `marketType`. Lighter lists stocks, FX and commodities on its one DEX, so `main` does not mean crypto there as it does for HyperLiquid
-  - A missing or invalid Lighter snapshot leaves the Lighter rows as the provider returned them
-  - Lighter v4 daily changes use the venue's last trade price as their reference
+- The statements service reads its own balance snapshot. With `ledgerApi.snapshotUrl` set, `listAccounts` adds the snapshot's `nickname`, `description`, `iconUrl`, `accountType`, `tags`, `openedAt`, `balance`, `pendingBalance`, `creditLimit` and `holderId` to each credit union account it lists. Interest rates, fees, overdraft rules and the `getLimits` results stay with `CreditUnionProvider` ([#90218](https://github.com/MetaMask/core/pull/90218))
+  - `SnapshotClient.fetch` accepts `provider: 'credit-union'` with `regions: ['us-west']`, and `SnapshotRequest.provider` is now `'bank' | 'credit-union'`
+  - An account's `product` sets its `accountType`. Credit unions list checking, savings and loans under one membership, so `us-west` does not mean a retail branch there as it does for banks
+  - A missing or invalid snapshot leaves the accounts as the provider returned them
+  - Daily balance changes use the previous statement balance as their reference
 ```
 
 ```markdown
 <!-- ✅ This is much more parseable -->
 
-- Use the Terminal global snapshot for Lighter market metadata when `terminalApi.globalSnapshotUrl` is set ([#11698](https://github.com/MetaMask/core/pull/11698))
-  - Lighter's provider remains the source for prices, price changes, funding, leverage, and trading rules.
-  - If the snapshot is unavailable or invalid, market data falls back to `LighterProvider`.
+- Use the ledger snapshot for credit union account metadata when `ledgerApi.snapshotUrl` is set ([#90218](https://github.com/MetaMask/core/pull/90218))
+  - `CreditUnionProvider` remains the source for interest rates, fees, overdraft rules and limits.
+  - If the snapshot is unavailable or invalid, account data falls back to `CreditUnionProvider`.
 ```
 
 ### Explain breaking changes
@@ -159,14 +159,14 @@ Highlight [breaking changes](./breaking-changes.md) by prefixing them with `**BR
 ```markdown
 <!-- ❌ No explanation exists for why the change is breaking -->
 
-- **BREAKING:** Bump `@metamask/network-controller` from `^24.0.0` to `^25.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@acme/payments-core` from `^4.0.0` to `^5.0.0` ([#90219](https://github.com/MetaMask/core/pull/90219))
 ```
 
 ```markdown
 <!-- ✅ Now the breaking change is listed -->
 
-- **BREAKING:** Bump `@metamask/network-controller` from `^24.0.0` to `^25.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
-  - Because of this bump, each `RpcEndpoint` that `getEvmRpcEndpoints` returns now has a non-optional `networkClientId`.
+- **BREAKING:** Bump `@acme/payments-core` from `^4.0.0` to `^5.0.0` ([#90219](https://github.com/MetaMask/core/pull/90219))
+  - Because of this bump, each `Charge` returned by `listCharges` now has a required `currency`.
 ```
 
 ### Omit non-consumer-facing changes
@@ -176,7 +176,7 @@ Omit changes to tests, documentation updates, or other changes that don't impact
 ```markdown
 <!-- ❌ This change is only relevant to developers -->
 
-- chore: migrate Jest from v29 to v30 ([#7905](https://github.com/MetaMask/core/pull/7905))
+- chore: migrate lint config to the flat format ([#90220](https://github.com/MetaMask/core/pull/90220))
 ```
 
 ## Generating changelog entries for dependency bumps
