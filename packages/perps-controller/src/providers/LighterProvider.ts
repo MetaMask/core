@@ -2486,6 +2486,10 @@ export class LighterProvider implements PerpsProvider {
         this.#releaseChannel(channel, true);
         this.#accountChannelSetup = null;
         this.#accountChannelsAwaiting = 'tradingKey';
+        this.#notifySubscriptionError(
+          new Error('Lighter orders stream paused after signer reset'),
+          ['orders'],
+        );
       }
     }
     this.#deps.debugLogger.log(
@@ -18912,13 +18916,16 @@ export class LighterProvider implements PerpsProvider {
   /**
    * Notify each order/fill subscriber without allowing one listener to stop others.
    *
-   * @param error - Account channel setup failure.
+   * @param error - Reason the channel is unavailable.
+   * @param channels - A signer reset retires orders, not the public fills channel.
    */
-  readonly #notifySubscriptionError = (error: Error): void => {
-    for (const [label, subscribers] of [
-      ['orders', this.#orderSubscribers],
-      ['fills', this.#fillSubscribers],
-    ] as const) {
+  readonly #notifySubscriptionError = (
+    error: Error,
+    channels: readonly ('orders' | 'fills')[] = ['orders', 'fills'],
+  ): void => {
+    for (const label of channels) {
+      const subscribers =
+        label === 'orders' ? this.#orderSubscribers : this.#fillSubscribers;
       for (const subscriber of subscribers) {
         try {
           subscriber.onError?.(error);

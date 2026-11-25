@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Resume existing Lighter account, position, fill and order subscriptions by automatically checking for the account created by a first deposit, without reconnecting, prompting for a trading key, or replacing a ready trading signer. ([#11746](https://github.com/MetaMask/core/pull/11746))
-- After a Lighter signer reset, order subscribers wait for a fresh authenticated snapshot instead of receiving cached orders from the previous session. ([#11746](https://github.com/MetaMask/core/pull/11746))
+- After a Lighter signer reset, report the interrupted orders stream through `onError` and stop replaying its cached orders in both direct and multi-venue subscriptions until a fresh authenticated snapshot arrives. ([#11746](https://github.com/MetaMask/core/pull/11746))
 
 ## [26.2.0]
 

@@ -2271,9 +2271,9 @@ export type SubscribeOrderFillsParams = {
 
 export type SubscribeOrdersParams = {
   /**
-   * Reports detectable setup failures without asserting an empty account.
-   * Lighter currently produces these errors; other providers may not report
-   * setup failures through this optional callback.
+   * Reports an unavailable orders stream without asserting an empty account.
+   * Lighter reports setup failures and loss of signer authentication. Keep the
+   * subscription for the next authenticated snapshot.
    */
   onError?: (error: Error, sourceProviderId?: PerpsProviderType) => void;
   /** The completeness flag is true for deliveries from the opt-in Hyperliquid stream. */

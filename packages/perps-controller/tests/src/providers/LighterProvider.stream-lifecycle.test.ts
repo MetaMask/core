@@ -37,7 +37,10 @@ import {
   StreamFakeWebSocket,
 } from '../../helpers/lighterProvider.js';
 import type { BuiltProvider } from '../../helpers/lighterProvider.js';
-import { createMockHyperLiquidProvider } from '../../helpers/providerMocks.js';
+import {
+  createMockHyperLiquidProvider,
+  createMockOrder,
+} from '../../helpers/providerMocks.js';
 import {
   createDeferred,
   createMockInfrastructure,
@@ -455,6 +458,65 @@ describe('LighterProvider stream lifecycle', () => {
         }
       },
     );
+
+    it('does not republish retired Lighter orders on another venue’s update', async () => {
+      const { provider: lighter, fireReset } = buildStreamProvider({
+        registeredKey: '9c'.repeat(40),
+      });
+      const hl = createMockHyperLiquidProvider();
+      const hlOrder = createMockOrder();
+      hl.subscribeToOrders.mockImplementation((params) => {
+        params.callback([hlOrder]);
+        return (): void => undefined;
+      });
+      const aggregate = new AggregatedPerpsProvider({
+        providers: new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', hl],
+          ['lighter', lighter],
+        ]),
+        defaultProvider: 'lighter',
+        infrastructure: createMockInfrastructure(),
+        isTestnet: true,
+      });
+      try {
+        const existing = vi.fn();
+        const onError = vi.fn();
+        aggregate.subscribeToOrders({ callback: existing, onError });
+        const fillError = vi.fn();
+        lighter.subscribeToOrderFills({
+          callback: vi.fn(),
+          onError: fillError,
+        });
+        await settle();
+        latestSocket().open();
+        await settle();
+        receive(latestSocket(), {
+          type: 'subscribed/account_all_orders',
+          orders: openOrders,
+        });
+        expect(existing).toHaveBeenLastCalledWith(
+          expect.arrayContaining([expect.objectContaining({ orderId: '42' })]),
+          'lighter',
+        );
+        existing.mockClear();
+
+        fireReset();
+        expect(existing).not.toHaveBeenCalled();
+        const late = vi.fn();
+        aggregate.subscribeToOrders({ callback: late });
+        expect(late).toHaveBeenCalledExactlyOnceWith(
+          [{ ...hlOrder, providerId: 'hyperliquid' }],
+          'hyperliquid',
+        );
+        expect(onError).toHaveBeenCalledExactlyOnceWith(
+          expect.any(Error),
+          'lighter',
+        );
+        expect(fillError).not.toHaveBeenCalled();
+      } finally {
+        await lighter.disconnect();
+      }
+    });
 
     it('uses current signer readiness when reconnecting a channel opened with a retained key', async () => {
       const { provider, bridge, clientInstance, fireReset } =
