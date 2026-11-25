@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Use the native `Uint8Array` hex and base64 methods in `bytesToHex`, `hexToBytes`, `bytesToBase64`, and `base64ToBytes` when the runtime provides them ([#10963](https://github.com/MetaMask/core/pull/10963))
+  - The previous implementation is still used as a fallback in runtimes without these methods.
 - Bump `@scure/base` from `^1.2.6` to `^2.4.0` ([#10596](https://github.com/MetaMask/core/pull/10596))
 
 ## [0.1.0]
