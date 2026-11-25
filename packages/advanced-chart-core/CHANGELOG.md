@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Rename the `SET_OHLCV_DATA` payload flag `atomicIntervalWindow` to `boundedIntervalWindow` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - Hosts that set `atomicIntervalWindow` must send `boundedIntervalWindow` instead; the old name is no longer read
+
+### Removed
+
+- Remove the 5,000-bar cap on RN-backed backward pagination requests ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - It did not stop the coarse→fine interval-switch pagination storm, which is now prevented upstream (see Fixed)
+
+### Fixed
+
+- Fix a backward pagination storm when switching from a coarse to a fine interval (e.g. 1D → 1m) with `boundedIntervalWindow` enabled ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - The initial visible window is now applied once the chart is ready instead of being passed to the TradingView widget as its constructor `timeframe`, which TradingView kept and used to size later interval switches (e.g. ~46k one-minute bars for a one-month 1D window)
+  - Consumers that do not set `boundedIntervalWindow`, and Social Leaderboard, keep the constructor `timeframe`
+  - Interval switches no longer reset the time-scale right offset before `setResolution`, and the stale `setResolution` callback guard is restored
+
 ## [1.2.0]
 
 ### Added
