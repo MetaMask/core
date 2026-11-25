@@ -31,6 +31,7 @@ export {
   getDataTypeMigrationUpdates,
   getNewSocialBackupsMetadata,
   findSocialBackupMetadata,
+  getPrimarySrpRepairWrites,
   parseAndValidateSecretMetadataBackup,
   planPrimarySrpRepair,
 } from './secret-data-utils.js';

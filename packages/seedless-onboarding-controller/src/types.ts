@@ -413,15 +413,35 @@ export type MetadataSchemaVersion = 'v1' | 'v2' | 'mixed' | 'none';
  * - `mismatch`: the remote primary SRP differs from the local one.
  *
  * `secretMetadata` is the parsed remote backup the result was derived from.
- * `metadataSchemaVersion` is the schema version of that backup, which a repair
- * must keep using. `localPrimarySRP` is the local primary SRP read from the
- * keyring.
+ * `metadataSchemaVersion` is the schema version of that backup, which decides
+ * how the repair writes. `localPrimarySRP` is the local primary SRP read from
+ * the keyring.
  */
 export type PrimarySrpRepairPlan = {
   repairType: PrimarySrpRepairType;
   secretMetadata: SecretMetadata[];
   metadataSchemaVersion: MetadataSchemaVersion;
   localPrimarySRP: Uint8Array;
+};
+
+/**
+ * The remote writes that make the local primary SRP the remote primary SRP.
+ *
+ * The metadata service has no delete, and re-adding an item creates a new item
+ * next to the old one, so existing items are kept and only their data type is
+ * changed. Applied in two steps:
+ *
+ * 1. `retag`: every existing secret item that is not the new primary becomes
+ * `ImportedSrp` or `ImportedPrivateKey`, which also demotes the old primary.
+ * It never sets `PrimarySrp`, because the service rejects a new primary while
+ * another primary item exists. An update stores the item as `v2`.
+ * 2. `primary`: the local primary SRP becomes the primary, either by promoting
+ * its existing remote copy (`promote`) or by adding it as a new `v2` item
+ * (`add`).
+ */
+export type PrimarySrpRepairWrites = {
+  retag: { itemId: string; dataType: EncAccountDataType }[];
+  primary: { type: 'promote'; itemId: string } | { type: 'add' };
 };
 
 export type DecodedBaseJWTToken = {

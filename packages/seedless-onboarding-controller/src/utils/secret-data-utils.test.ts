@@ -10,6 +10,7 @@ import {
   createSecretMetadata,
   createSecretMetadataFromMock,
   ImportedPrivateKey1,
+  ImportedPrivateKey2,
   ImportedSRP1,
   PrimarySRP2,
   PrivateKey1,
@@ -19,6 +20,7 @@ import {
 import { PrimarySrpRepairType, SecretType } from '../constants.js';
 import { serializeControlRecord } from '../envelope/envelope-keys.js';
 import type { ControlRecord } from '../envelope/envelope-keys.js';
+import type { PrimarySrpRepairWrites } from '../types.js';
 import { InvalidPrimarySecretDataTypeError } from './errors.js';
 import {
   findSocialBackupMetadata,
@@ -26,6 +28,7 @@ import {
   getDataTypeMigrationUpdates,
   getMetadataSchemaVersion,
   getNewSocialBackupsMetadata,
+  getPrimarySrpRepairWrites,
   isSecretDataType,
   parseAndValidateSecretMetadataBackup,
   parseSecretMetadata,
@@ -376,6 +379,199 @@ describe('secret data utilities', () => {
         );
       },
     );
+  });
+
+  describe('getPrimarySrpRepairWrites', () => {
+    const localPrimarySrp = stringToBytes(SRP1.data);
+    const ThirdSRP = {
+      data: 'third srp',
+      timestamp: 150,
+      itemId: 'srp-3',
+    };
+
+    /**
+     * Plan a repair for the remote items and decide its writes.
+     *
+     * @param secretDataItems - The remote items.
+     * @returns The repair type and the writes of the plan.
+     */
+    async function planWrites(
+      secretDataItems: FetchedSecretDataItem[],
+    ): Promise<{
+      repairType?: PrimarySrpRepairType;
+      writes?: PrimarySrpRepairWrites;
+    }> {
+      const plan = await planPrimarySrpRepair({
+        fetchAllSecretDataFn: async () => secretDataItems,
+        getPrimaryKeyringSeedPhraseFn: async () => localPrimarySrp,
+      });
+      return plan
+        ? {
+            repairType: plan.repairType,
+            writes: getPrimarySrpRepairWrites(plan),
+          }
+        : {};
+    }
+
+    describe('when the primary SRP is missing', () => {
+      it.each([
+        {
+          description: 'the remote metadata is empty',
+          secretDataItems: [],
+        },
+        {
+          description: 'the remote metadata only has v2 private keys',
+          secretDataItems: [createFetchedSecretDataItem(ImportedPrivateKey1)],
+        },
+      ])(
+        'adds the local primary SRP without retagging when $description',
+        async ({ secretDataItems }) => {
+          expect(await planWrites(secretDataItems)).toStrictEqual({
+            repairType: PrimarySrpRepairType.Missing,
+            writes: { retag: [], primary: { type: 'add' } },
+          });
+        },
+      );
+
+      it('migrates the legacy private keys and adds the local primary SRP when the remote metadata is v1', async () => {
+        expect(
+          await planWrites([createFetchedSecretDataItem(PrivateKey1)]),
+        ).toStrictEqual({
+          repairType: PrimarySrpRepairType.Missing,
+          writes: {
+            retag: [
+              {
+                itemId: PrivateKey1.itemId,
+                dataType: EncAccountDataType.ImportedPrivateKey,
+              },
+            ],
+            primary: { type: 'add' },
+          },
+        });
+      });
+
+      it('promotes the remote imported copy of the local primary SRP instead of adding a duplicate', async () => {
+        expect(
+          await planWrites([createFetchedSecretDataItem(ImportedSRP1)]),
+        ).toStrictEqual({
+          repairType: PrimarySrpRepairType.Missing,
+          writes: {
+            retag: [],
+            primary: { type: 'promote', itemId: SRP1.itemId },
+          },
+        });
+      });
+
+      it('adds the local primary SRP when its imported copy has no item id', () => {
+        const writes = getPrimarySrpRepairWrites({
+          repairType: PrimarySrpRepairType.Missing,
+          secretMetadata: [
+            createSecretMetadata(SRP1.data, {
+              dataType: EncAccountDataType.ImportedSrp,
+            }),
+          ],
+          metadataSchemaVersion: 'v2',
+          localPrimarySRP: localPrimarySrp,
+        });
+
+        expect(writes).toStrictEqual({
+          retag: [],
+          primary: { type: 'add' },
+        });
+      });
+    });
+
+    describe('when the primary SRP mismatches', () => {
+      const demoteSrp2 = {
+        itemId: SRP2.itemId,
+        dataType: EncAccountDataType.ImportedSrp,
+      };
+
+      it.each([
+        {
+          description: 'the remote metadata is v2',
+          secretDataItems: [createFetchedSecretDataItem(PrimarySRP2)],
+        },
+        {
+          description: 'the remote metadata is v1',
+          secretDataItems: [createFetchedSecretDataItem(SRP2)],
+        },
+      ])(
+        'demotes the remote primary SRP and adds the local one when $description',
+        async ({ secretDataItems }) => {
+          expect(await planWrites(secretDataItems)).toStrictEqual({
+            repairType: PrimarySrpRepairType.Mismatch,
+            writes: { retag: [demoteSrp2], primary: { type: 'add' } },
+          });
+        },
+      );
+
+      it.each([
+        {
+          description: 'an imported SRP',
+          secretDataItems: [
+            createFetchedSecretDataItem(PrimarySRP2),
+            createFetchedSecretDataItem(ImportedSRP1),
+          ],
+        },
+        {
+          description: 'a legacy mnemonic',
+          secretDataItems: [
+            createFetchedSecretDataItem(PrimarySRP2),
+            createFetchedSecretDataItem(SRP1),
+          ],
+        },
+      ])(
+        'demotes the remote primary SRP and promotes the remote copy of the local one when the copy is $description',
+        async ({ secretDataItems }) => {
+          expect(await planWrites(secretDataItems)).toStrictEqual({
+            repairType: PrimarySrpRepairType.Mismatch,
+            writes: {
+              retag: [demoteSrp2],
+              primary: { type: 'promote', itemId: SRP1.itemId },
+            },
+          });
+        },
+      );
+
+      it('retags every legacy secret and leaves the imported ones alone', async () => {
+        expect(
+          await planWrites([
+            createFetchedSecretDataItem(ImportedPrivateKey2),
+            createFetchedSecretDataItem(ThirdSRP),
+            createFetchedSecretDataItem(PrivateKey1),
+            createFetchedSecretDataItem(PrimarySRP2),
+          ]),
+        ).toStrictEqual({
+          repairType: PrimarySrpRepairType.Mismatch,
+          writes: {
+            retag: [
+              demoteSrp2,
+              {
+                itemId: PrivateKey1.itemId,
+                dataType: EncAccountDataType.ImportedPrivateKey,
+              },
+              {
+                itemId: ThirdSRP.itemId,
+                dataType: EncAccountDataType.ImportedSrp,
+              },
+            ],
+            primary: { type: 'add' },
+          },
+        });
+      });
+
+      it('does not retag a secret without an item id', () => {
+        const writes = getPrimarySrpRepairWrites({
+          repairType: PrimarySrpRepairType.Mismatch,
+          secretMetadata: [createSecretMetadata(SRP2.data)],
+          metadataSchemaVersion: 'v1',
+          localPrimarySRP: localPrimarySrp,
+        });
+
+        expect(writes).toStrictEqual({ retag: [], primary: { type: 'add' } });
+      });
+    });
   });
 
   describe('getDataTypeMigrationUpdates', () => {

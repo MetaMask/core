@@ -15,6 +15,7 @@ import { SecretMetadata } from '../SecretMetadata.js';
 import type {
   MetadataSchemaVersion,
   PrimarySrpRepairPlan,
+  PrimarySrpRepairWrites,
   SocialBackupsMetadata,
 } from '../types.js';
 import { InvalidPrimarySecretDataTypeError } from './errors.js';
@@ -357,6 +358,60 @@ export async function planPrimarySrpRepair({
     log('Error planning primary SRP repair', error);
     return undefined;
   }
+}
+
+/**
+ * Decide the remote writes that make the local primary SRP the remote primary
+ * SRP, for a missing or mismatched primary SRP.
+ *
+ * Every remote secret item except the local primary SRP is retagged as
+ * imported, which demotes the old primary. Items that are already imported are
+ * left alone. The retag stores every changed item as `v2`, so a `v1` backup is
+ * migrated. The local primary SRP is then promoted from its remote copy, or
+ * added if there is none.
+ *
+ * This is pure: it only reads the plan.
+ *
+ * @param plan - The plan from {@link planPrimarySrpRepair}.
+ * @param plan.secretMetadata - The parsed remote backup.
+ * @param plan.localPrimarySRP - The local primary SRP.
+ * @returns The writes to apply in order.
+ */
+export function getPrimarySrpRepairWrites({
+  secretMetadata,
+  localPrimarySRP,
+}: PrimarySrpRepairPlan): PrimarySrpRepairWrites {
+  const localCopy = secretMetadata.find(
+    (secret) =>
+      SecretMetadata.matchesType(secret, SecretType.Mnemonic) &&
+      areUint8ArraysEqual(secret.data, localPrimarySRP),
+  );
+
+  const retag: PrimarySrpRepairWrites['retag'] = [];
+  for (const secret of secretMetadata) {
+    if (secret === localCopy || !secret.itemId) {
+      continue;
+    }
+    if (isPrimarySecretCandidate(secret)) {
+      retag.push({
+        itemId: secret.itemId,
+        dataType: EncAccountDataType.ImportedSrp,
+      });
+    } else if (!secret.dataType) {
+      // An untagged secret that can't be the primary is a legacy private key.
+      retag.push({
+        itemId: secret.itemId,
+        dataType: EncAccountDataType.ImportedPrivateKey,
+      });
+    }
+  }
+
+  return {
+    retag,
+    primary: localCopy?.itemId
+      ? { type: 'promote', itemId: localCopy.itemId }
+      : { type: 'add' },
+  };
 }
 
 /**
