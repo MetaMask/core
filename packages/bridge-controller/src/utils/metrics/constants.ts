@@ -42,10 +42,12 @@ export enum AdvancedOrderMetricsEventName {
 }
 
 export type BridgeControllerMetricsEventName =
-  UnifiedSwapBridgeEventName | BatchSellMetricsEventName;
+  | UnifiedSwapBridgeEventName
+  | BatchSellMetricsEventName;
 
 export type BridgeControllerPublishedEventName =
-  BridgeControllerMetricsEventName | AdvancedOrderMetricsEventName;
+  | BridgeControllerMetricsEventName
+  | AdvancedOrderMetricsEventName;
 
 export enum PollingStatus {
   MaxPollingReached = 'max_polling_reached',
@@ -92,7 +94,8 @@ export enum BatchSellMetricsLocation {
 }
 
 export type BridgeControllerMetricsLocation =
-  MetaMetricsSwapsEventSource | BatchSellMetricsLocation;
+  | MetaMetricsSwapsEventSource
+  | BatchSellMetricsLocation;
 
 export enum InputAmountPreset {
   PERCENT_25 = '25%',

@@ -45,7 +45,11 @@ export type RequestParams = {
 };
 
 export type AccountHardwareType =
-  'Ledger' | 'Trezor' | 'QR Hardware' | 'Lattice' | null;
+  | 'Ledger'
+  | 'Trezor'
+  | 'QR Hardware'
+  | 'Lattice'
+  | null;
 
 export type RequestMetadata = {
   slippage_limit: number; // 0 === auto when no numeric limit is available
@@ -312,7 +316,7 @@ type RequiredEventContextFromClientBase = {
           | 'token_address_destination'
           | 'token_security_type_destination'
         >)
-      // Tx failed after confirmation
+    // Tx failed after confirmation
     | (RequestParams &
         RequestMetadata &
         TxStatusData & {

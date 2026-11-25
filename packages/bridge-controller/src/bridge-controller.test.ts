@@ -2756,6 +2756,8 @@ describe('BridgeController', function () {
                 destTokenAddress: '0x0000000000000000000000000000000000000000',
                 srcTokenAmount: '1',
                 walletAddress: '0x123',
+                gasIncluded: false,
+                gasIncluded7702: false,
               },
             ],
             context: {
@@ -2876,6 +2878,8 @@ describe('BridgeController', function () {
               best_quote_provider: 'provider_bridge2',
               can_submit: true,
               usd_amount_source: 100,
+              token_symbol_source: 'ETH',
+              token_symbol_destination: 'USDC',
               feature_id: featureId,
             });
 
@@ -2916,6 +2920,8 @@ describe('BridgeController', function () {
           best_quote_provider: 'provider_bridge2' as const,
           can_submit: true,
           usd_amount_source: 100,
+          token_symbol_source: 'ETH',
+          token_symbol_destination: 'USDC',
           feature_id: FeatureId.RECURRING_ORDER,
         },
       },
