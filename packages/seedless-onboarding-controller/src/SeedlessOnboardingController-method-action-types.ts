@@ -500,7 +500,10 @@ export type SeedlessOnboardingControllerRecoverWithRecoverySecretAction = {
  * Only allowed while `isLocalPassword` is set, which is the state the vault
  * is left in after {@link recoverWithRecoverySecret}, and with a valid aal2 session
  * from {@link authenticateForRecovery}. A successful reset clears
- * `isLocalPassword`; after that, use {@link changePassword} instead.
+ * `isLocalPassword` and records the `LOCAL_PASSWORD_PENDING` password-change
+ * lifecycle checkpoint; clients must advance and complete the lifecycle via
+ * {@link markPasswordChangeKeySyncPending} and {@link completePasswordChange},
+ * and after that use {@link changePassword} instead.
  *
  * The password OPRF key swap is signed with the auth key stored in the
  * vault's control record, so the old password is not needed. The vault
@@ -510,7 +513,9 @@ export type SeedlessOnboardingControllerRecoverWithRecoverySecretAction = {
  * @param params - The function parameters.
  * @param params.newPassword - The new global password.
  * @returns A promise that resolves once the new password is global.
- * @throws `PasswordResetRequiresRecovery` if the vault is not
+ * @throws `PasswordChangeInProgress` if a password change lifecycle is
+ * active, `OperationInProgress` if another operation lifecycle is active,
+ * `PasswordResetRequiresRecovery` if the vault is not
  * envelope-managed or `isLocalPassword` is not set,
  * `Aal2Required` without a valid aal2 session, or
  * `EnvelopeControlRecordNotFound` if no control record matches the live

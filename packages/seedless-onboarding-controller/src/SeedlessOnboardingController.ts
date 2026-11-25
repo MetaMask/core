@@ -81,6 +81,7 @@ import type {
   RecoverySession,
 } from './types.js';
 import { SeedlessEnvelopeMigrationCheckpointEventName } from './utils/analytics.js';
+import { assertIsRecoverySecret } from './utils/assertions.js';
 import { getPasswordSyncInstruction } from './utils/checkpoint.js';
 import {
   isIdentityMismatchError,
@@ -115,7 +116,6 @@ import {
   serializeVaultData,
 } from './utils/index.js';
 import type { SecretBackupData } from './utils/index.js';
-import { assertIsRecoverySecret } from './utils/assertions.js';
 import { splitVaultItems } from './utils/secret-data-utils.js';
 import {
   createEnvelopeState,
@@ -919,7 +919,6 @@ export class SeedlessOnboardingController<
               globalAuthPubKey,
               latestKeyIndex,
               newPassword,
-              writePendingLifecycle: true,
             });
 
           await this.#commitPasswordChangeState({
@@ -995,8 +994,6 @@ export class SeedlessOnboardingController<
    * @param params.globalAuthPubKey - The live password OPRF auth public key.
    * @param params.latestKeyIndex - The live password OPRF key index.
    * @param params.newPassword - The new password.
-   * @param params.writePendingLifecycle - Whether to persist the
-   * `RemotePasswordPending` lifecycle checkpoint before the remote key swap.
    * @returns The new password OPRF authentication key pair.
    * @throws `EnvelopeControlRecordNotFound` if no control record matches the
    * live password OPRF key, or if the new control record does not read back.
@@ -1006,13 +1003,11 @@ export class SeedlessOnboardingController<
     globalAuthPubKey,
     latestKeyIndex,
     newPassword,
-    writePendingLifecycle = false,
   }: {
     vaultKeySet: VaultKeySet;
     globalAuthPubKey: SEC1EncodedPublicKey;
     latestKeyIndex: number;
     newPassword: string;
-    writePendingLifecycle?: boolean;
   }): Promise<{ authKeyPair: KeyPair }> {
     const { oprfKey, seed, envelopeKeys, authKeyPair } =
       await this.toprfClient.createLocalKey({ password: newPassword });
@@ -1061,13 +1056,11 @@ export class SeedlessOnboardingController<
       this.#assertIsAuthenticatedUser(this.state);
       const { nodeAuthTokens, authConnectionId, groupedAuthConnectionId } =
         this.state;
-      if (writePendingLifecycle) {
-        // Persist the lifecycle before the first remote mutation so a later
-        // crash or lost response leaves a recovery signal.
-        this.#writeSeedlessOperationLifecycle(
-          SeedlessOnboardingCheckpoint.RemotePasswordPending,
-        );
-      }
+      // Persist the lifecycle before the first remote mutation so a later
+      // crash or lost response leaves a recovery signal.
+      this.#writeSeedlessOperationLifecycle(
+        SeedlessOnboardingCheckpoint.RemotePasswordPending,
+      );
       // commit point: from here on the new password is global
       await this.toprfClient.persistLocalKey({
         nodeAuthTokens,
@@ -3486,7 +3479,10 @@ export class SeedlessOnboardingController<
    * Only allowed while `isLocalPassword` is set, which is the state the vault
    * is left in after {@link recoverWithRecoverySecret}, and with a valid aal2 session
    * from {@link authenticateForRecovery}. A successful reset clears
-   * `isLocalPassword`; after that, use {@link changePassword} instead.
+   * `isLocalPassword` and records the `LOCAL_PASSWORD_PENDING` password-change
+   * lifecycle checkpoint; clients must advance and complete the lifecycle via
+   * {@link markPasswordChangeKeySyncPending} and {@link completePasswordChange},
+   * and after that use {@link changePassword} instead.
    *
    * The password OPRF key swap is signed with the auth key stored in the
    * vault's control record, so the old password is not needed. The vault
@@ -3496,7 +3492,9 @@ export class SeedlessOnboardingController<
    * @param params - The function parameters.
    * @param params.newPassword - The new global password.
    * @returns A promise that resolves once the new password is global.
-   * @throws `PasswordResetRequiresRecovery` if the vault is not
+   * @throws `PasswordChangeInProgress` if a password change lifecycle is
+   * active, `OperationInProgress` if another operation lifecycle is active,
+   * `PasswordResetRequiresRecovery` if the vault is not
    * envelope-managed or `isLocalPassword` is not set,
    * `Aal2Required` without a valid aal2 session, or
    * `EnvelopeControlRecordNotFound` if no control record matches the live
@@ -3510,6 +3508,7 @@ export class SeedlessOnboardingController<
     assertIsValidPassword(newPassword);
     return await this.#withControllerLock(async () => {
       this.#assertIsUnlocked();
+      assertCanChangePassword(this.state.seedlessOperationLifecycle);
       const status = getEnvelopeStatus(this.state);
       if (!status.isEnvelopeManaged || !status.isLocalPassword) {
         throw new SeedlessOnboardingError(
@@ -3536,25 +3535,22 @@ export class SeedlessOnboardingController<
             newPassword,
           });
 
-        await this.#createNewVaultWithAuthData({
+        await this.#commitPasswordChangeState({
           password: newPassword,
-          rawToprfEncryptionKey: vaultKeySet.encKey as Uint8Array<ArrayBuffer>,
-          rawToprfPwEncryptionKey:
-            vaultKeySet.localWrapKey as Uint8Array<ArrayBuffer>,
-          rawToprfAuthKeyPair: vaultKeySet.authKeyPair,
+          encKey: vaultKeySet.encKey as Uint8Array<ArrayBuffer>,
+          pwEncKey: vaultKeySet.localWrapKey as Uint8Array<ArrayBuffer>,
+          authKeyPair: vaultKeySet.authKeyPair,
+          keyringEncryptionKey,
+          checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+          operation: SeedlessOnboardingOperation.PasswordChange,
           onStateUpdate: (state) => {
             state.envelope = createEnvelopeState(
               vaultKeySet,
               newPasswordAuthKeyPair.pk,
             );
             delete state.isLocalPassword;
-            delete state.passwordOutdatedCache;
           },
         });
-
-        if (keyringEncryptionKey) {
-          await this.#storeKeyringEncryptionKeyUnlocked(keyringEncryptionKey);
-        }
       }, 'resetPasswordWithVaultKeys');
     });
   }
