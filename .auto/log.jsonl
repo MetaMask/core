@@ -1,0 +1,2 @@
+{"type":"config","name":"normalize-amount-string","metricName":"primary_ms","metricUnit":"ms","bestDirection":"lower"}
+{"run":1,"commit":"3956a78","metric":662,"metrics":{"per_call_us":4.597},"status":"keep","description":"baseline: original BigNumber-based normalizeAmountString (origin/main abcfadf696b)","timestamp":1795598014170,"segment":1,"confidence":null,"asi":{"profile":"run 45557828237 @ 79768f68a7a","hot_function_self":"~36.7ms across per-scenario top functions","corpus":"18 inputs x 8000 rounds, median of 3 Hermes runs"}}
