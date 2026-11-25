@@ -261,6 +261,44 @@ var CONFIG_PARITY = [
     ],
   ],
   [
+    // Extreme bound: RANGE 1. Values whose magnitude exponent is within
+    // [-1, 1] (or zero) must normalize identically — they are unconditionally
+    // config-safe — while anything larger/tiny must collapse to '0' exactly
+    // like the BigNumber fallback.
+    { RANGE: 1 },
+    [
+      // Unconditionally safe class (no config read may occur):
+      ['1.5', 6],
+      ['0.5', undefined],
+      ['0.5', 1],
+      ['42', undefined],
+      ['99.99', 2],
+      ['99.999', 2],
+      ['0', 18],
+      ['1.2345678901234567899', 18],
+      ['1.234567', 2.9],
+      ['0.25', 18],
+      ['1.0001', 4],
+      ['007.5', 2],
+      ['.5', undefined],
+      ['-1.5', 2],
+      ['-0.5', 0],
+      ['0.5e1', undefined],
+      ['1.5e1', undefined],
+      ['5.5e-1', 18],
+      ['0.05e2', 18],
+      ['1e0', 18],
+      // Beyond the bound — must collapse like the fallback:
+      ['100', undefined],
+      ['999', 18],
+      ['0.05', 18],
+      ['0.005', undefined],
+      ['1e2', 18],
+      ['1e-2', 18],
+      ['5e-6', 6],
+    ],
+  ],
+  [
     { ERRORS: false, DECIMAL_PLACES: 3, EXPONENTIAL_AT: 0, CRYPTO: false },
     [
       // ERRORS does not exist in 9.1.2 — throws must still match.

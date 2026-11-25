@@ -100,10 +100,26 @@ export function normalizeAmountString(
   // Already-canonical inputs (the common case) return verbatim — one native
   // regex test instead of a character scan, with zero string allocation.
   if (CANONICAL_PATTERN.test(amount)) {
-    // A value's magnitude never exceeds its digit count, so a single length
-    // check against the live RANGE bound suffices unless the string is
-    // implausibly long.
-    if (amount.length > liveRangeBound()) {
+    const dot = amount.indexOf('.');
+    const intLen = dot === -1 ? amount.length : dot;
+    // Unconditionally config-safe: a value whose magnitude exponent is in
+    // [-1, 1] (or exactly zero) parses identically under EVERY valid
+    // BigNumber config — `RANGE` is validated to a bound of at least 1 in
+    // magnitude, and no other knob affects decimal parsing or an
+    // explicit-argument `toFixed`. For canonical strings that means: two
+    // integer digits ('42', '99.99' — e = 1), one nonzero integer digit
+    // ('5', '5.25' — e = 0), '0' followed by a nonzero fractional digit
+    // ('0.5' — e = -1), or the bare '0'. Everything else must check the
+    // live RANGE bound — the next call must obey any config change.
+    const configSafe =
+      intLen === 2 ||
+      (intLen === 1 &&
+        (amount.charCodeAt(0) !== CHAR_0 ||
+          dot === -1 ||
+          amount.charCodeAt(dot + 1) !== CHAR_0));
+    if (!configSafe && amount.length > liveRangeBound()) {
+      // A value's magnitude never exceeds its digit count, so the length
+      // check suffices unless the string is implausibly long.
       return normalizeWithBigNumber(amount, decimals);
     }
     // `NaN >= 0` is false, so typeof + comparison covers undefined, NaN and
@@ -115,7 +131,6 @@ export function normalizeAmountString(
     if (dp > MAX_FAST_DECIMALS) {
       return normalizeWithBigNumber(amount, decimals);
     }
-    const dot = amount.indexOf('.');
     const fracLen = dot === -1 ? 0 : amount.length - dot - 1;
     if (dot === -1 || fracLen <= dp) {
       return amount;
@@ -166,6 +181,7 @@ function normalizePlainOrExponent(
   // Optional fractional part.
   let fracStart = i;
   let fracLen = 0;
+  let fracFirstNonZero = -1; // index of the first nonzero fractional digit
   if (c === CHAR_DOT) {
     i += 1;
     fracStart = i;
@@ -173,6 +189,9 @@ function normalizePlainOrExponent(
     while (c >= CHAR_0 && c <= CHAR_9) {
       if (c !== CHAR_0) {
         hasNonZero = true;
+        if (fracFirstNonZero === -1) {
+          fracFirstNonZero = i;
+        }
       }
       i += 1;
       c = i < length ? amount.charCodeAt(i) : -1;
@@ -184,12 +203,38 @@ function normalizePlainOrExponent(
     return undefined; // Not a plain decimal — defer to BigNumber.
   }
 
+  // Strip leading integer zeros, keeping a single digit ('007' -> '7').
+  // (Shared by the config-safety check below and the plain assembly.)
+  let intZeroEnd = 0;
+  while (
+    intZeroEnd < intLen - 1 &&
+    amount.charCodeAt(intStart + intZeroEnd) === CHAR_0
+  ) {
+    intZeroEnd += 1;
+  }
+  const intDigits = intLen - intZeroEnd;
+  const intIsAllZero =
+    intDigits === 0 ||
+    (intDigits === 1 && amount.charCodeAt(intStart + intZeroEnd) === CHAR_0);
+
+  // Unconditionally config-safe: a value whose magnitude exponent is in
+  // [-1, 1] (or exactly zero) parses identically under EVERY valid BigNumber
+  // config (`RANGE` is validated to a bound of at least 1 in magnitude; no
+  // other knob affects decimal parsing or explicit-argument `toFixed`).
+  // Safe shapes: at most two integer digits after zero-stripping with a
+  // nonzero lead ('007.5', '99.99' — e <= 1), or a value below 1 whose
+  // first fractional digit is nonzero ('0.5', '.5' — e = -1), or any
+  // all-zero value. Everything else must check the live RANGE bound.
+  const configSafe =
+    !hasNonZero ||
+    (!intIsAllZero && intDigits <= 2) ||
+    (intIsAllZero && fracFirstNonZero === fracStart);
+
   // The fast path is only value-preserving within BigNumber's live RANGE
   // bound (see `liveRangeBound`): beyond it, values parse as ±Infinity or
   // zero. Read fresh on this call — never cached.
-  const bound = liveRangeBound();
   const magnitude = intLen > fracLen ? intLen : fracLen;
-  if (magnitude > bound) {
+  if (!configSafe && magnitude > liveRangeBound()) {
     return undefined;
   }
 
@@ -226,9 +271,18 @@ function normalizePlainOrExponent(
     if (expLen === 0 || expLen > 3 || i !== length) {
       return undefined;
     }
-    // An exponent of up to 999 shifts the magnitude by up to 999 digits;
-    // gate the shifted magnitude against the live RANGE bound too.
-    if (magnitude + 999 > bound) {
+    // An exponent shifts the value's magnitude exponent, so safety must be
+    // judged on the SHIFTED exponent, not the significand's. Only a zero
+    // significand or a shifted magnitude within [-1, 1] is unconditionally
+    // config-safe; everything else gates against the live RANGE bound (the
+    // shift is bounded by the 3-digit exponent limit, hence +999).
+    const shiftedExp = intIsAllZero
+      ? exponent - 1 - (fracFirstNonZero - fracStart)
+      : intLen - 1 - intZeroEnd + exponent;
+    if (
+      !(!hasNonZero || (shiftedExp <= 1 && shiftedExp >= -1)) &&
+      magnitude + 999 > liveRangeBound()
+    ) {
       return undefined;
     }
     if (exponentNegative) {
@@ -306,17 +360,7 @@ function normalizePlainOrExponent(
     while (fracEnd > fracStart && amount.charCodeAt(fracEnd - 1) === CHAR_0) {
       fracEnd -= 1;
     }
-    let intZeroEnd = 0;
-    while (
-      intZeroEnd < intLen - 1 &&
-      amount.charCodeAt(intStart + intZeroEnd) === CHAR_0
-    ) {
-      intZeroEnd += 1;
-    }
-    const intDigits = intLen - intZeroEnd;
-    const intIsZero =
-      intDigits === 0 ||
-      (intDigits === 1 && amount.charCodeAt(intStart + intZeroEnd) === CHAR_0);
+    const intIsZero = intIsAllZero;
     if (intIsZero && fracEnd === fracStart) {
       // BigNumber drops the sign for a value that parsed as exactly zero
       // ('-0.000' -> '0'), but keeps it when a nonzero value is truncated
