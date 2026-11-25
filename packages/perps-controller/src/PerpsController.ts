@@ -273,16 +273,19 @@ type LighterTransferProvider = PerpsProvider & {
 };
 
 /**
- * Whether a provider can send L2 transfers, as the Lighter provider does.
+ * Whether a provider is the Lighter provider and can send L2 transfers. The
+ * protocol ID is checked too, so another venue with a `submitTransfer` method
+ * never receives a Lighter transfer.
  *
  * @param provider - A registered provider.
- * @returns True when the provider has `submitTransfer`.
+ * @returns True when the provider is Lighter and has `submitTransfer`.
  */
 const isLighterTransferProvider = (
   provider: PerpsProvider,
 ): provider is LighterTransferProvider =>
+  provider.protocolId === 'lighter' &&
   typeof (provider as Partial<LighterTransferProvider>).submitTransfer ===
-  'function';
+    'function';
 
 /**
  * Keys that must never index into a persisted state record. Assigning under

@@ -804,6 +804,21 @@ describe('PerpsController', () => {
         PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
       );
     });
+
+    it('never sends the transfer through a non-Lighter provider that has submitTransfer', async () => {
+      const otherProvider = {
+        ...createMockHyperLiquidProvider(),
+        submitTransfer: vi.fn().mockResolvedValue({ success: true }),
+      } as unknown as PerpsProvider & { submitTransfer: Mock };
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', otherProvider]]));
+      controller.testSetActiveProvider(otherProvider);
+
+      await expect(controller.submitLighterTransfer(TRANSFER)).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+      );
+      expect(otherProvider.submitTransfer).not.toHaveBeenCalled();
+    });
   });
 
   describe('withdrawal route resolution', () => {
