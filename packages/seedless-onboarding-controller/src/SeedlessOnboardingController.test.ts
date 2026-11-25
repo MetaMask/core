@@ -5675,6 +5675,7 @@ describe('SeedlessOnboardingController', () => {
               encKey,
               authKeyPair,
               pwEncKey,
+              envelopeKeys: deriveTestEnvelopeKeys(stringToBytes(NEW_PASSWORD)),
               rateLimitResetResult: Promise.resolve(),
               keyShareIndex: 1,
             });
@@ -5758,6 +5759,7 @@ describe('SeedlessOnboardingController', () => {
             encKey,
             authKeyPair,
             pwEncKey,
+            envelopeKeys: deriveTestEnvelopeKeys(stringToBytes(NEW_PASSWORD)),
             rateLimitResetResult: Promise.resolve(),
             keyShareIndex: 1,
           });
@@ -5830,6 +5832,7 @@ describe('SeedlessOnboardingController', () => {
             encKey: newEncKey,
             authKeyPair: newAuthKeyPair,
             pwEncKey: newPwEncKey,
+            envelopeKeys: deriveTestEnvelopeKeys(stringToBytes(NEW_PASSWORD)),
             rateLimitResetResult: Promise.resolve(),
             keyShareIndex: 1,
           });
