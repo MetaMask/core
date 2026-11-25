@@ -760,6 +760,7 @@ describe('server-quotes', () => {
 
     const result = await getServerQuotes({
       accountSupports7702: true,
+      from: FROM_MOCK,
       messenger,
       requests: [QUOTE_REQUEST_MOCK],
       transaction: TRANSACTION_META_MOCK,
@@ -771,6 +772,7 @@ describe('server-quotes', () => {
   it('omits signature from the normalized quote when not returned', async () => {
     const result = await getServerQuotes({
       accountSupports7702: true,
+      from: FROM_MOCK,
       messenger,
       requests: [QUOTE_REQUEST_MOCK],
       transaction: TRANSACTION_META_MOCK,

@@ -47,7 +47,11 @@ import {
 import { getServerQuotes } from './server-quotes.js';
 import { getServerSubmitParams, submitServerQuotes } from './server-submit.js';
 import { ServerStatus } from './types.js';
-import type { ServerQuote, ServerSignatureStep } from './types.js';
+import type {
+  ServerQuote,
+  ServerSignatureStep,
+  ServerTransactionStep,
+} from './types.js';
 
 vi.mock(import('@metamask/controller-utils'), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -140,6 +144,8 @@ const ORIGINAL_QUOTE_MOCK: ServerQuote = {
     },
   ],
 };
+
+const SOURCE_STEP_MOCK = ORIGINAL_QUOTE_MOCK.steps[0] as ServerTransactionStep;
 
 const BATCH_PARAMS_MOCK = {
   data: '0xbatchdata' as Hex,
@@ -375,10 +381,10 @@ describe('submitServerQuotes', () => {
       expect.objectContaining({
         transaction: expect.objectContaining({
           txParams: expect.objectContaining({
-            data: ORIGINAL_QUOTE_MOCK.steps[0].data,
+            data: SOURCE_STEP_MOCK.data,
             from: QUOTE_FROM_MOCK,
-            to: ORIGINAL_QUOTE_MOCK.steps[0].to,
-            value: ORIGINAL_QUOTE_MOCK.steps[0].value,
+            to: SOURCE_STEP_MOCK.to,
+            value: SOURCE_STEP_MOCK.value,
           }),
         }),
       }),
@@ -386,11 +392,11 @@ describe('submitServerQuotes', () => {
   });
 
   it('wraps multiple source calls into a batch for the delegation transaction params', async () => {
-    const secondStep = {
+    const secondStep: ServerTransactionStep = {
       chainId: 137,
       data: '0xseconddata',
       to: '0x7777777777777777777777777777777777777777',
-      type: 'transaction' as const,
+      type: 'transaction',
       value: '0x0',
     };
 
@@ -405,9 +411,9 @@ describe('submitServerQuotes', () => {
       QUOTE_FROM_MOCK,
       [
         {
-          data: ORIGINAL_QUOTE_MOCK.steps[0].data,
-          to: ORIGINAL_QUOTE_MOCK.steps[0].to,
-          value: ORIGINAL_QUOTE_MOCK.steps[0].value,
+          data: SOURCE_STEP_MOCK.data,
+          to: SOURCE_STEP_MOCK.to,
+          value: SOURCE_STEP_MOCK.value,
         },
         { data: secondStep.data, to: secondStep.to, value: secondStep.value },
       ],
