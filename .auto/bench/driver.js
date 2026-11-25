@@ -41,6 +41,19 @@ var PARITY = [
   ['1e-40', undefined],
   ['.5e2', 18],
   ['1.23e4', 2],
+  // signed-exponent sign handling (pins the unsigned-exponent regression:
+  // '0.01e-2' must be classified by its SIGNED shifted magnitude)
+  ['0.01e-2', 18],
+  ['0.01e-2', undefined],
+  ['.001e-2', 6],
+  ['001e-3', 2],
+  ['100e-2', 2],
+  ['1000e-6', 18],
+  ['0.0001e-3', 6],
+  ['12.34e-2', 2],
+  ['+0.01e+2', 4],
+  ['-0.01e-2', 4],
+  ['0.01E-2', 18],
   // leading / trailing zeros
   ['007', 18],
   ['0.500', 18],
@@ -210,6 +223,36 @@ var FUZZ = buildFuzz(600);
 // the very next call after a config change must already obey it.
 // bignumber.js 9.1.2 has no ERRORS config (errors always throw) — the ERRORS
 // key is silently ignored, which the last block demonstrates.
+// Systematic exponent-form config parity: signed exponents (positive and
+// negative, both 'e' and 'E', with and without '+') crossed with mantissa
+// shapes — sub-1 forms ('0.01', '.001'), leading-zero integers ('001'),
+// multi-digit integers ('100', '1000'), signed mantissas — under tight and
+// asymmetric RANGE configs, with and without truncation. Generated as a
+// full cross product so no hand-picked subset can mask a sign-handling bug
+// (a real regression this pins: the safety gate once classified magnitude
+// using the UNSIGNED exponent, so '0.01e-2' slipped past a RANGE:1 config
+// and returned '0.0001' instead of '0').
+var EXP_MANTISSAS = [
+  '0.01', '0.001', '.01', '.001', '001', '100', '1000', '0.5', '1.5',
+  '2.5', '1', '5', '-0.01', '-1.5', '+001', '0.0001', '999', '12.34',
+];
+var EXP_SIGNS = ['e', 'e-', 'e+', 'E', 'E-', 'E+'];
+var EXP_MAGS = ['0', '1', '2', '3', '6'];
+var EXP_DECIMALS = [undefined, 0, 2, 18];
+var EXPONENT_MATRIX = [];
+for (var emi = 0; emi < EXP_MANTISSAS.length; emi++) {
+  for (var esi = 0; esi < EXP_SIGNS.length; esi++) {
+    for (var egi = 0; egi < EXP_MAGS.length; egi++) {
+      for (var edi = 0; edi < EXP_DECIMALS.length; edi++) {
+        EXPONENT_MATRIX.push([
+          EXP_MANTISSAS[emi] + EXP_SIGNS[esi] + EXP_MAGS[egi],
+          EXP_DECIMALS[edi],
+        ]);
+      }
+    }
+  }
+}
+
 var CONFIG_PARITY = [
   [
     { RANGE: 5 },
@@ -297,6 +340,23 @@ var CONFIG_PARITY = [
       ['1e-2', 18],
       ['5e-6', 6],
     ],
+  ],
+  [
+    // Full signed-exponent matrix under the tightest valid bound.
+    { RANGE: 1 },
+    EXPONENT_MATRIX.concat([['0.01e-2', 18], ['0.01e-2', undefined]]),
+  ],
+  [
+    { RANGE: 2 },
+    EXPONENT_MATRIX,
+  ],
+  [
+    { RANGE: 5 },
+    EXPONENT_MATRIX,
+  ],
+  [
+    { RANGE: [-3, 50] },
+    EXPONENT_MATRIX,
   ],
   [
     { ERRORS: false, DECIMAL_PLACES: 3, EXPONENTIAL_AT: 0, CRYPTO: false },
@@ -577,6 +637,44 @@ if (failures.length > 0) {
   print('SELF_CHECK=FAIL ' + failures.length + ' mismatches');
   // Nonzero exit so the harness fails THIS run, not just the aggregate grep.
   throw new Error('parity self-check failed: ' + failures.length + ' mismatches');
+} else if (BENCH_MODE === 'compare') {
+  // Real baseline-vs-candidate comparison: the FROZEN reference (the
+  // original BigNumber implementation from origin/main) and the candidate
+  // (current production code) timed on the identical corpus, in ABBA order
+  // to cancel thermal/scheduler drift, after a warmup. Emits both per-call
+  // costs and the speedup so the report can quote a same-process delta.
+  var CMP_ROUNDS = 8000;
+  function timeRef(rounds) {
+    var t0 = Date.now();
+    var sink = 0;
+    for (var rr = 0; rr < rounds; rr++) {
+      for (var ii = 0; ii < HOT.length; ii++) {
+        sink += __referenceImpl(HOT[ii][0], HOT[ii][1]).length;
+      }
+    }
+    if (sink === -1) print('impossible');
+    return Date.now() - t0;
+  }
+  timeRef(500);
+  timeCorpus(500);
+  var refA = timeRef(CMP_ROUNDS);
+  var candA = timeCorpus(CMP_ROUNDS);
+  var candB = timeCorpus(CMP_ROUNDS);
+  var refB = timeRef(CMP_ROUNDS);
+  var refMs = (refA + refB) / 2;
+  var candMs = (candA + candB) / 2;
+  print('METRIC baseline_ms=' + refMs);
+  print('METRIC candidate_ms=' + candMs);
+  print('METRIC speedup_pct=' + ((1 - candMs / refMs) * 100).toFixed(1));
+  print(
+    'METRIC baseline_percall_us=' +
+      ((refMs * 1000) / (CMP_ROUNDS * HOT.length)).toFixed(4),
+  );
+  print(
+    'METRIC candidate_percall_us=' +
+      ((candMs * 1000) / (CMP_ROUNDS * HOT.length)).toFixed(4),
+  );
+  print('SELF_CHECK=OK');
 } else if (BENCH_MODE === 'sweep') {
   var s1 = timeCorpus(2000);
   var s2 = timeCorpus(8000);

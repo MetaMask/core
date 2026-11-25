@@ -274,6 +274,14 @@ function normalizePlainOrExponent(
     if (expLen === 0 || expLen > 3 || i !== length) {
       return undefined;
     }
+    // Apply the exponent sign BEFORE any use: the shifted-magnitude safety
+    // check below must see the true (signed) exponent — using the unsigned
+    // magnitude would mis-classify inputs like '0.01e-2' (unsigned +2 looks
+    // config-safe; signed -4 is not) and return wrong values under tight
+    // RANGE configs.
+    if (exponentNegative) {
+      exponent = -exponent;
+    }
     // An exponent shifts the value's magnitude exponent, so safety must be
     // judged on the SHIFTED exponent, not the significand's. Only a zero
     // significand or a shifted magnitude within [-1, 1] is unconditionally
@@ -287,9 +295,6 @@ function normalizePlainOrExponent(
       magnitude + 999 > liveRangeBound()
     ) {
       return undefined;
-    }
-    if (exponentNegative) {
-      exponent = -exponent;
     }
 
     const digits =
