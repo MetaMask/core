@@ -151,6 +151,24 @@ export type MoneyAccountLifecycleControllerClearStateAction = {
 };
 
 /**
+ * Registers a migrator that moves an integration bound to the Money Account
+ * address, such as a deposit destination, to the MPC Money Account when the
+ * Money Account migrates. `startMigration` runs it in its phase, in
+ * registration order; it is never run once its phase has passed.
+ *
+ * While the Money Account is migrating or migrated, its status from
+ * `getStatus` is recorded in `bindingMigrations`, now and after each
+ * identity fetch.
+ *
+ * @param migrator - The binding migrator.
+ * @throws If a migrator with the same id is already registered.
+ */
+export type MoneyAccountLifecycleControllerRegisterBindingMigratorAction = {
+  type: `MoneyAccountLifecycleController:registerBindingMigrator`;
+  handler: MoneyAccountLifecycleController['registerBindingMigrator'];
+};
+
+/**
  * Union of all MoneyAccountLifecycleController action types.
  */
 export type MoneyAccountLifecycleControllerMethodActions =
@@ -159,4 +177,5 @@ export type MoneyAccountLifecycleControllerMethodActions =
   | MoneyAccountLifecycleControllerRefreshAction
   | MoneyAccountLifecycleControllerUpgradeMoneyAccountAction
   | MoneyAccountLifecycleControllerStartMigrationAction
-  | MoneyAccountLifecycleControllerClearStateAction;
+  | MoneyAccountLifecycleControllerClearStateAction
+  | MoneyAccountLifecycleControllerRegisterBindingMigratorAction;

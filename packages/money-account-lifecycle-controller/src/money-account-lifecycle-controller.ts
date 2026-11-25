@@ -55,6 +55,12 @@ import type {
 import type { Hex } from '@metamask/utils';
 import deepEqual from 'fast-deep-equal';
 
+import { buildBindingMigrationContext } from './binding-migration.js';
+import type {
+  BindingMigrationContext,
+  BindingMigrationState,
+  BindingMigrator,
+} from './binding-migration.js';
 import {
   getMoneyAccountLifecycle,
   isMigrating,
@@ -88,6 +94,9 @@ export type MoneyAccountLifecycleControllerState = {
   addressRegistrations: {
     [address: string]: AddressRegistration;
   };
+  bindingMigrations: {
+    [migratorId: string]: BindingMigrationState;
+  };
 };
 
 const moneyAccountLifecycleControllerMetadata = {
@@ -103,12 +112,19 @@ const moneyAccountLifecycleControllerMetadata = {
     persist: true,
     usedInUi: false,
   },
+  bindingMigrations: {
+    includeInDebugSnapshot: false,
+    includeInStateLogs: true,
+    persist: false,
+    usedInUi: true,
+  },
 } satisfies StateMetadata<MoneyAccountLifecycleControllerState>;
 
 export function getDefaultMoneyAccountLifecycleControllerState(): MoneyAccountLifecycleControllerState {
   return {
     moneyAccounts: {},
     addressRegistrations: {},
+    bindingMigrations: {},
   };
 }
 
@@ -119,6 +135,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'upgradeMoneyAccount',
   'startMigration',
   'clearState',
+  'registerBindingMigrator',
 ] as const;
 
 export type MoneyAccountIdentity = Pick<
@@ -203,6 +220,8 @@ export class MoneyAccountLifecycleController extends BaseController<
   >();
 
   #isMigrationInFlight = false;
+
+  readonly #bindingMigrators = new Map<string, BindingMigrator>();
 
   /**
    * Bumped by `clearState`. Upgrades and migrations capture it when they
@@ -534,6 +553,96 @@ export class MoneyAccountLifecycleController extends BaseController<
     this.update(() => getDefaultMoneyAccountLifecycleControllerState());
   }
 
+  /**
+   * Registers a migrator that moves an integration bound to the Money Account
+   * address, such as a deposit destination, to the MPC Money Account when the
+   * Money Account migrates. `startMigration` runs it in its phase, in
+   * registration order; it is never run once its phase has passed.
+   *
+   * While the Money Account is migrating or migrated, its status from
+   * `getStatus` is recorded in `bindingMigrations`, now and after each
+   * identity fetch.
+   *
+   * @param migrator - The binding migrator.
+   * @throws If a migrator with the same id is already registered.
+   */
+  registerBindingMigrator(migrator: BindingMigrator): void {
+    if (this.#bindingMigrators.has(migrator.id)) {
+      throw new Error(
+        `A binding migrator with the id '${migrator.id}' is already registered`,
+      );
+    }
+    this.#bindingMigrators.set(migrator.id, migrator);
+
+    const moneyAccount = this.messenger.call(
+      'MoneyAccountController:getMoneyAccount',
+      { type: 'mnemonic' },
+    );
+    if (moneyAccount && this.#isReady()) {
+      this.#recordBindingMigratorStatuses(moneyAccount.address);
+    }
+  }
+
+  #recordBindingMigratorStatuses(moneyAccountAddress: string): void {
+    const context = this.#getBindingMigrationContext(moneyAccountAddress);
+    const bindingMigrations: MoneyAccountLifecycleControllerState['bindingMigrations'] =
+      {};
+    if (context) {
+      for (const migrator of this.#bindingMigrators.values()) {
+        const previous = this.state.bindingMigrations[migrator.id];
+        bindingMigrations[migrator.id] = {
+          phase: migrator.phase,
+          status: this.#getBindingMigratorStatus(migrator, context),
+          lastResult: previous?.lastResult ?? null,
+          lastError: previous?.lastError ?? null,
+        };
+      }
+    }
+    this.#setBindingMigrations(bindingMigrations);
+  }
+
+  #getBindingMigratorStatus(
+    migrator: BindingMigrator,
+    context: BindingMigrationContext,
+  ): BindingMigrationState['status'] {
+    try {
+      return migrator.getStatus(context);
+    } catch (error) {
+      this.#reportError(error);
+      return { status: 'unknown' };
+    }
+  }
+
+  #setBindingMigrations(
+    bindingMigrations: MoneyAccountLifecycleControllerState['bindingMigrations'],
+  ): void {
+    if (deepEqual(this.state.bindingMigrations, bindingMigrations)) {
+      return;
+    }
+    this.update((state) => {
+      state.bindingMigrations = bindingMigrations;
+    });
+  }
+
+  #getBindingMigrationContext(
+    moneyAccountAddress: string,
+  ): BindingMigrationContext | undefined {
+    const lifecycle =
+      this.state.moneyAccounts[moneyAccountAddress.toLowerCase()];
+    if (lifecycle?.type === 'migrating' && lifecycle.identity.migration) {
+      const { from, to } = lifecycle.identity.migration;
+      return buildBindingMigrationContext(from, to, 'MIGRATING');
+    }
+    if (lifecycle?.type === 'mfa') {
+      return buildBindingMigrationContext(
+        moneyAccountAddress,
+        lifecycle.identity.currentAddress,
+        'DONE',
+      );
+    }
+    return undefined;
+  }
+
   async #startMigration(): Promise<void> {
     this.#migrationGeneration = this.#generation;
     this.#assertReadyToMigrate();
@@ -818,6 +927,7 @@ export class MoneyAccountLifecycleController extends BaseController<
         this.#derivedIdentitiesRequest = undefined;
         this.#isFetchingDerivedIdentities = false;
         this.#derivedIdentities = undefined;
+        this.#setBindingMigrations({});
         return;
       }
 
@@ -895,6 +1005,8 @@ export class MoneyAccountLifecycleController extends BaseController<
       if (lifecycle.type === 'mfa') {
         this.#setMpcMoneyAccountAsDefault(lifecycle.identity.currentAddress);
       }
+
+      this.#recordBindingMigratorStatuses(moneyAccount.address);
 
       if (!hasChanged && !isRehydrating) {
         return;

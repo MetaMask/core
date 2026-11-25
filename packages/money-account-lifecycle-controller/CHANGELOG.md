@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add `bindingMigrations` to `MoneyAccountLifecycleControllerState`, recording the status of each registered binding migrator while the Money Account is migrating or migrated ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
+- Add `registerBindingMigrator` method, also exposed through the messenger, so integrations bound to the Money Account address can be moved to the MPC Money Account during `startMigration` ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
+
 ### Changed
 
 - Bump `@metamask/subscription-controller` from `^15.2.2` to `^15.4.0` ([#11594](https://github.com/MetaMask/core/pull/11594), [#11611](https://github.com/MetaMask/core/pull/11611), [#11727](https://github.com/MetaMask/core/pull/11727))

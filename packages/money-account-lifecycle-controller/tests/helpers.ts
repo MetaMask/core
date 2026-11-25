@@ -35,6 +35,12 @@ import type { Hex } from '@metamask/utils';
 import { vi } from 'vitest';
 import type { Mock } from 'vitest';
 
+import type {
+  BindingMigrationContext,
+  BindingMigrationResult,
+  BindingMigrator,
+  BindingMigratorStatus,
+} from '../src/binding-migration.js';
 import type { MoneyAccountLifecycle } from '../src/get-money-account-lifecycle.js';
 import { MoneyAccountLifecycleController } from '../src/money-account-lifecycle-controller.js';
 import type { MoneyAccountLifecycleControllerMessenger } from '../src/money-account-lifecycle-controller.js';
@@ -257,6 +263,31 @@ type WithControllerOptions = {
     ConstructorParameters<typeof MoneyAccountLifecycleController>[0]
   >;
 } & Partial<Gates>;
+
+export type MockBindingMigrator = BindingMigrator & {
+  reconcile: Mock<
+    (context: BindingMigrationContext) => Promise<BindingMigrationResult>
+  >;
+  getStatus: Mock<(context: BindingMigrationContext) => BindingMigratorStatus>;
+};
+
+export function buildBindingMigrator({
+  id = 'test-migrator',
+  phase = 'afterLink',
+}: Partial<Pick<BindingMigrator, 'id' | 'phase'>> = {}): MockBindingMigrator {
+  return {
+    id,
+    phase,
+    reconcile: vi
+      .fn<
+        (context: BindingMigrationContext) => Promise<BindingMigrationResult>
+      >()
+      .mockResolvedValue({ status: 'completed' }),
+    getStatus: vi
+      .fn<(context: BindingMigrationContext) => BindingMigratorStatus>()
+      .mockReturnValue({ status: 'unknown' }),
+  };
+}
 
 export function getLifecycle(
   controller: MoneyAccountLifecycleController,

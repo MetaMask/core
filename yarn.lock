@@ -7412,6 +7412,7 @@ __metadata:
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/subscription-controller": "npm:^15.4.0"
     "@metamask/utils": "npm:^12.0.2"
+    "@noble/hashes": "npm:^1.8.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     fast-deep-equal: "npm:^3.1.3"
     rimraf: "npm:^6.1.4"
