@@ -36,6 +36,7 @@ export type SeedlessOnboardingControllerPreloadToprfNodeDetailsAction = {
  * @param params.metadataAccessToken - Metadata access token for accessing the metadata service before the vault is created or unlocked.
  * @param params.skipLock - Optional flag to skip acquiring the controller lock. (to prevent deadlock in case the caller already acquired the lock)
  * @returns A promise that resolves to the authentication result.
+ * @throws `UserAlreadyAuthenticated` if `mfaFlag` is enabled and a different user or verifier is already in state. Call `clearState` before authenticating another user.
  */
 export type SeedlessOnboardingControllerAuthenticateAction = {
   type: `SeedlessOnboardingController:authenticate`;
@@ -108,7 +109,7 @@ export type SeedlessOnboardingControllerFetchAllSecretDataAction = {
  * and creates the local vault under `password`, replacing any existing
  * one. If the vault is envelope-managed, the password opens the vault keys
  * and the `envelope` state is set; otherwise any existing `envelope` state
- * is cleared. `isLocalPassword` is cleared.
+ * is cleared. `isLocalPassword` and `seedlessOperationLifecycle` are cleared.
  *
  * @param params - The function parameters.
  * @param params.password - The global password.

@@ -451,6 +451,7 @@ export class SeedlessOnboardingController<
    * @param params.metadataAccessToken - Metadata access token for accessing the metadata service before the vault is created or unlocked.
    * @param params.skipLock - Optional flag to skip acquiring the controller lock. (to prevent deadlock in case the caller already acquired the lock)
    * @returns A promise that resolves to the authentication result.
+   * @throws `UserAlreadyAuthenticated` if `mfaFlag` is enabled and a different user or verifier is already in state. Call `clearState` before authenticating another user.
    */
   async authenticate(
     params: SeedlessAuthData & { skipLock?: boolean },
@@ -478,6 +479,24 @@ export class SeedlessOnboardingController<
         SeedlessIdentityMismatchSource.ToprfAuthenticate,
       );
 
+      // Fail fast when `mfaFlag` is enabled and a different user or verifier is
+      // already in state. Callers must call `clearState` before authenticating
+      // another user so prior user state (vault, envelope, recovery session,
+      // operation lifecycle) is never mixed across sessions.
+      if (this.#mfaFlag()) {
+        const currentVerifier =
+          this.state.groupedAuthConnectionId ?? this.state.authConnectionId;
+        const nextVerifier = groupedAuthConnectionId ?? authConnectionId;
+        if (
+          (this.state.userId !== undefined && this.state.userId !== userId) ||
+          (currentVerifier !== undefined && currentVerifier !== nextVerifier)
+        ) {
+          throw new SeedlessOnboardingError(
+            SeedlessOnboardingControllerErrorMessage.UserAlreadyAuthenticated,
+          );
+        }
+      }
+
       try {
         const authenticationResult = await this.toprfClient.authenticate({
           authConnectionId,
@@ -485,21 +504,8 @@ export class SeedlessOnboardingController<
           idTokens,
           groupedAuthConnectionId,
         });
-        // recovery and envelope state belong to the user/verifier they were
-        // started for
-        const currentVerifier =
-          this.state.groupedAuthConnectionId ?? this.state.authConnectionId;
-        const nextVerifier = groupedAuthConnectionId ?? authConnectionId;
-        const isUserChanged =
-          this.state.userId !== userId || currentVerifier !== nextVerifier;
         // update the state with the authenticated user info
         this.update((state) => {
-          if (isUserChanged) {
-            delete state.recoverySession;
-            delete state.envelope;
-            delete state.isLocalPassword;
-            delete state.passwordOutdatedCache;
-          }
           state.nodeAuthTokens = authenticationResult.nodeAuthTokens;
           state.authConnectionId = authConnectionId;
           state.groupedAuthConnectionId = groupedAuthConnectionId;
@@ -821,7 +827,7 @@ export class SeedlessOnboardingController<
    * and creates the local vault under `password`, replacing any existing
    * one. If the vault is envelope-managed, the password opens the vault keys
    * and the `envelope` state is set; otherwise any existing `envelope` state
-   * is cleared. `isLocalPassword` is cleared.
+   * is cleared. `isLocalPassword` and `seedlessOperationLifecycle` are cleared.
    *
    * @param params - The function parameters.
    * @param params.password - The global password.
@@ -896,8 +902,8 @@ export class SeedlessOnboardingController<
           rawToprfPwEncryptionKey: pwEncKey as Uint8Array<ArrayBuffer>,
           rawToprfAuthKeyPair: authKeyPair,
           sessionGeneration,
-          // the vault was replaced, so `isLocalPassword` and `envelope`
-          // describe the old password and key set
+          // the vault was replaced, so `isLocalPassword`, `envelope`, and any
+          // prior operation lifecycle describe the old password and key set
           onStateUpdate: (state) => {
             delete state.isLocalPassword;
             if (envelope) {
@@ -909,6 +915,7 @@ export class SeedlessOnboardingController<
               delete state.envelope;
             }
             delete state.passwordOutdatedCache;
+            delete state.seedlessOperationLifecycle;
           },
         });
 
@@ -3527,6 +3534,7 @@ export class SeedlessOnboardingController<
             state.isLocalPassword = true;
             state.envelope = createEnvelopeState(vaultKeySet, authPubKey);
             delete state.passwordOutdatedCache;
+            delete state.seedlessOperationLifecycle;
           },
         });
         return secrets;

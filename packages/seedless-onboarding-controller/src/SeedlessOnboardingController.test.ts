@@ -1046,6 +1046,7 @@ describe('SeedlessOnboardingController', () => {
             {
               idTokens,
               authConnectionId,
+              groupedAuthConnectionId,
               userId,
               authConnection,
               socialLoginEmail,
@@ -1056,6 +1057,82 @@ describe('SeedlessOnboardingController', () => {
           );
 
           expect(controller.state.revokeToken).toBe(existingRevokeToken);
+        },
+      );
+    });
+
+    it('should throw UserAlreadyAuthenticated when mfaFlag is enabled and authenticating a different ungrouped verifier without clearState', async () => {
+      await withController(
+        {
+          mfaFlag: () => true,
+          state: {
+            ...getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+            }),
+            groupedAuthConnectionId: undefined,
+          },
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          const authenticateSpy = vi
+            .spyOn(toprfClient, 'authenticate')
+            .mockResolvedValue({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+
+          await expect(
+            baseMessenger.call('SeedlessOnboardingController:authenticate', {
+              idTokens,
+              authConnectionId: 'other-auth-connection-id',
+              userId,
+              authConnection,
+              socialLoginEmail,
+              refreshToken,
+              accessToken,
+              metadataAccessToken,
+            }),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.UserAlreadyAuthenticated,
+          );
+
+          expect(authenticateSpy).not.toHaveBeenCalled();
+          expect(controller.state.authConnectionId).toBe(authConnectionId);
+        },
+      );
+    });
+
+    it('should allow authenticating a different user without clearState when mfaFlag is disabled', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          const otherUserId = 'other-user@example.com';
+          vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            isNewUser: false,
+          });
+
+          await baseMessenger.call(
+            'SeedlessOnboardingController:authenticate',
+            {
+              idTokens: [createMockJWTToken({ sub: otherUserId })],
+              authConnectionId: 'other-auth-connection-id',
+              userId: otherUserId,
+              authConnection,
+              socialLoginEmail: otherUserId,
+              refreshToken,
+              accessToken,
+              metadataAccessToken,
+            },
+          );
+
+          expect(controller.state.userId).toBe(otherUserId);
+          expect(controller.state.authConnectionId).toBe(
+            'other-auth-connection-id',
+          );
         },
       );
     });
