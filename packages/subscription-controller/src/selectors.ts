@@ -1,25 +1,78 @@
 import { ACTIVE_SUBSCRIPTION_STATUSES } from './constants.js';
-import { isSubscriptionChargeRetryable } from './subscription-delegation/SubscriptionDelegationService.js';
 import type { SubscriptionControllerState } from './SubscriptionController.js';
 import {
   CRYPTO_PAYMENT_ERRORS,
   INVOICE_PAYMENT_STATUSES,
   PAYMENT_TYPES,
   PRODUCT_TYPES,
+  SUBSCRIPTION_STATUSES,
 } from './types.js';
 import type {
   CryptoPaymentError,
   ProductEntitlementFeatureMap,
   ProductType,
   Subscription,
+  SubscriptionCryptoPaymentMethod,
 } from './types.js';
 
-function getSubscriptionByProduct(
+/**
+ * Returns the subscription that includes the given product.
+ *
+ * @param state - The subscription controller state.
+ * @param productType - The product to look up.
+ * @returns The subscription, if any.
+ */
+export function getSubscriptionByProduct(
   state: SubscriptionControllerState,
   productType: ProductType,
 ): Subscription | undefined {
   return state.subscriptions.find((subscription) =>
     subscription.products.some((product) => product.name === productType),
+  );
+}
+
+/**
+ * Returns whether a crypto subscription is stuck on a charge that a funded
+ * Money Account can unblock with `SubscriptionController:retryCryptoCharge`.
+ *
+ * Mirrors the Subscription API retry rules. Failed invoices only qualify when
+ * the failure was `insufficient_balance`; other failures cannot be fixed by a
+ * deposit, and retrying them would re-queue the same failing collection.
+ *
+ * @param subscription - The subscription to check.
+ * @returns Whether the charge can be retried.
+ */
+export function isSubscriptionChargeRetryable(
+  subscription: Subscription,
+): subscription is Subscription & {
+  paymentMethod: SubscriptionCryptoPaymentMethod;
+} {
+  const { paymentMethod, lastInvoice, status } = subscription;
+  if (
+    paymentMethod.type !== PAYMENT_TYPES.byCrypto ||
+    subscription.cancelAtPeriodEnd
+  ) {
+    return false;
+  }
+  const isBalanceFailure =
+    lastInvoice?.status === INVOICE_PAYMENT_STATUSES.FAILED &&
+    lastInvoice.errorCode === CRYPTO_PAYMENT_ERRORS.INSUFFICIENT_BALANCE;
+  // Above the paused return: a later poll re-sends the charge otherwise.
+  if (
+    lastInvoice?.status === INVOICE_PAYMENT_STATUSES.PROCESSING ||
+    (lastInvoice?.status === INVOICE_PAYMENT_STATUSES.FAILED &&
+      !isBalanceFailure)
+  ) {
+    return false;
+  }
+  if (status === SUBSCRIPTION_STATUSES.paused) {
+    return true;
+  }
+  return (
+    isBalanceFailure &&
+    (status === SUBSCRIPTION_STATUSES.pastDue ||
+      (status === SUBSCRIPTION_STATUSES.active &&
+        Boolean(paymentMethod.crypto.error)))
   );
 }
 

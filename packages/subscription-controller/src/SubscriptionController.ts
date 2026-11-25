@@ -22,6 +22,10 @@ import {
   SubscriptionDelegationServiceErrorMessage,
 } from './constants.js';
 import { createModuleLogger, projectLogger } from './logger.js';
+import {
+  getSubscriptionByProduct,
+  selectIsActiveSubscriber,
+} from './selectors.js';
 import type { SubscriptionControllerMethodActions } from './SubscriptionController-method-action-types.js';
 import type {
   SubscriptionServiceAssignUserToCohortAction,
@@ -500,9 +504,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * @returns The subscription.
    */
   getSubscriptionByProduct(productType: ProductType): Subscription | undefined {
-    return this.state.subscriptions.find((subscription) =>
-      subscription.products.some((product) => product.name === productType),
-    );
+    return getSubscriptionByProduct(this.state, productType);
   }
 
   /**
@@ -1361,11 +1363,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   }
 
   #hasActiveMoneyAccountPlusSubscription(): boolean {
-    return this.state.subscriptions.some(
-      (subscription) =>
-        subscription.products.some(
-          (product) => product.name === PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
-        ) && ACTIVE_SUBSCRIPTION_STATUSES.includes(subscription.status),
+    return selectIsActiveSubscriber(
+      this.state,
+      PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
     );
   }
 

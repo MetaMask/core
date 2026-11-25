@@ -35,6 +35,7 @@ import {
   SubscriptionControllerErrorMessage,
   SubscriptionDelegationServiceErrorMessage,
 } from '../constants.js';
+import { isSubscriptionChargeRetryable } from '../selectors.js';
 import type {
   SubscriptionController,
   SubscriptionControllerState,
@@ -65,7 +66,6 @@ import {
   TRANSFER_CALLDATA_PREFIX_START_INDEX,
 } from './caveats.js';
 import {
-  isSubscriptionChargeRetryable,
   SubscriptionDelegationService,
   serviceName,
 } from './SubscriptionDelegationService.js';

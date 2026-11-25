@@ -43,6 +43,10 @@ import {
   SubscriptionDelegationServiceErrorMessage,
 } from '../constants.js';
 import { createModuleLogger, projectLogger } from '../logger.js';
+import {
+  getSubscriptionByProduct,
+  isSubscriptionChargeRetryable,
+} from '../selectors.js';
 import type {
   SubscriptionControllerGetPricingAction,
   SubscriptionControllerGetSubscriptionsAction,
@@ -55,14 +59,7 @@ import type {
   SubscriptionControllerGetStateAction,
   SubscriptionControllerState,
 } from '../SubscriptionController.js';
-import {
-  CRYPTO_AUTH_METHODS,
-  CRYPTO_PAYMENT_ERRORS,
-  INVOICE_PAYMENT_STATUSES,
-  PAYMENT_TYPES,
-  PRODUCT_TYPES,
-  SUBSCRIPTION_STATUSES,
-} from '../types.js';
+import { CRYPTO_AUTH_METHODS, PAYMENT_TYPES, PRODUCT_TYPES } from '../types.js';
 import type {
   ProductPrice,
   ProductType,
@@ -70,7 +67,6 @@ import type {
   PricingResponse,
   RecurringInterval,
   Subscription,
-  SubscriptionCryptoPaymentMethod,
   TokenPaymentInfo,
 } from '../types.js';
 import {
@@ -142,11 +138,7 @@ const log = createModuleLogger(projectLogger, serviceName);
 function selectMoneyAccountPlusSubscription(
   state: SubscriptionControllerState,
 ): Subscription | undefined {
-  return state.subscriptions.find((subscription) =>
-    subscription.products.some(
-      (product) => product.name === PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
-    ),
-  );
+  return getSubscriptionByProduct(state, PRODUCT_TYPES.MONEY_ACCOUNT_PLUS);
 }
 
 function resolveEnforcers(chainId: Hex): SubscriptionDelegationEnforcers {
@@ -166,51 +158,6 @@ function resolveEnforcers(chainId: Hex): SubscriptionDelegationEnforcers {
     erc20TokenPeriodTransfer: contracts.ERC20PeriodTransferEnforcer,
     allowedCalldata: contracts.AllowedCalldataEnforcer,
   };
-}
-
-/**
- * Returns whether a crypto subscription is stuck on a charge that a funded
- * Money Account can unblock with `SubscriptionController:retryCryptoCharge`.
- *
- * Mirrors the Subscription API retry rules. Failed invoices only qualify when
- * the failure was `insufficient_balance`; other failures cannot be fixed by a
- * deposit, and retrying them would re-queue the same failing collection.
- *
- * @param subscription - The subscription to check.
- * @returns Whether the charge can be retried.
- */
-export function isSubscriptionChargeRetryable(
-  subscription: Subscription,
-): subscription is Subscription & {
-  paymentMethod: SubscriptionCryptoPaymentMethod;
-} {
-  const { paymentMethod, lastInvoice, status } = subscription;
-  if (
-    paymentMethod.type !== PAYMENT_TYPES.byCrypto ||
-    subscription.cancelAtPeriodEnd
-  ) {
-    return false;
-  }
-  // Above the paused return: a later poll re-sends the charge otherwise.
-  if (
-    lastInvoice?.status === INVOICE_PAYMENT_STATUSES.PROCESSING ||
-    (lastInvoice?.status === INVOICE_PAYMENT_STATUSES.FAILED &&
-      lastInvoice.errorCode !== CRYPTO_PAYMENT_ERRORS.INSUFFICIENT_BALANCE)
-  ) {
-    return false;
-  }
-  if (status === SUBSCRIPTION_STATUSES.paused) {
-    return true;
-  }
-  const isBalanceFailure =
-    lastInvoice?.status === INVOICE_PAYMENT_STATUSES.FAILED &&
-    lastInvoice.errorCode === CRYPTO_PAYMENT_ERRORS.INSUFFICIENT_BALANCE;
-  return (
-    isBalanceFailure &&
-    (status === SUBSCRIPTION_STATUSES.pastDue ||
-      (status === SUBSCRIPTION_STATUSES.active &&
-        Boolean(paymentMethod.crypto.error)))
-  );
 }
 
 function isChargeRetryTransaction(transactionMeta: TransactionMeta): boolean {
