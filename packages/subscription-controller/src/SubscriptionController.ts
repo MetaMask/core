@@ -39,6 +39,8 @@ import type {
   SubscriptionServiceUnCancelSubscriptionAction,
   SubscriptionServiceUpdatePaymentMethodCardAction,
   SubscriptionServiceUpdatePaymentMethodCryptoAction,
+  SubscriptionServicePayLastInvoiceAction,
+  SubscriptionServiceVerifyPaymentMethodAction,
 } from './SubscriptionService-method-action-types.js';
 import {
   CRYPTO_AUTH_METHODS,
@@ -130,6 +132,8 @@ type AllowedActions =
   | SubscriptionServiceStartSubscriptionWithCryptoAction
   | SubscriptionServiceUpdatePaymentMethodCardAction
   | SubscriptionServiceUpdatePaymentMethodCryptoAction
+  | SubscriptionServicePayLastInvoiceAction
+  | SubscriptionServiceVerifyPaymentMethodAction
   | SubscriptionServiceGetBillingPortalUrlAction
   | SubscriptionServiceSubmitSponsorshipIntentsAction
   | SubscriptionServiceSubmitUserEventAction
@@ -275,6 +279,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'submitSubscriptionCryptoApproval',
   'getCryptoApproveTransactionParams',
   'updatePaymentMethod',
+  'retryCryptoCharge',
   'getBillingPortalUrl',
   'cacheLastSelectedPaymentMethod',
   'clearLastSelectedPaymentMethod',
@@ -906,6 +911,36 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       return await this.getSubscriptions();
     }
     throw new Error('Invalid payment type');
+  }
+
+  /**
+   * Retries a failed crypto charge with the stored payment method: verifies
+   * the payment method of a paused subscription, otherwise pays the last
+   * invoice.
+   *
+   * @param request - The retry request.
+   * @param request.subscriptionId - The subscription to retry.
+   * @returns The refreshed subscriptions.
+   */
+  async retryCryptoCharge(request: {
+    subscriptionId: string;
+  }): Promise<Subscription[]> {
+    const subscription = this.state.subscriptions.find(
+      ({ id }) => id === request.subscriptionId,
+    );
+    if (!subscription) {
+      throw new Error(SubscriptionControllerErrorMessage.UserNotSubscribed);
+    }
+    if (subscription.status === SUBSCRIPTION_STATUSES.paused) {
+      await this.messenger.call('SubscriptionService:verifyPaymentMethod', {
+        subscriptionId: request.subscriptionId,
+      });
+    } else {
+      await this.messenger.call('SubscriptionService:payLastInvoice', {
+        subscriptionId: request.subscriptionId,
+      });
+    }
+    return await this.getSubscriptions();
   }
 
   /**

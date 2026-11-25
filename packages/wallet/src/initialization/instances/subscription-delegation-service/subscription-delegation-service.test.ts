@@ -64,7 +64,7 @@ describe('subscriptionDelegationService', () => {
         'SubscriptionController:startSubscriptionWithCrypto',
         'KeyringController:getState',
         'AuthenticationController:isSignedIn',
-        'SubscriptionController:updatePaymentMethod',
+        'SubscriptionController:retryCryptoCharge',
         'SubscriptionController:setChargeRetryInProgress',
       ],
       events: [

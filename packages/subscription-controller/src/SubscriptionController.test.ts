@@ -326,6 +326,8 @@ const SUBSCRIPTION_SERVICE_ACTIONS = [
   'SubscriptionService:startSubscriptionWithCrypto',
   'SubscriptionService:updatePaymentMethodCard',
   'SubscriptionService:updatePaymentMethodCrypto',
+  'SubscriptionService:payLastInvoice',
+  'SubscriptionService:verifyPaymentMethod',
   'SubscriptionService:getSubscriptionsEligibilities',
   'SubscriptionService:submitUserEvent',
   'SubscriptionService:assignUserToCohort',
@@ -436,6 +438,8 @@ function registerMockSubscriptionService(rootMessenger: RootMessenger): {
     startSubscriptionWithCrypto: Mock;
     updatePaymentMethodCard: Mock;
     updatePaymentMethodCrypto: Mock;
+    payLastInvoice: Mock;
+    verifyPaymentMethod: Mock;
     getBillingPortalUrl: Mock;
     getSubscriptionsEligibilities: Mock;
     submitUserEvent: Mock;
@@ -464,6 +468,8 @@ function registerMockSubscriptionService(rootMessenger: RootMessenger): {
   const mockStartSubscriptionWithCrypto = vi.fn();
   const mockUpdatePaymentMethodCard = vi.fn();
   const mockUpdatePaymentMethodCrypto = vi.fn();
+  const mockPayLastInvoice = vi.fn();
+  const mockVerifyPaymentMethod = vi.fn();
   const mockGetBillingPortalUrl = vi.fn();
   const mockGetSubscriptionsEligibilities = vi.fn();
   const mockSubmitUserEvent = vi.fn();
@@ -508,6 +514,14 @@ function registerMockSubscriptionService(rootMessenger: RootMessenger): {
     mockUpdatePaymentMethodCrypto,
   );
   rootMessenger.registerActionHandler(
+    'SubscriptionService:payLastInvoice',
+    mockPayLastInvoice,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:verifyPaymentMethod',
+    mockVerifyPaymentMethod,
+  );
+  rootMessenger.registerActionHandler(
     'SubscriptionService:getBillingPortalUrl',
     mockGetBillingPortalUrl,
   );
@@ -542,6 +556,8 @@ function registerMockSubscriptionService(rootMessenger: RootMessenger): {
     startSubscriptionWithCrypto: mockStartSubscriptionWithCrypto,
     updatePaymentMethodCard: mockUpdatePaymentMethodCard,
     updatePaymentMethodCrypto: mockUpdatePaymentMethodCrypto,
+    payLastInvoice: mockPayLastInvoice,
+    verifyPaymentMethod: mockVerifyPaymentMethod,
     getBillingPortalUrl: mockGetBillingPortalUrl,
     getSubscriptionsEligibilities: mockGetSubscriptionsEligibilities,
     submitUserEvent: mockSubmitUserEvent,
@@ -5174,6 +5190,52 @@ describe('SubscriptionController', () => {
             opts,
           ),
         ).rejects.toThrow('Invalid payment type');
+      });
+    });
+  });
+
+  describe('retryCryptoCharge', () => {
+    it.each([
+      [SUBSCRIPTION_STATUSES.paused, 'verifyPaymentMethod', 'payLastInvoice'],
+      [SUBSCRIPTION_STATUSES.pastDue, 'payLastInvoice', 'verifyPaymentMethod'],
+      [SUBSCRIPTION_STATUSES.active, 'payLastInvoice', 'verifyPaymentMethod'],
+    ] as const)(
+      'calls %s subscriptions through %s and refreshes state',
+      async (status, calledMethod, skippedMethod) => {
+        await withController(
+          { state: { subscriptions: [{ ...MOCK_SUBSCRIPTION, status }] } },
+          async ({ controller, rootMessenger, mockService }) => {
+            mockService[calledMethod].mockResolvedValue(MOCK_SUBSCRIPTION);
+            mockService.getSubscriptions.mockResolvedValue(
+              MOCK_GET_SUBSCRIPTIONS_RESPONSE,
+            );
+
+            await rootMessenger.call(
+              'SubscriptionController:retryCryptoCharge',
+              { subscriptionId: MOCK_SUBSCRIPTION.id },
+            );
+
+            expect(mockService[calledMethod]).toHaveBeenCalledWith({
+              subscriptionId: MOCK_SUBSCRIPTION.id,
+            });
+            expect(mockService[skippedMethod]).not.toHaveBeenCalled();
+            expect(controller.state.subscriptions).toStrictEqual([
+              MOCK_SUBSCRIPTION,
+            ]);
+          },
+        );
+      },
+    );
+
+    it('throws when the user has no such subscription', async () => {
+      await withController(async ({ rootMessenger, mockService }) => {
+        await expect(
+          rootMessenger.call('SubscriptionController:retryCryptoCharge', {
+            subscriptionId: 'sub_unknown',
+          }),
+        ).rejects.toThrow(SubscriptionControllerErrorMessage.UserNotSubscribed);
+        expect(mockService.payLastInvoice).not.toHaveBeenCalled();
+        expect(mockService.verifyPaymentMethod).not.toHaveBeenCalled();
       });
     });
   });

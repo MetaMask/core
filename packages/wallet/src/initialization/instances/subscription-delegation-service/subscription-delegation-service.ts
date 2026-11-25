@@ -38,7 +38,7 @@ export const subscriptionDelegationService: InitializationConfiguration<
         'SubscriptionController:startSubscriptionWithCrypto',
         'KeyringController:getState',
         'AuthenticationController:isSignedIn',
-        'SubscriptionController:updatePaymentMethod',
+        'SubscriptionController:retryCryptoCharge',
         'SubscriptionController:setChargeRetryInProgress',
       ],
       events: [

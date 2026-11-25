@@ -175,6 +175,20 @@ export type SubscriptionControllerUpdatePaymentMethodAction = {
 };
 
 /**
+ * Retries a failed crypto charge with the stored payment method: verifies
+ * the payment method of a paused subscription, otherwise pays the last
+ * invoice.
+ *
+ * @param request - The retry request.
+ * @param request.subscriptionId - The subscription to retry.
+ * @returns The refreshed subscriptions.
+ */
+export type SubscriptionControllerRetryCryptoChargeAction = {
+  type: `SubscriptionController:retryCryptoCharge`;
+  handler: SubscriptionController['retryCryptoCharge'];
+};
+
+/**
  * Gets the billing portal URL.
  *
  * @returns The billing portal URL
@@ -349,6 +363,7 @@ export type SubscriptionControllerMethodActions =
   | SubscriptionControllerSubmitSubscriptionCryptoApprovalAction
   | SubscriptionControllerGetCryptoApproveTransactionParamsAction
   | SubscriptionControllerUpdatePaymentMethodAction
+  | SubscriptionControllerRetryCryptoChargeAction
   | SubscriptionControllerGetBillingPortalUrlAction
   | SubscriptionControllerCacheLastSelectedPaymentMethodAction
   | SubscriptionControllerClearLastSelectedPaymentMethodAction

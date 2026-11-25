@@ -290,7 +290,7 @@ type Mocks = {
   >;
   getKeyringState: Mock;
   isSignedIn: Mock<() => boolean>;
-  updatePaymentMethod: Mock;
+  retryCryptoCharge: Mock;
   setChargeRetryInProgress: Mock<(isInProgress: boolean) => void>;
 };
 
@@ -374,7 +374,7 @@ function setup(
     isSignedIn: vi
       .fn<() => boolean>()
       .mockReturnValue(options.isSignedIn ?? true),
-    updatePaymentMethod: vi.fn().mockResolvedValue([]),
+    retryCryptoCharge: vi.fn().mockResolvedValue([]),
     setChargeRetryInProgress: vi.fn<(isInProgress: boolean) => void>(),
   };
   mocks.getIntentsByAddress.mockImplementation(async () => {
@@ -451,8 +451,8 @@ function setup(
         handler: Mocks['isSignedIn'];
       }
     | {
-        type: 'SubscriptionController:updatePaymentMethod';
-        handler: Mocks['updatePaymentMethod'];
+        type: 'SubscriptionController:retryCryptoCharge';
+        handler: Mocks['retryCryptoCharge'];
       }
     | {
         type: 'SubscriptionController:setChargeRetryInProgress';
@@ -551,8 +551,8 @@ function setup(
     mocks.isSignedIn,
   );
   rootMessenger.registerActionHandler(
-    'SubscriptionController:updatePaymentMethod',
-    mocks.updatePaymentMethod,
+    'SubscriptionController:retryCryptoCharge',
+    mocks.retryCryptoCharge,
   );
   rootMessenger.registerActionHandler(
     'SubscriptionController:setChargeRetryInProgress',
@@ -583,7 +583,7 @@ function setup(
       'SubscriptionController:startSubscriptionWithCrypto',
       'KeyringController:getState',
       'AuthenticationController:isSignedIn',
-      'SubscriptionController:updatePaymentMethod',
+      'SubscriptionController:retryCryptoCharge',
       'SubscriptionController:setChargeRetryInProgress',
     ],
     events: [
@@ -1958,15 +1958,7 @@ describe('SubscriptionDelegationService charge retry', () => {
 
   const DEPOSIT_RECHECK_DELAY = 90 * 1000;
 
-  const EXPECTED_RETRY_REQUEST = {
-    paymentType: PAYMENT_TYPES.byCrypto,
-    subscriptionId: 'sub_123',
-    chainId: CHAIN_ID,
-    payerAddress: PAYER,
-    tokenSymbol: 'pvmUSD',
-    recurringInterval: RECURRING_INTERVALS.month,
-    billingCycles: PRICE.minBillingCycles,
-  };
+  const EXPECTED_RETRY_REQUEST = { subscriptionId: 'sub_123' };
 
   type RootMessenger = ReturnType<typeof setup>['rootMessenger'];
 
@@ -2038,24 +2030,21 @@ describe('SubscriptionDelegationService charge retry', () => {
     it.each([
       TransactionType.moneyAccountDeposit,
       TransactionType.membershipSubscription,
-    ])(
-      'sends a credential-less updatePaymentMethod after a confirmed %s',
-      async (type) => {
-        const { rootMessenger, mocks } = setup({
-          cachedSubscriptions: [buildStuckSubscription()],
-        });
+    ])('retries the charge after a confirmed %s', async (type) => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+      });
 
-        publishConfirmed(rootMessenger, { type });
-        await flush();
+      publishConfirmed(rootMessenger, { type });
+      await flush();
 
-        expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
-        expect(mocks.updatePaymentMethod.mock.calls[0][0]).toStrictEqual(
-          EXPECTED_RETRY_REQUEST,
-        );
-      },
-    );
+      expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(1);
+      expect(mocks.retryCryptoCharge.mock.calls[0][0]).toStrictEqual(
+        EXPECTED_RETRY_REQUEST,
+      );
+    });
 
-    it('sends updatePaymentMethod when the deposit is nested in a batch', async () => {
+    it('sends retryCryptoCharge when the deposit is nested in a batch', async () => {
       const { rootMessenger, mocks } = setup({
         cachedSubscriptions: [buildStuckSubscription()],
       });
@@ -2069,7 +2058,7 @@ describe('SubscriptionDelegationService charge retry', () => {
       });
       await flush();
 
-      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+      expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(1);
     });
 
     it('ignores other transaction types', async () => {
@@ -2081,7 +2070,7 @@ describe('SubscriptionDelegationService charge retry', () => {
       await flush();
 
       expect(mocks.fetchBalanceWithFallback).not.toHaveBeenCalled();
-      expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+      expect(mocks.retryCryptoCharge).not.toHaveBeenCalled();
     });
 
     it('ignores transactions that are not confirmed', async () => {
@@ -2092,7 +2081,7 @@ describe('SubscriptionDelegationService charge retry', () => {
       publishConfirmed(rootMessenger, { status: TransactionStatus.failed });
       await flush();
 
-      expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+      expect(mocks.retryCryptoCharge).not.toHaveBeenCalled();
     });
 
     it('reconciles on init when the wallet is already unlocked', async () => {
@@ -2103,8 +2092,8 @@ describe('SubscriptionDelegationService charge retry', () => {
       service.init();
       await flush();
 
-      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
-      expect(mocks.updatePaymentMethod.mock.calls[0][0]).toStrictEqual(
+      expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(1);
+      expect(mocks.retryCryptoCharge.mock.calls[0][0]).toStrictEqual(
         EXPECTED_RETRY_REQUEST,
       );
     });
@@ -2119,7 +2108,7 @@ describe('SubscriptionDelegationService charge retry', () => {
       await flush();
 
       expect(mocks.fetchBalanceWithFallback).not.toHaveBeenCalled();
-      expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+      expect(mocks.retryCryptoCharge).not.toHaveBeenCalled();
     });
 
     it('reconciles on unlock without a prior deposit', async () => {
@@ -2130,7 +2119,7 @@ describe('SubscriptionDelegationService charge retry', () => {
       rootMessenger.publish('KeyringController:unlock');
       await flush();
 
-      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+      expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(1);
     });
 
     it('reconciles on sign-in after unlocking while signed out', async () => {
@@ -2140,14 +2129,14 @@ describe('SubscriptionDelegationService charge retry', () => {
       });
       rootMessenger.publish('KeyringController:unlock');
       await flush();
-      expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+      expect(mocks.retryCryptoCharge).not.toHaveBeenCalled();
 
       mocks.isSignedIn.mockReturnValue(true);
       publishSignedIn(rootMessenger, true);
       await flush();
 
-      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
-      expect(mocks.updatePaymentMethod.mock.calls[0][0]).toStrictEqual(
+      expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(1);
+      expect(mocks.retryCryptoCharge.mock.calls[0][0]).toStrictEqual(
         EXPECTED_RETRY_REQUEST,
       );
     });
@@ -2162,7 +2151,7 @@ describe('SubscriptionDelegationService charge retry', () => {
       await flush();
 
       expect(mocks.fetchBalanceWithFallback).not.toHaveBeenCalled();
-      expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+      expect(mocks.retryCryptoCharge).not.toHaveBeenCalled();
     });
 
     it('reconciles when the cached Plus subscription changes', async () => {
@@ -2174,7 +2163,7 @@ describe('SubscriptionDelegationService charge retry', () => {
       publishSubscriptionState(rootMessenger, [subscription]);
       await flush();
 
-      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+      expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(1);
     });
 
     it('does not reconcile when a state change leaves the Plus subscription unchanged', async () => {
@@ -2188,7 +2177,7 @@ describe('SubscriptionDelegationService charge retry', () => {
       publishSubscriptionState(rootMessenger, [subscription]);
       await flush();
 
-      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+      expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -2203,7 +2192,7 @@ describe('SubscriptionDelegationService charge retry', () => {
       await flush();
 
       expect(mocks.fetchBalanceWithFallback).not.toHaveBeenCalled();
-      expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+      expect(mocks.retryCryptoCharge).not.toHaveBeenCalled();
     });
 
     it('does nothing while signed out', async () => {
@@ -2216,7 +2205,7 @@ describe('SubscriptionDelegationService charge retry', () => {
       await flush();
 
       expect(mocks.fetchBalanceWithFallback).not.toHaveBeenCalled();
-      expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+      expect(mocks.retryCryptoCharge).not.toHaveBeenCalled();
     });
 
     it('does nothing without a Plus subscription', async () => {
@@ -2243,10 +2232,10 @@ describe('SubscriptionDelegationService charge retry', () => {
       await flush();
 
       expect(mocks.fetchBalanceWithFallback).not.toHaveBeenCalled();
-      expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+      expect(mocks.retryCryptoCharge).not.toHaveBeenCalled();
     });
 
-    it('does nothing when billingCycles is missing', async () => {
+    it('retries when billingCycles is missing', async () => {
       const { rootMessenger, mocks } = setup({
         cachedSubscriptions: [
           { ...buildStuckSubscription(), billingCycles: undefined },
@@ -2256,7 +2245,7 @@ describe('SubscriptionDelegationService charge retry', () => {
       publishConfirmed(rootMessenger);
       await flush();
 
-      expect(mocks.fetchBalanceWithFallback).not.toHaveBeenCalled();
+      expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(1);
     });
 
     it('does not refresh subscriptions after a skipped run', async () => {
@@ -2281,13 +2270,13 @@ describe('SubscriptionDelegationService charge retry', () => {
 
       publishConfirmed(rootMessenger);
       await flush();
-      expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+      expect(mocks.retryCryptoCharge).not.toHaveBeenCalled();
 
       mocks.fetchBalanceWithFallback.mockResolvedValue(SUFFICIENT_BALANCE);
       await vi.advanceTimersByTimeAsync(CHARGE_RETRY_INTERVAL);
 
       expect(mocks.fetchBalanceWithFallback).toHaveBeenCalledTimes(2);
-      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+      expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(1);
     });
 
     it('re-checks when the balance read fails', async () => {
@@ -2298,11 +2287,11 @@ describe('SubscriptionDelegationService charge retry', () => {
 
       publishConfirmed(rootMessenger);
       await flush();
-      expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+      expect(mocks.retryCryptoCharge).not.toHaveBeenCalled();
 
       await vi.advanceTimersByTimeAsync(CHARGE_RETRY_INTERVAL);
 
-      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+      expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(1);
     });
 
     it('does not re-check after a charge was sent', async () => {
@@ -2315,7 +2304,7 @@ describe('SubscriptionDelegationService charge retry', () => {
       await vi.advanceTimersByTimeAsync(CHARGE_RETRY_INTERVAL * 3);
 
       expect(mocks.fetchBalanceWithFallback).toHaveBeenCalledTimes(1);
-      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+      expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(1);
     });
 
     it('stops re-checking once locked', async () => {
@@ -2374,7 +2363,7 @@ describe('SubscriptionDelegationService charge retry', () => {
       mocks.fetchBalanceWithFallback.mockResolvedValue(SUFFICIENT_BALANCE);
       await vi.advanceTimersByTimeAsync(DEPOSIT_RECHECK_DELAY);
 
-      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+      expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(1);
     });
 
     it('keeps the post-deposit re-check when another trigger runs first', async () => {
@@ -2390,7 +2379,7 @@ describe('SubscriptionDelegationService charge retry', () => {
       mocks.fetchBalanceWithFallback.mockResolvedValue(SUFFICIENT_BALANCE);
       await vi.advanceTimersByTimeAsync(DEPOSIT_RECHECK_DELAY);
 
-      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+      expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(1);
     });
 
     it('drops the post-deposit re-check when the subscription is not stuck', async () => {
@@ -2435,7 +2424,7 @@ describe('SubscriptionDelegationService charge retry', () => {
       await flush();
 
       expect(mocks.getPricing).not.toHaveBeenCalled();
-      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+      expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(1);
     });
 
     it('fetches pricing when none is cached', async () => {
@@ -2447,7 +2436,7 @@ describe('SubscriptionDelegationService charge retry', () => {
       await flush();
 
       expect(mocks.getPricing).toHaveBeenCalledTimes(1);
-      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+      expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -2456,7 +2445,7 @@ describe('SubscriptionDelegationService charge retry', () => {
       const { rootMessenger, mocks } = setup({
         cachedSubscriptions: [buildStuckSubscription()],
       });
-      mocks.updatePaymentMethod.mockImplementationOnce(async () => {
+      mocks.retryCryptoCharge.mockImplementationOnce(async () => {
         expect(mocks.setChargeRetryInProgress.mock.calls).toStrictEqual([
           [true],
         ]);
@@ -2476,7 +2465,7 @@ describe('SubscriptionDelegationService charge retry', () => {
       const { rootMessenger, mocks } = setup({
         cachedSubscriptions: [buildStuckSubscription()],
       });
-      mocks.updatePaymentMethod.mockRejectedValueOnce(new Error('400'));
+      mocks.retryCryptoCharge.mockRejectedValueOnce(new Error('400'));
       mocks.getSubscriptions.mockImplementationOnce(async () => {
         expect(mocks.setChargeRetryInProgress).toHaveBeenLastCalledWith(true);
         return [];
@@ -2505,12 +2494,12 @@ describe('SubscriptionDelegationService charge retry', () => {
       const { rootMessenger, mocks } = setup({
         cachedSubscriptions: [buildStuckSubscription()],
       });
-      mocks.updatePaymentMethod.mockRejectedValueOnce(new Error('400'));
+      mocks.retryCryptoCharge.mockRejectedValueOnce(new Error('400'));
 
       publishConfirmed(rootMessenger);
       await flush();
 
-      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+      expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(1);
       expect(mocks.getSubscriptions).toHaveBeenCalledTimes(1);
     });
 
@@ -2518,7 +2507,7 @@ describe('SubscriptionDelegationService charge retry', () => {
       const { rootMessenger, mocks } = setup({
         cachedSubscriptions: [buildStuckSubscription()],
       });
-      mocks.updatePaymentMethod.mockRejectedValueOnce(new Error('400'));
+      mocks.retryCryptoCharge.mockRejectedValueOnce(new Error('400'));
       mocks.getSubscriptions.mockRejectedValueOnce(new Error('network'));
 
       publishConfirmed(rootMessenger);
@@ -2542,14 +2531,14 @@ describe('SubscriptionDelegationService charge retry', () => {
       const { rootMessenger, mocks } = setup({
         cachedSubscriptions: [buildStuckSubscription()],
       });
-      mocks.updatePaymentMethod.mockRejectedValueOnce(new Error('400'));
+      mocks.retryCryptoCharge.mockRejectedValueOnce(new Error('400'));
       publishConfirmed(rootMessenger);
       await flush();
 
       publishConfirmed(rootMessenger);
       await flush();
 
-      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(2);
+      expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(2);
     });
 
     it.each([SUBSCRIPTION_STATUSES.pastDue, SUBSCRIPTION_STATUSES.paused])(
@@ -2577,7 +2566,7 @@ describe('SubscriptionDelegationService charge retry', () => {
         publishSubscriptionState(rootMessenger, [collecting]);
         await flush();
 
-        expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+        expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(1);
       },
     );
 
@@ -2606,7 +2595,7 @@ describe('SubscriptionDelegationService charge retry', () => {
         publishSubscriptionState(rootMessenger, [failed]);
         await flush();
 
-        expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+        expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(1);
       },
     );
   });
@@ -2622,12 +2611,12 @@ describe('SubscriptionDelegationService charge retry', () => {
 
       publishConfirmed(rootMessenger);
       await flush();
-      expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+      expect(mocks.retryCryptoCharge).not.toHaveBeenCalled();
 
       publishConfirmed(rootMessenger);
       await flush();
 
-      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+      expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -2658,7 +2647,7 @@ describe('SubscriptionDelegationService charge retry', () => {
     it('does not charge again for triggers that arrive while a charge is sent', async () => {
       const stuck = buildStuckSubscription();
       const { rootMessenger, mocks } = setup({ cachedSubscriptions: [stuck] });
-      mocks.updatePaymentMethod.mockImplementationOnce(async () => {
+      mocks.retryCryptoCharge.mockImplementationOnce(async () => {
         // The controller refreshes subscriptions before the backend shows the
         // charge, so the cached subscription still looks retryable.
         publishSubscriptionState(rootMessenger, [{ ...stuck }]);
@@ -2668,7 +2657,7 @@ describe('SubscriptionDelegationService charge retry', () => {
       publishConfirmed(rootMessenger);
       await flush();
 
-      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+      expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -2709,7 +2698,7 @@ describe('SubscriptionDelegationService charge retry', () => {
       await vi.advanceTimersByTimeAsync(CHARGE_RETRY_INTERVAL * 3);
 
       expect(mocks.fetchBalanceWithFallback).toHaveBeenCalledTimes(1);
-      expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+      expect(mocks.retryCryptoCharge).not.toHaveBeenCalled();
     });
 
     it('ignores triggers after destroy', async () => {

@@ -47,9 +47,9 @@ import type {
   SubscriptionControllerGetPricingAction,
   SubscriptionControllerGetSubscriptionsAction,
   SubscriptionControllerIsUserEligibleForTrialAction,
+  SubscriptionControllerRetryCryptoChargeAction,
   SubscriptionControllerSetChargeRetryInProgressAction,
   SubscriptionControllerStartSubscriptionWithCryptoAction,
-  SubscriptionControllerUpdatePaymentMethodAction,
 } from '../SubscriptionController-method-action-types.js';
 import type {
   SubscriptionControllerGetStateAction,
@@ -170,7 +170,7 @@ function resolveEnforcers(chainId: Hex): SubscriptionDelegationEnforcers {
 
 /**
  * Returns whether a crypto subscription is stuck on a charge that a funded
- * Money Account can unblock with a credential-less `updatePaymentMethod`.
+ * Money Account can unblock with `SubscriptionController:retryCryptoCharge`.
  *
  * Mirrors the Subscription API retry rules. Failed invoices only qualify when
  * the failure was `insufficient_balance`; other failures cannot be fixed by a
@@ -254,7 +254,7 @@ type AllowedActions =
   | SubscriptionControllerIsUserEligibleForTrialAction
   | SubscriptionControllerSetChargeRetryInProgressAction
   | SubscriptionControllerStartSubscriptionWithCryptoAction
-  | SubscriptionControllerUpdatePaymentMethodAction;
+  | SubscriptionControllerRetryCryptoChargeAction;
 
 /**
  * Events that {@link SubscriptionDelegationService} exposes to other consumers.
@@ -450,7 +450,7 @@ export class SubscriptionDelegationService {
   }
 
   /**
-   * Sends a credential-less `updatePaymentMethod` for a stuck Money Account
+   * Calls `SubscriptionController:retryCryptoCharge` for a stuck Money Account
    * Plus subscription once the Money Account covers the charge. Re-checks on a
    * timer while the balance is short; never after a charge was sent.
    */
@@ -467,17 +467,12 @@ export class SubscriptionDelegationService {
       'SubscriptionController:getState',
     );
     const subscription = selectMoneyAccountPlusSubscription(subscriptionState);
-    if (
-      !subscription ||
-      !isSubscriptionChargeRetryable(subscription) ||
-      subscription.billingCycles === undefined
-    ) {
+    if (!subscription || !isSubscriptionChargeRetryable(subscription)) {
       this.#clearChargeRetryTimer();
       return;
     }
 
-    const { payerAddress, chainId, tokenSymbol } =
-      subscription.paymentMethod.crypto;
+    const { payerAddress } = subscription.paymentMethod.crypto;
     let hasSufficientBalance = false;
     try {
       const { price } = await this.#resolveConfiguration(
@@ -506,14 +501,8 @@ export class SubscriptionDelegationService {
       true,
     );
     try {
-      await this.#messenger.call('SubscriptionController:updatePaymentMethod', {
-        paymentType: PAYMENT_TYPES.byCrypto,
+      await this.#messenger.call('SubscriptionController:retryCryptoCharge', {
         subscriptionId: subscription.id,
-        chainId,
-        payerAddress,
-        tokenSymbol,
-        recurringInterval: subscription.interval,
-        billingCycles: subscription.billingCycles,
       });
     } catch (error) {
       log('Failed to retry subscription charge', error);
