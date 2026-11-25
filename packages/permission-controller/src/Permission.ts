@@ -462,8 +462,17 @@ export type EndowmentSpecificationConstraint =
      * will be called by the {@link PermissionController} whenever the
      * permission is invoked, after which the host can apply the endowments to
      * the requesting subject in the intended manner.
+     *
+     * In practice, endowments are used to grant a subject access to JavaScript
+     * globals (e.g., `fetch` or `WebAssembly`). The returned value typically
+     * lists the names of the globals that the host should expose.
      */
-    endowmentGetter: EndowmentGetter<Json>;
+    endowmentGetter?: EndowmentGetter<Json>;
+
+    /**
+     * A list of RPC method names this endowment gates access to.
+     */
+    rpcMethods?: readonly string[];
   };
 
 /**

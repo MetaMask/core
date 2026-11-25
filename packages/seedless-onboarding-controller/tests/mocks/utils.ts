@@ -18,9 +18,11 @@ export function createMockJWTToken(
     ...payload,
   };
   const header = { alg: 'HS256', typ: 'JWT' };
-  const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64');
+  const encodedHeader = Buffer.from(JSON.stringify(header)).toString(
+    'base64url',
+  );
   const encodedPayload = Buffer.from(JSON.stringify(defaultPayload)).toString(
-    'base64',
+    'base64url',
   );
   const signature = 'mock_signature';
   return `${encodedHeader}.${encodedPayload}.${signature}`;

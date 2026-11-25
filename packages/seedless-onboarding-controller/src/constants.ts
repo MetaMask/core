@@ -136,6 +136,7 @@ export enum SeedlessOnboardingControllerErrorMessage {
   ControllerLocked = `${controllerName} - The operation cannot be completed while the controller is locked.`,
   VaultLocked = `${controllerName} - The operation cannot be completed while the vault is locked.`,
   AuthenticationError = `${controllerName} - Authentication error`,
+  UserAlreadyAuthenticated = `${controllerName} - A different user or verifier is already authenticated; call clearState before authenticating another user`,
   IdentityMismatch = `${controllerName} - Identity mismatch between idToken and user ID`,
   MissingAuthUserInfo = `${controllerName} - Missing authenticated user information`,
   FailedToPersistOprfKey = `${controllerName} - Failed to persist OPRF key`,
@@ -175,6 +176,19 @@ export enum SeedlessOnboardingControllerErrorMessage {
   InvalidPasswordOutdatedCache = `${controllerName} - Invalid password outdated cache provided.`,
   FailedToRefreshJWTTokens = `${controllerName} - Failed to refresh JWT tokens`,
   PrimarySrpCannotBeAddedViaAddNewSecretData = `${controllerName} - PrimarySrp cannot be added via addNewSecretData. Use createToprfKeyAndBackupSeedPhrase instead.`,
+  InvalidSecretDataType = `${controllerName} - Invalid secret data type`,
+  Aal2Required = `${controllerName} - aal2 node auth tokens are missing or expired`,
+  RecoveryKeyShareConflict = `${controllerName} - The recovery secret key share belongs to a different key`,
+  InvalidEnvelope = `${controllerName} - Invalid key envelope`,
+  EnvelopeControlRecordNotFound = `${controllerName} - No control record matches the live password key`,
+  EnvelopeVaultRequiresEnvelopePasswordChange = `${controllerName} - Vault has envelope control records; use the envelope password change`,
+  EnvelopeMigrationRequiresDataTypes = `${controllerName} - Envelope migration requires the data type migration`,
+  EnvelopeMigrationInconsistent = `${controllerName} - Envelope migration is inconsistent: the vault has a control record but no recovery key is registered`,
+  EnvelopeMigrationDisabled = `${controllerName} - Envelope migration is disabled`,
+  InvalidRecoverySecret = `${controllerName} - The Recovery Secret must be a 32-byte Uint8Array`,
+  RecoveryEnvelopeNotFound = `${controllerName} - No vault keys are sealed for the Recovery Secret`,
+  PasswordEnvelopeNotFound = `${controllerName} - No vault keys are sealed for the password`,
+  PasswordResetRequiresRecovery = `${controllerName} - The password can only be reset with the vault keys after a recovery with the Recovery Secret`,
 }
 
 export const SeedlessPrimarySrpMissingEventName =
