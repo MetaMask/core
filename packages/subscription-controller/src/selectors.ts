@@ -252,11 +252,7 @@ export function selectIsChargeRetryPending(
     PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
   );
 
-  return Boolean(
-    subscription &&
-    isSubscriptionChargeRetryable(subscription) &&
-    subscription.billingCycles !== undefined,
-  );
+  return Boolean(subscription && isSubscriptionChargeRetryable(subscription));
 }
 
 /**
@@ -275,9 +271,9 @@ export function selectIsChargeRetryInProgress(
     PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
   );
 
-  return Boolean(
-    state.isChargeRetryInProgress ||
+  return (
+    Boolean(state.isChargeRetryInProgress) ||
     (subscription?.paymentMethod.type === PAYMENT_TYPES.byCrypto &&
-      subscription.lastInvoice?.status === INVOICE_PAYMENT_STATUSES.PROCESSING),
+      subscription.lastInvoice?.status === INVOICE_PAYMENT_STATUSES.PROCESSING)
   );
 }

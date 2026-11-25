@@ -489,9 +489,7 @@ describe('subscription selectors', () => {
 
     it('returns true for a Money Account Plus charge stuck on balance', () => {
       expect(
-        selectIsChargeRetryPending(
-          stateWith({ ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION, billingCycles: 12 }),
-        ),
+        selectIsChargeRetryPending(stateWith(MOCK_MONEY_ACCOUNT_SUBSCRIPTION)),
       ).toBe(true);
     });
 
@@ -500,7 +498,6 @@ describe('subscription selectors', () => {
         selectIsChargeRetryPending(
           stateWith({
             ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
-            billingCycles: 12,
             lastInvoice: {
               id: 'in_money_account',
               status: 'PROCESSING',
@@ -511,10 +508,7 @@ describe('subscription selectors', () => {
       ).toBe(false);
     });
 
-    it('returns false without billing cycles or a Money Account Plus subscription', () => {
-      expect(
-        selectIsChargeRetryPending(stateWith(MOCK_MONEY_ACCOUNT_SUBSCRIPTION)),
-      ).toBe(false);
+    it('returns false without a Money Account Plus subscription', () => {
       expect(
         selectIsChargeRetryPending({
           ...getDefaultSubscriptionControllerState(),
@@ -549,6 +543,7 @@ describe('subscription selectors', () => {
         selectIsChargeRetryInProgress({
           ...getDefaultSubscriptionControllerState(),
           subscriptions: [processingSubscription],
+          isChargeRetryInProgress: false,
         }),
       ).toBe(true);
     });
