@@ -89,9 +89,9 @@ export type Bip44AccountProvider<
    */
   getName(): string;
   /**
-   * Initialize the provider with the given accounts.
+   * Initialize the provider with a complete snapshot of accounts.
    *
-   * @param accounts - The accounts to initialize the provider with.
+   * @param accounts - The replacement account IDs; an empty array clears tracking.
    */
   init(accounts: Bip44Account<KeyringAccount>['id'][]): void;
   /**
@@ -181,16 +181,14 @@ export abstract class BaseBip44AccountProvider<
   }
 
   /**
-   * Add accounts to the provider.
+   * Replace the tracked accounts with a complete snapshot.
    *
    * Note: There's an implicit assumption that the accounts are BIP-44 compatible.
    *
-   * @param accounts - The accounts to add.
+   * @param accounts - The replacement account IDs; an empty array clears tracking.
    */
   init(accounts: Account['id'][]): void {
-    for (const account of accounts) {
-      this.accounts.add(account);
-    }
+    this.accounts = new Set(accounts);
   }
 
   /**
@@ -214,7 +212,9 @@ export abstract class BaseBip44AccountProvider<
       accountsIds,
     );
     // we cast here because we know that the accounts are BIP-44 compatible
-    return internalAccounts as unknown as Account[];
+    return internalAccounts.filter(
+      (account) => account !== undefined,
+    ) as unknown as Account[];
   }
 
   /**
