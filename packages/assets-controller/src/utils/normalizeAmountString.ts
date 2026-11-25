@@ -70,11 +70,9 @@ export function normalizeAmountString(
   // Already-canonical inputs (the common case) return verbatim — one native
   // regex test instead of a character scan, with zero string allocation.
   if (CANONICAL_PATTERN.test(amount)) {
-    if (
-      decimals === undefined ||
-      !Number.isFinite(decimals) ||
-      decimals < 0
-    ) {
+    // `NaN >= 0` is false, so typeof + comparison covers undefined, NaN and
+    // negatives; +Infinity is routed to BigNumber via the MAX check below.
+    if (typeof decimals !== 'number' || decimals < 0) {
       return amount;
     }
     const dp = Math.floor(decimals);
@@ -150,9 +148,9 @@ function normalizePlainOrExponent(
   }
 
   // Truncation to the asset's precision is active for any finite,
-  // non-negative `decimals` (matching the BigNumber branch exactly).
-  const truncate =
-    decimals !== undefined && Number.isFinite(decimals) && decimals >= 0;
+  // non-negative `decimals` (matching the BigNumber branch exactly). `NaN >= 0`
+  // is false, so typeof + comparison covers every non-truncating case.
+  const truncate = typeof decimals === 'number' && decimals >= 0;
   const dp = truncate ? Math.floor(decimals ?? 0) : 0;
   if (truncate && dp > MAX_FAST_DECIMALS) {
     // Absurd precision (BigNumber throws above MAX_DP) — defer to it.
