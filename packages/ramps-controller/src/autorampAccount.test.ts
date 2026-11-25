@@ -4,6 +4,7 @@ import type {
   ApplyAutorampRemoteStatusResult,
   AutorampAccount,
   AutorampRemoteSnapshot,
+  MusdAutorampDepositRailReadiness,
 } from './autorampAccount.js';
 import {
   AutorampStatus,
@@ -13,6 +14,7 @@ import {
   createAutorampAccount,
   getMusdAutorampDepositRailReadiness,
   isTerminalAutorampStatus,
+  isTokenUnavailableInJurisdictionError,
   markAutorampNotified,
   normalizeAutorampStatus,
 } from './autorampAccount.js';
@@ -21,16 +23,128 @@ import type {
   NeoBankCustomerAbilities,
 } from './NeoBankService.js';
 
+const musdOnMonad = (
+  flows: NeoBankCustomerAbilities['currencies'][number]['flows'],
+  token = 'mUSD',
+  blockchain = 'Monad',
+): NeoBankCustomerAbilities['currencies'][number] => ({
+  currency: { type: 'Crypto', token, blockchain },
+  flows,
+  counterparts: [],
+});
+
 const abilitiesWith = (
   fiatDeposit: Record<string, Record<string, NeoBankAbilityStatus>>,
 ): NeoBankCustomerAbilities => ({
   fiat_deposit: fiatDeposit,
   fiat_payout: {},
-  currencies: [],
+  currencies: [musdOnMonad(['Onramp', 'Offramp', 'Swap'])],
   blocking_abilities: {},
 });
 
 describe('autorampAccount', () => {
+  describe('getMusdAutorampDepositRailReadiness destination check', () => {
+    const activeBrl = {
+      brl: { pix: 'Active', pix_thirdparty: 'Active' },
+    } as const;
+    const readiness = (
+      currencies: NeoBankCustomerAbilities['currencies'],
+    ): MusdAutorampDepositRailReadiness =>
+      getMusdAutorampDepositRailReadiness(
+        { ...abilitiesWith(activeBrl), currencies },
+        'BRL',
+      );
+
+    it('is active when mUSD on Monad allows Onramp, ignoring case', () => {
+      expect(readiness([musdOnMonad(['Onramp'], 'MUSD', 'monad')])).toBe(
+        'active',
+      );
+    });
+
+    it.each([
+      ['mUSD on Monad is missing', [musdOnMonad(['Onramp'], 'USDC')]],
+      [
+        'mUSD is only on another chain',
+        [musdOnMonad(['Onramp'], 'mUSD', 'Ethereum')],
+      ],
+      ['mUSD on Monad lacks Onramp', [musdOnMonad(['Offramp', 'Swap'])]],
+      ['the list is empty', []],
+    ])(
+      'is unavailable when %s and every rail is Active',
+      (_case, currencies) => {
+        expect(readiness(currencies)).toBe('unavailable');
+      },
+    );
+
+    it.each([
+      ['pending', { pix: 'Active', pix_thirdparty: 'Pending' }],
+      ['pending', { pix: 'Active' }],
+      ['blocked', { pix: 'Active', pix_thirdparty: 'Blocked' }],
+    ] as const)(
+      'keeps the rail state %s while rails are not all Active, even without mUSD',
+      (expected, brlRails) => {
+        expect(
+          getMusdAutorampDepositRailReadiness(
+            { ...abilitiesWith({ brl: brlRails }), currencies: [] },
+            'BRL',
+          ),
+        ).toBe(expected);
+      },
+    );
+
+    it('is unavailable for a fiat with no required rails when mUSD is missing', () => {
+      expect(
+        getMusdAutorampDepositRailReadiness(
+          { ...abilitiesWith({}), currencies: [] },
+          'GBP',
+        ),
+      ).toBe('unavailable');
+    });
+
+    it('fails open to the rail check when currencies is missing', () => {
+      const { currencies: _omitted, ...abilities } = abilitiesWith(activeBrl);
+      expect(
+        getMusdAutorampDepositRailReadiness(
+          abilities as NeoBankCustomerAbilities,
+          'BRL',
+        ),
+      ).toBe('active');
+    });
+  });
+
+  describe('isTokenUnavailableInJurisdictionError', () => {
+    it('matches the proxy code in the error message', () => {
+      expect(
+        isTokenUnavailableInJurisdictionError(
+          new Error(
+            `Fetching '/neobank/autoramps' failed with status '400' - {"statusCode":400,"code":"token_unavailable_in_jurisdiction"}`,
+          ),
+        ),
+      ).toBe(true);
+    });
+
+    it("matches MoonPay's text when the proxy forwards it as is", () => {
+      expect(
+        isTokenUnavailableInJurisdictionError(
+          new Error(
+            `Fetching '/neobank/autoramps' failed with status '400' - "This token is not available in the jurisdiction"`,
+          ),
+        ),
+      ).toBe(true);
+    });
+
+    it.each([
+      new Error("Fetching '/neobank/autoramps' failed with status '400'"),
+      new Error(
+        "Fetching '/neobank/autoramps' failed with status '400' - \"This token is not supported\"",
+      ),
+      'token_unavailable_in_jurisdiction',
+      undefined,
+    ])('is false for %p', (error) => {
+      expect(isTokenUnavailableInJurisdictionError(error)).toBe(false);
+    });
+  });
+
   describe('getMusdAutorampDepositRailReadiness', () => {
     it.each([
       ['BRL', { pix: 'Active', pix_thirdparty: 'Active' }],
