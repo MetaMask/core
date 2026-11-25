@@ -1,11 +1,8 @@
 {
-  "command": "./.auto/measure.sh",
+  "command": "./.auto/checks.sh",
   "exitCode": 0,
-  "durationSeconds": 16.27,
-  "metrics": {
-    "primary_ms": 89,
-    "per_call_us": 0.618
-  },
-  "checksPass": true,
-  "checksTail": "Testing types with tsc and vue-tsc is an experimental feature.\nBreaking changes might not follow SemVer, please pin Vitest's version when using it.\n\n RUN  v5.1.1 /Users/prithpalsooriya/Desktop/projects/.perf-research/2026-11-25/core/packages/assets-controller\n\n\n Test Files  50 passed (50)\n      Tests  1293 passed (1293)\nType Errors  no errors\n   Start at  09:26:55\n   Duration  17.49s (tests 46%, import 30%, transform 20%, setup 4%)\n\n"
+  "durationSeconds": 19.08,
+  "metrics": {},
+  "checksPass": null,
+  "checksTail": ""
 }

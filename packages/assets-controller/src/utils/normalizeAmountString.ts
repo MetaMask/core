@@ -167,7 +167,6 @@ function normalizePlainOrExponent(
       i += 1;
       c = i < length ? amount.charCodeAt(i) : -1;
     }
-    const expStart = i;
     let exponent = 0;
     let expLen = 0;
     while (c >= CHAR_0 && c <= CHAR_9) {
@@ -196,8 +195,7 @@ function normalizePlainOrExponent(
     }
 
     const firstIsZero = digits.charCodeAt(0) === CHAR_0;
-    const lastIsZero =
-      digits.charCodeAt(digits.length - 1) === CHAR_0;
+    const lastIsZero = digits.charCodeAt(digits.length - 1) === CHAR_0;
 
     // Common exponent shapes with no cleanup needed assemble in one
     // expression, avoiding intermediate string allocations.
@@ -211,9 +209,7 @@ function normalizePlainOrExponent(
       if (digits.length === 1 || !firstIsZero) {
         // e.g. '2.5E2' -> '250'
         return (
-          (negative ? '-' : '') +
-          digits +
-          '0'.repeat(point - digits.length)
+          (negative ? '-' : '') + digits + '0'.repeat(point - digits.length)
         );
       }
     } else if (
@@ -243,16 +239,20 @@ function normalizePlainOrExponent(
       intPart = digits.slice(0, point);
       fracPart = digits.slice(point);
     }
-    return finishNormalize(intPart, fracPart, negative, truncate, dp, hasNonZero);
+    return finishNormalize(
+      intPart,
+      fracPart,
+      negative,
+      truncate,
+      dp,
+      hasNonZero,
+    );
   } else if (i === length) {
     // Plain decimal: compute every normalization decision by index over the
     // original string, allocating only the final result slices.
     const fracCut = truncate ? Math.min(fracLen, dp) : fracLen;
     let fracEnd = fracStart + fracCut;
-    while (
-      fracEnd > fracStart &&
-      amount.charCodeAt(fracEnd - 1) === CHAR_0
-    ) {
+    while (fracEnd > fracStart && amount.charCodeAt(fracEnd - 1) === CHAR_0) {
       fracEnd -= 1;
     }
     let intZeroEnd = 0;
@@ -265,8 +265,7 @@ function normalizePlainOrExponent(
     const intDigits = intLen - intZeroEnd;
     const intIsZero =
       intDigits === 0 ||
-      (intDigits === 1 &&
-        amount.charCodeAt(intStart + intZeroEnd) === CHAR_0);
+      (intDigits === 1 && amount.charCodeAt(intStart + intZeroEnd) === CHAR_0);
     if (intIsZero && fracEnd === fracStart) {
       // BigNumber drops the sign for a value that parsed as exactly zero
       // ('-0.000' -> '0'), but keeps it when a nonzero value is truncated
@@ -326,8 +325,7 @@ function finishNormalize(
   }
 
   const intIsZero =
-    intPart.length <= 1 &&
-    (intPart === '' || intPart.charCodeAt(0) === CHAR_0);
+    intPart.length <= 1 && (intPart === '' || intPart.charCodeAt(0) === CHAR_0);
   if (intIsZero && fracEnd === 0) {
     // BigNumber drops the sign for a value that parsed as exactly zero
     // ('-0.000' -> '0'), but keeps it when a nonzero value is truncated
@@ -353,10 +351,7 @@ function finishNormalize(
  * for whitespace-padded, radix-prefixed, oversized-exponent and other
  * non-plain inputs.
  */
-function normalizeWithBigNumber(
-  amount: string,
-  decimals?: number,
-): string {
+function normalizeWithBigNumber(amount: string, decimals?: number): string {
   const bn = new BigNumberJS(amount);
   if (!bn.isFinite()) {
     return '0';
