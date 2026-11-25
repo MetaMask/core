@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
+### Fixed
+
+- Fix empty or partially-populated cache directory being treated as a valid cache, which caused `foundryup` to skip installing binaries and leave dangling symlinks ([#11715](https://github.com/MetaMask/core/pull/11715))
+
 ### Changed
 
 - Bump `tar` from `^7.4.3` to `^7.5.23` ([#10444](https://github.com/MetaMask/core/pull/10444), [#11645](https://github.com/MetaMask/core/pull/11645))
