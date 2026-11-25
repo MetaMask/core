@@ -2219,6 +2219,7 @@ export type GetMarketsParams = {
   skipFilters?: boolean; // Skip market filtering (both allowlist and blocklist, default: false). When true, returns all markets without filtering.
   standalone?: boolean; // Lightweight mode: skip full initialization, only fetch market metadata (no wallet/WebSocket needed). Only main DEX markets returned. Use for discovery use cases like checking if a perps market exists.
   useTerminalApi?: boolean; // When true, enrich provider data from the legacy Terminal market endpoint.
+  requireComplete?: boolean; // Reject when part of the venue's list could not be read, instead of leaving it out. Providers that read the list in one request ignore it.
   skipCache?: boolean; // Read the venue's market metadata afresh and refresh the provider's session cache with it. Providers without a metadata cache ignore it.
 };
 

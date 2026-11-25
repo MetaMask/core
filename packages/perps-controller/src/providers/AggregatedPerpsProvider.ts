@@ -2297,6 +2297,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
         ...(params.accountId !== undefined && {
           accountId: params.accountId,
         }),
+        onError: params.onError,
         callback: (account) => {
           if (account === null) {
             // Same semantics as the read path: no venue data is no data,
@@ -2318,8 +2319,9 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       ...(params.accountId !== undefined && { accountId: params.accountId }),
       requireCompleteAccount: true,
       providers: this.#getActiveProviders(),
-      onError: (_error, providerId) => {
+      onError: (error, providerId) => {
         unavailable.add(providerId);
+        params.onError?.(error);
       },
       callback: (accounts) => {
         const entries: PerpsProviderAccountStateEntry[] =

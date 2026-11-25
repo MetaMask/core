@@ -589,6 +589,9 @@ export class HyperLiquidSubscriptionService {
   /** Readers told when the venue's markets changed. */
   readonly #marketChangeSubscribers = new Set<() => void>();
 
+  /** A market changed while no market change reader was there. */
+  #hasUnseenMarketChange = false;
+
   /** DEXs whose `assetCtxs` feed the market change readers hold open. */
   readonly #marketChangeDexs = new Set<string>();
 
@@ -5708,6 +5711,12 @@ export class HyperLiquidSubscriptionService {
     const listener = (): void => params.callback();
     this.#marketChangeSubscribers.add(listener);
     this.#holdMarketChangeFeeds(params.onError);
+    if (this.#hasUnseenMarketChange) {
+      // It happened while only price readers held the feed, so a cached
+      // market list may predate it.
+      this.#hasUnseenMarketChange = false;
+      listener();
+    }
     return () => {
       if (
         !this.#marketChangeSubscribers.delete(listener) ||
@@ -5776,6 +5785,7 @@ export class HyperLiquidSubscriptionService {
   }
 
   #notifyMarketChange(): void {
+    this.#hasUnseenMarketChange = this.#marketChangeSubscribers.size === 0;
     for (const listener of [...this.#marketChangeSubscribers]) {
       listener();
     }
@@ -6728,6 +6738,7 @@ export class HyperLiquidSubscriptionService {
     this.#marketChangeSubscribers.clear();
     this.#marketChangeDexs.clear();
     this.#marketSignatures.clear();
+    this.#hasUnseenMarketChange = false;
     this.#orderBookTransports.clear();
 
     // Retire activeAssetData streams: pending opens drop their subscription

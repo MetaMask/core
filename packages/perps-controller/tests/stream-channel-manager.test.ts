@@ -296,11 +296,11 @@ describe('StreamChannelManager', () => {
       source.emit(1);
 
       source.fail(new Error('closed'));
-      expect(source.stops).toBe(1);
       expect(manager.getLast({ stream: 'book' })).toStrictEqual([1]);
       vi.advanceTimersByTime(999);
       expect(source.opens).toBe(1);
       vi.advanceTimersByTime(1);
+      expect(source.stops).toBe(1);
       expect(source.opens).toBe(2);
       source.emit(2);
       expect(callback.mock.calls).toStrictEqual([[1], [2]]);
@@ -370,24 +370,64 @@ describe('StreamChannelManager', () => {
       expect(vi.getTimerCount()).toBe(0);
     });
 
-    it('is only reported when the source recovers by itself', () => {
+    it('is not reopened when it delivers again before the retry', () => {
       vi.useFakeTimers();
       const { manager } = setup();
-      const source = createSource({ selfRecovering: true });
+      const source = createSource();
       const callback = vi.fn();
-      const onError = vi.fn();
-      manager.subscribe({ stream: 'chaseOrderLists' }, source, {
-        callback,
-        onError,
-      });
+      manager.subscribe({ stream: 'orders' }, source, { callback });
 
-      source.fail(new Error('read failed'));
+      source.fail(new Error('auth refused'));
       source.emit(1);
+      vi.advanceTimersByTime(60_000);
 
-      expect(onError.mock.calls).toStrictEqual([[new Error('read failed')]]);
       expect(callback.mock.calls).toStrictEqual([[1]]);
       expect(source.opens).toBe(1);
+      expect(source.stops).toBe(0);
+    });
+
+    it('stays attached once its attempts are spent, and is heard if it recovers', () => {
+      vi.useFakeTimers();
+      const { manager } = setup();
+      const source = createSource();
+      const callback = vi.fn();
+      manager.subscribe({ stream: 'feeRates' }, source, { callback });
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        source.fail(new Error('offline'));
+        vi.advanceTimersByTime(30_000);
+      }
+      const { stops } = source;
+      vi.advanceTimersByTime(3_600_000);
+      expect(source.stops).toBe(stops);
+
+      source.emit(1);
+      expect(callback.mock.calls).toStrictEqual([[1]]);
+    });
+
+    it('is only told to the readers when it is a report', () => {
+      vi.useFakeTimers();
+      const { manager } = setup();
+      const callback = vi.fn();
+      const onError = vi.fn();
+      const open = vi.fn<StreamChannelSource<[number]>['open']>(() => vi.fn());
+      manager.subscribe<[number]>(
+        { stream: 'chaseOrderLists' },
+        { open },
+        { callback, onError },
+      );
+      const [emit, , , report] = open.mock.calls[0];
+
+      report(new Error('read failed'), 'lighter');
+      emit(1);
+
+      expect(onError.mock.calls).toStrictEqual([
+        [new Error('read failed'), 'lighter'],
+      ]);
+      expect(callback.mock.calls).toStrictEqual([[1]]);
       expect(vi.getTimerCount()).toBe(0);
+      manager.reopenAll();
+      report(new Error('late'));
+      expect(onError).toHaveBeenCalledTimes(1);
     });
 
     it('stops retrying when its last reader leaves', () => {
@@ -497,6 +537,32 @@ describe('StreamChannelManager', () => {
       release();
 
       expect(callback.mock.calls).toStrictEqual([[{ BTC: 1, ETH: 2 }]]);
+    });
+
+    it('gives a reader that joins during a pause each event once', async () => {
+      const manager = new StreamChannelManager();
+      const sum = vi.fn<NonNullable<StreamChannelSource<[number]>['reduce']>>();
+      sum
+        .mockReturnValueOnce([1])
+        .mockReturnValueOnce([11])
+        .mockReturnValueOnce([111]);
+      const source = createSource({ delivery: 'queue', reduce: sum });
+      const early = vi.fn();
+      const joined = vi.fn();
+      manager.subscribe({ stream: 'orderFills' }, source, { callback: early });
+      source.emit(1);
+
+      const release = manager.pause('orderFills');
+      source.emit(10);
+      manager.subscribe({ stream: 'orderFills' }, source, { callback: joined });
+      await flush();
+      source.emit(100);
+      expect(joined).not.toHaveBeenCalled();
+      release();
+
+      // The kept value already holds both events.
+      expect(joined.mock.calls).toStrictEqual([[111]]);
+      expect(early.mock.calls).toStrictEqual([[1], [10], [100]]);
     });
 
     it('queues events for a throttled or paused reader instead of dropping them', () => {
@@ -668,6 +734,41 @@ describe('StreamChannelManager', () => {
         'open orders',
         'open explicit',
       ]);
+    });
+
+    it('keeps watching the connection when a reader leaves during its reset', () => {
+      let setState: (state: WebSocketConnectionState) => void = () => undefined;
+      const stopWatch = vi.fn();
+      const manager = new StreamChannelManager({
+        subscribeToConnectionState: (listener): (() => void) => {
+          setState = listener;
+          return stopWatch;
+        },
+      });
+      const leaving = createSource();
+      const staying = createSource({ reopenOnReconnect: true });
+      const leave: () => void = manager.subscribe(
+        { stream: 'orders', accountId: 'a' },
+        leaving,
+        { callback: vi.fn(), onReset: () => leave() },
+      );
+      manager.subscribe({ stream: 'positions', accountId: 'a' }, staying, {
+        callback: vi.fn(),
+      });
+      setState(WebSocketConnectionState.Connected);
+      leaving.emit(1);
+
+      manager.rebind(
+        (key) => key.accountId === 'b',
+        (key) => ({ ...key, accountId: 'b' }),
+      );
+      expect(manager.size).toBe(1);
+      const { opens } = staying;
+      setState(WebSocketConnectionState.Connected);
+      setState(WebSocketConnectionState.Disconnected);
+      setState(WebSocketConnectionState.Connected);
+
+      expect(staying.opens).toBe(opens + 1);
     });
 
     it('keeps a connection drop across an account move, and seeds what moved', async () => {

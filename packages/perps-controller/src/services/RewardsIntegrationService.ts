@@ -509,6 +509,7 @@ export class RewardsIntegrationService {
   invalidateSubscriptionBenefits(): void {
     this.#benefitsSnapshot = undefined;
     this.#lastAttemptAt = undefined;
+    this.#grantExpiries.clear();
     // Fence any in-flight read: it was issued for the previous identity, so its
     // result must not repopulate the cache after this point.
     this.#benefitsEpoch += 1;

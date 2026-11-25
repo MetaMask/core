@@ -172,13 +172,26 @@ describe('LighterProvider', () => {
       expect(callback).toHaveBeenCalledTimes(1);
       stats('update/market_stats', ['3']);
       expect(callback).toHaveBeenCalledTimes(1);
+      // A retired market stays in the push, unquoted and unheld.
+      socket.receive({
+        type: 'update/market_stats',
+        channel: 'market_stats:all',
+        market_stats: {
+          '2': { ...wsStat('M2', 2, '1'), mid_price: '', open_interest: '0.0' },
+        },
+      });
+      expect(callback).toHaveBeenCalledTimes(2);
       // A full list without a market it had.
       stats('subscribed/market_stats', ['1', '3']);
-      expect(callback).toHaveBeenCalledTimes(2);
+      expect(callback).toHaveBeenCalledTimes(3);
 
       unsubscribe();
       stats('update/market_stats', ['4']);
-      expect(callback).toHaveBeenCalledTimes(2);
+      expect(callback).toHaveBeenCalledTimes(3);
+      // The next listener's cached list may predate that change.
+      const late = vi.fn();
+      provider.subscribeToMarketChanges({ callback: late });
+      expect(late).toHaveBeenCalledTimes(1);
       await provider.disconnect();
     });
 

@@ -2027,8 +2027,14 @@ export class LighterProvider implements PerpsProvider {
   /** Told when the venue's push shows that its markets changed. */
   readonly #marketChangeListeners = new Set<() => void>();
 
-  /** Markets the venue's price push has listed; null before its first frame. */
-  #listedMarketIds: Set<string> | null = null;
+  /**
+   * Markets the venue's price push has listed, and whether each is quoted or
+   * held; null before its first frame.
+   */
+  #listedMarkets: Map<string, boolean> | null = null;
+
+  /** A market changed while no market change listener was there. */
+  #hasUnseenMarketChange = false;
 
   /** Told when a Chase record changed. */
   readonly #chaseChangeListeners = new Set<() => void>();
@@ -10318,7 +10324,9 @@ export class LighterProvider implements PerpsProvider {
         // A market listed since the last read needs its leverage metadata.
         this.#marginFetchedAt = 0;
       }
-      const markets = await this.#clientService.getOrderBooks();
+      const markets = await this.#clientService.getOrderBooks(
+        params?.skipCache,
+      );
       await this.#ensureMarketMargins();
       return markets
         .filter((market) => market.marketType === 'perp')
@@ -19445,7 +19453,7 @@ export class LighterProvider implements PerpsProvider {
       this.#candleSubscribers.delete(seriesKey);
     } else if (channel === 'market_stats/all') {
       this.#lastPriceBySymbol.clear();
-      this.#listedMarketIds = null;
+      this.#listedMarkets = null;
     }
     this.#logChannelCount('released', channel);
   };
@@ -19793,7 +19801,7 @@ export class LighterProvider implements PerpsProvider {
       this.#dispatchPriceUpdates(updates);
       this.#dispatchOICaps(Object.values(message.marketStats));
       this.#detectMarketChange(
-        Object.keys(message.marketStats),
+        message.marketStats,
         type.startsWith('subscribed'),
       );
       return;
@@ -20284,29 +20292,36 @@ export class LighterProvider implements PerpsProvider {
   };
 
   /**
-   * Compare the markets of a price frame with the ones listed so far.
+   * Compare the markets of a price frame with the ones listed so far. A market
+   * the venue retires stays in the push with no mid price and no open interest.
    *
-   * @param marketIds - Markets in the frame.
+   * @param stats - The frame's markets by ID.
    * @param isSnapshot - The frame lists every market, so absence is a removal.
    */
   readonly #detectMarketChange = (
-    marketIds: string[],
+    stats: Record<string, LighterWsMarketStat>,
     isSnapshot: boolean,
   ): void => {
-    const listed = this.#listedMarketIds;
+    const frame = Object.entries(stats).map(
+      ([marketId, { midPrice, openInterest }]): [string, boolean] => [
+        marketId,
+        Number(midPrice) > 0 || Number(openInterest) > 0,
+      ],
+    );
+    const listed = this.#listedMarkets;
     if (listed === null) {
-      this.#listedMarketIds = new Set(marketIds);
+      this.#listedMarkets = new Map(frame);
       return;
     }
     const changed =
-      marketIds.some((marketId) => !listed.has(marketId)) ||
-      (isSnapshot && marketIds.length !== listed.size);
+      frame.some(([marketId, isLive]) => listed.get(marketId) !== isLive) ||
+      (isSnapshot && frame.length !== listed.size);
     if (isSnapshot) {
-      this.#listedMarketIds = new Set(marketIds);
-    } else {
-      marketIds.forEach((marketId) => listed.add(marketId));
+      listed.clear();
     }
+    frame.forEach(([marketId, isLive]) => listed.set(marketId, isLive));
     if (changed) {
+      this.#hasUnseenMarketChange = this.#marketChangeListeners.size === 0;
       this.#notifyListeners('marketChanges', this.#marketChangeListeners);
     }
   };
@@ -20325,7 +20340,8 @@ export class LighterProvider implements PerpsProvider {
   };
 
   /**
-   * Call back when the venue's price push lists a new market or drops one.
+   * Call back when the venue's price push lists a new market, drops one, or
+   * starts or stops quoting one.
    *
    * @param params - Subscription parameters.
    * @param params.callback - Called on each change.
@@ -20341,6 +20357,11 @@ export class LighterProvider implements PerpsProvider {
     this.#marketChangeListeners.add(listener);
     this.#requestChannel('market_stats/all');
     this.#ensureStream();
+    if (this.#hasUnseenMarketChange) {
+      // A cached market list may predate it.
+      this.#hasUnseenMarketChange = false;
+      listener();
+    }
     return () => {
       this.#marketChangeListeners.delete(listener);
       this.#onListenerRemoved('market_stats/all');

@@ -1,10 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Mocked } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, Mocked } from 'vitest';
 
 import { SubscriptionMultiplexer } from '../../../src/aggregation/SubscriptionMultiplexer.js';
 /* eslint-disable */
 import type {
   PerpsProvider,
+  PerpsProviderType,
   PerpsLogger,
   PriceUpdate,
   Position,
@@ -673,202 +674,111 @@ describe('SubscriptionMultiplexer', () => {
       } as MockProviderWithEmit;
     });
 
-    it('cleans up successful subscriptions when subscribeToPrices fails for a later provider', () => {
-      // Track if the first provider's unsubscribe was called
-      const unsubMock = vi.fn();
-      successfulProvider.subscribeToPrices = vi.fn(() => unsubMock);
+    const flush = async (): Promise<void> => {
+      await Promise.resolve();
+      await Promise.resolve();
+    };
 
-      expect(() => {
-        muxWithLogger.subscribeToPrices({
-          symbols: ['BTC'],
-          providers: [
-            ['hyperliquid', successfulProvider as unknown as PerpsProvider],
-            ['lighter', failingProvider as unknown as PerpsProvider],
+    type Method =
+      | 'subscribeToPrices'
+      | 'subscribeToPositions'
+      | 'subscribeToOrders'
+      | 'subscribeToOrderFills'
+      | 'subscribeToAccount';
+
+    const subscribe = (
+      mux: SubscriptionMultiplexer,
+      method: Method,
+      onError?: Mock,
+    ): (() => void) => {
+      const params = {
+        symbols: ['BTC'],
+        providers: [
+          ['hyperliquid', successfulProvider as unknown as PerpsProvider],
+          ['lighter', failingProvider as unknown as PerpsProvider],
+        ] as [PerpsProviderType, PerpsProvider][],
+        callback: vi.fn(),
+        onError,
+      };
+      return mux[method](params);
+    };
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it.each<Method>([
+      'subscribeToPrices',
+      'subscribeToPositions',
+      'subscribeToOrders',
+      'subscribeToOrderFills',
+      'subscribeToAccount',
+    ])(
+      '%s keeps the other venue, reports the failed one and reopens only that one',
+      async (method) => {
+        vi.useFakeTimers();
+        const stop = vi.fn();
+        successfulProvider[method] = vi.fn(() => stop);
+        const onError = vi.fn();
+
+        const unsubscribe = subscribe(muxWithLogger, method, onError);
+        await flush();
+
+        expect(stop).not.toHaveBeenCalled();
+        expect(onError.mock.calls).toStrictEqual([
+          [
+            expect.objectContaining({ message: 'Provider 2 failed' }),
+            'lighter',
           ],
-          callback: vi.fn(),
-        });
-      }).toThrow('Provider 2 failed');
-
-      // Verify cleanup was called for the successful subscription
-      expect(unsubMock).toHaveBeenCalled();
-      // Verify error was logged with feature tag
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.any(Error),
-        expect.objectContaining({
-          tags: {
-            feature: 'perps',
-            provider: 'lighter',
-            method: 'subscribeToPrices',
-          },
-          context: expect.objectContaining({
-            name: 'SubscriptionMultiplexer',
-            data: { subscribedCount: 1 },
+        ]);
+        expect(mockLogger.error).toHaveBeenCalledWith(
+          expect.any(Error),
+          expect.objectContaining({
+            tags: { feature: 'perps', provider: 'lighter', method },
+            context: expect.objectContaining({
+              name: 'SubscriptionMultiplexer',
+            }),
           }),
-        }),
-      );
+        );
+
+        const reopened = vi.fn();
+        failingProvider[method] = vi.fn(() => reopened);
+        await vi.advanceTimersByTimeAsync(1_000);
+        expect(failingProvider[method]).toHaveBeenCalledTimes(1);
+        expect(successfulProvider[method]).toHaveBeenCalledTimes(1);
+
+        unsubscribe();
+        expect(stop).toHaveBeenCalledTimes(1);
+        expect(reopened).toHaveBeenCalledTimes(1);
+        expect(vi.getTimerCount()).toBe(0);
+      },
+    );
+
+    it('reopens a failed venue a bounded number of times, without touching the other', async () => {
+      vi.useFakeTimers();
+      successfulProvider.subscribeToOrders = vi.fn(() => vi.fn());
+      subscribe(muxWithLogger, 'subscribeToOrders', vi.fn());
+
+      await vi.advanceTimersByTimeAsync(3_600_000);
+
+      expect(failingProvider.subscribeToOrders).toHaveBeenCalledTimes(6);
+      expect(successfulProvider.subscribeToOrders).toHaveBeenCalledTimes(1);
+      expect(vi.getTimerCount()).toBe(0);
     });
 
-    it('cleans up successful subscriptions when subscribeToPositions fails for a later provider', () => {
-      const unsubMock = vi.fn();
-      successfulProvider.subscribeToPositions = vi.fn(() => unsubMock);
+    it('works without a logger or an error handler', async () => {
+      const stop = vi.fn();
+      successfulProvider.subscribeToPrices = vi.fn(() => stop);
 
-      expect(() => {
-        muxWithLogger.subscribeToPositions({
-          providers: [
-            ['hyperliquid', successfulProvider as unknown as PerpsProvider],
-            ['lighter', failingProvider as unknown as PerpsProvider],
-          ],
-          callback: vi.fn(),
-        });
-      }).toThrow('Provider 2 failed');
-
-      expect(unsubMock).toHaveBeenCalled();
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.any(Error),
-        expect.objectContaining({
-          tags: {
-            feature: 'perps',
-            provider: 'lighter',
-            method: 'subscribeToPositions',
-          },
-        }),
+      const unsubscribe = subscribe(
+        new SubscriptionMultiplexer(),
+        'subscribeToPrices',
       );
-    });
+      await flush();
 
-    it('cleans up successful subscriptions when subscribeToOrders fails for a later provider', () => {
-      const unsubMock = vi.fn();
-      successfulProvider.subscribeToOrders = vi.fn(() => unsubMock);
-
-      expect(() => {
-        muxWithLogger.subscribeToOrders({
-          providers: [
-            ['hyperliquid', successfulProvider as unknown as PerpsProvider],
-            ['lighter', failingProvider as unknown as PerpsProvider],
-          ],
-          callback: vi.fn(),
-        });
-      }).toThrow('Provider 2 failed');
-
-      expect(unsubMock).toHaveBeenCalled();
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.any(Error),
-        expect.objectContaining({
-          tags: {
-            feature: 'perps',
-            provider: 'lighter',
-            method: 'subscribeToOrders',
-          },
-        }),
-      );
-    });
-
-    it('cleans up successful subscriptions when subscribeToOrderFills fails for a later provider', () => {
-      const unsubMock = vi.fn();
-      successfulProvider.subscribeToOrderFills = vi.fn(() => unsubMock);
-
-      expect(() => {
-        muxWithLogger.subscribeToOrderFills({
-          providers: [
-            ['hyperliquid', successfulProvider as unknown as PerpsProvider],
-            ['lighter', failingProvider as unknown as PerpsProvider],
-          ],
-          callback: vi.fn(),
-        });
-      }).toThrow('Provider 2 failed');
-
-      expect(unsubMock).toHaveBeenCalled();
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.any(Error),
-        expect.objectContaining({
-          tags: {
-            feature: 'perps',
-            provider: 'lighter',
-            method: 'subscribeToOrderFills',
-          },
-        }),
-      );
-    });
-
-    it('cleans up successful subscriptions when subscribeToAccount fails for a later provider', () => {
-      const unsubMock = vi.fn();
-      successfulProvider.subscribeToAccount = vi.fn(() => unsubMock);
-
-      expect(() => {
-        muxWithLogger.subscribeToAccount({
-          providers: [
-            ['hyperliquid', successfulProvider as unknown as PerpsProvider],
-            ['lighter', failingProvider as unknown as PerpsProvider],
-          ],
-          callback: vi.fn(),
-        });
-      }).toThrow('Provider 2 failed');
-
-      expect(unsubMock).toHaveBeenCalled();
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.any(Error),
-        expect.objectContaining({
-          tags: {
-            feature: 'perps',
-            provider: 'lighter',
-            method: 'subscribeToAccount',
-          },
-        }),
-      );
-    });
-
-    it('works without a logger (no crash when logger is undefined)', () => {
-      const muxNoLogger = new SubscriptionMultiplexer();
-      const unsubMock = vi.fn();
-      successfulProvider.subscribeToPrices = vi.fn(() => unsubMock);
-
-      expect(() => {
-        muxNoLogger.subscribeToPrices({
-          symbols: ['BTC'],
-          providers: [
-            ['hyperliquid', successfulProvider as unknown as PerpsProvider],
-            ['lighter', failingProvider as unknown as PerpsProvider],
-          ],
-          callback: vi.fn(),
-        });
-      }).toThrow('Provider 2 failed');
-
-      // Cleanup still happens even without logger
-      expect(unsubMock).toHaveBeenCalled();
-    });
-
-    it('cleans up multiple successful subscriptions when a later provider fails', () => {
-      const unsubMock1 = vi.fn();
-      const unsubMock2 = vi.fn();
-      const provider1 = createMockProvider('provider1');
-      const provider2 = createMockProvider('provider2');
-
-      provider1.subscribeToPrices = vi.fn(() => unsubMock1);
-      provider2.subscribeToPrices = vi.fn(() => unsubMock2);
-
-      expect(() => {
-        muxWithLogger.subscribeToPrices({
-          symbols: ['BTC'],
-          providers: [
-            ['hyperliquid', provider1 as unknown as PerpsProvider],
-            ['lighter', provider2 as unknown as PerpsProvider],
-            ['lighter', failingProvider as unknown as PerpsProvider],
-          ],
-          callback: vi.fn(),
-        });
-      }).toThrow('Provider 2 failed');
-
-      // Both successful subscriptions should be cleaned up
-      expect(unsubMock1).toHaveBeenCalled();
-      expect(unsubMock2).toHaveBeenCalled();
-      // subscribedCount should be 2 since two providers succeeded before the failure
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.any(Error),
-        expect.objectContaining({
-          context: expect.objectContaining({
-            data: { subscribedCount: 2 },
-          }),
-        }),
-      );
+      expect(stop).not.toHaveBeenCalled();
+      unsubscribe();
+      expect(stop).toHaveBeenCalledTimes(1);
     });
   });
 });

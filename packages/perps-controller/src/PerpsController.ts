@@ -1187,6 +1187,9 @@ const PUBLIC_TRADES_DEFAULT_LIMIT = 50;
 /** Longest delay `setTimeout` keeps; a longer one would fire at once. */
 const MAX_TIMEOUT_MS = 2_147_483_647;
 
+/** Wait after a market change before reading the markets again. */
+const MARKET_CHANGE_SETTLE_MS = 1000;
+
 /**
  * `subscribeTo*` streams that span every venue in aggregated mode. The others
  * follow the default provider unless they name one.
@@ -4051,6 +4054,7 @@ export class PerpsController extends BaseController<
     let reading = false;
     let readAgain = false;
     let last: string | undefined;
+    let settleTimer: ReturnType<typeof setTimeout> | undefined;
     const fail = (error: unknown): void => {
       if (!closed) {
         params.onError?.(
@@ -4065,11 +4069,11 @@ export class PerpsController extends BaseController<
         return;
       }
       reading = true;
-      this.#readMarketMetas(
-        provider,
-        params.providerId,
-        fresh ? { skipCache: true } : undefined,
-      )
+      this.#readMarketMetas(provider, params.providerId, {
+        // A venue part that could not be read is a failure, not a delisting.
+        requireComplete: true,
+        ...(fresh && { skipCache: true }),
+      })
         .then((metas) => {
           if (closed) {
             return;
@@ -4098,7 +4102,13 @@ export class PerpsController extends BaseController<
     try {
       stopChanges = provider.subscribeToMarketChanges?.({
         providerId: params.providerId,
-        callback: () => read(true),
+        // Changes come in bursts; one read after they settle covers them all.
+        callback: () => {
+          settleTimer ??= setTimeout(() => {
+            settleTimer = undefined;
+            read(true);
+          }, MARKET_CHANGE_SETTLE_MS);
+        },
         onError: fail,
       });
     } catch (error) {
@@ -4107,6 +4117,7 @@ export class PerpsController extends BaseController<
     read(skipCache);
     return () => {
       closed = true;
+      clearTimeout(settleTimer);
       stopChanges?.();
     };
   }
@@ -4281,8 +4292,8 @@ export class PerpsController extends BaseController<
           const expiresAt = this.#rewardsIntegrationService.getFeeGrantExpiry();
           const delay = (expiresAt ?? 0) - Date.now();
           // One deadline, set only for a grant that is still running.
-          if (delay > 0 && delay <= MAX_TIMEOUT_MS) {
-            expiryTimer = setTimeout(read, delay);
+          if (delay > 0) {
+            expiryTimer = setTimeout(read, Math.min(delay, MAX_TIMEOUT_MS));
           }
           const rates: PerpsFeeRates = { symbol, taker, maker };
           const key = JSON.stringify(rates);
@@ -8422,6 +8433,7 @@ export class PerpsController extends BaseController<
    * @param source - Replay, delivery, recovery and REST seed behaviour of the
    * stream, as in `StreamChannelSource`.
    * @param source.read - REST read seeding the channel and run once per drop.
+   * @param source.reportsOnly - The source recovers from its own failures.
    * @returns Cleanup that leaves the channel.
    */
   #subscribeToChannel<
@@ -8442,21 +8454,22 @@ export class PerpsController extends BaseController<
       'open' | 'read'
     > & {
       read?: () => Promise<Parameters<Params['callback']> | undefined>;
+      reportsOnly?: boolean;
     } = {},
   ): () => void {
     const { callback, onError, throttleMs, onReset, ...options } = params;
-    const { read } = source;
+    const { read, reportsOnly, ...channelSource } = source;
     return this.#streams.subscribe<Parameters<Params['callback']>>(
       this.#getChannelKey(stream, options),
       {
-        ...source,
+        ...channelSource,
         read: read
           ? async (key): Promise<Parameters<Params['callback']> | undefined> =>
               key.providerId === PENDING_PROVIDER_CHANNEL_ID
                 ? undefined
                 : await read()
           : undefined,
-        open: (emit, fail, key) => {
+        open: (emit, fail, key, report) => {
           // A pending channel opens when `#rebindStreams` finds a provider.
           if (key.providerId === PENDING_PROVIDER_CHANNEL_ID) {
             return () => undefined;
@@ -8469,8 +8482,14 @@ export class PerpsController extends BaseController<
               onReset: undefined,
               callback: emit,
               // Every reader of the channel hears its failures, not only the
-              // reader that opened it.
-              onError: fail,
+              // reader that opened it. A list retries its own reads, and the
+              // aggregated provider reopens one failed venue by itself.
+              onError:
+                reportsOnly ||
+                (ALL_VENUE_STREAMS.has(stream) &&
+                  this.getActiveProviderOrNull()?.protocolId === 'aggregated')
+                  ? report
+                  : fail,
             });
           } finally {
             this.#openingChannelSources -= 1;
@@ -8866,7 +8885,7 @@ export class PerpsController extends BaseController<
       'liveTwapOrders',
       params,
       (channelParams) => this.#openLiveTwapOrders(channelParams),
-      { selfRecovering: true },
+      { reportsOnly: true },
     );
   }
 
@@ -8963,7 +8982,7 @@ export class PerpsController extends BaseController<
       'chaseOrderLists',
       params,
       (channelParams) => this.#openChaseOrderLists(channelParams),
-      { selfRecovering: true },
+      { reportsOnly: true },
     );
   }
 

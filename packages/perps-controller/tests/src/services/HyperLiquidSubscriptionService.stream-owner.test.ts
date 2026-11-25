@@ -680,6 +680,25 @@ describe('shared streams over the HyperLiquid subscription service', () => {
       expect(callback).toHaveBeenCalledTimes(1);
     });
 
+    it('tells a reader of a change it was not there for', async () => {
+      await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: vi.fn(),
+        includeMarketData: true,
+      });
+      await settle();
+      deliver(main, 'assetCtxs', { ctxs: [ctx(), ctx()] });
+      deliver(main, 'assetCtxs', { ctxs: [ctx(), ctx(), ctx()] });
+
+      const first = vi.fn();
+      service.subscribeToMarketChanges({ callback: first });
+      const second = vi.fn();
+      service.subscribeToMarketChanges({ callback: second });
+
+      expect(first).toHaveBeenCalledTimes(1);
+      expect(second).not.toHaveBeenCalled();
+    });
+
     it('shares the feed price readers use and leaves it to them', async () => {
       const stopPrices = await service.subscribeToPrices({
         symbols: ['BTC'],

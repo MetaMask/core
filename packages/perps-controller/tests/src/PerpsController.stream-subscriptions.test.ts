@@ -211,7 +211,9 @@ describe('PerpsController stream subscriptions', () => {
       controller.subscribeToMarketMeta({ callback });
       await flush();
 
-      expect(provider.getMarkets).toHaveBeenCalledWith(undefined);
+      expect(provider.getMarkets).toHaveBeenCalledWith({
+        requireComplete: true,
+      });
       expect(callback.mock.calls).toStrictEqual([
         [
           [
@@ -258,11 +260,15 @@ describe('PerpsController stream subscriptions', () => {
       expect(provider.getMarkets).toHaveBeenCalledTimes(1);
       report();
       report();
+      await vi.advanceTimersByTimeAsync(1_000);
       await flush();
 
-      // The second report arrived while the first one's read ran.
-      expect(provider.getMarkets).toHaveBeenCalledTimes(3);
-      expect(provider.getMarkets).toHaveBeenLastCalledWith({ skipCache: true });
+      // One read covers a burst of changes.
+      expect(provider.getMarkets).toHaveBeenCalledTimes(2);
+      expect(provider.getMarkets).toHaveBeenLastCalledWith({
+        requireComplete: true,
+        skipCache: true,
+      });
       expect(callback).toHaveBeenCalledTimes(2);
       expect(callback).toHaveBeenLastCalledWith([
         expect.objectContaining({ symbol: 'BTC', isDelisted: false }),
@@ -282,7 +288,9 @@ describe('PerpsController stream subscriptions', () => {
       controller.startMarketDataPreload();
       await flush();
 
-      expect(provider.getMarkets).not.toHaveBeenCalledWith({ skipCache: true });
+      expect(provider.getMarkets).not.toHaveBeenCalledWith(
+        expect.objectContaining({ skipCache: true }),
+      );
     });
 
     it('shares one read between subscribers, keeps an empty read from replacing the list and retries it', async () => {
@@ -304,6 +312,7 @@ describe('PerpsController stream subscriptions', () => {
 
       provider.getMarkets.mockResolvedValueOnce([]);
       report();
+      await vi.advanceTimersByTimeAsync(1_000);
       await flush();
       expect(first).toHaveBeenCalledTimes(1);
       expect(onError).toHaveBeenCalledTimes(1);
@@ -329,6 +338,7 @@ describe('PerpsController stream subscriptions', () => {
       provider.getMarkets.mockResolvedValue([market('BTC')]);
       await vi.advanceTimersByTimeAsync(1_000);
       report();
+      await vi.advanceTimersByTimeAsync(1_000);
       await flush();
 
       expect(callback).toHaveBeenCalledWith([
@@ -663,8 +673,10 @@ describe('PerpsController stream subscriptions', () => {
       Record<PerpsProviderType, (latencyMs: number) => void>
     > = {};
 
+    let lighter: Mocked<HyperLiquidProvider>;
+
     const install = (): AggregatedPerpsProvider => {
-      const lighter = createMockHyperLiquidProvider();
+      lighter = createMockHyperLiquidProvider();
       for (const [id, venue] of [
         ['hyperliquid', provider],
         ['lighter', lighter],
@@ -733,6 +745,32 @@ describe('PerpsController stream subscriptions', () => {
       // A stream that names its venue stays there.
       expect(routedReset).not.toHaveBeenCalled();
       expect(routed).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the other venue streaming when one venue fails for good', async () => {
+      install();
+      const subscribe = vi
+        .fn<PerpsProvider['subscribeToOrders']>()
+        .mockImplementation((params) => {
+          params.onError?.(new Error('auth refused'));
+          return vi.fn();
+        });
+      lighter.subscribeToOrders.mockImplementation(subscribe);
+      provider.subscribeToOrders.mockReturnValue(vi.fn());
+      const callback = vi.fn();
+      const onError = vi.fn();
+      controller.subscribeToOrders({ callback, onError });
+      await vi.advanceTimersByTimeAsync(3_600_000);
+
+      // The failed venue was opened again a bounded number of times.
+      expect(subscribe).toHaveBeenCalledTimes(6);
+      expect(provider.subscribeToOrders).toHaveBeenCalledTimes(1);
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'auth refused' }),
+        'lighter',
+      );
+      provider.subscribeToOrders.mock.calls[0][0].callback([]);
+      expect(callback).toHaveBeenCalledWith([], 'hyperliquid');
     });
 
     it("does not replay the old default's latency to a late reader", async () => {

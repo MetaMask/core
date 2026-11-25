@@ -467,23 +467,30 @@ describe('HyperLiquidProvider - strategy order types', () => {
         await provider.placeOrder({ ...baseOrder, orderType: 'chase' });
         expect(callback).toHaveBeenCalled();
 
-        infoClient.orderStatus.mockClear();
+        // A child is read once, when it is new: a fill may have come first.
+        infoClient.orderStatus.mockClear().mockResolvedValue(openStatus('1'));
         await provider.getChaseOrders();
         await provider.getChaseOrders();
-        expect(infoClient.orderStatus).not.toHaveBeenCalled();
+        expect(infoClient.orderStatus).toHaveBeenCalledTimes(1);
 
         callback.mockClear();
+        infoClient.orderStatus.mockClear().mockResolvedValue(openStatus('0.2'));
         const fill = createChildFill('55');
-        fills.callback([fill], true);
         fills.callback([{ ...fill, orderId: '1' }]);
         expect(callback).not.toHaveBeenCalled();
-        infoClient.orderStatus.mockResolvedValue(openStatus('0.2'));
         fills.callback([fill]);
         expect(callback).toHaveBeenCalledTimes(1);
         expect(await provider.getChaseOrders()).toContainEqual(
           expect.objectContaining({ remainingSize: '0.2' }),
         );
         expect(infoClient.orderStatus).toHaveBeenCalledTimes(1);
+
+        // A snapshot follows a reconnect, with fills missed in between.
+        infoClient.orderStatus.mockClear().mockResolvedValue(openStatus('0.1'));
+        fills.callback([], true);
+        expect(await provider.getChaseOrders()).toContainEqual(
+          expect.objectContaining({ remainingSize: '0.1' }),
+        );
 
         unsubscribe();
         expect(stopFills).toHaveBeenCalledTimes(1);
@@ -505,6 +512,33 @@ describe('HyperLiquidProvider - strategy order types', () => {
         orders.callback([]);
         orders.callback([]);
         expect(callback).toHaveBeenCalledTimes(1);
+      });
+
+      it('asks again a bounded number of times after a child read fails', async () => {
+        vi.useFakeTimers();
+        try {
+          const { infoClient } = useStrategyClients({
+            exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
+          });
+          await provider.placeOrder({
+            ...baseOrder,
+            orderType: 'chase',
+            chaseIntervalMs: 3_600_000,
+          });
+          infoClient.orderStatus.mockRejectedValue(new Error('offline'));
+          const reads: Promise<unknown>[] = [];
+          const callback = vi.fn(() => {
+            reads.push(provider.getChaseOrders());
+          });
+          provider.subscribeToChaseOrderChanges({ callback });
+          await provider.getChaseOrders();
+
+          await vi.advanceTimersByTimeAsync(600_000);
+
+          expect(callback).toHaveBeenCalledTimes(5);
+        } finally {
+          vi.useRealTimers();
+        }
       });
 
       it("still reports the sessions' own changes when the child streams cannot open", async () => {

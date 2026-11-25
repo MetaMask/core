@@ -1996,11 +1996,10 @@ export type SharedStreamContracts = [
   >,
   AssertTrue<
     IsExact<
-      Pick<StreamSource<[number]>, 'delivery' | 'replay' | 'selfRecovering'>,
+      Pick<StreamSource<[number]>, 'delivery' | 'replay'>,
       {
         delivery?: 'latest' | 'merge' | 'queue';
         replay?: boolean;
-        selfRecovering?: boolean;
       }
     >
   >,

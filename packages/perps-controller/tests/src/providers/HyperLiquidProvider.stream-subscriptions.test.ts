@@ -197,6 +197,34 @@ describe('HyperLiquidProvider stream subscriptions', () => {
       });
     });
 
+    it('reports a market it could not read and a stream that could not open, and guesses no limits', async () => {
+      const { provider, infoClient, pushAccount, pushPositions } =
+        createStreamingProvider();
+      infoClient.meta.mockRejectedValue(new Error('offline'));
+      const callback = vi.fn();
+      const onError = vi.fn();
+      provider.subscribeToMarginAdjustmentLimits({
+        symbol: 'ETH',
+        callback,
+        onError,
+      });
+      await flush();
+      pushAccount(account({ accountMode: 'unifiedAccount' }));
+      pushPositions([isolatedEth]);
+
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'offline' }),
+      );
+      expect(callback).not.toHaveBeenCalled();
+
+      const [accountParams] = vi.mocked(provider.subscribeToAccount).mock
+        .calls[0];
+      accountParams.onError?.(new Error('PROVIDER_NOT_AVAILABLE'));
+      expect(onError).toHaveBeenLastCalledWith(
+        expect.objectContaining({ message: 'PROVIDER_NOT_AVAILABLE' }),
+      );
+    });
+
     it('stops both streams on unsubscribe', async () => {
       const { provider, stopAccount, stopPositions, pushAccount } =
         createStreamingProvider();
@@ -374,14 +402,19 @@ describe('HyperLiquidProvider stream subscriptions', () => {
       expect(extraAgents).not.toHaveBeenCalled();
     });
 
-    it('reports a failed agent list read as unknown', async () => {
+    it('reports a failed agent list read as unknown, and as a failure to try again', async () => {
       const built = createAgentProvider([]);
       built.extraAgents.mockRejectedValue(new Error('network'));
       const callback = vi.fn();
+      const onError = vi.fn();
 
-      built.accountSignerProvider.subscribeToTradingAgentValidity({ callback });
+      built.accountSignerProvider.subscribeToTradingAgentValidity({
+        callback,
+        onError,
+      });
       await flush();
 
+      expect(onError).toHaveBeenCalledTimes(1);
       expect(callback.mock.calls).toStrictEqual([
         [{ status: 'unknown', reason: 'read_failed' }],
       ]);

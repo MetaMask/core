@@ -28,15 +28,19 @@ export type StreamChannelSource<Args extends unknown[]> = {
    *
    * @param emit - Delivers a value to every subscriber.
    * @param fail - Reports a stream failure, with any detail the source adds
-   * (such as the failing venue); the last value stays current. Unless the
-   * source is `selfRecovering`, the channel then stops and reopens it.
+   * (such as the failing venue); the last value stays current. The source
+   * stays attached until the channel reopens it, so one that recovers by
+   * itself is still heard.
    * @param key - The key the channel opens under, which changes on `rebind`.
+   * @param report - Tells the readers of a failure the source recovers from by
+   * itself; the channel does not reopen it.
    * @returns Cleanup that stops the stream.
    */
   open(
     emit: (...args: Args) => void,
     fail: (error: Error, ...detail: unknown[]) => void,
     key: StreamChannelKey,
+    report: (error: Error, ...detail: unknown[]) => void,
   ): () => void;
   /**
    * One REST read for while the stream is down: it seeds a channel that opens
@@ -66,12 +70,6 @@ export type StreamChannelSource<Args extends unknown[]> = {
    * events use the last two so that no change is lost.
    */
   delivery?: 'latest' | 'merge' | 'queue';
-  /**
-   * The source keeps running after it calls `fail` and recovers by itself, so
-   * the channel only tells its readers. Other sources are over once they
-   * fail: the channel stops and reopens them.
-   */
-  selfRecovering?: boolean;
   /**
    * Stop and reopen the venue subscription when the connection comes back
    * after a drop, for streams the transport does not restore by itself. The
@@ -127,6 +125,8 @@ type Reader = {
   lastDeliveredAt: number;
   pending: unknown[][];
   timer: ReturnType<typeof setTimeout> | undefined;
+  /** Joined while the stream was paused: it gets the replay on release. */
+  joinedPaused: boolean;
 };
 
 type Channel = {
@@ -245,6 +245,7 @@ export class StreamChannelManager {
       lastDeliveredAt: 0,
       pending: [],
       timer: undefined,
+      joinedPaused: false,
     };
     if (open) {
       this.#join(open, reader);
@@ -315,6 +316,9 @@ export class StreamChannelManager {
     if (providerMoved) {
       // The connection watch answered for the old transport.
       this.#stopWatch();
+    }
+    if (this.#channels.size > 0) {
+      // Also when a reader that left during its reset closed the last channel.
       this.#watchConnection();
     }
     if (this.#isDown()) {
@@ -403,6 +407,14 @@ export class StreamChannelManager {
         const { held } = channel;
         channel.held = [];
         for (const reader of [...channel.readers]) {
+          if (reader.joinedPaused) {
+            // Its replay holds everything that arrived during the pause.
+            reader.joinedPaused = false;
+            if (channel.last && channel.source.replay !== false) {
+              this.#deliver(reader, channel.last);
+            }
+            continue;
+          }
           for (const args of held) {
             reader.pending = combine(channel.source, reader.pending, args);
           }
@@ -445,6 +457,10 @@ export class StreamChannelManager {
    */
   #join(channel: Channel, reader: Reader): void {
     channel.readers.add(reader);
+    if (this.#pauses.has(channel.key.stream)) {
+      reader.joinedPaused = true;
+      return;
+    }
     const { last, version } = channel;
     if (last && channel.source.replay !== false) {
       // Replay after `subscribe` returns, so callers hold their cleanup.
@@ -539,11 +555,20 @@ export class StreamChannelManager {
         (...args) => {
           if (isCurrent()) {
             channel.delivered = true;
+            // A source that delivers is alive, whatever it reported before.
+            channel.failed = false;
+            clearTimeout(channel.retryTimer);
+            channel.retryTimer = undefined;
             this.#emit(channel, args);
           }
         },
         (error, ...detail) => fail(error, detail),
         channel.key,
+        (error, ...detail) => {
+          if (isCurrent()) {
+            this.#report(channel, error, detail);
+          }
+        },
       );
       if (isCurrent()) {
         channel.stop = stop;
@@ -629,33 +654,37 @@ export class StreamChannelManager {
   }
 
   /**
-   * Handle a source failure: tell the readers and, unless the source recovers
-   * by itself, stop it and reopen it with a bounded backoff. Once the attempts
-   * are spent the channel waits for the connection to come back, a move, a
-   * `reopenAll` or a new reader.
+   * Handle a source failure: tell the readers and reopen the source with a
+   * bounded backoff, unless it delivers again before that. Once the attempts
+   * are spent the source stays attached as it is, and the channel reopens it
+   * when the connection comes back, on a move, on `reopenAll` and for a new
+   * reader.
    *
    * @param channel - The failing channel.
    * @param error - The failure.
    * @param detail - Detail the source adds, such as the failing venue.
    */
   #fail(channel: Channel, error: Error, detail: unknown[]): void {
-    if (!channel.source.selfRecovering) {
-      if (
-        channel.delivered &&
-        Date.now() - channel.startedAt >= STREAM_RETRY_CONFIG.StableMs
-      ) {
-        channel.attempts = 0;
-      }
-      this.#stopSource(channel);
-      channel.failed = true;
-      if (channel.attempts < STREAM_RETRY_CONFIG.MaxAttempts) {
-        const delay = Math.min(
-          STREAM_RETRY_CONFIG.BaseDelayMs * 2 ** channel.attempts,
-          STREAM_RETRY_CONFIG.MaxDelayMs,
-        );
-        channel.attempts += 1;
-        channel.retryTimer = setTimeout(() => this.#start(channel), delay);
-      }
+    if (
+      channel.delivered &&
+      Date.now() - channel.startedAt >= STREAM_RETRY_CONFIG.StableMs
+    ) {
+      channel.attempts = 0;
+    }
+    channel.failed = true;
+    if (
+      channel.retryTimer === undefined &&
+      channel.attempts < STREAM_RETRY_CONFIG.MaxAttempts
+    ) {
+      const delay = Math.min(
+        STREAM_RETRY_CONFIG.BaseDelayMs * 2 ** channel.attempts,
+        STREAM_RETRY_CONFIG.MaxDelayMs,
+      );
+      channel.attempts += 1;
+      channel.retryTimer = setTimeout(() => {
+        this.#stopSource(channel);
+        this.#start(channel);
+      }, delay);
     }
     this.#report(channel, error, detail);
   }
