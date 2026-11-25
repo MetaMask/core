@@ -1,0 +1,8 @@
+{
+  "status": "ready",
+  "source_file": "packages/assets-controller/src/utils/normalizeAmountString.ts",
+  "metric": "primary_ms",
+  "metric_unit": "ms",
+  "direction": "lower",
+  "checks_command": "cd packages/assets-controller && ../../node_modules/.bin/vitest run"
+}
