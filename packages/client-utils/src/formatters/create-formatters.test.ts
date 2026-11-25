@@ -159,6 +159,79 @@ describe('currencyDisplay shared config', () => {
   });
 });
 
+describe('unknownCurrency', () => {
+  const withCode = createFormatters({ locale, unknownCurrency: 'code' });
+  const byDefault = createFormatters({ locale });
+
+  it('keeps the plain two-decimal number by default', () => {
+    expect(byDefault.formatCurrency(3, 'USDC')).toBe('3.00');
+    expect(
+      createFormatters({ locale, unknownCurrency: 'number' }).formatCurrency(
+        3,
+        'USDC',
+      ),
+    ).toBe('3.00');
+  });
+
+  it.each([
+    { value: 3, currency: 'USDC', expected: '3.00 USDC' },
+    { value: 1_234.5, currency: 'USDC', expected: '1,234.50 USDC' },
+    { value: -3, currency: 'USDC', expected: '-3.00 USDC' },
+    { value: 0, currency: 'USDC', expected: '0.00 USDC' },
+    { value: '2.5', currency: 'USDC', expected: '2.50 USDC' },
+    { value: 3, currency: 'musd', expected: '3.00 MUSD' },
+    { value: 3, currency: '1INCH', expected: '3.00 1INCH' },
+  ] as const)(
+    'formats $value $currency as "$expected"',
+    ({ value, currency, expected }) => {
+      expect(withCode.formatCurrency(value, currency)).toBe(expected);
+    },
+  );
+
+  it('follows the locale for the number', () => {
+    const { formatCurrency } = createFormatters({
+      locale: 'de-DE',
+      unknownCurrency: 'code',
+    });
+    expect(formatCurrency(1_234.5, 'USDC')).toBe('1.234,50 USDC');
+  });
+
+  it('keeps the caller options', () => {
+    expect(
+      withCode.formatCurrency(1.23456, 'USDC', { maximumFractionDigits: 4 }),
+    ).toBe('1.2346 USDC');
+    expect(
+      withCode.formatCurrency(1.5, 'USDC', { currencyDisplay: 'code' }),
+    ).toBe('1.50 USDC');
+  });
+
+  it('keeps the code in the helpers built on formatCurrency', () => {
+    expect(withCode.formatCurrencyCompact(1_500_000, 'USDC')).toBe(
+      '1.50M USDC',
+    );
+    expect(withCode.formatCurrencyWithMinThreshold(0.004, 'USDC')).toBe(
+      '<0.01 USDC',
+    );
+    expect(withCode.formatCurrencyTokenPrice(0.000123456, 'USDC')).toBe(
+      '0.000123 USDC',
+    );
+  });
+
+  it('leaves valid currency codes unchanged', () => {
+    ['USD', 'EUR', 'JPY', 'ETH', 'btc'].forEach((currency) => {
+      expect(withCode.formatCurrency(1_234.5, currency)).toBe(
+        byDefault.formatCurrency(1_234.5, currency),
+      );
+    });
+  });
+
+  it('still returns an empty string for invalid values', () => {
+    invalidValues.forEach((input) => {
+      expect(withCode.formatCurrency(input, 'USDC')).toBe('');
+    });
+  });
+});
+
 describe('formatCurrencyWithMinThreshold', () => {
   const { formatCurrencyWithMinThreshold } = createFormatters({ locale });
 

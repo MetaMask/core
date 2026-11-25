@@ -20,10 +20,39 @@ const dateTimeFormatCache: Record<string, Intl.DateTimeFormat> = {};
 
 type Value = number | bigint | `${number}`;
 
+/**
+ * How the currency helpers render a code that `Intl.NumberFormat` rejects,
+ * such as `USDC`.
+ * - `number`: a plain two-decimal number, without the code (`3.00`).
+ * - `code`: the number, formatted with the caller's options, then the code
+ * (`3.00 USDC`).
+ */
+type UnknownCurrency = 'number' | 'code';
+
 type FormattersConfig = {
   locale: string;
   currencyDisplay?: Intl.NumberFormatOptions['currencyDisplay'];
+  unknownCurrency?: UnknownCurrency;
 };
+
+const CURRENCY_ONLY_OPTIONS = [
+  'style',
+  'currency',
+  'currencyDisplay',
+  'currencySign',
+] as const;
+
+const DIGIT_OPTIONS = [
+  'minimumFractionDigits',
+  'maximumFractionDigits',
+  'minimumSignificantDigits',
+  'maximumSignificantDigits',
+] as const;
+
+// Matches ECMA-402 IsWellFormedCurrencyCode, the check Intl.NumberFormat runs.
+function isWellFormedCurrencyCode(currency: string): boolean {
+  return /^[A-Za-z]{3}$/u.test(currency);
+}
 
 function getCachedNumberFormat(
   locale: string,
@@ -87,6 +116,14 @@ function formatCurrency(
     return '';
   }
 
+  if (
+    config.unknownCurrency === 'code' &&
+    typeof currency === 'string' &&
+    !isWellFormedCurrencyCode(currency)
+  ) {
+    return formatWithCurrencyCode(config, value, currency, options);
+  }
+
   const numberFormat = getCachedNumberFormat(config.locale, {
     style: 'currency',
     currency,
@@ -98,6 +135,26 @@ function formatCurrency(
 
   // @ts-expect-error Remove this comment once TypeScript is updated to 5.5+
   return numberFormat.format(value);
+}
+
+function formatWithCurrencyCode(
+  config: FormattersConfig,
+  value: Value,
+  currency: string,
+  options: Intl.NumberFormatOptions,
+): string {
+  const decimalOptions: Intl.NumberFormatOptions = { ...options };
+  CURRENCY_ONLY_OPTIONS.forEach((key) => delete decimalOptions[key]);
+
+  // Two decimals mirror currency style, unless the caller chose its own digits.
+  const hasDigitOptions = DIGIT_OPTIONS.some((key) => key in decimalOptions);
+
+  const formattedNumber = formatNumber(config, value, {
+    ...(hasDigitOptions ? {} : twoDecimals),
+    ...decimalOptions,
+  });
+
+  return `${formattedNumber} ${currency.toUpperCase()}`;
 }
 
 function formatCurrencyCompact(
@@ -366,11 +423,13 @@ export type Formatters = {
 export function createFormatters({
   locale = FALLBACK_LOCALE,
   currencyDisplay,
+  unknownCurrency = 'number',
 }: {
   locale?: string;
   currencyDisplay?: Intl.NumberFormatOptions['currencyDisplay'];
+  unknownCurrency?: UnknownCurrency;
 }): Formatters {
-  const config = { locale, currencyDisplay };
+  const config = { locale, currencyDisplay, unknownCurrency };
   return {
     formatNumber: formatNumber.bind(null, config),
     formatCurrency: formatCurrency.bind(null, config),
