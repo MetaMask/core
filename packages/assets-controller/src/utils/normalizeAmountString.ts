@@ -40,7 +40,10 @@ const CANONICAL_PATTERN = /^(?:0|[1-9]\d*)(?:\.\d*[1-9])?$/u;
  * wrong values between the config change and the next cache refresh.
  */
 function liveRangeBound(): number {
-  const range = BigNumberJS.config().RANGE;
+  // `RANGE` is typed optional but is always defined at runtime (the
+  // constructor installs a default); the `?? 1e7` fallback only satisfies
+  // the type system and matches BigNumber's default bound.
+  const range = BigNumberJS.config().RANGE ?? 1e7;
   if (typeof range === 'number') {
     return range < 0 ? -range : range;
   }
