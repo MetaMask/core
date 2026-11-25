@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Treat transactions as not sponsored when the simulation `sponsorship` response contains a non-empty `error`
+
 ## [74.4.0]
 
 ### Added
