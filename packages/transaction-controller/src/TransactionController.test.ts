@@ -1839,6 +1839,7 @@ describe('TransactionController', () => {
     it('applies the controller gas estimate buffer when simulation fails', async () => {
       const simulationFailsMock = {
         errorKey: 'testKey',
+        debug: {},
       };
 
       const { controller } = setupWithNetworkClient();
