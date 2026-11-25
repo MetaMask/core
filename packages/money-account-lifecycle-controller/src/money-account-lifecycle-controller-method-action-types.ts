@@ -138,8 +138,14 @@ export type MoneyAccountLifecycleControllerUpgradeMoneyAccountAction = {
  * this resolves without running them; calling this again once the
  * migration has finished runs them.
  *
- * @throws If a migration or Money Account upgrade is already in flight, the
- * checks fail, the wallet stops being ready part way, or linking the
+ * Only one migration runs at a time. A call made while one is in flight
+ * joins it instead of starting another: it gets the same promise, so it
+ * resolves or rejects with that migration's outcome. A call made after it
+ * settles starts a new run.
+ *
+ * @returns A promise that resolves once the migration run, started by this
+ * call or joined by it, completes.
+ * @throws If a Money Account upgrade is in flight, the checks fail, the wallet stops being ready part way, or linking the
  * successor, moving the subscription, registering the intents or starting
  * the funds transfer fails. A `BindingMigrationIncompleteError` once every
  * binding migrator of a phase has run, if any of them is pending or

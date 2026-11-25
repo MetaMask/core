@@ -1235,20 +1235,38 @@ describe('MoneyAccountLifecycleController', () => {
       },
     );
 
-    it('does not start a migration while another is in flight, and allows one once it settles', async () => {
-      await withController(async ({ controller, mocks }) => {
+    it('joins a migration in flight instead of starting another, and starts a new one once it settles', async () => {
+      await withController(async ({ controller, rootMessenger, mocks }) => {
         const { promise, resolve } = createDeferredPromise<MoneyAccount>();
         mocks.createMoneyAccount.mockReturnValueOnce(promise);
 
         const first = controller.startMigration();
-        await expect(controller.startMigration()).rejects.toThrow(
-          'A Money Account migration is already in progress',
+        const second = rootMessenger.call(
+          'MoneyAccountLifecycleController:startMigration',
         );
         resolve(MFA_MONEY_ACCOUNT);
+
         expect(await first).toBeUndefined();
+        expect(await second).toBeUndefined();
+        expect(mocks.createMoneyAccount).toHaveBeenCalledTimes(1);
+        expect(mocks.upgradeSuccessorAccount).toHaveBeenCalledTimes(1);
 
         expect(await controller.startMigration()).toBeUndefined();
         expect(mocks.createMoneyAccount).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it('rejects a call that joined a migration in flight with the error of that migration', async () => {
+      await withController(async ({ controller, mocks }) => {
+        const error = new Error('Linking failed');
+        mocks.upgradeSuccessorAccount.mockRejectedValueOnce(error);
+
+        const first = controller.startMigration();
+        const second = controller.startMigration();
+
+        await expect(first).rejects.toThrow(error);
+        await expect(second).rejects.toThrow(error);
+        expect(mocks.upgradeSuccessorAccount).toHaveBeenCalledTimes(1);
       });
     });
   });

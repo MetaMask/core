@@ -237,7 +237,7 @@ export class MoneyAccountLifecycleController extends BaseController<
     Promise<MoneyAccountRegistrationStatus>
   >();
 
-  #isMigrationInFlight = false;
+  #migrationInFlight?: Promise<void>;
 
   readonly #bindingMigrators = new Map<string, BindingMigrator>();
 
@@ -398,7 +398,7 @@ export class MoneyAccountLifecycleController extends BaseController<
    * identities before upgrading or from the upgrade, unchanged.
    */
   async upgradeMoneyAccount(): Promise<void> {
-    if (this.#isMigrationInFlight || !this.#isReady()) {
+    if (this.#migrationInFlight || !this.#isReady()) {
       return;
     }
 
@@ -545,28 +545,33 @@ export class MoneyAccountLifecycleController extends BaseController<
    * this resolves without running them; calling this again once the
    * migration has finished runs them.
    *
-   * @throws If a migration or Money Account upgrade is already in flight, the
-   * checks fail, the wallet stops being ready part way, or linking the
+   * Only one migration runs at a time. A call made while one is in flight
+   * joins it instead of starting another: it gets the same promise, so it
+   * resolves or rejects with that migration's outcome. A call made after it
+   * settles starts a new run.
+   *
+   * @returns A promise that resolves once the migration run, started by this
+   * call or joined by it, completes.
+   * @throws If a Money Account upgrade is in flight, the checks fail, the wallet stops being ready part way, or linking the
    * successor, moving the subscription, registering the intents or starting
    * the funds transfer fails. A `BindingMigrationIncompleteError` once every
    * binding migrator of a phase has run, if any of them is pending or
    * blocked.
    */
   async startMigration(): Promise<void> {
-    if (this.#isMigrationInFlight) {
-      throw new Error('A Money Account migration is already in progress');
+    if (this.#migrationInFlight) {
+      return this.#migrationInFlight;
     }
 
     if (this.#upgradesInFlight.size > 0) {
       throw new Error('A Money Account upgrade is in progress');
     }
 
-    this.#isMigrationInFlight = true;
-    try {
-      await this.#startMigration();
-    } finally {
-      this.#isMigrationInFlight = false;
-    }
+    const migration = this.#startMigration().finally(() => {
+      this.#migrationInFlight = undefined;
+    });
+    this.#migrationInFlight = migration;
+    return migration;
   }
 
   /**
