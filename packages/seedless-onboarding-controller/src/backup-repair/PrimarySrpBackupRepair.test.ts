@@ -9,12 +9,14 @@ import type { Mock } from 'vitest';
 
 import {
   createFetchedSecretDataItem,
+  ImportedPrivateKey1,
+  ImportedSRP1,
   PrimarySRP2,
   PrivateKey1,
   SRP1,
+  SRP2,
 } from '../../tests/__fixtures__/secret-metadata.js';
 import {
-  SecretType,
   SeedlessPrimarySrpMismatchEventName,
   SeedlessPrimarySrpMissingEventName,
 } from '../constants.js';
@@ -53,6 +55,10 @@ function setup({
   repair: PrimarySrpBackupRepair;
   identity: { userId?: string; authConnectionId?: string };
   addSecretDataItem: Mock<ToprfSecureBackup['addSecretDataItem']>;
+  updateSecretDataItem: Mock<ToprfSecureBackup['updateSecretDataItem']>;
+  batchUpdateSecretDataItems: Mock<
+    ToprfSecureBackup['batchUpdateSecretDataItems']
+  >;
   fetchAllSecretData: Mock<PrimarySrpBackupRepairOptions['fetchAllSecretData']>;
   exportPrimarySeedPhrase: Mock<
     PrimarySrpBackupRepairOptions['exportPrimarySeedPhrase']
@@ -63,6 +69,12 @@ function setup({
   const identity = { ...IDENTITY };
   const addSecretDataItem = vi
     .fn<ToprfSecureBackup['addSecretDataItem']>()
+    .mockResolvedValue(undefined);
+  const updateSecretDataItem = vi
+    .fn<ToprfSecureBackup['updateSecretDataItem']>()
+    .mockResolvedValue(undefined);
+  const batchUpdateSecretDataItems = vi
+    .fn<ToprfSecureBackup['batchUpdateSecretDataItems']>()
     .mockResolvedValue(undefined);
   const fetchAllSecretData = vi
     .fn<PrimarySrpBackupRepairOptions['fetchAllSecretData']>()
@@ -77,7 +89,11 @@ function setup({
 
   const repair = new PrimarySrpBackupRepair({
     getToprfClient: (): ToprfSecureBackup =>
-      ({ addSecretDataItem }) as unknown as ToprfSecureBackup,
+      ({
+        addSecretDataItem,
+        updateSecretDataItem,
+        batchUpdateSecretDataItems,
+      }) as unknown as ToprfSecureBackup,
     fetchAllSecretData,
     exportPrimarySeedPhrase,
     trackEvent,
@@ -91,6 +107,8 @@ function setup({
     repair,
     identity,
     addSecretDataItem,
+    updateSecretDataItem,
+    batchUpdateSecretDataItems,
     fetchAllSecretData,
     exportPrimarySeedPhrase,
     trackEvent,
@@ -112,61 +130,173 @@ describe('PrimarySrpBackupRepair', () => {
       expect(exportPrimarySeedPhrase).toHaveBeenCalledWith(PASSWORD);
     });
 
-    it('tracks and adds the local primary SRP as v2 when the remote backup is empty', async () => {
-      const { repair, trackEvent, withRepairContext, addSecretDataItem } =
-        setup();
+    describe('when the primary SRP is missing', () => {
+      it('tracks and adds the local primary SRP as v2 when the remote backup is empty', async () => {
+        const {
+          repair,
+          trackEvent,
+          withRepairContext,
+          addSecretDataItem,
+          updateSecretDataItem,
+          batchUpdateSecretDataItems,
+        } = setup();
 
-      await repair.run(PASSWORD);
+        await repair.run(PASSWORD);
 
-      expect(trackEvent).toHaveBeenCalledWith(
-        expect.objectContaining({ name: SeedlessPrimarySrpMissingEventName }),
-      );
-      expect(withRepairContext).toHaveBeenCalledTimes(1);
-      expect(addSecretDataItem).toHaveBeenCalledWith({
-        encKey: VAULT_KEYS.toprfEncryptionKey,
-        secretData: expect.any(Uint8Array),
-        authKeyPair: VAULT_KEYS.toprfAuthKeyPair,
-        dataType: EncAccountDataType.PrimarySrp,
-        version: 'v2',
+        expect(trackEvent).toHaveBeenCalledWith(
+          expect.objectContaining({ name: SeedlessPrimarySrpMissingEventName }),
+        );
+        expect(withRepairContext).toHaveBeenCalledTimes(1);
+        expect(updateSecretDataItem).not.toHaveBeenCalled();
+        expect(batchUpdateSecretDataItems).not.toHaveBeenCalled();
+        expect(addSecretDataItem).toHaveBeenCalledWith({
+          encKey: VAULT_KEYS.toprfEncryptionKey,
+          secretData: expect.any(Uint8Array),
+          authKeyPair: VAULT_KEYS.toprfAuthKeyPair,
+          dataType: EncAccountDataType.PrimarySrp,
+          version: 'v2',
+        });
+        const { secretData } = addSecretDataItem.mock.calls[0][0];
+        const metadata = SecretMetadata.fromRawMetadata(secretData, {
+          dataType: EncAccountDataType.PrimarySrp,
+        });
+        expect(metadata.data).toStrictEqual(LOCAL_PRIMARY_SRP);
+        expect(metadata.dataType).toBe(EncAccountDataType.PrimarySrp);
       });
-      const { secretData } = addSecretDataItem.mock.calls[0][0];
-      const metadata = SecretMetadata.fromRawMetadata(secretData, {
-        dataType: EncAccountDataType.PrimarySrp,
+
+      it('migrates a legacy private key to v2 before adding the local primary SRP', async () => {
+        const { repair, addSecretDataItem, updateSecretDataItem } = setup({
+          remoteItems: [createFetchedSecretDataItem(PrivateKey1)],
+        });
+
+        await repair.run(PASSWORD);
+
+        expect(updateSecretDataItem).toHaveBeenCalledTimes(1);
+        expect(updateSecretDataItem).toHaveBeenCalledWith({
+          itemId: PrivateKey1.itemId,
+          dataType: EncAccountDataType.ImportedPrivateKey,
+          authKeyPair: VAULT_KEYS.toprfAuthKeyPair,
+        });
+        expect(addSecretDataItem).toHaveBeenCalledWith(
+          expect.objectContaining({
+            dataType: EncAccountDataType.PrimarySrp,
+            version: 'v2',
+          }),
+        );
+        expect(updateSecretDataItem.mock.invocationCallOrder[0]).toBeLessThan(
+          addSecretDataItem.mock.invocationCallOrder[0],
+        );
       });
-      expect(metadata.data).toStrictEqual(LOCAL_PRIMARY_SRP);
-      expect(metadata.dataType).toBe(EncAccountDataType.PrimarySrp);
+
+      it('promotes the remote imported copy of the local primary SRP instead of adding it', async () => {
+        const { repair, addSecretDataItem, updateSecretDataItem } = setup({
+          remoteItems: [createFetchedSecretDataItem(ImportedSRP1)],
+        });
+
+        await repair.run(PASSWORD);
+
+        expect(addSecretDataItem).not.toHaveBeenCalled();
+        expect(updateSecretDataItem).toHaveBeenCalledTimes(1);
+        expect(updateSecretDataItem).toHaveBeenCalledWith({
+          itemId: SRP1.itemId,
+          dataType: EncAccountDataType.PrimarySrp,
+          authKeyPair: VAULT_KEYS.toprfAuthKeyPair,
+        });
+      });
     });
 
-    it('adds the local primary SRP as v1 when the remote backup is v1', async () => {
-      const { repair, addSecretDataItem } = setup({
-        remoteItems: [createFetchedSecretDataItem(PrivateKey1)],
+    describe('when the primary SRP mismatches', () => {
+      it('tracks, demotes the remote primary SRP and adds the local one', async () => {
+        const {
+          repair,
+          trackEvent,
+          addSecretDataItem,
+          updateSecretDataItem,
+          batchUpdateSecretDataItems,
+        } = setup({ remoteItems: [createFetchedSecretDataItem(PrimarySRP2)] });
+
+        await repair.run(PASSWORD);
+
+        expect(trackEvent).toHaveBeenCalledWith(
+          expect.objectContaining({
+            name: SeedlessPrimarySrpMismatchEventName,
+          }),
+        );
+        expect(batchUpdateSecretDataItems).not.toHaveBeenCalled();
+        expect(updateSecretDataItem).toHaveBeenCalledTimes(1);
+        expect(updateSecretDataItem).toHaveBeenCalledWith({
+          itemId: SRP2.itemId,
+          dataType: EncAccountDataType.ImportedSrp,
+          authKeyPair: VAULT_KEYS.toprfAuthKeyPair,
+        });
+        expect(addSecretDataItem).toHaveBeenCalledWith(
+          expect.objectContaining({
+            dataType: EncAccountDataType.PrimarySrp,
+            version: 'v2',
+          }),
+        );
+        expect(updateSecretDataItem.mock.invocationCallOrder[0]).toBeLessThan(
+          addSecretDataItem.mock.invocationCallOrder[0],
+        );
       });
 
-      await repair.run(PASSWORD);
+      it('retags several items in one batch and then promotes the remote copy of the local primary SRP', async () => {
+        const {
+          repair,
+          addSecretDataItem,
+          updateSecretDataItem,
+          batchUpdateSecretDataItems,
+        } = setup({
+          remoteItems: [
+            createFetchedSecretDataItem(PrimarySRP2),
+            createFetchedSecretDataItem(ImportedSRP1),
+            createFetchedSecretDataItem(PrivateKey1),
+          ],
+        });
 
-      expect(addSecretDataItem).toHaveBeenCalledTimes(1);
-      const { secretData, dataType, version } =
-        addSecretDataItem.mock.calls[0][0];
-      expect(dataType).toBeUndefined();
-      // The SDK defaults to v2, which requires a data type.
-      expect(version).toBe('v1');
-      const metadata = SecretMetadata.fromRawMetadata(secretData, {});
-      expect(metadata.data).toStrictEqual(LOCAL_PRIMARY_SRP);
-      expect(metadata.type).toBe(SecretType.Mnemonic);
-      expect(metadata.dataType).toBeUndefined();
-    });
+        await repair.run(PASSWORD);
 
-    it('tracks a mismatch without repairing it', async () => {
-      const { repair, trackEvent, withRepairContext, addSecretDataItem } =
-        setup({ remoteItems: [createFetchedSecretDataItem(PrimarySRP2)] });
+        expect(addSecretDataItem).not.toHaveBeenCalled();
+        expect(batchUpdateSecretDataItems).toHaveBeenCalledTimes(1);
+        expect(batchUpdateSecretDataItems).toHaveBeenCalledWith({
+          updateItems: [
+            {
+              itemId: SRP2.itemId,
+              dataType: EncAccountDataType.ImportedSrp,
+            },
+            {
+              itemId: PrivateKey1.itemId,
+              dataType: EncAccountDataType.ImportedPrivateKey,
+            },
+          ],
+          authKeyPair: VAULT_KEYS.toprfAuthKeyPair,
+        });
+        expect(updateSecretDataItem).toHaveBeenCalledTimes(1);
+        expect(updateSecretDataItem).toHaveBeenCalledWith({
+          itemId: SRP1.itemId,
+          dataType: EncAccountDataType.PrimarySrp,
+          authKeyPair: VAULT_KEYS.toprfAuthKeyPair,
+        });
+        expect(
+          batchUpdateSecretDataItems.mock.invocationCallOrder[0],
+        ).toBeLessThan(updateSecretDataItem.mock.invocationCallOrder[0]);
+      });
 
-      await repair.run(PASSWORD);
+      it('does not set the primary SRP when the retag fails', async () => {
+        const { repair, addSecretDataItem, updateSecretDataItem } = setup({
+          remoteItems: [createFetchedSecretDataItem(PrimarySRP2)],
+        });
+        const error = new Error('update failed');
+        updateSecretDataItem.mockRejectedValue(error);
 
-      expect(trackEvent).toHaveBeenCalledWith(
-        expect.objectContaining({ name: SeedlessPrimarySrpMismatchEventName }),
-      );
-      expect(withRepairContext).not.toHaveBeenCalled();
-      expect(addSecretDataItem).not.toHaveBeenCalled();
+        expect(await repair.run(PASSWORD)).toBeUndefined();
+
+        expect(addSecretDataItem).not.toHaveBeenCalled();
+        expect(logMock).toHaveBeenCalledWith(
+          'Error repairing primary SRP backup',
+          error,
+        );
+      });
     });
 
     it('does nothing when the remote primary SRP matches the local one', async () => {
@@ -196,9 +326,14 @@ describe('PrimarySrpBackupRepair', () => {
       expect(withRepairContext).not.toHaveBeenCalled();
     });
 
-    it('does not add anything when the identity changed after planning', async () => {
-      const { repair, identity, addSecretDataItem, exportPrimarySeedPhrase } =
-        setup();
+    it('does not write anything when the identity changed after planning', async () => {
+      const {
+        repair,
+        identity,
+        addSecretDataItem,
+        updateSecretDataItem,
+        exportPrimarySeedPhrase,
+      } = setup({ remoteItems: [createFetchedSecretDataItem(PrimarySRP2)] });
       exportPrimarySeedPhrase.mockImplementation(async () => {
         identity.userId = 'another-user-id';
         return LOCAL_PRIMARY_SRP;
@@ -206,9 +341,10 @@ describe('PrimarySrpBackupRepair', () => {
 
       expect(await repair.run(PASSWORD)).toBeUndefined();
 
+      expect(updateSecretDataItem).not.toHaveBeenCalled();
       expect(addSecretDataItem).not.toHaveBeenCalled();
       expect(logMock).toHaveBeenCalledWith(
-        'Error repairing missing primary SRP backup',
+        'Error repairing primary SRP backup',
         expect.any(Error),
       );
     });
@@ -222,20 +358,22 @@ describe('PrimarySrpBackupRepair', () => {
 
       expect(addSecretDataItem).not.toHaveBeenCalled();
       expect(logMock).toHaveBeenCalledWith(
-        'Error repairing missing primary SRP backup',
+        'Error repairing primary SRP backup',
         error,
       );
     });
 
     it('logs and resolves when the write fails', async () => {
-      const { repair, addSecretDataItem } = setup();
+      const { repair, addSecretDataItem } = setup({
+        remoteItems: [createFetchedSecretDataItem(ImportedPrivateKey1)],
+      });
       const error = new Error('write failed');
       addSecretDataItem.mockRejectedValue(error);
 
       expect(await repair.run(PASSWORD)).toBeUndefined();
 
       expect(logMock).toHaveBeenCalledWith(
-        'Error repairing missing primary SRP backup',
+        'Error repairing primary SRP backup',
         error,
       );
     });

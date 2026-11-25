@@ -6,12 +6,13 @@ import type {
 } from '@metamask/toprf-secure-backup';
 import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 
-import { controllerName, PrimarySrpRepairType } from '../constants.js';
+import { controllerName } from '../constants.js';
 import { createModuleLogger, projectLogger } from '../logger.js';
 import { SecretMetadata } from '../SecretMetadata.js';
-import type { MetadataSchemaVersion } from '../types.js';
+import type { PrimarySrpRepairPlan } from '../types.js';
 import {
   assertIdentityUnchanged,
+  getPrimarySrpRepairWrites,
   planPrimarySrpRepair,
   trackIncompleteMetadataBackupEvents,
 } from '../utils/index.js';
@@ -67,7 +68,7 @@ export type PrimarySrpBackupRepairOptions = {
 
 /**
  * Identifies an incomplete or mismatched primary SRP backup at the metadata
- * service, reports it, and repairs a missing primary SRP.
+ * service, reports it, and repairs it.
  */
 export class PrimarySrpBackupRepair {
   readonly #getToprfClient: PrimarySrpBackupRepairOptions['getToprfClient'];
@@ -110,7 +111,7 @@ export class PrimarySrpBackupRepair {
 
   /**
    * Identify an incomplete or mismatched primary SRP backup, report it, and
-   * repair a missing primary SRP.
+   * repair it.
    *
    * Never rejects, so it is safe to call without awaiting. It must not be
    * awaited while the controller lock is held: the repair takes that lock.
@@ -133,66 +134,78 @@ export class PrimarySrpBackupRepair {
       trackEvent: this.#trackEvent,
     });
 
-    if (plan?.repairType === PrimarySrpRepairType.Missing) {
-      await this.#repairMissingPrimarySrpBackup({
-        localPrimarySRP: plan.localPrimarySRP,
-        metadataSchemaVersion: plan.metadataSchemaVersion,
-        expectedIdentity,
-      });
+    if (plan) {
+      await this.#repairPrimarySrpBackup(plan, expectedIdentity);
     }
   }
 
   /**
-   * Write the local primary SRP to the metadata service as the remote primary
-   * SRP.
+   * Make the local primary SRP the remote primary SRP.
+   *
+   * The remote items are retagged first, which also demotes the old primary,
+   * and the local primary SRP is then promoted or added. The two steps can't
+   * be one request: the service rejects a new primary while another primary
+   * item is stored. If the second step fails, the backup is left without a
+   * primary SRP, which the next unlock repairs.
    *
    * This is a best-effort repair: any failure is logged and never thrown, so
    * it can't block the unlock flow.
    *
-   * @param params - The repair to apply.
-   * @param params.localPrimarySRP - The primary SRP to write.
-   * @param params.metadataSchemaVersion - The schema version of the remote
-   * backup. The primary SRP is written as v1 only when the backup is v1, and
-   * as v2 otherwise.
-   * @param params.expectedIdentity - The identity the repair was planned for.
-   * The repair is aborted if the identity changed in the meantime.
+   * @param plan - The repair plan.
+   * @param expectedIdentity - The identity the repair was planned for. The
+   * repair is aborted if the identity changed in the meantime.
    */
-  async #repairMissingPrimarySrpBackup({
-    localPrimarySRP,
-    metadataSchemaVersion,
-    expectedIdentity,
-  }: {
-    localPrimarySRP: Uint8Array;
-    metadataSchemaVersion: MetadataSchemaVersion;
-    expectedIdentity: Identity;
-  }): Promise<void> {
+  async #repairPrimarySrpBackup(
+    plan: PrimarySrpRepairPlan,
+    expectedIdentity: Identity,
+  ): Promise<void> {
     try {
+      const { retag, primary } = getPrimarySrpRepairWrites(plan);
+
       await this.#withRepairContext(
         async ({ toprfEncryptionKey, toprfAuthKeyPair }) => {
           // The identity may have changed since the repair was planned.
           assertIdentityUnchanged(this.#getIdentity(), expectedIdentity);
 
-          // A v1 backup has not been migrated, so it must stay on the legacy
-          // schema: an untagged mnemonic with no data type. The SDK defaults
-          // to v2 and then requires a data type, so v1 must be explicit.
-          // Every other backup (v2, none, mixed) is written as v2 with the
-          // `PrimarySrp` data type.
-          const isV1 = metadataSchemaVersion === 'v1';
-          const dataType = isV1 ? undefined : EncAccountDataType.PrimarySrp;
-          const primarySecretMetadata = new SecretMetadata(localPrimarySRP, {
-            dataType,
-          });
-          await this.#getToprfClient().addSecretDataItem({
-            encKey: toprfEncryptionKey,
-            secretData: primarySecretMetadata.toBytes(),
-            authKeyPair: toprfAuthKeyPair,
-            dataType,
-            version: isV1 ? 'v1' : 'v2',
-          });
+          const toprfClient = this.#getToprfClient();
+
+          if (retag.length === 1) {
+            await toprfClient.updateSecretDataItem({
+              ...retag[0],
+              authKeyPair: toprfAuthKeyPair,
+            });
+          } else if (retag.length > 1) {
+            await toprfClient.batchUpdateSecretDataItems({
+              updateItems: retag,
+              authKeyPair: toprfAuthKeyPair,
+            });
+          }
+
+          if (primary.type === 'promote') {
+            // mismatched case; promote the local primary to remote primary
+            await toprfClient.updateSecretDataItem({
+              itemId: primary.itemId,
+              dataType: EncAccountDataType.PrimarySrp,
+              authKeyPair: toprfAuthKeyPair,
+            });
+          } else {
+            // missing case; add the local primary to the remote backup
+            const primarySecretMetadata = new SecretMetadata(
+              plan.localPrimarySRP,
+              { dataType: EncAccountDataType.PrimarySrp },
+            );
+            await toprfClient.addSecretDataItem({
+              encKey: toprfEncryptionKey,
+              secretData: primarySecretMetadata.toBytes(),
+              authKeyPair: toprfAuthKeyPair,
+              dataType: EncAccountDataType.PrimarySrp,
+              version: 'v2',
+            });
+          }
         },
       );
     } catch (error) {
-      log('Error repairing missing primary SRP backup', error);
+      log('Error repairing primary SRP backup', error);
     }
   }
 }
