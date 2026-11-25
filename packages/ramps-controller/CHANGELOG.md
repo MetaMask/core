@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [31.0.0]
+
 ### Added
 
 - Add `submitMicaConsent` method to `TransakService` (also exposed on the messenger as `TransakService:submitMicaConsent`) for submitting MiCA consent with a caller-provided ISO 8601 timestamp. Returns `SubmitMicaConsentResponse` containing the submission status from Transak's API ([#11672](https://github.com/MetaMask/core/pull/11672))
@@ -888,7 +890,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@30.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@31.0.0...HEAD
+[31.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@30.1.0...@metamask/ramps-controller@31.0.0
 [30.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@30.0.0...@metamask/ramps-controller@30.1.0
 [30.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@29.0.0...@metamask/ramps-controller@30.0.0
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@28.1.0...@metamask/ramps-controller@29.0.0
