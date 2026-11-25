@@ -39,7 +39,10 @@ import {
 } from '../../utils/polymarket/withdraw.js';
 import { processPostQuotePaymentOverride } from '../../utils/post-quote-payment-override.js';
 import { reservePostQuoteGas } from '../../utils/post-quote.js';
-import { estimateSourceGas } from '../../utils/quote-gas.js';
+import {
+  estimateSourceGas,
+  getSourceTransactions,
+} from '../../utils/quote-gas.js';
 import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
 import { resolveQuoteRecipient } from '../../utils/quote-recipient.js';
 import {
@@ -48,8 +51,17 @@ import {
   getTokenFiatRate,
 } from '../../utils/token.js';
 import { getQuotePricing, TradeType } from '../../utils/trade-type.js';
-import { SERVER_HYPERLIQUID_PERPS_USDC_ASSET } from './constants.js';
+import {
+  SERVER_HYPERLIQUID_PERPS_USDC_ASSET,
+  SERVER_LIGHTER_PERPS_USDC_ASSET,
+} from './constants.js';
 import { hasServerDepositStep } from './deposit-step.js';
+import {
+  getLighterAccountIndex,
+  LighterNormalizer,
+  SERVER_LIGHTER_CHAIN_ID,
+  SERVER_LIGHTER_PERPS_USDC_ADDRESS,
+} from './lighter.js';
 import { normalizeServerPerpsRequest } from './perps.js';
 import { fetchServerQuote } from './server-api.js';
 import { validateServerQuotes } from './server-validation.js';
@@ -201,8 +213,12 @@ async function fetchQuotes(
 ): Promise<TransactionPayQuote<ServerQuote>[]> {
   const { accountSupports7702, messenger, signal, transaction } = fullRequest;
 
+  // Normalize Lighter requests up front before other normalization
+  const lighterNormalized =
+    LighterNormalizer.normalizeLighterRequest(quoteRequest);
+
   const normalizedRequest = await applyHyperliquidActivationFee(
-    normalizeServerPerpsRequest(quoteRequest, transaction),
+    normalizeServerPerpsRequest(lighterNormalized, transaction),
     messenger,
     transaction,
     signal,
@@ -234,6 +250,7 @@ async function fetchQuotes(
       isUsableDepositAddressQuote(body, result),
   );
 
+  const executionAccount = transaction.txParams.from as Hex;
   const normalized = await Promise.all(
     fulfilledResults.map((result) =>
       normalizeQuote(
@@ -241,7 +258,11 @@ async function fetchQuotes(
         {
           ...quoteRequest,
           hyperliquidActivationFeeUsd,
-          recipient: body.recipient,
+          // Preserve original recipient for Lighter (account index is not Hex).
+          // Fall back to execution account when no explicit recipient is set.
+          recipient: LighterNormalizer.isLighterRequest(quoteRequest)
+            ? (quoteRequest.recipient ?? executionAccount)
+            : (body.recipient as Hex),
         },
         messenger,
         body,
@@ -302,14 +323,18 @@ async function buildServerQuoteRequest(
     request: normalizedRequest,
     transaction,
   });
-  const recipient = await resolveQuoteRecipient({
-    messenger,
-    request: {
-      ...normalizedRequest,
-      recipient: override?.recipient ?? tokenTransferRecipient,
-    },
-    transaction,
-  });
+
+  // Lighter takes the account index as the recipient, not an address.
+  const recipient = LighterNormalizer.isLighterRequest(normalizedRequest)
+    ? await getLighterAccountIndex(executionAccount)
+    : await resolveQuoteRecipient({
+        messenger,
+        request: {
+          ...normalizedRequest,
+          recipient: override?.recipient ?? tokenTransferRecipient,
+        },
+        transaction,
+      });
 
   const isHypercoreSource = sourceChainId === CHAIN_ID_HYPERCORE;
 
@@ -323,8 +348,16 @@ async function buildServerQuoteRequest(
     isEIP7702Chain(messenger, sourceChainId);
 
   const body: ServerQuoteRequestDraft = {
-    sourceAsset: buildServerAsset(sourceChainId, sourceTokenAddress),
-    targetAsset: buildServerAsset(targetChainId, targetTokenAddress),
+    sourceAsset: buildServerAsset(
+      sourceChainId,
+      sourceTokenAddress,
+      normalizedRequest,
+    ),
+    targetAsset: buildServerAsset(
+      targetChainId,
+      targetTokenAddress,
+      normalizedRequest,
+    ),
     sender: from,
     recipient,
     slippage: Math.round(
@@ -334,15 +367,23 @@ async function buildServerQuoteRequest(
   };
 
   if (isPolymarketDepositWallet) {
-    await applyDepositWalletOverrides(body, from, sourceChainId, messenger);
+    await applyDepositWalletOverrides(
+      body,
+      from,
+      sourceChainId,
+      messenger,
+      normalizedRequest,
+    );
   }
 
   const hasNoData = singleData === undefined || singleData === '0x';
+  const isLighter = LighterNormalizer.isLighterRequest(normalizedRequest);
   const skipDelegation =
     hasNoData ||
     isTokenTransfer ||
     isHypercore ||
     isHypercoreSource ||
+    isLighter ||
     // Explicitly non-atomic requests want the calls run after settlement, so
     // they must not be embedded in the quote.
     atomic === false ||
@@ -485,17 +526,23 @@ function canDeferCalls({
  * @param from - The user EOA that owns the deposit wallet.
  * @param sourceChainId - Chain the deposit wallet funds the quote from.
  * @param messenger - Controller messenger.
+ * @param request - The normalized quote request.
  */
 async function applyDepositWalletOverrides(
   body: ServerQuoteRequestDraft,
   from: Hex,
   sourceChainId: Hex,
   messenger: TransactionPayControllerMessenger,
+  request: QuoteRequest,
 ): Promise<void> {
   const { depositWallet, sourceTokenAddress } =
     await getPolymarketDepositWalletOverrides(from, messenger);
 
-  body.sourceAsset = buildServerAsset(sourceChainId, sourceTokenAddress);
+  body.sourceAsset = buildServerAsset(
+    sourceChainId,
+    sourceTokenAddress,
+    request,
+  );
   body.sender = depositWallet;
   body.refundTo = depositWallet;
   body.useDepositAddress = true;
@@ -505,15 +552,33 @@ async function applyDepositWalletOverrides(
  * Build the CAIP-19 asset ID the server intents API expects for a token.
  *
  * HyperCore is only used for the Hyperliquid perps margin account, which has
- * no standard CAIP-19 asset ID.
+ * no standard CAIP-19 asset ID. Lighter perps requests are normalized with
+ * placeholder chain/address values that are mapped to the Lighter asset only
+ * when the request is confirmed to be a Lighter request.
  *
  * @param chainId - Chain ID of the token.
  * @param tokenAddress - Token address, or the native token address.
+ * @param request - The normalized quote request (used to verify Lighter).
  * @returns CAIP-19 asset ID.
  */
-function buildServerAsset(chainId: Hex, tokenAddress: Hex): CaipAssetType {
+function buildServerAsset(
+  chainId: Hex,
+  tokenAddress: Hex,
+  request: QuoteRequest,
+): CaipAssetType {
   if (chainId === CHAIN_ID_HYPERCORE) {
     return SERVER_HYPERLIQUID_PERPS_USDC_ASSET;
+  }
+
+  // Only map the Lighter placeholder to the Lighter asset if this is actually
+  // a Lighter request, preventing accidental collisions.
+  if (
+    LighterNormalizer.isLighterRequest(request) &&
+    chainId === SERVER_LIGHTER_CHAIN_ID &&
+    tokenAddress.toLowerCase() ===
+      SERVER_LIGHTER_PERPS_USDC_ADDRESS.toLowerCase()
+  ) {
+    return SERVER_LIGHTER_PERPS_USDC_ASSET;
   }
 
   return buildCaipAssetType(chainId, tokenAddress);
@@ -573,10 +638,13 @@ function isSecondLegRequired(
     return false;
   }
 
-  // HyperCore settles off-chain, so there is no target-chain transfer to read
-  // a settled amount from. Checks the built body rather than the original
-  // request, since perps deposits are only rewritten to HyperCore there.
-  if (body.targetAsset === SERVER_HYPERLIQUID_PERPS_USDC_ASSET) {
+  // HyperCore and Lighter settle off-chain, so there is no target-chain
+  // transfer to read a settled amount from. Checks the built body rather than
+  // the original request, since perps deposits are only rewritten there.
+  if (
+    body.targetAsset === SERVER_HYPERLIQUID_PERPS_USDC_ASSET ||
+    body.targetAsset === SERVER_LIGHTER_PERPS_USDC_ASSET
+  ) {
     return false;
   }
 
@@ -587,7 +655,10 @@ function isSecondLegRequired(
     return quoteRequest.atomic === false;
   }
 
-  if (body.sourceAsset === SERVER_HYPERLIQUID_PERPS_USDC_ASSET) {
+  if (
+    body.sourceAsset === SERVER_HYPERLIQUID_PERPS_USDC_ASSET ||
+    body.sourceAsset === SERVER_LIGHTER_PERPS_USDC_ASSET
+  ) {
     return false;
   }
 
@@ -814,13 +885,17 @@ async function calculateSourceNetworkCost({
     hasServerDepositStep(steps),
   );
 
+  const quoteTransactions = steps.map((step) =>
+    stepToGasTransaction(step, sender),
+  );
+
   const { gasLimits, is7702, totalGasEstimate, totalGasLimit } =
     await estimateSourceGas({
       fromOverride,
       messenger,
       request: quoteRequest,
       transaction,
-      transactions: steps.map((step) => stepToGasTransaction(step, sender)),
+      transactions: quoteTransactions,
     });
 
   const estimate = calculateGasCost({
@@ -852,11 +927,6 @@ async function calculateSourceNetworkCost({
   const gasStationCost = await resolveGasStationCost({
     accountSupports7702,
     feeTokenAccount,
-    firstStepData: {
-      data: firstStep.data,
-      to: firstStep.to,
-      value: firstStep.value,
-    },
     messenger,
     nativeGasCostRaw: max.raw,
     request: {
@@ -865,9 +935,13 @@ async function calculateSourceNetworkCost({
       sourceTokenAddress,
     },
     totalGasEstimate,
-    totalItemCount: feeTokenAccount
-      ? steps.length + 1
-      : Math.max(steps.length, gasLimits.length),
+    transactions: feeTokenAccount
+      ? quoteTransactions
+      : getSourceTransactions({
+          request: quoteRequest,
+          transaction,
+          transactions: quoteTransactions,
+        }),
   });
 
   if (!gasStationCost.amount) {
@@ -898,14 +972,7 @@ function getServerMaxQuoteDetails({
   return {
     gasLimits: original.client.gasLimits,
     gasStationTransactions: firstStep
-      ? {
-          firstStepData: {
-            data: firstStep.data,
-            to: firstStep.to,
-            value: firstStep.value,
-          },
-          totalItemCount: transactionSteps.length,
-        }
+      ? transactionSteps.map(({ data, to, value }) => ({ data, to, value }))
       : undefined,
     isGasless: original.gasless || !firstStep,
     isSubsidized: original.fees.subsidized,

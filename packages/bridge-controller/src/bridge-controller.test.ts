@@ -54,6 +54,7 @@ import {
 import * as featureFlagUtils from './utils/feature-flags.js';
 import * as fetchUtils from './utils/fetch.js';
 import {
+  AdvancedOrderMetricsEventName,
   BatchSellMetricsEventName,
   BatchSellMetricsLocation,
   FailurePhase,
@@ -2727,6 +2728,213 @@ describe('BridgeController', function () {
         },
       );
     });
+
+    it.each([
+      {
+        featureId: FeatureId.LIMIT_ORDER,
+        expectedQuotesRequestedEvent: 'Advanced Order Quotes Requested',
+      },
+      {
+        featureId: FeatureId.RECURRING_ORDER,
+        expectedQuotesRequestedEvent: 'Advanced Order Quotes Requested',
+      },
+      {
+        featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
+        expectedQuotesRequestedEvent: 'Unified SwapBridge Quotes Requested',
+      },
+    ])(
+      'publishes QuotesRequested for $featureId using the expected event category',
+      async ({ featureId, expectedQuotesRequestedEvent }) => {
+        await withController(async ({ controller }) => {
+          vi.spyOn(controller, 'fetchQuotes').mockResolvedValue([]);
+          await controller._executePoll({
+            quoteRequests: [
+              {
+                srcChainId: 1,
+                destChainId: 1,
+                srcTokenAddress: '0x0000000000000000000000000000000000000000',
+                destTokenAddress: '0x0000000000000000000000000000000000000000',
+                srcTokenAmount: '1',
+                walletAddress: '0x123',
+                gasIncluded: false,
+                gasIncluded7702: false,
+              },
+            ],
+            context: {
+              ...metricsContext,
+              feature_id: featureId,
+            },
+          });
+
+          expect(trackMetaMetricsFn).toHaveBeenCalledWith(
+            expectedQuotesRequestedEvent,
+            expect.objectContaining({
+              action_type: MetricsActionType.SWAPBRIDGE_V1,
+              feature_id: featureId,
+            }),
+          );
+        });
+      },
+    );
+
+    it('publishes the caller-provided Advanced QuotesReceived name with the Unified payload', async () => {
+      await withController(async ({ rootMessenger }) => {
+        rootMessenger.call(
+          'BridgeController:trackUnifiedSwapBridgeEvent',
+          AdvancedOrderMetricsEventName.QuotesReceived,
+          {
+            warnings: [],
+            usd_quoted_gas: 0,
+            gas_included: false,
+            gas_included_7702: false,
+            quoted_time_minutes: 10,
+            usd_quoted_return: 100,
+            price_impact: 0,
+            provider: 'provider_bridge',
+            best_quote_provider: 'provider_bridge2',
+            can_submit: true,
+            usd_amount_source: 100,
+            feature_id: FeatureId.RECURRING_ORDER,
+          },
+        );
+
+        expect(trackMetaMetricsFn).toHaveBeenCalledWith(
+          AdvancedOrderMetricsEventName.QuotesReceived,
+          expect.objectContaining({
+            action_type: MetricsActionType.SWAPBRIDGE_V1,
+            feature_id: FeatureId.RECURRING_ORDER,
+            quotes_count: 0,
+            refresh_count: 0,
+          }),
+        );
+      });
+    });
+
+    it('preserves a caller-provided Unified QuotesReceived name for recurring orders', async () => {
+      await withController(async ({ rootMessenger }) => {
+        rootMessenger.call(
+          'BridgeController:trackUnifiedSwapBridgeEvent',
+          UnifiedSwapBridgeEventName.QuotesReceived,
+          {
+            warnings: [],
+            usd_quoted_gas: 0,
+            gas_included: false,
+            gas_included_7702: false,
+            quoted_time_minutes: 10,
+            usd_quoted_return: 100,
+            price_impact: 0,
+            provider: 'provider_bridge',
+            best_quote_provider: 'provider_bridge2',
+            can_submit: true,
+            usd_amount_source: 100,
+            feature_id: FeatureId.RECURRING_ORDER,
+          },
+        );
+
+        expect(trackMetaMetricsFn).toHaveBeenCalledWith(
+          UnifiedSwapBridgeEventName.QuotesReceived,
+          expect.objectContaining({
+            feature_id: FeatureId.RECURRING_ORDER,
+          }),
+        );
+      });
+    });
+
+    it.each([
+      {
+        featureId: FeatureId.LIMIT_ORDER,
+        expectedEventName: AdvancedOrderMetricsEventName.QuotesReceived,
+      },
+      {
+        featureId: FeatureId.RECURRING_ORDER,
+        expectedEventName: AdvancedOrderMetricsEventName.QuotesReceived,
+      },
+      {
+        featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
+        expectedEventName: UnifiedSwapBridgeEventName.QuotesReceived,
+      },
+    ])(
+      'publishes interrupted QuotesReceived for $featureId using the expected event category',
+      async ({ featureId, expectedEventName }) => {
+        await withController(
+          {
+            options: {
+              state: {
+                ...DEFAULT_BRIDGE_CONTROLLER_STATE,
+                quotesLoadingStatus: RequestStatus.LOADING,
+              },
+            },
+          },
+          ({ controller }) => {
+            controller.stopPollingForQuotes(undefined, {
+              warnings: [],
+              usd_quoted_gas: 0,
+              gas_included: false,
+              gas_included_7702: false,
+              quoted_time_minutes: 10,
+              usd_quoted_return: 100,
+              price_impact: 0,
+              provider: 'provider_bridge',
+              best_quote_provider: 'provider_bridge2',
+              can_submit: true,
+              usd_amount_source: 100,
+              token_symbol_source: 'ETH',
+              token_symbol_destination: 'USDC',
+              feature_id: featureId,
+            });
+
+            expect(trackMetaMetricsFn).toHaveBeenCalledWith(
+              expectedEventName,
+              expect.objectContaining({
+                action_type: MetricsActionType.SWAPBRIDGE_V1,
+                feature_id: featureId,
+              }),
+            );
+          },
+        );
+      },
+    );
+
+    it.each([
+      {
+        state: {
+          ...DEFAULT_BRIDGE_CONTROLLER_STATE,
+          quotesLoadingStatus: RequestStatus.LOADING,
+        },
+        context: undefined,
+      },
+      {
+        state: {
+          ...DEFAULT_BRIDGE_CONTROLLER_STATE,
+          quotesLoadingStatus: RequestStatus.FETCHED,
+        },
+        context: {
+          warnings: [],
+          usd_quoted_gas: 0,
+          gas_included: false,
+          gas_included_7702: false,
+          quoted_time_minutes: 10,
+          usd_quoted_return: 100,
+          price_impact: 0,
+          provider: 'provider_bridge' as const,
+          best_quote_provider: 'provider_bridge2' as const,
+          can_submit: true,
+          usd_amount_source: 100,
+          token_symbol_source: 'ETH',
+          token_symbol_destination: 'USDC',
+          feature_id: FeatureId.RECURRING_ORDER,
+        },
+      },
+    ])(
+      'does not publish interrupted QuotesReceived without loading context',
+      async ({ state, context }) => {
+        await withController({ options: { state } }, ({ controller }) => {
+          controller.stopPollingForQuotes(undefined, context);
+
+          expect(trackMetaMetricsFn).not.toHaveBeenCalled();
+        });
+      },
+    );
 
     it('should track the ButtonClicked event', async () => {
       await withController(async ({ rootMessenger }) => {

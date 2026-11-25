@@ -47,8 +47,8 @@ export const LIGHTER_ENDPOINTS: LighterEndpoints = {
     ws: 'wss://mainnet.zklighter.elliot.ai/stream',
   },
   testnet: {
-    http: 'https://testnet.zklighter.elliot.ai',
-    ws: 'wss://testnet.zklighter.elliot.ai/stream',
+    http: 'https://api.testnet.lighter.xyz',
+    ws: 'wss://api.testnet.lighter.xyz/stream',
   },
 };
 
@@ -71,6 +71,9 @@ export function getLighterHttpEndpoint(network: LighterNetwork): string {
 export function getLighterWsEndpoint(network: LighterNetwork): string {
   return LIGHTER_ENDPOINTS[network].ws;
 }
+
+/** L2 transaction type: Transfer (funds move to another Lighter account). */
+export const LIGHTER_TX_TYPE_TRANSFER = 12;
 
 /** L2 transaction type: Withdraw (funds exit to L1). */
 export const LIGHTER_TX_TYPE_WITHDRAW = 13;
@@ -494,6 +497,11 @@ export const LIGHTER_MAX_MARKET_ID = 65535;
 export const LIGHTER_MAX_BASE_AMOUNT = '281474976710655';
 /** Inclusive uint48 client-order identity bound. */
 export const LIGHTER_MAX_CLIENT_ORDER_INDEX = '281474976710655';
+/**
+ * Bits 47..32 of the client order index of MetaMask stop loss and take profit
+ * orders. notify-perps decodes the same value from fills, so it must not change.
+ */
+export const LIGHTER_METAMASK_TAG_PREFIX = 0xa5c3;
 export const LIGHTER_MAX_ORDER_PRICE = '4294967295';
 export const LIGHTER_MAX_ORDER_ID = '1152921504606846975';
 export const LIGHTER_MAX_DECIMALS = 255;

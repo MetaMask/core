@@ -7,13 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^74.4.0` to `^74.4.1` ([#11761](https://github.com/MetaMask/core/pull/11761))
+
+## [33.1.0]
+
+### Added
+
+- `ServerStrategy` quotes into the Lighter perps balance (`lighter:mainnet/perps:usdc`) when `paymentOverride` is `perpsLighter` ([#11705](https://github.com/MetaMask/core/pull/11705))
+  - The transaction does not need calldata.
+  - The recipient is the index of the Lighter account owned by the transaction sender, looked up from the Lighter API.
+
+## [33.0.0]
+
 ### Added
 
 - Resume interrupted pay transactions after restart, gated by the per-strategy `confirmations_pay_extended.resume` feature flag and retried on each restart until `confirmations_pay_extended.resume[strategy].timeout` (10 minutes by default) has passed since the first attempt ([#11450](https://github.com/MetaMask/core/pull/11450))
+- Add resume support to `FiatStrategy` for fiat to direct mUSD transactions ([#11451](https://github.com/MetaMask/core/pull/11451))
+- Add `PaymentOverride.PerpsLighter` (`perpsLighter`) for a later direct Lighter target ([#11640](https://github.com/MetaMask/core/pull/11640))
+  - Quote building is unchanged. The first mainnet USDC deposit does not set this override.
 
 ### Changed
 
 - **BREAKING:** `TransactionPayControllerMessenger` requires the `AccountTreeController:getState`, `NetworkController:getState`, `RampsController:getState`, `TransactionController:failTransaction` and `TransactionController:finalizeResumedTransaction` actions ([#11450](https://github.com/MetaMask/core/pull/11450))
+- Price gas station fees by simulating the full EIP-7702 batch instead of scaling the first transaction ([#11626](https://github.com/MetaMask/core/pull/11626))
+  - Multi-transaction quotes now pass every origin transaction, including the original transaction for post-quote flows, to `TransactionController:getGasFeeTokens` as the batch that is submitted.
+  - Predict withdrawals that pay from a Safe still simulate the first transaction and scale it by the total gas estimate.
+- Send `ServerStrategy` status requests as `POST` including source transaction receipt logs ([#11652](https://github.com/MetaMask/core/pull/11652))
+  - Include the `address`, `data`, and `topics` of each log from the receipt of the local transaction matching the source hash, so providers can resolve their order.
+  - Fetch the source transaction receipt from the network when the local transaction has no receipt logs, such as relayed transactions marked as intent complete.
+  - Stop polling and fail immediately when the status request returns a `4xx` response, while still retrying on `408`, `429`, `5xx` and network errors.
+- Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.4.0` ([#11732](https://github.com/MetaMask/core/pull/11732))
 
 ## [32.1.1]
 
@@ -1969,7 +1994,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@33.1.0...HEAD
+[33.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@33.0.0...@metamask/transaction-pay-controller@33.1.0
+[33.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.1.1...@metamask/transaction-pay-controller@33.0.0
 [32.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.1.0...@metamask/transaction-pay-controller@32.1.1
 [32.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.0.0...@metamask/transaction-pay-controller@32.1.0
 [32.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.3.0...@metamask/transaction-pay-controller@32.0.0

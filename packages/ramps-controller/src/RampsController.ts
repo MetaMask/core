@@ -155,6 +155,9 @@ import type {
   TransakServiceCancelOrderAction,
   TransakServiceCancelAllActiveOrdersAction,
   TransakServiceGetActiveOrdersAction,
+  TransakServiceSubmitMicaConsentAction,
+  TransakServiceSubmitSourceOfIncomeAction,
+  TransakServiceSubmitAdditionalDetailsNationalityAction,
 } from './TransakService-method-action-types.js';
 import type {
   TransakAccessToken,
@@ -171,6 +174,9 @@ import type {
   TransakOrderPaymentMethod,
   PatchUserRequestBody,
   TransakOrder,
+  SubmitMicaConsentResponse,
+  SubmitSourceOfIncomeResponse,
+  SubmitAdditionalDetailsNationalityResponse,
 } from './TransakService.js';
 import type { TransakServiceActions } from './TransakService.js';
 import {
@@ -236,6 +242,9 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
   'TransakService:cancelOrder',
   'TransakService:cancelAllActiveOrders',
   'TransakService:getActiveOrders',
+  'TransakService:submitMicaConsent',
+  'TransakService:submitSourceOfIncome',
+  'TransakService:submitAdditionalDetailsNationality',
   'NeoBankService:getAutoramp',
   'NeoBankService:getAutoramps',
   'NeoBankService:createAutoramp',
@@ -1202,6 +1211,9 @@ type AllowedActions =
   | TransakServiceCancelOrderAction
   | TransakServiceCancelAllActiveOrdersAction
   | TransakServiceGetActiveOrdersAction
+  | TransakServiceSubmitMicaConsentAction
+  | TransakServiceSubmitSourceOfIncomeAction
+  | TransakServiceSubmitAdditionalDetailsNationalityAction
   | NeoBankServiceGetAutorampAction
   | NeoBankServiceGetAutorampsAction
   | NeoBankServiceCreateAutorampAction
@@ -1519,6 +1531,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'transakCancelOrder',
   'transakCancelAllActiveOrders',
   'transakGetActiveOrders',
+  'transakSubmitMicaConsent',
+  'transakSubmitSourceOfIncome',
+  'transakSubmitAdditionalDetailsNationality',
   'syncOrdersWithUserStorage',
 ] as const;
 
@@ -5958,6 +5973,75 @@ export class RampsController extends BaseController<
     this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call('TransakService:getActiveOrders');
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
+    }
+  }
+
+  /**
+   * Submits MiCA consent for the authenticated user.
+   *
+   * @param consentedAt - ISO 8601 timestamp of consent.
+   * @returns The submission response containing the status.
+   */
+  async transakSubmitMicaConsent(
+    consentedAt: string,
+  ): Promise<SubmitMicaConsentResponse> {
+    this.#assertNetworkAccessAllowed();
+    try {
+      return await this.messenger.call(
+        'TransakService:submitMicaConsent',
+        consentedAt,
+      );
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
+    }
+  }
+
+  /**
+   * Submits source of income details for the authenticated user.
+   *
+   * @param monthlyVolume - Expected monthly transaction volume.
+   * @param sourceOfFundsType - Source of funds (e.g., "salary", "business_income").
+   * @returns The submission response containing the status.
+   */
+  async transakSubmitSourceOfIncome(
+    monthlyVolume: string,
+    sourceOfFundsType: string,
+  ): Promise<SubmitSourceOfIncomeResponse> {
+    this.#assertNetworkAccessAllowed();
+    try {
+      return await this.messenger.call(
+        'TransakService:submitSourceOfIncome',
+        monthlyVolume,
+        sourceOfFundsType,
+      );
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
+    }
+  }
+
+  /**
+   * Submits additional nationality details for the authenticated user.
+   *
+   * @param employmentStatus - Employment status (e.g., "employed", "self_employed").
+   * @param countryOfCitizenship - ISO 3166-1 alpha-2 country code.
+   * @returns The submission response containing the status.
+   */
+  async transakSubmitAdditionalDetailsNationality(
+    employmentStatus: string,
+    countryOfCitizenship: string,
+  ): Promise<SubmitAdditionalDetailsNationalityResponse> {
+    this.#assertNetworkAccessAllowed();
+    try {
+      return await this.messenger.call(
+        'TransakService:submitAdditionalDetailsNationality',
+        employmentStatus,
+        countryOfCitizenship,
+      );
     } catch (error) {
       throw this.#getNormalizedTransakError(error, { syncAuth: true })
         .normalizedError;

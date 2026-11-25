@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { PERPS_CONSTANTS } from '../../../src/constants/perpsConfig.js';
 import type {
   CrossMarginSummary,
   MarketDataFormatters,
@@ -10,6 +11,7 @@ import type {
   LighterOrderBookDetail,
   LighterOrderBookMeta,
   LighterSubAccount,
+  LighterWsMarketStat,
   LighterWsUserStats,
 } from '../../../src/types/lighter-types.js';
 import {
@@ -21,6 +23,8 @@ import {
   adaptMarketFromLighter,
   adaptOrderFromLighter,
   adaptPositionFromLighter,
+  adaptPriceUpdateFromLighter,
+  adaptPriceUpdateFromLighterWsStat,
 } from '../../../src/utils/lighterAdapter.js';
 
 // Built per-test (jest resetMocks wipes module-scope vi.fn implementations).
@@ -82,7 +86,8 @@ describe('lighterAdapter', () => {
       dailyPriceLow: 95000,
       dailyPriceHigh: 101000,
       dailyPriceChange: 2.5,
-      openInterest: 12345678,
+      // Base units: 123.45 BTC, $12,345,000 at the last trade price.
+      openInterest: 123.45,
       dailyChart: {},
       minInitialMarginFraction: 400,
     };
@@ -94,7 +99,22 @@ describe('lighterAdapter', () => {
       expect(data.change24hPercent).toBe('+2.50%');
       expect(data.change24h.startsWith('+$')).toBe(true);
       expect(data.volume).toBe('$2500000');
-      expect(data.openInterest).toBe('$12345678');
+      expect(data.openInterest).toBe('$12345000');
+      expect(data.numericValues).toStrictEqual({
+        price: 100000,
+        change24hPercent: 2.5,
+        volume: 2500000,
+        openInterest: 12345000,
+      });
+    });
+
+    it('leaves open interest out of numericValues without a price', () => {
+      const data = adaptMarketDataFromLighter(
+        { ...detail, lastTradePrice: 0 },
+        buildFormatters(),
+      );
+      expect(data.openInterest).toBe(PERPS_CONSTANTS.FallbackPriceDisplay);
+      expect(data.numericValues).not.toHaveProperty('openInterest');
     });
 
     it('formats negative change with a minus prefix', () => {
@@ -121,6 +141,71 @@ describe('lighterAdapter', () => {
           buildFormatters(),
         ),
       ).toThrow('Invalid Lighter venue data');
+    });
+  });
+
+  describe('price update open interest', () => {
+    const detail: LighterOrderBookDetail = {
+      ...btcMarket,
+      lastTradePrice: 100000,
+      dailyTradesCount: 1000,
+      dailyBaseTokenVolume: 25,
+      dailyQuoteTokenVolume: 2500000,
+      dailyPriceLow: 95000,
+      dailyPriceHigh: 101000,
+      dailyPriceChange: 2.5,
+      // Base units: 123.45 BTC, $12,345,000 at the last trade price.
+      openInterest: 123.45,
+      dailyChart: {},
+    };
+    const stat: LighterWsMarketStat = {
+      symbol: 'BTC',
+      marketId: 1,
+      indexPrice: '99990',
+      markPrice: '100000',
+      midPrice: '100005',
+      bestAskPrice: '100010',
+      bestBidPrice: '100000',
+      lastTradePrice: '99000',
+      // Base units: 123.45 BTC, $12,345,000 at the mark price.
+      openInterest: '123.45',
+      fundingRate: '0.0001',
+      dailyQuoteTokenVolume: 2500000,
+      dailyPriceChange: 2.5,
+    };
+
+    it('converts REST polling open interest to USD at the last trade price', () => {
+      expect(adaptPriceUpdateFromLighter(detail, 1).openInterest).toBe(
+        12345000,
+      );
+    });
+
+    it('leaves REST polling open interest unset without a price', () => {
+      expect(
+        adaptPriceUpdateFromLighter({ ...detail, lastTradePrice: 0 }, 1),
+      ).not.toHaveProperty('openInterest');
+    });
+
+    it('converts WebSocket open interest to USD at the mark price', () => {
+      expect(adaptPriceUpdateFromLighterWsStat(stat, 1).openInterest).toBe(
+        12345000,
+      );
+    });
+
+    it('uses the last trade price without a mark price', () => {
+      expect(
+        adaptPriceUpdateFromLighterWsStat({ ...stat, markPrice: '' }, 1)
+          .openInterest,
+      ).toBe(12221550);
+    });
+
+    it('leaves WebSocket open interest unset without a price', () => {
+      expect(
+        adaptPriceUpdateFromLighterWsStat(
+          { ...stat, markPrice: '', lastTradePrice: '' },
+          1,
+        ),
+      ).not.toHaveProperty('openInterest');
     });
   });
 
@@ -532,6 +617,22 @@ describe('lighterAdapter', () => {
       expect(adaptAccountStateFromLighterUserStats(stats).spotCollateral).toBe(
         '0',
       );
+    });
+
+    it('returns returnOnEquity over margin used, like the REST account state', () => {
+      // PnL 1000 over margin used 4000 (collateral 10000 - available 6000).
+      expect(adaptAccountStateFromLighterUserStats(stats).returnOnEquity).toBe(
+        '25',
+      );
+    });
+
+    it('returns returnOnEquity 0 when no margin is used', () => {
+      expect(
+        adaptAccountStateFromLighterUserStats({
+          ...stats,
+          availableBalance: '10000',
+        }).returnOnEquity,
+      ).toBe('0');
     });
 
     it.each([
