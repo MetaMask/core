@@ -26,6 +26,7 @@ jobs:
         uses: actions/github-script@v9
         env:
           PAYLOAD_PATH: ${{ runner.temp }}/payload.json
+          SLACK_GROUP_ID: ${{ vars.NOTIFY_SLACK_GROUP_ID }}
         with:
           script: |
             const fs = require('fs/promises');
@@ -80,6 +81,7 @@ jobs:
 
             function generateNotification(details) {
               const title = `${details.workflow} workflow failed`;
+              const mention = process.env.SLACK_GROUP_ID ? `<!subteam^${process.env.SLACK_GROUP_ID}> ` : '';
 
               const failedJobs = details.failedJobs.map((job) => {
                 const line = `• ${link(job.url, escape(job.name))}${job.timedOut ? ' (timed out)' : ''}`;
@@ -105,7 +107,7 @@ jobs:
               ].filter(Boolean);
 
               return {
-                text: `:warning: ${title} on ${details.repository.name} (${details.branch}).`,
+                text: `${mention}:warning: ${title} on ${details.repository.name} (${details.branch}).`,
                 blocks: [
                   {
                     type: 'header',
@@ -116,7 +118,7 @@ jobs:
                     elements: [
                       {
                         type: 'mrkdwn',
-                        text: `${link(details.repository.url, details.repository.name)} · \`${details.branch}\``,
+                        text: `${mention}${link(details.repository.url, details.repository.name)} · \`${details.branch}\``,
                       },
                     ],
                   },
