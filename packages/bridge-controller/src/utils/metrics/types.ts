@@ -45,11 +45,7 @@ export type RequestParams = {
 };
 
 export type AccountHardwareType =
-  | 'Ledger'
-  | 'Trezor'
-  | 'QR Hardware'
-  | 'Lattice'
-  | null;
+  'Ledger' | 'Trezor' | 'QR Hardware' | 'Lattice' | null;
 
 export type RequestMetadata = {
   slippage_limit: number; // 0 === auto when no numeric limit is available
