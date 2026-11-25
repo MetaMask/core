@@ -72,6 +72,9 @@ export function getLighterWsEndpoint(network: LighterNetwork): string {
   return LIGHTER_ENDPOINTS[network].ws;
 }
 
+/** L2 transaction type: Transfer (funds move to another Lighter account). */
+export const LIGHTER_TX_TYPE_TRANSFER = 12;
+
 /** L2 transaction type: Withdraw (funds exit to L1). */
 export const LIGHTER_TX_TYPE_WITHDRAW = 13;
 
