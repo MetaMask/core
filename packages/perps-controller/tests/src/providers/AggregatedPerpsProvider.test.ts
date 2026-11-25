@@ -1130,6 +1130,27 @@ describe('AggregatedPerpsProvider', () => {
       status: 'active',
     };
 
+    it('reports a Chase change of any venue and stops with its subscriber', () => {
+      const stops = [vi.fn(), vi.fn()];
+      const changes: (() => void)[] = [];
+      [mockHLProvider, mockLighterProvider].forEach((provider, index) => {
+        provider.subscribeToChaseOrderChanges = vi.fn(({ callback }) => {
+          changes.push(callback);
+          return stops[index];
+        });
+      });
+      const callback = vi.fn();
+
+      const unsubscribe = aggregatedProvider.subscribeToChaseOrderChanges({
+        callback,
+      });
+      changes.forEach((change) => change());
+
+      expect(callback).toHaveBeenCalledTimes(2);
+      unsubscribe();
+      stops.forEach((stop) => expect(stop).toHaveBeenCalledTimes(1));
+    });
+
     it('aggregates Chase snapshots with their provider IDs', async () => {
       mockHLProvider.getChaseOrders?.mockResolvedValue([chaseOrder]);
 
@@ -5087,6 +5108,48 @@ describe('AggregatedPerpsProvider', () => {
 
       // Act & Assert
       await expect(testProvider.reconnect()).resolves.toBeUndefined();
+    });
+  });
+
+  describe('subscribeToMarketChanges', () => {
+    it('follows the default provider unless a venue is named', () => {
+      const listeners: Record<string, () => void> = {};
+      const stops = { hyperliquid: vi.fn(), lighter: vi.fn() };
+      const venue = (id: 'hyperliquid' | 'lighter'): MockPerpsProvider => ({
+        ...createMockProvider(id),
+        subscribeToMarketChanges: vi.fn(({ callback }) => {
+          listeners[id] = callback;
+          return stops[id];
+        }),
+      });
+      const hyperliquid = venue('hyperliquid');
+      const provider = new AggregatedPerpsProvider({
+        providers: new Map([
+          ['hyperliquid', hyperliquid],
+          ['lighter', venue('lighter')],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+      const callback = vi.fn();
+      const unsubscribe = provider.subscribeToMarketChanges({ callback });
+      listeners.hyperliquid();
+      expect(callback).toHaveBeenCalledTimes(1);
+
+      provider.setDefaultProvider('lighter');
+      expect(stops.hyperliquid).toHaveBeenCalledTimes(1);
+      // The new venue's markets replace the old one's.
+      expect(callback).toHaveBeenCalledTimes(2);
+      listeners.lighter();
+      expect(callback).toHaveBeenCalledTimes(3);
+      unsubscribe();
+      expect(stops.lighter).toHaveBeenCalledTimes(1);
+
+      provider.subscribeToMarketChanges({
+        providerId: 'hyperliquid',
+        callback,
+      });
+      expect(hyperliquid.subscribeToMarketChanges).toHaveBeenCalledTimes(2);
     });
   });
 

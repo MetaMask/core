@@ -165,6 +165,8 @@ import type {
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
+  SubscribeChaseOrderChangesParams,
+  SubscribeMarketChangesParams,
   SubscribeTwapOrdersParams,
   SubscribePositionsParams,
   SubscribePricesParams,
@@ -1287,6 +1289,8 @@ type ChaseSession = {
   intervalMs: number;
   /** Last live remainder refresh used by client-facing snapshots. */
   lastSnapshotSizeRefreshAt: number;
+  /** The venue pushed a change of the resting child since that refresh. */
+  isRemainderStale?: boolean;
   /**
    * Builder fee this chase was quoted at, in tenths of a basis point.
    *
@@ -1894,6 +1898,9 @@ export class HyperLiquidProvider implements PerpsProvider {
   >();
 
   readonly #trackedTwapOrders: Map<string, TrackedTwapOrder>;
+
+  // Told when a chase session changed.
+  readonly #chaseChangeListeners = new Set<() => void>();
 
   // Chase sessions running on this provider instance, keyed by session handle.
   // Each owns a pending timer, so disconnect has to stop them.
@@ -9169,6 +9176,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     this.#chaseSessions.set(sessionId, session);
     this.#scheduleChaseTick(sessionId);
+    this.#notifyChaseChange();
 
     this.#deps.debugLogger.log('Chase session started', {
       sessionId,
@@ -9352,7 +9360,8 @@ export class HyperLiquidProvider implements PerpsProvider {
             error: ensureError(error, 'HyperLiquidProvider.chaseTick').message,
           });
           this.#recoverFailedChaseTick(sessionId);
-        });
+        })
+        .then(() => this.#notifyChaseChange());
     }, session.intervalMs);
 
     // Node keeps the process alive for a pending timer; a background chase is
@@ -10187,6 +10196,86 @@ export class HyperLiquidProvider implements PerpsProvider {
       clearTimeout(session.timer);
       session.timer = null;
     }
+    this.#notifyChaseChange();
+  }
+
+  /** Tell the change subscribers that a chase session may have changed. */
+  #notifyChaseChange(): void {
+    for (const listener of [...this.#chaseChangeListeners]) {
+      listener();
+    }
+  }
+
+  /**
+   * Call back when a chase may have changed: on a placement, a re-price, a stop
+   * or an ending of this provider's own sessions, and when the venue's fill and
+   * order streams show a change of a session's resting child. Nothing is read
+   * on a timer.
+   *
+   * @param params - Subscription parameters.
+   * @param params.callback - Called on each change.
+   * @returns A cleanup function.
+   */
+  subscribeToChaseOrderChanges({
+    callback,
+  }: SubscribeChaseOrderChangesParams): () => void {
+    const listener = (): void => callback();
+    const markChanged = (isChanged: (orderId: string) => boolean): void => {
+      let changed = false;
+      for (const session of this.#chaseSessions.values()) {
+        const childId = session.orderId ?? session.unresolvedOrderId;
+        if (childId !== undefined && isChanged(childId)) {
+          session.isRemainderStale = true;
+          changed = true;
+        }
+      }
+      if (changed) {
+        callback();
+      }
+    };
+    this.#chaseChangeListeners.add(listener);
+    const stops: (() => void)[] = [
+      (): void => {
+        this.#chaseChangeListeners.delete(listener);
+      },
+    ];
+    let resting = new Set<string>();
+    const open = (subscribe: () => () => void): void => {
+      try {
+        stops.push(subscribe());
+      } catch (error) {
+        // The sessions' own changes are still reported.
+        this.#deps.debugLogger.log('Chase child stream unavailable', {
+          error: ensureError(
+            error,
+            'HyperLiquidProvider.subscribeToChaseOrderChanges',
+          ).message,
+        });
+      }
+    };
+    open(() =>
+      this.#subscriptionService.subscribeToOrderFills({
+        callback: (fills, isSnapshot) => {
+          if (!isSnapshot) {
+            const filled = new Set(fills.map((fill) => fill.orderId));
+            markChanged((orderId) => filled.has(orderId));
+          }
+        },
+      }),
+    );
+    open(() =>
+      this.#subscriptionService.subscribeToOrders({
+        callback: (orders) => {
+          const previous = resting;
+          resting = new Set(orders.map((order) => order.orderId));
+          // A child that stopped resting was filled or cancelled elsewhere.
+          markChanged(
+            (orderId) => previous.has(orderId) && !resting.has(orderId),
+          );
+        },
+      }),
+    );
+    return () => stops.forEach((stop) => stop());
   }
 
   /**
@@ -10493,9 +10582,14 @@ export class HyperLiquidProvider implements PerpsProvider {
         if (
           session.orderId !== null &&
           session.pendingReplacement === null &&
-          now - session.lastSnapshotSizeRefreshAt >= session.intervalMs
+          // A change subscriber hears the child's own pushes; a caller without
+          // one is refreshed at the Chase interval.
+          (this.#chaseChangeListeners.size > 0
+            ? session.isRemainderStale
+            : now - session.lastSnapshotSizeRefreshAt >= session.intervalMs)
         ) {
           session.lastSnapshotSizeRefreshAt = now;
+          session.isRemainderStale = false;
           const snapshotOrderId = session.orderId;
           try {
             const liveRemainder = await this.#readOrderRemainder(
@@ -10919,6 +11013,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       return result;
     } finally {
       this.#chaseTerminations.delete(params.orderId);
+      this.#notifyChaseChange();
     }
   }
 
@@ -17751,12 +17846,19 @@ export class HyperLiquidProvider implements PerpsProvider {
         return;
       })
       .catch((error) => {
+        const safeError = ensureError(
+          error,
+          'HyperLiquidProvider.subscribeToPrices',
+        );
         this.#deps.logger.error(
-          ensureError(error, 'HyperLiquidProvider.subscribeToPrices'),
+          safeError,
           this.#getErrorContext('subscribeToPrices', {
             symbols: params.symbols,
           }),
         );
+        if (!cancelled) {
+          params.onError?.(safeError);
+        }
         return;
       });
 
@@ -17789,12 +17891,8 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Stream TWAP lifecycle updates from the venue's own push channel.
-   *
-   * The venue streams schedule state without slice fills, so each pushed
-   * schedule carries an empty `fills` array. A subscriber that renders fill
-   * history should keep what a prior `getTwapOrders()` read supplied rather
-   * than replacing it from the stream.
+   * Stream TWAP lifecycle updates from the venue's own push channels: schedule
+   * state from `userTwapHistory` and slice fills from `userTwapSliceFills`.
    *
    * @param params - Subscription parameters including callback and account ID.
    * @returns A cleanup function to unsubscribe from TWAP updates.
@@ -17802,35 +17900,42 @@ export class HyperLiquidProvider implements PerpsProvider {
   subscribeToTwapOrders(params: SubscribeTwapOrdersParams): () => void {
     return this.#subscriptionService.subscribeToTwapOrders({
       ...params,
-      adapt: (history) => {
-        const now = Date.now();
-        const ordersById = new Map<string, TwapOrder>();
-        for (const historyEntry of history) {
-          const order = this.#adaptTwapOrder({
-            historyEntry,
-            sliceFills: [],
-            now,
-          });
-          if (!order) {
-            continue;
+      adapt: {
+        sliceFills: (sliceFills) =>
+          sliceFills.map((entry) => ({
+            orderId: entry.twapId.toString(),
+            fill: adaptTwapOrderFill(entry),
+          })),
+        history: (history) => {
+          const now = Date.now();
+          const ordersById = new Map<string, TwapOrder>();
+          for (const historyEntry of history) {
+            const order = this.#adaptTwapOrder({
+              historyEntry,
+              sliceFills: [],
+              now,
+            });
+            if (!order) {
+              continue;
+            }
+            const existing = ordersById.get(order.orderId);
+            if (!existing || supersedesTwapOrder(order, existing)) {
+              ordersById.set(order.orderId, order);
+            }
           }
-          const existing = ordersById.get(order.orderId);
-          if (!existing || supersedesTwapOrder(order, existing)) {
-            ordersById.set(order.orderId, order);
-          }
-        }
-        const orders = [...ordersById.values()].sort(
-          (left, right) => right.startedAt - left.startedAt,
-        );
+          const orders = [...ordersById.values()].sort(
+            (left, right) => right.startedAt - left.startedAt,
+          );
 
-        // A streamed terminal schedule must reclaim HIP-3 collateral the same
-        // way a polled read does, or a consumer that replaced polling with
-        // this subscription strands manually transferred collateral. The
-        // listener is synchronous, so this runs detached and logs its own
-        // failures rather than rejecting into the stream.
-        this.#rebalanceStreamedTerminalTwaps(orders, params.accountId);
+          // A streamed terminal schedule must reclaim HIP-3 collateral the same
+          // way a polled read does, or a consumer that replaced polling with
+          // this subscription strands manually transferred collateral. The
+          // listener is synchronous, so this runs detached and logs its own
+          // failures rather than rejecting into the stream.
+          this.#rebalanceStreamedTerminalTwaps(orders, params.accountId);
 
-        return orders;
+          return orders;
+        },
       },
     });
   }
@@ -17952,6 +18057,34 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   subscribeToCandles(params: SubscribeCandlesParams): () => void {
     return this.#clientService.subscribeToCandles(params);
+  }
+
+  /**
+   * Call back when the venue's `assetCtxs` push shows a listing or delisting.
+   *
+   * @param params - Callback and error handler.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToMarketChanges(params: SubscribeMarketChangesParams): () => void {
+    let stop: (() => void) | undefined;
+    let closed = false;
+    const open = async (): Promise<void> => {
+      await this.#ensureClientsInitialized();
+      if (!closed) {
+        stop = this.#subscriptionService.subscribeToMarketChanges(params);
+      }
+    };
+    open().catch((error: unknown) => {
+      if (!closed) {
+        params.onError?.(
+          ensureError(error, 'HyperLiquidProvider.subscribeToMarketChanges'),
+        );
+      }
+    });
+    return () => {
+      closed = true;
+      stop?.();
+    };
   }
 
   /**

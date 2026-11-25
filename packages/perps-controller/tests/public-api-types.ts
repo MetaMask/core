@@ -17,6 +17,29 @@ import type {
   PositionPreviewValue as ImportedPositionPreviewValue,
 } from '@metamask/perps-controller';
 import type {
+  OrderType as StreamOrderType,
+  PerpsControllerGetStreamSnapshotAction as StreamSnapshotAction,
+  PerpsControllerResubscribeStreamsAction as StreamResubscribeAction,
+  PerpsControllerSubscribeToConnectionLatencyAction as StreamLatencyAction,
+  PerpsControllerSubscribeToFeeRatesAction as StreamFeeRatesAction,
+  PerpsControllerSubscribeToMarginAdjustmentLimitsAction as StreamMarginLimitsAction,
+  PerpsControllerSubscribeToMarketMetaAction as StreamMarketMetaAction,
+  PerpsControllerSubscribeToTradingAgentValidityAction as StreamAgentValidityAction,
+  PerpsFeeRates as StreamFeeRates,
+  PerpsPlatformDependencies as StreamDependencies,
+  PerpsStreamName as StreamName,
+  PerpsStreamParams as StreamParams,
+  PerpsStreamSnapshot as StreamSnapshot,
+  PerpsTradingAgentValidity as StreamAgentValidity,
+  StreamChannelManager as StreamManager,
+  StreamChannelSource as StreamSource,
+  SubscribeConnectionLatencyParams as StreamLatencyParams,
+  SubscribeFeeRatesParams as StreamFeeRatesParams,
+  SubscribeMarginAdjustmentLimitsParams as StreamMarginLimitsParams,
+  SubscribeMarketMetaParams as StreamMarketMetaParams,
+  SubscribeTradingAgentValidityParams as StreamAgentValidityParams,
+} from '@metamask/perps-controller';
+import type {
   CloseSizeParams as ImportedCloseSizeParams,
   CloseSizeRounding as ImportedCloseSizeRounding,
   GetMarketDataWithPricesParams as ImportedGetMarketDataWithPricesParams,
@@ -1792,6 +1815,193 @@ export type MarginLimitsAndMarketMetaContracts = [
     IsExact<
       ReturnType<typeof accountMetaIsMarginRemovalAllowed>,
       boolean | undefined
+    >
+  >,
+];
+
+// Shared streams (TAT-4769): every subscription a client consumes, its
+// messenger action and the manager itself.
+type Flat<Type> = { [Key in keyof Type]: Type[Key] };
+type StreamCallbacks<Args extends unknown[]> = {
+  callback: (...args: Args) => void;
+  onError?: (error: Error) => void;
+  throttleMs?: number;
+  onReset?: () => void;
+};
+export type SharedStreamContracts = [
+  AssertTrue<
+    IsExact<
+      Flat<StreamMarketMetaParams>,
+      Flat<
+        {
+          providerId?: ImportedPerpsProviderType;
+        } & StreamCallbacks<[markets: AccountMetaMarketMeta[]]>
+      >
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Flat<StreamMarginLimitsParams>,
+      Flat<
+        AccountMetaLimitsParams & StreamCallbacks<[limits: AccountMetaLimits]>
+      >
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Flat<StreamLatencyParams>,
+      Flat<
+        {
+          providerId?: ImportedPerpsProviderType;
+        } & StreamCallbacks<[latencyMs: number]>
+      >
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Flat<StreamFeeRatesParams>,
+      Flat<
+        {
+          symbol: string;
+          orderType?: StreamOrderType;
+          providerId?: ImportedPerpsProviderType;
+          amount?: string;
+        } & StreamCallbacks<[rates: StreamFeeRates]>
+      >
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Flat<StreamAgentValidityParams>,
+      Flat<
+        {
+          accountId?: `${string}:${string}:${string}`;
+          providerId?: ImportedPerpsProviderType;
+        } & StreamCallbacks<[validity: StreamAgentValidity]>
+      >
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      [
+        StreamMarketMetaAction['type'],
+        StreamMarginLimitsAction['type'],
+        StreamLatencyAction['type'],
+        StreamFeeRatesAction['type'],
+        StreamAgentValidityAction['type'],
+        StreamSnapshotAction['type'],
+        StreamResubscribeAction['type'],
+      ],
+      [
+        'PerpsController:subscribeToMarketMeta',
+        'PerpsController:subscribeToMarginAdjustmentLimits',
+        'PerpsController:subscribeToConnectionLatency',
+        'PerpsController:subscribeToFeeRates',
+        'PerpsController:subscribeToTradingAgentValidity',
+        'PerpsController:getStreamSnapshot',
+        'PerpsController:resubscribeStreams',
+      ]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      [
+        StreamMarketMetaAction['handler'],
+        StreamMarginLimitsAction['handler'],
+        StreamLatencyAction['handler'],
+        StreamFeeRatesAction['handler'],
+        StreamAgentValidityAction['handler'],
+        StreamResubscribeAction['handler'],
+      ],
+      [
+        (params: StreamMarketMetaParams) => () => void,
+        (params: StreamMarginLimitsParams) => () => void,
+        (params: StreamLatencyParams) => () => void,
+        (params: StreamFeeRatesParams) => () => void,
+        (params: StreamAgentValidityParams) => () => void,
+        () => void,
+      ]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      StreamName,
+      | 'account'
+      | 'availableToTrade'
+      | 'candles'
+      | 'chaseOrderLists'
+      | 'connectionLatency'
+      | 'feeRates'
+      | 'liveTwapOrders'
+      | 'marginAdjustmentLimits'
+      | 'marketMeta'
+      | 'oiCaps'
+      | 'orderBook'
+      | 'orderFills'
+      | 'orders'
+      | 'positions'
+      | 'prices'
+      | 'publicTrades'
+      | 'tradingAgentValidity'
+      | 'twapOrders'
+    >
+  >,
+  AssertTrue<
+    IsExact<StreamSnapshot<'prices'>, [prices: AccountMetaPriceUpdate[]]>
+  >,
+  // A failed seed or subscription reaches every client-facing live read.
+  AssertTrue<
+    IsExact<
+      [
+        NonNullable<StreamParams['prices']['onError']>,
+        NonNullable<StreamParams['positions']['onError']>,
+        NonNullable<StreamParams['account']['onError']>,
+        NonNullable<StreamParams['oiCaps']['onError']>,
+        NonNullable<StreamParams['twapOrders']['onError']>,
+      ],
+      [
+        (error: Error) => void,
+        (error: Error) => void,
+        (error: Error) => void,
+        (error: Error) => void,
+        (error: Error) => void,
+      ]
+    >
+  >,
+  // Optional members: a provider or client written before them type-checks.
+  AssertCompatible<
+    PerpsProvider,
+    Omit<
+      PerpsProvider,
+      'subscribeToMarketChanges' | 'subscribeToChaseOrderChanges'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      NonNullable<StreamDependencies['rewards']['subscribeToPerpsFeeChanges']>,
+      (listener: () => void) => () => void
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      NonNullable<LiveChaseOrderSource['subscribeToChaseOrderChanges']>,
+      (listener: () => void) => () => void
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<StreamManager['subscribe']>,
+      ReturnType<StreamManager['pause']>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Pick<StreamSource<[number]>, 'delivery' | 'replay' | 'selfRecovering'>,
+      {
+        delivery?: 'latest' | 'merge' | 'queue';
+        replay?: boolean;
+        selfRecovering?: boolean;
+      }
     >
   >,
 ];

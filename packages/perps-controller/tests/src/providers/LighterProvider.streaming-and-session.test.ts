@@ -147,6 +147,41 @@ describe('LighterProvider', () => {
       await provider.disconnect();
     });
 
+    it('reports a market listed or dropped by the price push, and nothing for an ordinary frame', async () => {
+      const { provider } = buildProvider({ webSocketCtor: fakeCtor });
+      const callback = vi.fn();
+      const unsubscribe = provider.subscribeToMarketChanges({ callback });
+      const socket = FakeWebSocket.instances[0];
+      socket.open();
+      expect(socket.sent).toContainEqual(
+        JSON.stringify({ type: 'subscribe', channel: 'market_stats/all' }),
+      );
+      const stats = (type: string, ids: string[]): void =>
+        socket.receive({
+          type,
+          channel: 'market_stats:all',
+          market_stats: Object.fromEntries(
+            ids.map((id) => [id, wsStat(`M${id}`, Number(id), '1')]),
+          ),
+        });
+
+      stats('subscribed/market_stats', ['1', '2']);
+      stats('update/market_stats', ['2']);
+      expect(callback).not.toHaveBeenCalled();
+      stats('update/market_stats', ['3']);
+      expect(callback).toHaveBeenCalledTimes(1);
+      stats('update/market_stats', ['3']);
+      expect(callback).toHaveBeenCalledTimes(1);
+      // A full list without a market it had.
+      stats('subscribed/market_stats', ['1', '3']);
+      expect(callback).toHaveBeenCalledTimes(2);
+
+      unsubscribe();
+      stats('update/market_stats', ['4']);
+      expect(callback).toHaveBeenCalledTimes(2);
+      await provider.disconnect();
+    });
+
     it('does not log every price-stream frame', async () => {
       const infra = createMockInfrastructure();
       const { provider } = buildProvider({

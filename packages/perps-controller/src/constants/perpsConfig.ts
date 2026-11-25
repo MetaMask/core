@@ -142,8 +142,6 @@ export const CHASE_ORDER_CONFIG = {
    * the only thing that can enforce it.
    */
   MaxActiveSessions: 5,
-  /** How often a live chase list re-reads the provider's chase snapshots. */
-  RefreshIntervalMs: 1000,
   /** Most ended chases a live chase list keeps in history, newest first. */
   HistoryLimit: 50,
   /**
@@ -154,13 +152,20 @@ export const CHASE_ORDER_CONFIG = {
   OmissionGraceReads: 1,
 } as const;
 
-/** Refresh cadence of a live TWAP list. */
+/** How a shared stream channel reopens a source that failed. */
+export const STREAM_RETRY_CONFIG = {
+  /** Delay before the first reopen; it doubles with each attempt. */
+  BaseDelayMs: 1000,
+  /** Longest delay between two attempts. */
+  MaxDelayMs: 30000,
+  /** Reopens before the channel waits for a reconnect or a new reader. */
+  MaxAttempts: 5,
+  /** How long a source must run, with data, to earn a fresh budget. */
+  StableMs: 60000,
+} as const;
+
+/** Read timing of a live TWAP list. */
 export const TWAP_ORDER_CONFIG = {
-  /**
-   * How often a live TWAP list re-reads while a schedule runs. The stream
-   * carries no slice fills, so only reads raise the execution totals.
-   */
-  RefreshIntervalMs: 5000,
   /** Delay before re-reading when the stream lists a schedule no read has. */
   StreamCatchUpIntervalMs: 1000,
 } as const;

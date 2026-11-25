@@ -375,7 +375,7 @@ export class HyperLiquidClientService {
     const send = socket.send.bind(socket);
     socket.send = (data): void => {
       if (data === KEEPALIVE_PING_FRAME) {
-        pingSentAt = Date.now();
+        pingSentAt = this.#deps.performance.now();
       }
       send(data);
     };
@@ -391,7 +391,7 @@ export class HyperLiquidClientService {
       ) {
         return;
       }
-      const latencyMs = Math.round(Date.now() - pingSentAt);
+      const latencyMs = Math.round(this.#deps.performance.now() - pingSentAt);
       pingSentAt = undefined;
       this.#lastLatencyMs = latencyMs;
       for (const listener of this.#latencyListeners) {

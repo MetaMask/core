@@ -194,12 +194,13 @@ export type PerpsControllerGetMarketMetaAction = {
 /**
  * Stream every market's metadata (margin tiers, delisting, max leverage,
  * Cross support) from the routed venue. The callback receives the current
- * list at once, from the provider's session cache, then a new list each
- * time the market data preload refreshes (`startMarketDataPreload`), which
- * re-reads the venue's metadata. It adds no timer of its own. A failed read
- * goes to `onError` and leaves the last list current; an empty list is
- * never reported for a failure. In aggregated mode an unrouted stream
- * rebinds to the new default provider.
+ * list at once, from the provider's session cache, then a new list when the
+ * venue's own stream shows that its markets changed (a listing or a
+ * delisting) and after a reconnect. There is no timer, and nothing has to be
+ * preloaded. A failed read goes to `onError`, leaves the last list current
+ * and is retried with a bounded backoff; an empty list is never reported for
+ * a failure. In aggregated mode an unrouted stream moves to a new default
+ * provider.
  *
  * @param params - Optional provider route, callback and error handler.
  * @returns Cleanup function.
@@ -240,15 +241,20 @@ export type PerpsControllerSubscribeToConnectionLatencyAction = {
 };
 
 /**
- * Stream a market's post-discount fee rates: the `calculateFees` results
- * for a taker and a maker fill. The callback receives one read at once,
- * then a new read only on events: a fill on the account's own fills stream
- * (its volume tier can change), an account switch, a default provider
- * change in aggregated mode, and `invalidateSubscriptionBenefits`. There is
- * no timer. A failed read goes to `onError` and leaves the last rates
- * current; an unchanged read is not delivered.
+ * Stream a market's post-discount fee rates for the selected account: the
+ * `calculateFees` results for a taker and a maker fill, for `amount` when
+ * given. The callback receives one read at once, then a new read only on
+ * events: one of the account's own fills (its volume tier can change), an
+ * account switch, a default provider change in aggregated mode, a Rewards
+ * change (`rewards.subscribeToPerpsFeeChanges`), the expiry of a trading fee
+ * grant, and `invalidateSubscriptionBenefits`. There is no repeating timer.
+ * A failed read goes to `onError`, leaves the last rates current and is
+ * retried with a bounded backoff; an unchanged read is not delivered.
  *
- * @param params - Market, optional order type, route, account, callback
+ * `calculateFees` prices the selected account only, so the stream takes no
+ * account.
+ *
+ * @param params - Market, optional order type, amount and route, callback
  * and error handler.
  * @returns Cleanup function.
  */
@@ -1239,9 +1245,8 @@ export type PerpsControllerSubscribeToOrderFillsAction = {
 /**
  * Stream TWAP lifecycle updates through the active provider.
  *
- * Providers without a native TWAP push channel do not implement this; the
- * returned no-op cleanup lets a client fall back to polling `getTwapOrders`
- * without branching on provider identity.
+ * Providers without a native TWAP push channel do not implement this, and
+ * the returned cleanup does nothing.
  *
  * @param params - Subscription parameters including callback and account ID.
  * @returns A cleanup function to remove the subscription.
@@ -1252,10 +1257,10 @@ export type PerpsControllerSubscribeToTwapOrdersAction = {
 };
 
 /**
- * Keep one merged, live TWAP list for the active provider: reads and the
- * venue stream merged by schedule, execution totals raised from slice
- * fills, and re-reads while a schedule runs. Split it with
- * `partitionTwapOrders`. Follows the selected account.
+ * Keep one merged, live TWAP list for the active provider: one read and the
+ * venue stream merged by schedule, execution totals raised from the slice
+ * fills the stream carries. Split it with `partitionTwapOrders`. Follows the
+ * selected account.
  *
  * @param params - Listener and optional error listener.
  * @returns A cleanup function that stops reads and the stream.
@@ -1266,7 +1271,8 @@ export type PerpsControllerSubscribeToLiveTwapOrdersAction = {
 };
 
 /**
- * Keep running and history chase lists for the active provider. Ended
+ * Keep running and history chase lists for the active provider, read when
+ * the provider reports a chase change and never on a timer. Ended
  * chases stay in history after the provider drops them, up to
  * `CHASE_ORDER_CONFIG.HistoryLimit`.
  *
@@ -1368,10 +1374,8 @@ export type PerpsControllerGetPublicTradesAction = {
  * switch, testnet toggle, reinitialization), or for any other symbol.
  * Subscribe again once the new provider is active. In aggregated mode an
  * unrouted stream follows the default provider: `setDefaultProvider` moves
- * it to the new venue, like `subscribeToCandles`. On Hyperliquid, like
- * `subscribeToCandles`, the stream is not restored after the client
- * service reconnects its WebSocket and `onError` is not called, so
- * resubscribe after a reconnect.
+ * it to the new venue, like `subscribeToCandles`. After a reconnect, and
+ * after a failure, the channel reopens the venue stream itself.
  *
  * When no provider is active, the route conflicts with the active
  * provider, or the provider has no public trade feed, this returns a no-op

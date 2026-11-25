@@ -133,6 +133,9 @@ export class RewardsIntegrationService {
    */
   readonly #registeredTradingAddresses = new Set<string>();
 
+  /** Expiry of the last trading fee grant read for each route. */
+  readonly #grantExpiries = new Map<string, number>();
+
   /**
    * Whether `SubscriptionController:getBenefits` has ever answered on this
    * messenger. Action registration can be delegated, in which case it does not
@@ -215,6 +218,14 @@ export class RewardsIntegrationService {
       scope && isValidTradingFeeGrant(grantCandidate, scope, Date.now())
         ? grantCandidate
         : undefined;
+    if (scope) {
+      const route = `${scope.providerId}:${scope.isTestnet}`;
+      if (grant) {
+        this.#grantExpiries.set(route, grant.expiresAt);
+      } else {
+        this.#grantExpiries.delete(route);
+      }
+    }
     // Pure cache read: subscription benefits must never start a network request
     // while an order is being prepared for signing.
     const status = this.getSubscriptionFeeWaiverStatus();
@@ -333,6 +344,20 @@ export class RewardsIntegrationService {
       subscriptionWaiverKind,
       subscriptionCoveredNotionalUsd,
     };
+  }
+
+  /**
+   * When the next known trading fee grant expires, so a fee preview can be
+   * priced again at that moment.
+   *
+   * @returns The earliest expiry still ahead, in epoch milliseconds.
+   */
+  getFeeGrantExpiry(): number | undefined {
+    const now = Date.now();
+    const ahead = [...this.#grantExpiries.values()].filter(
+      (expiresAt) => expiresAt > now,
+    );
+    return ahead.length > 0 ? Math.min(...ahead) : undefined;
   }
 
   /**

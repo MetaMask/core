@@ -13,10 +13,13 @@ import {
   getDefaultPerpsControllerState,
   InitializationState,
 } from '../../src/PerpsController.js';
+import { AggregatedPerpsProvider } from '../../src/providers/AggregatedPerpsProvider.js';
 import type { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
+import { RewardsIntegrationService } from '../../src/services/RewardsIntegrationService.js';
 import type {
   FeeCalculationParams,
   MarketInfo,
+  OrderFill,
   PerpsProvider,
   PerpsProviderType,
   Position,
@@ -45,6 +48,18 @@ vi.mock('../../src/services/EligibilityService', () => ({
 
 /** Expose the protected setup the tests need. */
 class TestablePerpsController extends PerpsController {
+  testInstallAggregated(provider: AggregatedPerpsProvider): void {
+    this.activeProviderInstance = provider;
+    this.update((state) => {
+      state.activeProvider = 'aggregated';
+      state.effectiveProvider = 'hyperliquid';
+    });
+    this.providers = new Map<PerpsProviderType, PerpsProvider>([
+      ['hyperliquid', provider],
+      ['lighter', provider],
+    ]);
+  }
+
   testInstall(providers: Map<PerpsProviderType, PerpsProvider>): void {
     this.providers = providers;
     this.activeProviderInstance = providers.values().next().value ?? null;
@@ -71,10 +86,24 @@ const market = (name: string, isDelisted = false): MarketInfo => ({
   ...(isDelisted ? { isDelisted } : {}),
 });
 
+const createFill = (orderId: string): OrderFill => ({
+  orderId,
+  symbol: 'BTC',
+  side: 'buy',
+  size: '1',
+  price: '100',
+  pnl: '0',
+  direction: 'Open Long',
+  fee: '0',
+  feeToken: 'USDC',
+  timestamp: 1,
+});
+
 describe('PerpsController stream subscriptions', () => {
   let controller: TestablePerpsController;
   let provider: Mocked<HyperLiquidProvider>;
   let messenger: ReturnType<typeof createMockMessenger>;
+  let infrastructure: ReturnType<typeof createMockInfrastructure>;
 
   /**
    * Fire every handler the controller registered for a messenger event.
@@ -122,16 +151,18 @@ describe('PerpsController stream subscriptions', () => {
     });
     provider = createMockHyperLiquidProvider();
     messenger = createMockMessenger();
+    infrastructure = createMockInfrastructure();
     controller = new TestablePerpsController({
       messenger,
       state: getDefaultPerpsControllerState(),
-      infrastructure: createMockInfrastructure(),
+      infrastructure,
     });
     controller.testInstall(new Map([['hyperliquid', provider]]));
   });
 
   afterEach(() => {
     controller.stopMarketDataPreload();
+    vi.restoreAllMocks();
     vi.useRealTimers();
   });
 
@@ -192,38 +223,77 @@ describe('PerpsController stream subscriptions', () => {
       expect(vi.getTimerCount()).toBe(timers);
     });
 
-    it('re-reads the venue after a market data preload and reports a delisting', async () => {
+    /**
+     * Let the provider report market changes.
+     *
+     * @returns The report, and the spy that stops it.
+     */
+    const watchMarkets = (): { report: () => void; stop: Mock } => {
+      const stop = vi.fn();
+      let report: () => void = () => undefined;
+      Object.assign(provider, {
+        subscribeToMarketChanges: vi.fn<
+          NonNullable<PerpsProvider['subscribeToMarketChanges']>
+        >(({ callback }) => {
+          report = callback;
+          return stop;
+        }),
+      });
+      return { report: () => report(), stop };
+    };
+
+    it('re-reads the venue when its stream shows a change, with no preload, and reports a listing and a delisting', async () => {
       provider.getMarkets.mockResolvedValue([market('BTC'), market('ETH')]);
+      const { report, stop } = watchMarkets();
       const callback = vi.fn();
-      controller.subscribeToMarketMeta({ callback });
+      const unsubscribe = controller.subscribeToMarketMeta({ callback });
       await flush();
 
       provider.getMarkets.mockResolvedValue([
         market('BTC'),
         market('ETH', true),
+        market('NEW'),
       ]);
-      controller.startMarketDataPreload();
-      await flush();
+      await vi.advanceTimersByTimeAsync(3_600_000);
+      expect(provider.getMarkets).toHaveBeenCalledTimes(1);
+      report();
+      report();
       await flush();
 
-      expect(provider.getMarkets).toHaveBeenCalledWith({ skipCache: true });
+      // The second report arrived while the first one's read ran.
+      expect(provider.getMarkets).toHaveBeenCalledTimes(3);
+      expect(provider.getMarkets).toHaveBeenLastCalledWith({ skipCache: true });
+      expect(callback).toHaveBeenCalledTimes(2);
       expect(callback).toHaveBeenLastCalledWith([
         expect.objectContaining({ symbol: 'BTC', isDelisted: false }),
         expect.objectContaining({ symbol: 'ETH', isDelisted: true }),
+        expect.objectContaining({ symbol: 'NEW', isDelisted: false }),
       ]);
+      unsubscribe();
+      expect(stop).toHaveBeenCalledTimes(1);
     });
 
-    it('shares one read between subscribers and keeps an empty read from replacing the list', async () => {
+    it('does not read when the market data preload refreshes', async () => {
       provider.getMarkets.mockResolvedValue([market('BTC')]);
+      controller.subscribeToMarketMeta({ callback: vi.fn() });
+      await flush();
+      provider.getMarkets.mockClear();
+
+      controller.startMarketDataPreload();
+      await flush();
+
+      expect(provider.getMarkets).not.toHaveBeenCalledWith({ skipCache: true });
+    });
+
+    it('shares one read between subscribers, keeps an empty read from replacing the list and retries it', async () => {
+      provider.getMarkets.mockResolvedValue([market('BTC')]);
+      const { report } = watchMarkets();
       const first = vi.fn();
       const onError = vi.fn();
       const second = vi.fn();
-      const stopFirst = controller.subscribeToMarketMeta({
-        callback: first,
-        onError,
-      });
+      controller.subscribeToMarketMeta({ callback: first, onError });
       await flush();
-      const stopSecond = controller.subscribeToMarketMeta({ callback: second });
+      controller.subscribeToMarketMeta({ callback: second });
       // A later reader gets the last list replayed.
       await flush();
 
@@ -232,22 +302,41 @@ describe('PerpsController stream subscriptions', () => {
         expect.objectContaining({ symbol: 'BTC' }),
       ]);
 
-      provider.getMarkets.mockResolvedValue([]);
-      controller.startMarketDataPreload();
-      await flush();
+      provider.getMarkets.mockResolvedValueOnce([]);
+      report();
       await flush();
       expect(first).toHaveBeenCalledTimes(1);
       expect(onError).toHaveBeenCalledTimes(1);
 
-      stopFirst();
-      stopSecond();
-      provider.getMarkets.mockClear();
-      controller.stopMarketDataPreload();
-      controller.startMarketDataPreload();
+      provider.getMarkets.mockResolvedValue([market('BTC'), market('ETH')]);
+      await vi.advanceTimersByTimeAsync(1_000);
       await flush();
-      expect(provider.getMarkets).not.toHaveBeenCalledWith({
-        skipCache: true,
-      });
+      expect(first).toHaveBeenLastCalledWith([
+        expect.objectContaining({ symbol: 'BTC' }),
+        expect.objectContaining({ symbol: 'ETH' }),
+      ]);
+    });
+
+    it('keeps following the account and provider after a failed read', async () => {
+      provider.getMarkets.mockRejectedValueOnce(new Error('offline'));
+      const { report } = watchMarkets();
+      const callback = vi.fn();
+      const onError = vi.fn();
+      controller.subscribeToMarketMeta({ callback, onError });
+      await flush();
+      expect(onError).toHaveBeenCalledTimes(1);
+
+      provider.getMarkets.mockResolvedValue([market('BTC')]);
+      await vi.advanceTimersByTimeAsync(1_000);
+      report();
+      await flush();
+
+      expect(callback).toHaveBeenCalledWith([
+        expect.objectContaining({ symbol: 'BTC' }),
+      ]);
+      expect(controller.getStreamSnapshot('marketMeta', {})).toStrictEqual([
+        [expect.objectContaining({ symbol: 'BTC' })],
+      ]);
     });
   });
 
@@ -458,6 +547,207 @@ describe('PerpsController stream subscriptions', () => {
       expect(onError).toHaveBeenCalledWith(
         expect.objectContaining({ message: 'down' }),
       );
+    });
+
+    it('retries a failed read and, once moved to another account, follows that account', async () => {
+      const callback = vi.fn();
+      const onReset = vi.fn();
+      controller.subscribeToFeeRates({ symbol: 'BTC', callback, onReset });
+      await flush();
+      vi.mocked(controller.calculateFees).mockRejectedValueOnce(
+        new Error('down'),
+      );
+      fills?.callback([]);
+      await flush();
+
+      tier = 4;
+      switchAccount('0x2222222222222222222222222222222222222222');
+      await flush();
+
+      expect(onReset).toHaveBeenCalledTimes(1);
+      expect(callback).toHaveBeenCalledTimes(2);
+      tier = 5;
+      fills?.callback([]);
+      await flush();
+      expect(callback).toHaveBeenCalledTimes(3);
+    });
+
+    it('prices the given amount on a channel of its own', async () => {
+      controller.subscribeToFeeRates({ symbol: 'BTC', callback: vi.fn() });
+      controller.subscribeToFeeRates({
+        symbol: 'BTC',
+        amount: '2500',
+        callback: vi.fn(),
+      });
+      await flush();
+
+      expect(controller.calculateFees).toHaveBeenCalledTimes(4);
+      expect(controller.calculateFees).toHaveBeenLastCalledWith(
+        expect.objectContaining({ amount: '2500', isMaker: true }),
+      );
+    });
+
+    it('re-reads when the client reports a Rewards change, and stops listening', async () => {
+      const listeners = new Set<() => void>();
+      const { rewards } = infrastructure;
+      rewards.subscribeToPerpsFeeChanges = (listener): (() => void) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      };
+      const callback = vi.fn();
+      const stop = controller.subscribeToFeeRates({ symbol: 'BTC', callback });
+      await flush();
+
+      tier = 1;
+      listeners.forEach((listener) => listener());
+      await flush();
+
+      expect(callback).toHaveBeenCalledTimes(2);
+      stop();
+      expect(listeners.size).toBe(0);
+    });
+
+    it('re-reads once when a trading fee grant expires', async () => {
+      const expiresAt = Date.now() + 30_000;
+      vi.spyOn(
+        RewardsIntegrationService.prototype,
+        'getFeeGrantExpiry',
+      ).mockImplementation(
+        () => [expiresAt].filter((deadline) => Date.now() < deadline)[0],
+      );
+      const callback = vi.fn();
+      controller.subscribeToFeeRates({ symbol: 'BTC', callback });
+      await flush();
+      tier = 1;
+
+      await vi.advanceTimersByTimeAsync(29_999);
+      await flush();
+      expect(callback).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      await flush();
+      expect(callback).toHaveBeenCalledTimes(2);
+
+      await vi.advanceTimersByTimeAsync(3_600_000);
+      expect(controller.calculateFees).toHaveBeenCalledTimes(4);
+    });
+
+    it('does not take the fills snapshot from a later fills reader', async () => {
+      controller.subscribeToFeeRates({ symbol: 'BTC', callback: vi.fn() });
+      fills?.callback([createFill('old')], true);
+      fills?.callback([createFill('new')]);
+      const callback = vi.fn();
+      controller.subscribeToOrderFills({ callback });
+      await flush();
+
+      expect(provider.subscribeToOrderFills).toHaveBeenCalledTimes(1);
+      expect(callback.mock.calls).toStrictEqual([
+        [[createFill('new'), createFill('old')], true, undefined],
+      ]);
+    });
+
+    it('replays no fills before the venue sent its snapshot', async () => {
+      controller.subscribeToFeeRates({ symbol: 'BTC', callback: vi.fn() });
+      fills?.callback([createFill('lone')]);
+      const callback = vi.fn();
+      controller.subscribeToOrderFills({ callback });
+      await flush();
+
+      expect(callback).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('in aggregated mode', () => {
+    const latencies: Partial<
+      Record<PerpsProviderType, (latencyMs: number) => void>
+    > = {};
+
+    const install = (): AggregatedPerpsProvider => {
+      const lighter = createMockHyperLiquidProvider();
+      for (const [id, venue] of [
+        ['hyperliquid', provider],
+        ['lighter', lighter],
+      ] as const) {
+        venue.getMarkets.mockResolvedValue([market(`${id}-market`)]);
+        venue.subscribeToOrderFills.mockReturnValue(vi.fn());
+        Object.assign(venue, {
+          subscribeToConnectionLatency: vi.fn<
+            NonNullable<PerpsProvider['subscribeToConnectionLatency']>
+          >((params) => {
+            latencies[id] = params.callback;
+            return vi.fn();
+          }),
+        });
+      }
+      const aggregated = new AggregatedPerpsProvider({
+        providers: new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', provider],
+          ['lighter', lighter],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure,
+      });
+      controller.testInstallAggregated(aggregated);
+      return aggregated;
+    };
+
+    it('moves unrouted market meta and fee rates to the new default provider', async () => {
+      const aggregated = install();
+      vi.spyOn(controller, 'calculateFees').mockImplementation(async () => ({
+        feeRate: Number(aggregated.getWriteProviderId() !== 'lighter'),
+        protocolFeeRate: 0,
+      }));
+      const meta = vi.fn();
+      const metaReset = vi.fn();
+      const fees = vi.fn();
+      const feesReset = vi.fn();
+      const routed = vi.fn();
+      const routedReset = vi.fn();
+      controller.subscribeToMarketMeta({ callback: meta, onReset: metaReset });
+      controller.subscribeToFeeRates({
+        symbol: 'BTC',
+        callback: fees,
+        onReset: feesReset,
+      });
+      controller.subscribeToMarketMeta({
+        providerId: 'hyperliquid',
+        callback: routed,
+        onReset: routedReset,
+      });
+      await flush();
+
+      controller.setDefaultProvider('lighter');
+      await flush();
+
+      expect(metaReset).toHaveBeenCalledTimes(1);
+      expect(meta).toHaveBeenLastCalledWith([
+        expect.objectContaining({ symbol: 'lighter-market' }),
+      ]);
+      expect(feesReset).toHaveBeenCalledTimes(1);
+      expect(fees).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          taker: expect.objectContaining({ feeRate: 0 }),
+        }),
+      );
+      // A stream that names its venue stays there.
+      expect(routedReset).not.toHaveBeenCalled();
+      expect(routed).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not replay the old default's latency to a late reader", async () => {
+      install();
+      controller.subscribeToConnectionLatency({ callback: vi.fn() });
+      latencies.hyperliquid?.(42);
+
+      controller.setDefaultProvider('lighter');
+      const late = vi.fn();
+      controller.subscribeToConnectionLatency({ callback: late });
+      await flush();
+
+      expect(late).not.toHaveBeenCalled();
+      latencies.lighter?.(7);
+      expect(late.mock.calls).toStrictEqual([[7]]);
     });
   });
 

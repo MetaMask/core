@@ -1869,6 +1869,21 @@ describe('HyperLiquidClientService', () => {
         expect(vi.getTimerCount()).toBe(timersAfterInit);
       });
 
+      it('is not moved by a wall clock step between ping and pong', () => {
+        service.initialize(mockWallet);
+        const listener = vi.fn();
+        service.subscribeToLatency(listener);
+        vi.mocked(mockDeps.performance.now)
+          .mockReturnValueOnce(500)
+          .mockReturnValueOnce(542);
+
+        mockWsTransport.socket.send('{"method":"ping"}');
+        vi.setSystemTime(0);
+        socketListener('message')({ data: '{"channel":"pong"}' });
+
+        expect(listener.mock.calls).toStrictEqual([[42]]);
+      });
+
       it('replays the last measurement to a new listener and stops after unsubscribe', () => {
         service.initialize(mockWallet);
         mockWsTransport.socket.send('{"method":"ping"}');

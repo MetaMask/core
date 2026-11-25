@@ -68,7 +68,10 @@ import { isProviderOnTestnet } from './services/providerNetwork.js';
 import { RewardsIntegrationService } from './services/RewardsIntegrationService.js';
 import type { ServiceContext } from './services/ServiceContext.js';
 import { StreamChannelManager } from './services/StreamChannelManager.js';
-import type { StreamChannelKey } from './services/StreamChannelManager.js';
+import type {
+  StreamChannelKey,
+  StreamChannelSource,
+} from './services/StreamChannelManager.js';
 import { TerminalMarketService } from './services/TerminalMarketService.js';
 import { TradingService } from './services/TradingService.js';
 // PerpsStreamChannelKey removed: using string for channel keys (PerpsStreamManager.pauseChannel takes string)
@@ -177,6 +180,7 @@ import type {
   SubscribeLiveTwapOrdersParams,
   SubscribeChaseOrderListsParams,
   SubscribePositionsParams,
+  PriceUpdate,
   SubscribePricesParams,
   SubscribePublicTradesParams,
   SubscribeProviderHealthParams,
@@ -393,14 +397,65 @@ type RebindableProviderSubscription = {
   unsubscribe: () => void;
 };
 
-/** A watchlist toggle, recorded so it can be replayed onto a remote list. */
-/** One `subscribeToMarketMeta` stream and the last list it reported. */
-type MarketMetaSubscriber = {
-  params: SubscribeMarketMetaParams;
-  provider?: PerpsProvider;
-  lastList: string | null;
-};
+/** Most fills kept to replay to a late `subscribeToOrderFills` reader. */
+const FILLS_REPLAY_LIMIT = 2000;
 
+/**
+ * Fold a price delivery into the prices held for its channel: venues send only
+ * the symbols that changed.
+ *
+ * @param held - Prices held so far.
+ * @param next - The new delivery.
+ * @returns Every symbol's latest price.
+ */
+function reducePrices(
+  held: [PriceUpdate[]] | undefined,
+  next: [PriceUpdate[]],
+): [PriceUpdate[]] {
+  if (!held) {
+    return next;
+  }
+  const merged = new Map<string, PriceUpdate>();
+  for (const price of [...held[0], ...next[0]]) {
+    merged.set(`${price.providerId ?? ''}:${price.symbol}`, price);
+  }
+  return [[...merged.values()]];
+}
+
+/**
+ * Fold a fills delivery into the snapshot replayed to late readers: the
+ * venue's own snapshot with the fills that followed it, newest first. Nothing
+ * is held before a snapshot, so a lone event is never replayed as history.
+ *
+ * @param held - The snapshot held so far.
+ * @param next - The new delivery.
+ * @returns The snapshot to hold.
+ */
+function reduceFills(
+  held: OrderFillsDelivery | undefined,
+  next: OrderFillsDelivery,
+): OrderFillsDelivery | undefined {
+  const [fills, isSnapshot, providerId] = next;
+  const heldFills = held?.[0] ?? [];
+  if (isSnapshot) {
+    const otherVenues =
+      providerId === undefined
+        ? []
+        : heldFills.filter((fill) => fill.providerId !== providerId);
+    return [
+      [...fills, ...otherVenues],
+      true,
+      otherVenues.length > 0 ? undefined : providerId,
+    ];
+  }
+  return held
+    ? [[...fills, ...heldFills].slice(0, FILLS_REPLAY_LIMIT), true, held[2]]
+    : undefined;
+}
+
+type OrderFillsDelivery = Parameters<SubscribeOrderFillsParams['callback']>;
+
+/** A watchlist toggle, recorded so it can be replayed onto a remote list. */
 type WatchlistEdit = {
   network: 'testnet' | 'mainnet';
   symbol: string;
@@ -1128,6 +1183,22 @@ type UserSnapshotContext = {
  * Number of public trades `getPublicTrades` returns when no limit is given.
  */
 const PUBLIC_TRADES_DEFAULT_LIMIT = 50;
+
+/** Longest delay `setTimeout` keeps; a longer one would fire at once. */
+const MAX_TIMEOUT_MS = 2_147_483_647;
+
+/**
+ * `subscribeTo*` streams that span every venue in aggregated mode. The others
+ * follow the default provider unless they name one.
+ */
+const ALL_VENUE_STREAMS = new Set([
+  'account',
+  'chaseOrderLists',
+  'orderFills',
+  'orders',
+  'positions',
+  'prices',
+]);
 
 /** `subscribeTo*` streams that read an account rather than a market. */
 const ACCOUNT_STREAMS = new Set([
@@ -3930,29 +4001,44 @@ export class PerpsController extends BaseController<
   /**
    * Stream every market's metadata (margin tiers, delisting, max leverage,
    * Cross support) from the routed venue. The callback receives the current
-   * list at once, from the provider's session cache, then a new list each
-   * time the market data preload refreshes (`startMarketDataPreload`), which
-   * re-reads the venue's metadata. It adds no timer of its own. A failed read
-   * goes to `onError` and leaves the last list current; an empty list is
-   * never reported for a failure. In aggregated mode an unrouted stream
-   * rebinds to the new default provider.
+   * list at once, from the provider's session cache, then a new list when the
+   * venue's own stream shows that its markets changed (a listing or a
+   * delisting) and after a reconnect. There is no timer, and nothing has to be
+   * preloaded. A failed read goes to `onError`, leaves the last list current
+   * and is retried with a bounded backoff; an empty list is never reported for
+   * a failure. In aggregated mode an unrouted stream moves to a new default
+   * provider.
    *
    * @param params - Optional provider route, callback and error handler.
    * @returns Cleanup function.
    */
   subscribeToMarketMeta(params: SubscribeMarketMetaParams): () => void {
-    return this.#subscribeToChannel('marketMeta', params, (channelParams) =>
-      this.#openMarketMeta(channelParams),
+    // Only the first read may come from the session cache: the channel reopens
+    // because something changed.
+    let skipCache = false;
+    return this.#subscribeToChannel(
+      'marketMeta',
+      params,
+      (channelParams) => {
+        const stop = this.#openMarketMeta(channelParams, skipCache);
+        skipCache = true;
+        return stop;
+      },
+      { reopenOnReconnect: true },
     );
   }
 
   /**
-   * Open the venue subscription behind a `marketMeta` channel.
+   * Open the reads behind a `marketMeta` channel.
    *
    * @param params - The channel's parameters.
-   * @returns A cleanup function to remove the subscription.
+   * @param skipCache - Re-read the venue's metadata instead of the cache.
+   * @returns A cleanup function to stop the reads.
    */
-  #openMarketMeta(params: SubscribeMarketMetaParams): () => void {
+  #openMarketMeta(
+    params: SubscribeMarketMetaParams,
+    skipCache: boolean,
+  ): () => void {
     const provider = this.getActiveProviderOrNull();
     if (
       !provider ||
@@ -3961,70 +4047,68 @@ export class PerpsController extends BaseController<
       params.onError?.(new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND));
       return () => undefined;
     }
-    const subscriber: MarketMetaSubscriber = { params, lastList: null };
-    const open = (nextProvider: PerpsProvider): (() => void) => {
-      subscriber.provider = nextProvider;
-      subscriber.lastList = null;
-      this.#marketMetaSubscribers.add(subscriber);
-      this.#emitMarketMeta(subscriber, false).catch(() => undefined);
-      return () => {
-        this.#marketMetaSubscribers.delete(subscriber);
-      };
-    };
-    return this.#trackProviderSubscription(provider, open);
-  }
-
-  /**
-   * Read the subscriber's venue and report its list when it changed.
-   *
-   * @param subscriber - Market metadata subscriber.
-   * @param skipCache - Re-read the venue's metadata instead of the cache.
-   */
-  async #emitMarketMeta(
-    subscriber: MarketMetaSubscriber,
-    skipCache: boolean,
-  ): Promise<void> {
-    const { provider, params } = subscriber;
-    if (!provider) {
-      return;
-    }
-    try {
-      const metas = await this.#readMarketMetas(
-        provider,
-        params.providerId,
-        skipCache ? { skipCache: true } : undefined,
-      );
-      // A subscriber that left, or rebound to another provider, during the
-      // read gets nothing; an empty read is a failure, not a delisting.
-      if (
-        !this.#marketMetaSubscribers.has(subscriber) ||
-        subscriber.provider !== provider
-      ) {
-        return;
-      }
-      if (metas.length === 0) {
-        throw new Error(PERPS_ERROR_CODES.MARKETS_FAILED);
-      }
-      const list = JSON.stringify(metas);
-      if (list === subscriber.lastList) {
-        return;
-      }
-      subscriber.lastList = list;
-      params.callback(metas);
-    } catch (error) {
-      if (this.#marketMetaSubscribers.has(subscriber)) {
+    let closed = false;
+    let reading = false;
+    let readAgain = false;
+    let last: string | undefined;
+    const fail = (error: unknown): void => {
+      if (!closed) {
         params.onError?.(
           ensureError(error, 'PerpsController.subscribeToMarketMeta'),
         );
       }
+    };
+    const read = (fresh: boolean): void => {
+      if (reading) {
+        // One read is enough for every change that arrives while one runs.
+        readAgain = true;
+        return;
+      }
+      reading = true;
+      this.#readMarketMetas(
+        provider,
+        params.providerId,
+        fresh ? { skipCache: true } : undefined,
+      )
+        .then((metas) => {
+          if (closed) {
+            return;
+          }
+          // An empty read is a failure, not a delisting.
+          if (metas.length === 0) {
+            throw new Error(PERPS_ERROR_CODES.MARKETS_FAILED);
+          }
+          const list = JSON.stringify(metas);
+          if (list !== last) {
+            last = list;
+            params.callback(metas);
+          }
+        })
+        .catch(fail)
+        .finally(() => {
+          reading = false;
+          if (readAgain && !closed) {
+            readAgain = false;
+            read(true);
+          }
+        })
+        .catch(() => undefined);
+    };
+    let stopChanges: (() => void) | undefined;
+    try {
+      stopChanges = provider.subscribeToMarketChanges?.({
+        providerId: params.providerId,
+        callback: () => read(true),
+        onError: fail,
+      });
+    } catch (error) {
+      fail(error);
     }
-  }
-
-  /** Re-read every market metadata subscriber's venue after a preload. */
-  #refreshMarketMetaSubscribers(): void {
-    for (const subscriber of this.#marketMetaSubscribers) {
-      this.#emitMarketMeta(subscriber, true).catch(() => undefined);
-    }
+    read(skipCache);
+    return () => {
+      closed = true;
+      stopChanges?.();
+    };
   }
 
   /**
@@ -4137,15 +4221,20 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Stream a market's post-discount fee rates: the `calculateFees` results
-   * for a taker and a maker fill. The callback receives one read at once,
-   * then a new read only on events: a fill on the account's own fills stream
-   * (its volume tier can change), an account switch, a default provider
-   * change in aggregated mode, and `invalidateSubscriptionBenefits`. There is
-   * no timer. A failed read goes to `onError` and leaves the last rates
-   * current; an unchanged read is not delivered.
+   * Stream a market's post-discount fee rates for the selected account: the
+   * `calculateFees` results for a taker and a maker fill, for `amount` when
+   * given. The callback receives one read at once, then a new read only on
+   * events: one of the account's own fills (its volume tier can change), an
+   * account switch, a default provider change in aggregated mode, a Rewards
+   * change (`rewards.subscribeToPerpsFeeChanges`), the expiry of a trading fee
+   * grant, and `invalidateSubscriptionBenefits`. There is no repeating timer.
+   * A failed read goes to `onError`, leaves the last rates current and is
+   * retried with a bounded backoff; an unchanged read is not delivered.
    *
-   * @param params - Market, optional order type, route, account, callback
+   * `calculateFees` prices the selected account only, so the stream takes no
+   * account.
+   *
+   * @param params - Market, optional order type, amount and route, callback
    * and error handler.
    * @returns Cleanup function.
    */
@@ -4162,15 +4251,15 @@ export class PerpsController extends BaseController<
    * @returns A cleanup function to stop the reads.
    */
   #openFeeRates(params: SubscribeFeeRatesParams): () => void {
-    const provider = this.getActiveProviderOrNull();
-    if (!provider) {
+    if (!this.getActiveProviderOrNull()) {
       params.onError?.(new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND));
       return () => undefined;
     }
-    const { symbol, orderType, providerId, accountId } = params;
+    const { symbol, orderType, providerId, amount } = params;
     let closed = false;
     let readId = 0;
     let last: string | undefined;
+    let expiryTimer: ReturnType<typeof setTimeout> | undefined;
     const read = (): void => {
       readId += 1;
       const id = readId;
@@ -4180,12 +4269,20 @@ export class PerpsController extends BaseController<
           providerId,
           isMaker,
           orderType: orderType ?? (isMaker ? 'limit' : 'market'),
+          ...(amount !== undefined && { amount }),
         });
       Promise.all([quote(false), quote(true)])
         .then(([taker, maker]) => {
           // Only the newest read is reported, so an older one never wins.
           if (closed || id !== readId) {
             return;
+          }
+          clearTimeout(expiryTimer);
+          const expiresAt = this.#rewardsIntegrationService.getFeeGrantExpiry();
+          const delay = (expiresAt ?? 0) - Date.now();
+          // One deadline, set only for a grant that is still running.
+          if (delay > 0 && delay <= MAX_TIMEOUT_MS) {
+            expiryTimer = setTimeout(read, delay);
           }
           const rates: PerpsFeeRates = { symbol, taker, maker };
           const key = JSON.stringify(rates);
@@ -4203,27 +4300,22 @@ export class PerpsController extends BaseController<
         });
     };
     this.#feeRateRefreshers.add(read);
-    // Re-read when the aggregated default provider changes as well.
-    const stopRoute = this.#trackProviderSubscription(
-      provider,
-      (): (() => void) => {
-        read();
-        return () => undefined;
-      },
-    );
+    const stopRewards =
+      this.#options.infrastructure.rewards.subscribeToPerpsFeeChanges?.(read);
     const stopFills = this.subscribeToOrderFills({
-      accountId,
       callback: (_fills, isSnapshot) => {
         if (!isSnapshot) {
           read();
         }
       },
     });
-    // An account switch rebinds the channel, which reopens this read.
+    read();
+    // An account switch moves the channel, which reopens these reads.
     return () => {
       closed = true;
+      clearTimeout(expiryTimer);
       this.#feeRateRefreshers.delete(read);
-      stopRoute();
+      stopRewards?.();
       stopFills();
     };
   }
@@ -6544,10 +6636,7 @@ export class PerpsController extends BaseController<
 
   #preloadTimer: ReturnType<typeof setInterval> | null = null;
 
-  /** Market metadata streams, refreshed after each market data preload. */
-  readonly #marketMetaSubscribers = new Set<MarketMetaSubscriber>();
-
-  /** Fee rate streams, re-read when subscription benefits are invalidated. */
+  /** Fee rate reads to repeat when subscription benefits are invalidated. */
   readonly #feeRateRefreshers = new Set<() => void>();
 
   #preloadStartRequested = false;
@@ -6689,22 +6778,18 @@ export class PerpsController extends BaseController<
     this.#previousHip3ConfigVersion = this.state.hip3ConfigVersion;
 
     // Immediate preload
-    this.#performMarketDataPreload()
-      .then(() => this.#refreshMarketMetaSubscribers())
-      .catch(() => {
-        /* fire-and-forget */
-      });
+    this.#performMarketDataPreload().catch(() => {
+      /* fire-and-forget */
+    });
     this.#performUserDataPreload().catch(() => {
       /* fire-and-forget */
     });
 
     // Periodic refresh
     this.#preloadTimer = setInterval(() => {
-      this.#performMarketDataPreload()
-        .then(() => this.#refreshMarketMetaSubscribers())
-        .catch(() => {
-          /* fire-and-forget */
-        });
+      this.#performMarketDataPreload().catch(() => {
+        /* fire-and-forget */
+      });
       this.#performUserDataPreload().catch(() => {
         /* fire-and-forget */
       });
@@ -6750,11 +6835,9 @@ export class PerpsController extends BaseController<
         // network, so different networks don't collide. Re-preload will
         // populate the new key.
 
-        this.#performMarketDataPreload()
-          .then(() => this.#refreshMarketMetaSubscribers())
-          .catch(() => {
-            /* fire-and-forget */
-          });
+        this.#performMarketDataPreload().catch(() => {
+          /* fire-and-forget */
+        });
         this.#performUserDataPreload().catch(() => {
           /* fire-and-forget */
         });
@@ -7050,11 +7133,9 @@ export class PerpsController extends BaseController<
       this.#isPreloading = false;
       if (this.#marketPreloadQueued && this.#preloadTimer) {
         this.#marketPreloadQueued = false;
-        this.#performMarketDataPreload()
-          .then(() => this.#refreshMarketMetaSubscribers())
-          .catch(() => {
-            // Background preload is best-effort.
-          });
+        this.#performMarketDataPreload().catch(() => {
+          // Background preload is best-effort.
+        });
       }
     }
   }
@@ -7769,11 +7850,9 @@ export class PerpsController extends BaseController<
       // The state-change listener may have already fired during reinit
       // but was skipped due to the #isReinitializing guard.
       if (this.#preloadTimer) {
-        this.#performMarketDataPreload()
-          .then(() => this.#refreshMarketMetaSubscribers())
-          .catch(() => {
-            /* fire-and-forget */
-          });
+        this.#performMarketDataPreload().catch(() => {
+          /* fire-and-forget */
+        });
         this.#performUserDataPreload().catch(() => {
           /* fire-and-forget */
         });
@@ -7989,11 +8068,9 @@ export class PerpsController extends BaseController<
 
       // Re-trigger preload now that reinit is complete.
       if (this.#preloadTimer) {
-        this.#performMarketDataPreload()
-          .then(() => this.#refreshMarketMetaSubscribers())
-          .catch(() => {
-            /* fire-and-forget */
-          });
+        this.#performMarketDataPreload().catch(() => {
+          /* fire-and-forget */
+        });
         this.#performUserDataPreload().catch(() => {
           /* fire-and-forget */
         });
@@ -8070,7 +8147,10 @@ export class PerpsController extends BaseController<
     // re-initialization or reconnection. Default-routed streams move to the
     // new venue with it.
     if (aggregatedProvider) {
-      aggregatedProvider.setDefaultProvider(providerId);
+      this.#rebindStreams({
+        defaultProvider: providerId,
+        onStopped: () => aggregatedProvider.setDefaultProvider(providerId),
+      });
     }
 
     this.#debugLog('PerpsController: Default provider updated', {
@@ -8339,8 +8419,8 @@ export class PerpsController extends BaseController<
    * @param stream - Stream name.
    * @param params - The caller's parameters.
    * @param open - Opens the venue subscription for the channel.
-   * @param source - Replay and REST seed behaviour of the stream.
-   * @param source.replay - Replay the last value to later readers.
+   * @param source - Replay, delivery, recovery and REST seed behaviour of the
+   * stream, as in `StreamChannelSource`.
    * @param source.read - REST read seeding the channel and run once per drop.
    * @returns Cleanup that leaves the channel.
    */
@@ -8357,9 +8437,10 @@ export class PerpsController extends BaseController<
     stream: PerpsStreamName,
     params: Params,
     open: (params: Params) => () => void,
-    source: {
-      replay?: boolean;
-      reopenOnReconnect?: boolean;
+    source: Omit<
+      StreamChannelSource<Parameters<Params['callback']>>,
+      'open' | 'read'
+    > & {
       read?: () => Promise<Parameters<Params['callback']> | undefined>;
     } = {},
   ): () => void {
@@ -8407,20 +8488,32 @@ export class PerpsController extends BaseController<
    * is given. `prices` symbols are sorted so their order does not split
    * channels.
    *
+   * In aggregated mode the key of a stream that follows the default provider
+   * names that provider, so the channel moves when the default changes.
+   *
    * @param stream - Stream name.
    * @param options - The stream's parameters without callbacks.
+   * @param defaultProvider - Default provider about to apply, when it differs
+   * from the aggregated provider's own.
    * @returns The channel key.
    */
   #getChannelKey(
     stream: string,
     options: Record<string, unknown>,
+    defaultProvider?: PerpsProviderType,
   ): StreamChannelKey {
     const provider = this.getActiveProviderOrNull();
     const { symbols } = options;
+    const defaultRoute =
+      provider instanceof AggregatedPerpsProvider &&
+      options.providerId === undefined &&
+      !ALL_VENUE_STREAMS.has(stream)
+        ? `:${defaultProvider ?? provider.getWriteProviderId()}`
+        : '';
     return {
       stream,
       providerId: provider
-        ? String(this.#getProviderChannelId(provider))
+        ? `${this.#getProviderChannelId(provider)}${defaultRoute}`
         : PENDING_PROVIDER_CHANNEL_ID,
       accountId: ACCOUNT_STREAMS.has(stream)
         ? this.#getChannelAccountId(options)
@@ -8435,21 +8528,39 @@ export class PerpsController extends BaseController<
   /**
    * Move channels whose provider or selected account changed to the current
    * one: readers keep their subscription, receive `onReset`, then the new
-   * context's data. Pending channels open here. Does nothing while no
+   * context's data. Pending channels open here. Moves nothing while no
    * provider is active.
+   *
+   * @param route - A default provider change being applied.
+   * @param route.defaultProvider - The new default provider.
+   * @param route.onStopped - Applies it, once the streams that move stopped.
    */
-  #rebindStreams(): void {
+  #rebindStreams(
+    route: { defaultProvider?: PerpsProviderType; onStopped?: () => void } = {},
+  ): void {
     if (!this.getActiveProviderOrNull()) {
+      route.onStopped?.();
       return;
     }
     const nextKey = (key: StreamChannelKey): StreamChannelKey =>
-      this.#getChannelKey(key.stream, key.options ?? {});
-    this.#streams.rebind((key) => {
-      const next = nextKey(key);
-      return (
-        next.providerId === key.providerId && next.accountId === key.accountId
-      );
-    }, nextKey);
+      this.#getChannelKey(key.stream, key.options ?? {}, route.defaultProvider);
+    this.#streams.rebind(
+      (key) => {
+        const next = nextKey(key);
+        return (
+          next.providerId === key.providerId && next.accountId === key.accountId
+        );
+      },
+      nextKey,
+      {
+        // A venue may bind one wallet for all its user streams: a stream for a
+        // named account lets the selected account's streams bind first.
+        restart: (key) =>
+          ACCOUNT_STREAMS.has(key.stream) &&
+          typeof key.options?.accountId === 'string',
+        onStopped: route.onStopped,
+      },
+    );
   }
 
   /**
@@ -8528,8 +8639,11 @@ export class PerpsController extends BaseController<
    * @returns A cleanup function to remove the subscription.
    */
   subscribeToPrices(params: SubscribePricesParams): () => void {
-    return this.#subscribeToChannel('prices', params, (channelParams) =>
-      this.#openPrices(channelParams),
+    return this.#subscribeToChannel(
+      'prices',
+      params,
+      (channelParams) => this.#openPrices(channelParams),
+      { reduce: reducePrices, delivery: 'merge' },
     );
   }
 
@@ -8551,8 +8665,9 @@ export class PerpsController extends BaseController<
         nextProvider.subscribeToPrices(params),
       );
     } catch (error) {
+      const safeError = ensureError(error, 'PerpsController.subscribeToPrices');
       this.#logError(
-        ensureError(error, 'PerpsController.subscribeToPrices'),
+        safeError,
         this.#getErrorContext(
           'subscribeToPrices',
           {
@@ -8561,6 +8676,7 @@ export class PerpsController extends BaseController<
           CONNECTION_ERROR_TAGS,
         ),
       );
+      params.onError?.(safeError);
       return () => {
         // No-op
       };
@@ -8605,8 +8721,12 @@ export class PerpsController extends BaseController<
         nextProvider.subscribeToPositions(params),
       );
     } catch (error) {
+      const safeError = ensureError(
+        error,
+        'PerpsController.subscribeToPositions',
+      );
       this.#logError(
-        ensureError(error, 'PerpsController.subscribeToPositions'),
+        safeError,
         this.#getErrorContext(
           'subscribeToPositions',
           {
@@ -8615,6 +8735,7 @@ export class PerpsController extends BaseController<
           CONNECTION_ERROR_TAGS,
         ),
       );
+      params.onError?.(safeError);
       return () => {
         // No-op
       };
@@ -8632,7 +8753,7 @@ export class PerpsController extends BaseController<
       'orderFills',
       params,
       (channelParams) => this.#openOrderFills(channelParams),
-      { replay: false },
+      { reduce: reduceFills, delivery: 'queue' },
     );
   }
 
@@ -8654,8 +8775,12 @@ export class PerpsController extends BaseController<
         nextProvider.subscribeToOrderFills(params),
       );
     } catch (error) {
+      const safeError = ensureError(
+        error,
+        'PerpsController.subscribeToOrderFills',
+      );
       this.#logError(
-        ensureError(error, 'PerpsController.subscribeToOrderFills'),
+        safeError,
         this.#getErrorContext(
           'subscribeToOrderFills',
           {
@@ -8664,6 +8789,7 @@ export class PerpsController extends BaseController<
           CONNECTION_ERROR_TAGS,
         ),
       );
+      params.onError?.(safeError);
       return () => {
         // No-op
       };
@@ -8673,9 +8799,8 @@ export class PerpsController extends BaseController<
   /**
    * Stream TWAP lifecycle updates through the active provider.
    *
-   * Providers without a native TWAP push channel do not implement this; the
-   * returned no-op cleanup lets a client fall back to polling `getTwapOrders`
-   * without branching on provider identity.
+   * Providers without a native TWAP push channel do not implement this, and
+   * the returned cleanup does nothing.
    *
    * @param params - Subscription parameters including callback and account ID.
    * @returns A cleanup function to remove the subscription.
@@ -8706,8 +8831,12 @@ export class PerpsController extends BaseController<
           nextProvider.subscribeToTwapOrders?.(params) ?? (() => undefined),
       );
     } catch (error) {
+      const safeError = ensureError(
+        error,
+        'PerpsController.subscribeToTwapOrders',
+      );
       this.#logError(
-        ensureError(error, 'PerpsController.subscribeToTwapOrders'),
+        safeError,
         this.#getErrorContext(
           'subscribeToTwapOrders',
           {
@@ -8716,6 +8845,7 @@ export class PerpsController extends BaseController<
           CONNECTION_ERROR_TAGS,
         ),
       );
+      params.onError?.(safeError);
       return () => {
         // No-op
       };
@@ -8723,17 +8853,20 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Keep one merged, live TWAP list for the active provider: reads and the
-   * venue stream merged by schedule, execution totals raised from slice
-   * fills, and re-reads while a schedule runs. Split it with
-   * `partitionTwapOrders`. Follows the selected account.
+   * Keep one merged, live TWAP list for the active provider: one read and the
+   * venue stream merged by schedule, execution totals raised from the slice
+   * fills the stream carries. Split it with `partitionTwapOrders`. Follows the
+   * selected account.
    *
    * @param params - Listener and optional error listener.
    * @returns A cleanup function that stops reads and the stream.
    */
   subscribeToLiveTwapOrders(params: SubscribeLiveTwapOrdersParams): () => void {
-    return this.#subscribeToChannel('liveTwapOrders', params, (channelParams) =>
-      this.#openLiveTwapOrders(channelParams),
+    return this.#subscribeToChannel(
+      'liveTwapOrders',
+      params,
+      (channelParams) => this.#openLiveTwapOrders(channelParams),
+      { selfRecovering: true },
     );
   }
 
@@ -8815,7 +8948,8 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Keep running and history chase lists for the active provider. Ended
+   * Keep running and history chase lists for the active provider, read when
+   * the provider reports a chase change and never on a timer. Ended
    * chases stay in history after the provider drops them, up to
    * `CHASE_ORDER_CONFIG.HistoryLimit`.
    *
@@ -8829,6 +8963,7 @@ export class PerpsController extends BaseController<
       'chaseOrderLists',
       params,
       (channelParams) => this.#openChaseOrderLists(channelParams),
+      { selfRecovering: true },
     );
   }
 
@@ -8842,6 +8977,10 @@ export class PerpsController extends BaseController<
     return createLiveChaseOrderList({
       source: {
         getChaseOrders: async () => await this.getChaseOrders(),
+        subscribeToChaseOrderChanges: (listener) =>
+          this.getActiveProviderOrNull()?.subscribeToChaseOrderChanges?.({
+            callback: listener,
+          }) ?? ((): void => undefined),
         getContextKey: () => this.#getOrderListContextKey(),
         subscribeToContextChanges: (listener) =>
           this.#subscribeToOrderListContextChanges(listener),
@@ -8947,8 +9086,9 @@ export class PerpsController extends BaseController<
         nextProvider.subscribeToOrders(params),
       );
     } catch (error) {
+      const safeError = ensureError(error, 'PerpsController.subscribeToOrders');
       this.#logError(
-        ensureError(error, 'PerpsController.subscribeToOrders'),
+        safeError,
         this.#getErrorContext(
           'subscribeToOrders',
           {
@@ -8957,6 +9097,7 @@ export class PerpsController extends BaseController<
           CONNECTION_ERROR_TAGS,
         ),
       );
+      params.onError?.(safeError);
       return () => {
         // No-op
       };
@@ -9159,8 +9300,12 @@ export class PerpsController extends BaseController<
         }
       });
     } catch (error) {
+      const safeError = ensureError(
+        error,
+        'PerpsController.subscribeToAccount',
+      );
       this.#logError(
-        ensureError(error, 'PerpsController.subscribeToAccount'),
+        safeError,
         this.#getErrorContext(
           'subscribeToAccount',
           {
@@ -9169,6 +9314,7 @@ export class PerpsController extends BaseController<
           CONNECTION_ERROR_TAGS,
         ),
       );
+      params.onError?.(safeError);
       return () => {
         // No-op
       };
@@ -9210,8 +9356,12 @@ export class PerpsController extends BaseController<
         nextProvider.subscribeToOrderBook(params),
       );
     } catch (error) {
+      const safeError = ensureError(
+        error,
+        'PerpsController.subscribeToOrderBook',
+      );
       this.#logError(
-        ensureError(error, 'PerpsController.subscribeToOrderBook'),
+        safeError,
         this.#getErrorContext(
           'subscribeToOrderBook',
           {
@@ -9221,6 +9371,7 @@ export class PerpsController extends BaseController<
           CONNECTION_ERROR_TAGS,
         ),
       );
+      params.onError?.(safeError);
       return () => {
         // No-op
       };
@@ -9276,14 +9427,19 @@ export class PerpsController extends BaseController<
             (() => undefined)),
       );
     } catch (error) {
+      const safeError = ensureError(
+        error,
+        'PerpsController.subscribeToAvailableToTrade',
+      );
       this.#logError(
-        ensureError(error, 'PerpsController.subscribeToAvailableToTrade'),
+        safeError,
         this.#getErrorContext(
           'subscribeToAvailableToTrade',
           { symbol: params.symbol, providerId: params.providerId },
           CONNECTION_ERROR_TAGS,
         ),
       );
+      params.onError?.(safeError);
       return noop;
     }
   }
@@ -9349,10 +9505,8 @@ export class PerpsController extends BaseController<
    * switch, testnet toggle, reinitialization), or for any other symbol.
    * Subscribe again once the new provider is active. In aggregated mode an
    * unrouted stream follows the default provider: `setDefaultProvider` moves
-   * it to the new venue, like `subscribeToCandles`. On Hyperliquid, like
-   * `subscribeToCandles`, the stream is not restored after the client
-   * service reconnects its WebSocket and `onError` is not called, so
-   * resubscribe after a reconnect.
+   * it to the new venue, like `subscribeToCandles`. After a reconnect, and
+   * after a failure, the channel reopens the venue stream itself.
    *
    * When no provider is active, the route conflicts with the active
    * provider, or the provider has no public trade feed, this returns a no-op
@@ -9367,7 +9521,7 @@ export class PerpsController extends BaseController<
       params,
       (channelParams) => this.#openPublicTrades(channelParams),
       // A replaced transport does not restore trades; the channel reopens it.
-      { replay: false, reopenOnReconnect: true },
+      { replay: false, delivery: 'queue', reopenOnReconnect: true },
     );
   }
 
@@ -9421,14 +9575,19 @@ export class PerpsController extends BaseController<
         unsubscribe();
       };
     } catch (error) {
+      const safeError = ensureError(
+        error,
+        'PerpsController.subscribeToPublicTrades',
+      );
       this.#logError(
-        ensureError(error, 'PerpsController.subscribeToPublicTrades'),
+        safeError,
         this.#getErrorContext(
           'subscribeToPublicTrades',
           { symbol: params.symbol, providerId: params.providerId },
           CONNECTION_ERROR_TAGS,
         ),
       );
+      params.onError?.(safeError);
       return noop;
     }
   }
@@ -9440,8 +9599,12 @@ export class PerpsController extends BaseController<
    * @returns A cleanup function to remove the subscription.
    */
   subscribeToCandles(params: SubscribeCandlesParams): () => void {
-    return this.#subscribeToChannel('candles', params, (channelParams) =>
-      this.#openCandles(channelParams),
+    // A replaced transport does not restore candles; the channel reopens them.
+    return this.#subscribeToChannel(
+      'candles',
+      params,
+      (channelParams) => this.#openCandles(channelParams),
+      { reopenOnReconnect: true },
     );
   }
 
@@ -9463,8 +9626,12 @@ export class PerpsController extends BaseController<
         nextProvider.subscribeToCandles(params),
       );
     } catch (error) {
+      const safeError = ensureError(
+        error,
+        'PerpsController.subscribeToCandles',
+      );
       this.#logError(
-        ensureError(error, 'PerpsController.subscribeToCandles'),
+        safeError,
         this.#getErrorContext(
           'subscribeToCandles',
           {
@@ -9475,6 +9642,7 @@ export class PerpsController extends BaseController<
           CONNECTION_ERROR_TAGS,
         ),
       );
+      params.onError?.(safeError);
       return () => {
         // No-op
       };
@@ -9512,8 +9680,9 @@ export class PerpsController extends BaseController<
         nextProvider.subscribeToOICaps(params),
       );
     } catch (error) {
+      const safeError = ensureError(error, 'PerpsController.subscribeToOICaps');
       this.#logError(
-        ensureError(error, 'PerpsController.subscribeToOICaps'),
+        safeError,
         this.#getErrorContext(
           'subscribeToOICaps',
           {
@@ -9522,6 +9691,7 @@ export class PerpsController extends BaseController<
           CONNECTION_ERROR_TAGS,
         ),
       );
+      params.onError?.(safeError);
       return () => {
         // No-op
       };

@@ -1147,8 +1147,9 @@ describe('PerpsController', () => {
           oldCallback(oldUpdate);
 
           expect(controller.state).toBe(selectedState);
-          // The old stream still feeds its own consumer, not selected state.
-          expect(oldConsumer).toHaveBeenLastCalledWith(oldUpdate);
+          // The old stream was stopped, so its consumer, which moved to the new
+          // account, does not hear it either.
+          expect(oldConsumer).toHaveBeenLastCalledWith(accountState('200'));
         },
       );
 

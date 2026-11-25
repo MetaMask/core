@@ -12,6 +12,7 @@ import {
   getDefaultPerpsControllerState,
 } from '../../src/PerpsController.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
+import { WebSocketConnectionState } from '../../src/types/index.js';
 import type {
   Position,
   PriceUpdate,
@@ -229,6 +230,86 @@ describe('PerpsController stream context', () => {
     expect(
       controller.getStreamSnapshot('prices', { symbols: ['BTC'] }),
     ).toBeUndefined();
+  });
+
+  it('keeps every symbol of separate price frames for a throttled reader, a late reader and the snapshot', async () => {
+    await controller.init();
+    const [provider] = providers;
+    const throttled = vi.fn();
+    const late = vi.fn();
+    const symbols = ['BTC', 'ETH'];
+    controller.subscribeToPrices({
+      symbols,
+      callback: throttled,
+      throttleMs: 20,
+    });
+    provider.prices[0].callback([price('BTC', '1')]);
+    provider.prices[0].callback([price('BTC', '2')]);
+    provider.prices[0].callback([price('ETH', '10')]);
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    controller.subscribeToPrices({ symbols, callback: late });
+    await flush();
+
+    const all = [price('BTC', '2'), price('ETH', '10')];
+    expect(throttled.mock.calls).toStrictEqual([[[price('BTC', '1')]], [all]]);
+    expect(late.mock.calls).toStrictEqual([[all]]);
+    expect(controller.getStreamSnapshot('prices', { symbols })).toStrictEqual([
+      all,
+    ]);
+  });
+
+  it("restarts a named account's stream after the selected account's streams moved", async () => {
+    await controller.init();
+    const [provider] = providers;
+    const accountId = 'eip155:1:0x1111111111111111111111111111111111111111';
+    controller.subscribeToPositions({ accountId, callback: vi.fn() });
+    controller.subscribeToPositions({ callback: vi.fn() });
+
+    switchAccount('0x2222222222222222222222222222222222222222');
+
+    expect(provider.positions.map((params) => params.accountId)).toStrictEqual([
+      accountId,
+      undefined,
+      undefined,
+      accountId,
+    ]);
+    const [namedStop, selectedStop] = provider.stops;
+    expect(namedStop).toHaveBeenCalledTimes(1);
+    expect(selectedStop).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports a positions stream that cannot open or be seeded, and recovers by itself', async () => {
+    await controller.init();
+    const [provider] = providers;
+    provider.getPositions.mockRejectedValue(new Error('seed failed'));
+    // The socket is down, so the channel also reads once.
+    Object.assign(provider, {
+      subscribeToConnectionState: vi.fn(
+        (
+          listener: (state: WebSocketConnectionState, tries: number) => void,
+        ) => {
+          listener(WebSocketConnectionState.Disconnected, 0);
+          return (): void => undefined;
+        },
+      ),
+    });
+    provider.subscribeToPositions.mockImplementationOnce(() => {
+      throw new Error('PROVIDER_NOT_AVAILABLE');
+    });
+    const callback = vi.fn();
+    const onError = vi.fn<(error: Error) => void>();
+
+    controller.subscribeToPositions({ callback, onError });
+    await flush();
+
+    const messages = onError.mock.calls.map(([error]) => error.message);
+    expect(messages).toContain('PROVIDER_NOT_AVAILABLE');
+    expect(messages).toContain('seed failed');
+
+    await new Promise((resolve) => setTimeout(resolve, 1_100));
+    const update = [createMockPosition({ symbol: 'BTC' })];
+    provider.positions[0].callback(update);
+    expect(callback).toHaveBeenLastCalledWith(update);
   });
 
   it('shares one prices channel whatever the symbol order', async () => {

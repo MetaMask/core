@@ -2240,6 +2240,11 @@ export type GetMarketDataWithPricesParams = {
 export type SubscribePricesParams = {
   symbols: string[];
   callback: (prices: PriceUpdate[]) => void;
+  /**
+   * Receives a failure to open the stream or to read its first value. The
+   * stream retries by itself; a later delivery means that it recovered.
+   */
+  onError?: (error: Error) => void;
   /** Minimum time between deliveries to this subscriber; other subscribers of the same channel are unaffected. */
   throttleMs?: number;
   /** Called when the stream moves to another provider or account; the next delivery is the new context's data. */
@@ -2251,6 +2256,11 @@ export type SubscribePricesParams = {
 export type SubscribePositionsParams = {
   /** The completeness flag is true for deliveries from the opt-in Hyperliquid stream. */
   callback: (positions: Position[], completeSnapshot?: boolean) => void;
+  /**
+   * Receives a failure to open the stream or to read its first value. The
+   * stream retries by itself; a later delivery means that it recovered.
+   */
+  onError?: (error: Error) => void;
   /** Direct Hyperliquid only. Wait for all configured DEXs to publish positions for this wallet and connection. */
   includeSnapshotStatus?: boolean;
   accountId?: CaipAccountId; // Optional: defaults to selected account
@@ -2263,9 +2273,8 @@ export type SubscribePositionsParams = {
 
 export type SubscribeOrderFillsParams = {
   /**
-   * Reports detectable setup failures without asserting an empty account.
-   * Lighter currently produces these errors; other providers may not report
-   * setup failures through this optional callback.
+   * Reports detectable setup failures without asserting an empty account. The
+   * stream retries by itself; a later delivery means that it recovered.
    */
   onError?: (error: Error, sourceProviderId?: PerpsProviderType) => void;
   callback: (
@@ -2320,6 +2329,11 @@ export type SubscribeTwapOrdersParams = {
    * the merged result of a delta.
    */
   callback: (twapOrders: TwapOrder[], isSnapshot?: boolean) => void;
+  /**
+   * Receives a failure to open the stream or to read its first value. The
+   * stream retries by itself; a later delivery means that it recovered.
+   */
+  onError?: (error: Error) => void;
   accountId?: CaipAccountId; // Optional: defaults to selected account
   /** Minimum time between deliveries to this subscriber; other subscribers of the same channel are unaffected. */
   throttleMs?: number;
@@ -2331,8 +2345,8 @@ export type SubscribeTwapOrdersParams = {
 export type SubscribeLiveTwapOrdersParams = {
   /**
    * Receives every known schedule, newest first, whenever the list changes.
-   * Reads and stream pushes are merged here, with execution totals raised
-   * from slice fills; split the list with `partitionTwapOrders`.
+   * One read and the venue's pushes are merged here, with execution totals
+   * raised from pushed slice fills; split the list with `partitionTwapOrders`.
    */
   callback: (twapOrders: TwapOrder[]) => void;
   /** Called when a read fails; the list keeps its last state. */
@@ -2395,8 +2409,7 @@ export type SubscribeAvailableToTradeParams = {
    * opened (for example a rejected resubscription). Also invalidates the old
    * venue's value when a default-routed subscription changes providers.
    * The value is unknown again.
-   * Not terminal: keep the subscription, since the stream reopens when the
-   * WebSocket transport is replaced.
+   * Not terminal: keep the subscription, since the stream reopens by itself.
    */
   onError?: (error: Error) => void;
   /** Minimum time between deliveries to this subscriber; other subscribers of the same channel are unaffected. */
@@ -2412,6 +2425,11 @@ export type SubscribeAccountParams = {
     account: AccountState | null,
     aggregate?: AccountAggregateMetadata,
   ) => void;
+  /**
+   * Receives a failure to open the stream or to read its first value. The
+   * stream retries by itself; a later delivery means that it recovered.
+   */
+  onError?: (error: Error) => void;
   accountId?: CaipAccountId; // Optional: defaults to selected account
   /**
    * Optional: emit `null` instead of a snapshot that is missing part of the
@@ -2429,6 +2447,11 @@ export type SubscribeAccountParams = {
 
 export type SubscribeOICapsParams = {
   callback: (caps: string[]) => void;
+  /**
+   * Receives a failure to open the stream or to read its first value. The
+   * stream retries by itself; a later delivery means that it recovered.
+   */
+  onError?: (error: Error) => void;
   accountId?: CaipAccountId; // Optional: defaults to selected account
   /**
    * Optional explicit venue route. Omit for the default-routed behavior
@@ -2902,7 +2925,8 @@ export type PerpsMarketMeta = {
 /**
  * Stream every market's metadata (margin tiers, delisting, max leverage,
  * Cross support). The callback receives the provider's current list at once,
- * then a new list whenever the controller refreshes its market data.
+ * then a new list when the venue's own stream shows a listing or a delisting,
+ * and after a reconnect.
  */
 export type SubscribeMarketMetaParams = {
   /** Provider whose markets are streamed; defaults to the active route. */
@@ -2949,9 +2973,11 @@ export type PerpsFeeRates = {
 };
 
 /**
- * Stream a market's fee rates. The callback receives one read at once, then a
- * new read after the account's own fills (its volume tier can change), an
- * account switch, or `invalidateSubscriptionBenefits`. There is no timer.
+ * Stream a market's fee rates for the selected account. The callback receives
+ * one read at once, then a new read after one of the account's own fills (its
+ * volume tier can change), an account switch, a Rewards change, the expiry of
+ * a trading fee grant or `invalidateSubscriptionBenefits`. There is no
+ * repeating timer.
  */
 export type SubscribeFeeRatesParams = {
   /** Market, including any routing prefix. */
@@ -2963,8 +2989,8 @@ export type SubscribeFeeRatesParams = {
   orderType?: OrderType;
   /** Provider whose fees are read; defaults to the active route. */
   providerId?: PerpsProviderType;
-  /** Account whose fills trigger a re-read; defaults to the selected account. */
-  accountId?: CaipAccountId;
+  /** Order amount in USD to price, as in `calculateFees`. */
+  amount?: string;
   /** Receives the rates; unchanged reads are not delivered again. */
   callback: (rates: PerpsFeeRates) => void;
   /** Receives a failed read; the last rates stay current. */
@@ -2973,6 +2999,22 @@ export type SubscribeFeeRatesParams = {
   throttleMs?: number;
   /** Called when the stream moves to another provider or account; the next delivery is the new context's data. */
   onReset?: () => void;
+};
+
+/** Told when a venue's markets may have changed; see `PerpsProvider`. */
+export type SubscribeMarketChangesParams = {
+  /** Provider whose markets are watched; defaults to the active route. */
+  providerId?: PerpsProviderType;
+  /** Called on each change; read the markets again. */
+  callback: () => void;
+  /** Receives a failure to open the venue's feed. */
+  onError?: (error: Error) => void;
+};
+
+/** Told when the account's chases may have changed; see `PerpsProvider`. */
+export type SubscribeChaseOrderChangesParams = {
+  /** Called on each change; read the chases again. */
+  callback: () => void;
 };
 
 /**
@@ -3831,11 +3873,25 @@ export type PerpsProvider = {
    */
   getNotificationAccountIndex?(): Promise<number>;
   /**
-   * Stream TWAP lifecycle updates. Optional: providers without a native TWAP
-   * push channel omit it, and clients fall back to polling `getTwapOrders`.
+   * Stream TWAP lifecycle updates, with slice fills. Optional: providers
+   * without a native TWAP push channel omit it.
    */
   subscribeToTwapOrders?(params: SubscribeTwapOrdersParams): () => void;
   getChaseOrders?(): Promise<ChaseOrder[]>;
+  /**
+   * Call back when a chase of the selected account was placed, re-priced,
+   * filled or ended, so `getChaseOrders` is read on changes instead of on a
+   * timer. Providers without chases omit it.
+   */
+  subscribeToChaseOrderChanges?(
+    params: SubscribeChaseOrderChangesParams,
+  ): () => void;
+  /**
+   * Call back when the venue's own push shows that a market was listed or
+   * delisted, so `getMarkets` is read on changes instead of on a timer.
+   * Providers whose stream cannot show it omit it.
+   */
+  subscribeToMarketChanges?(params: SubscribeMarketChangesParams): () => void;
   /** Pure local observation; no signing, transport, continuation or durable writes. */
   getChaseOrderOwnership?(
     params: GetChaseOrderOwnershipParams,
@@ -4869,6 +4925,14 @@ export type PerpsPlatformDependencies = {
     getPerpsTradingFeeGrant?(
       scope: PerpsFeeResolverScope,
     ): Promise<PerpsTradingFeeGrant | null>;
+
+    /**
+     * Call the listener when an answer of the two reads above may have changed
+     * (a Rewards session started, ended or expired, or a tier changed), so fee
+     * rate streams are priced again. Optional: without it they follow fills
+     * and account changes only.
+     */
+    subscribeToPerpsFeeChanges?(listener: () => void): () => void;
   };
 
   // === Subscription (DI — benefits endpoint is owned by the Subscription team) ===

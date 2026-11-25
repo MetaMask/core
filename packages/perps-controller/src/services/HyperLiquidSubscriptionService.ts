@@ -7,6 +7,7 @@ import type {
   UserFillsWsEvent,
   UserTwapHistoryWsEvent,
   TwapHistoryResponse,
+  UserTwapSliceFillsWsEvent,
   ActiveAssetCtxWsEvent,
   ActiveAssetDataWsEvent,
   ActiveSpotAssetCtxWsEvent,
@@ -44,6 +45,7 @@ import type {
   AccountState,
   CrossMarginSummary,
   TwapOrder,
+  TwapOrderFill,
   SubscribePricesParams,
   SubscribePositionsParams,
   SubscribeOrderFillsParams,
@@ -68,6 +70,7 @@ import type {
   AddSpotBalanceOptions,
   ReturnOnEquityInput,
 } from '../utils/accountUtils.js';
+import { mergeTwapOrders } from '../utils/advancedOrders.js';
 import {
   PERPS_ERROR_ACTION,
   PERPS_ERROR_COMPONENT,
@@ -97,6 +100,7 @@ import {
 import { parseFiniteDecimal } from '../utils/stringParseUtils.js';
 import type { HyperLiquidClientService } from './HyperLiquidClientService.js';
 import type { HyperLiquidWalletService } from './HyperLiquidWalletService.js';
+import { OrderBookTransportPool } from './OrderBookTransportPool.js';
 
 /**
  * What the service needs from the wallet: the account, and the wallet
@@ -123,6 +127,14 @@ type AccountSubscriber = (
   account: AccountState | null,
   sourceAddress: string | undefined,
 ) => void;
+
+/** Maps Hyperliquid's raw TWAP payloads to the shared shapes. */
+export type TwapOrderAdapter = {
+  history: (history: TwapHistoryResponse) => TwapOrder[];
+  sliceFills: (
+    sliceFills: UserTwapSliceFillsWsEvent['twapSliceFills'],
+  ) => { orderId: string; fill: TwapOrderFill }[];
+};
 
 /**
  * Cap on *terminal* TWAP schedules retained per account from the venue's
@@ -321,9 +333,12 @@ export class HyperLiquidSubscriptionService {
 
   // Retained per-account adapters so a reconnect can re-open TWAP sockets
   // without a live caller to supply the venue-shape mapping again.
-  readonly #twapOrderAdapters = new Map<
+  readonly #twapOrderAdapters = new Map<string, TwapOrderAdapter>();
+
+  // Slice fills per account and schedule, from the venue's own push.
+  readonly #twapSliceFills = new Map<
     string,
-    (history: TwapHistoryResponse) => TwapOrder[]
+    Map<string, Map<string, TwapOrderFill>>
   >();
 
   // Merged TWAP state per account. The venue sends a snapshot then deltas, so
@@ -567,6 +582,18 @@ export class HyperLiquidSubscriptionService {
 
   // Platform dependencies for logging
   readonly #deps: PerpsPlatformDependencies;
+
+  /** Sockets that keep one coin's books of different precision apart. */
+  readonly #orderBookTransports = new OrderBookTransportPool();
+
+  /** Readers told when the venue's markets changed. */
+  readonly #marketChangeSubscribers = new Set<() => void>();
+
+  /** DEXs whose `assetCtxs` feed the market change readers hold open. */
+  readonly #marketChangeDexs = new Set<string>();
+
+  /** Listed and delisted markets per DEX, as its last `assetCtxs` frame shows them. */
+  readonly #marketSignatures = new Map<string, string>();
 
   constructor(
     clientService: HyperLiquidClientService,
@@ -970,6 +997,13 @@ export class HyperLiquidSubscriptionService {
     this.#allowlistMarkets = allowlistMarkets;
     this.#blocklistMarkets = blocklistMarkets;
     this.#discoveredDexNames = enabledDexs; // Store DEX order for webData3 index mapping
+    this.#holdMarketChangeFeeds();
+    if (
+      previousHip3Enabled !== hip3Enabled ||
+      previousEnabledDexs.join() !== enabledDexs.join()
+    ) {
+      this.#notifyMarketChange();
+    }
 
     // A complete position snapshot must follow the current configuration, not
     // the DEX set that happened to exist when subscriptions first started. Add
@@ -2222,9 +2256,15 @@ export class HyperLiquidSubscriptionService {
       }
     });
 
-    await this.#clientService.ensureSubscriptionClient(
-      this.#walletService.createWalletAdapter(),
-    );
+    try {
+      await this.#clientService.ensureSubscriptionClient(
+        this.#walletService.createWalletAdapter(),
+      );
+    } catch (error) {
+      // The caller gets no cleanup for a subscription that did not open.
+      unsubscribers.forEach((fn) => fn());
+      throw error;
+    }
 
     const subscriptionClient = this.#clientService.getSubscriptionClient();
     if (!subscriptionClient) {
@@ -3462,13 +3502,40 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
+   * Refuse a user-data subscription for another wallet than the one the shared
+   * user-data streams are open for: their caches and frames are that wallet's.
+   *
+   * @param accountId - Optional CAIP account ID; defaults to the selected one.
+   * @throws `PROVIDER_NOT_AVAILABLE` while another wallet is bound.
+   */
+  #assertUserDataWallet(accountId?: CaipAccountId): void {
+    const bound = this.#userDataBinding?.address.toLowerCase();
+    if (bound === undefined) {
+      return;
+    }
+    let requested: string;
+    try {
+      requested = this.#walletService
+        .getAccountStreamAddress(accountId)
+        .toLowerCase();
+    } catch {
+      // No wallet to compare; opening the stream reports that itself.
+      return;
+    }
+    if (bound !== requested) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
+  }
+
+  /**
    * Subscribe to live position updates with TP/SL data
    *
    * @param params - The subscription parameters including callback and account ID.
    * @returns A cleanup function to unsubscribe from position updates.
    */
   public subscribeToPositions(params: SubscribePositionsParams): () => void {
-    const { callback, accountId, includeSnapshotStatus } = params;
+    const { callback, accountId, includeSnapshotStatus, onError } = params;
+    this.#assertUserDataWallet(accountId);
     const scopedUserAddress = includeSnapshotStatus
       ? this.#walletService.getAccountStreamAddress(accountId)
       : undefined;
@@ -3519,13 +3586,7 @@ export class HyperLiquidSubscriptionService {
 
     // Ensure shared subscription is active
     this.#ensureSharedWebData3Subscription(accountId).catch((error) => {
-      this.#logErrorUnlessClearing(
-        ensureError(
-          error,
-          'HyperLiquidSubscriptionService.subscribeToPositions',
-        ),
-        this.#getErrorContext('subscribeToPositions'),
-      );
+      this.#reportSubscriptionError('subscribeToPositions', error, onError);
     });
 
     return unsubscribe;
@@ -3539,7 +3600,8 @@ export class HyperLiquidSubscriptionService {
    * @returns A cleanup function to unsubscribe from OI cap updates.
    */
   public subscribeToOICaps(params: SubscribeOICapsParams): () => void {
-    const { callback, accountId } = params;
+    const { callback, accountId, onError } = params;
+    this.#assertUserDataWallet(accountId);
 
     // Create subscription
     const unsubscribe = this.#createSubscription(
@@ -3557,10 +3619,7 @@ export class HyperLiquidSubscriptionService {
 
     // Ensure webData3 subscription is active (OI caps come from webData3)
     this.#ensureSharedWebData3Subscription(accountId).catch((error) => {
-      this.#logErrorUnlessClearing(
-        ensureError(error, 'HyperLiquidSubscriptionService.subscribeToOICaps'),
-        this.#getErrorContext('subscribeToOICaps'),
-      );
+      this.#reportSubscriptionError('subscribeToOICaps', error, onError);
     });
 
     return () => {
@@ -3581,6 +3640,26 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
+   * Log a subscription that could not open and tell its subscriber.
+   *
+   * @param method - The subscribe method.
+   * @param error - The failure.
+   * @param onError - The subscriber's error handler.
+   */
+  #reportSubscriptionError(
+    method: string,
+    error: unknown,
+    onError: ((error: Error) => void) | undefined,
+  ): void {
+    const safeError = ensureError(
+      error,
+      `HyperLiquidSubscriptionService.${method}`,
+    );
+    this.#logErrorUnlessClearing(safeError, this.#getErrorContext(method));
+    onError?.(safeError);
+  }
+
+  /**
    * Subscribe to live order fill updates
    * Shares subscriptions per accountId to avoid duplicate WebSocket connections
    *
@@ -3588,7 +3667,7 @@ export class HyperLiquidSubscriptionService {
    * @returns A cleanup function to unsubscribe from order fill updates.
    */
   public subscribeToOrderFills(params: SubscribeOrderFillsParams): () => void {
-    const { callback, accountId } = params;
+    const { callback, accountId, onError } = params;
     // Normalize accountId: undefined -> 'default' for Map key
     const normalizedAccountId = accountId ?? 'default';
     const unsubscribe = this.#createSubscription(
@@ -3599,13 +3678,7 @@ export class HyperLiquidSubscriptionService {
 
     // Ensure subscription is established for this accountId
     this.#ensureOrderFillISubscription(accountId).catch((error) => {
-      this.#logErrorUnlessClearing(
-        ensureError(
-          error,
-          'HyperLiquidSubscriptionService.subscribeToOrderFills',
-        ),
-        this.#getErrorContext('subscribeToOrderFills'),
-      );
+      this.#reportSubscriptionError('subscribeToOrderFills', error, onError);
     });
 
     return () => {
@@ -3832,22 +3905,22 @@ export class HyperLiquidSubscriptionService {
    * `TwapOrder`s. That keeps the venue-shape knowledge in the provider and
    * leaves this service owning transport, fan-out, and teardown only.
    *
-   * Slice fills are not part of this channel — the venue streams schedule
-   * state, not individual fills — so adapted orders carry the fills the
-   * caller's adapter resolves for them.
+   * The venue streams schedule state and slice fills on two channels. Both are
+   * open while the account has a subscriber, and each slice fill raises its
+   * schedule's fills and execution totals, so no read is needed to follow a
+   * running schedule.
    *
    * @param params - Subscription parameters including callback and account ID.
    * @param params.callback - Receives adapted TWAP schedules, newest first.
    * @param params.accountId - Optional CAIP account ID; defaults to selected.
-   * @param params.adapt - Maps a raw venue history payload to TWAP schedules.
+   * @param params.adapt - Maps raw venue payloads to TWAP schedules and fills.
+   * @param params.onError - Receives a failure to open the streams.
    * @returns A cleanup function to unsubscribe from TWAP updates.
    */
   public subscribeToTwapOrders(
-    params: SubscribeTwapOrdersParams & {
-      adapt: (history: TwapHistoryResponse) => TwapOrder[];
-    },
+    params: SubscribeTwapOrdersParams & { adapt: TwapOrderAdapter },
   ): () => void {
-    const { callback, accountId, adapt } = params;
+    const { callback, accountId, adapt, onError } = params;
     const normalizedAccountId = accountId ?? 'default';
     const unsubscribe = this.#createSubscription(
       this.#twapOrderSubscribers,
@@ -3872,13 +3945,7 @@ export class HyperLiquidSubscriptionService {
     }
 
     this.#ensureTwapOrderSubscription(accountId, adapt).catch((error) => {
-      this.#logErrorUnlessClearing(
-        ensureError(
-          error,
-          'HyperLiquidSubscriptionService.subscribeToTwapOrders',
-        ),
-        this.#getErrorContext('subscribeToTwapOrders'),
-      );
+      this.#reportSubscriptionError('subscribeToTwapOrders', error, onError);
     });
 
     return () => {
@@ -3907,6 +3974,7 @@ export class HyperLiquidSubscriptionService {
         this.#twapOrderAdapters.delete(normalizedAccountId);
         this.#cachedTwapOrders.delete(normalizedAccountId);
         this.#cachedTwapOrderSources.delete(normalizedAccountId);
+        this.#twapSliceFills.delete(normalizedAccountId);
       }
     };
   }
@@ -3916,12 +3984,12 @@ export class HyperLiquidSubscriptionService {
    * across every callback registered for that account.
    *
    * @param accountId - Optional CAIP account ID to subscribe for.
-   * @param adapt - Maps a raw venue history payload to TWAP schedules.
+   * @param adapt - Maps raw venue payloads to TWAP schedules and fills.
    * @returns A promise that resolves when the subscription is established.
    */
   async #ensureTwapOrderSubscription(
     accountId: CaipAccountId | undefined,
-    adapt: (history: TwapHistoryResponse) => TwapOrder[],
+    adapt: TwapOrderAdapter,
   ): Promise<void> {
     const normalizedAccountId = accountId ?? 'default';
 
@@ -3976,14 +4044,14 @@ export class HyperLiquidSubscriptionService {
    *
    * @param normalizedAccountId - Map key for this account ('default' when unset).
    * @param accountId - Optional CAIP account ID to resolve the address from.
-   * @param adapt - Maps a raw venue history payload to TWAP schedules.
+   * @param adapt - Maps raw venue payloads to TWAP schedules and fills.
    * @param startGeneration - This account's generation when the open began.
    * @returns A promise that resolves once the subscription is registered.
    */
   async #createTwapOrderSubscription(
     normalizedAccountId: string,
     accountId: CaipAccountId | undefined,
-    adapt: (history: TwapHistoryResponse) => TwapOrder[],
+    adapt: TwapOrderAdapter,
     startGeneration: number,
   ): Promise<void> {
     // Bootstrap the client inline rather than recursing: a recursive call
@@ -4003,15 +4071,15 @@ export class HyperLiquidSubscriptionService {
     const userAddress =
       await this.#walletService.getUserAddressWithDefault(accountId);
 
-    const subscription = await subscriptionClient.userTwapHistory(
+    const isCurrent = (): boolean =>
+      startGeneration === this.#twapOrderGeneration(normalizedAccountId);
+    const historySubscription = await subscriptionClient.userTwapHistory(
       { user: userAddress },
       (data: UserTwapHistoryWsEvent) => {
         // A frame queued before an unsubscribe or reconnect must not mutate
         // the replacement's cache or reach its subscribers. Registration is
         // guarded below, but late listener invocations need their own check.
-        if (
-          startGeneration !== this.#twapOrderGeneration(normalizedAccountId)
-        ) {
+        if (!isCurrent()) {
           return;
         }
         // Only the first message is the full set; later ones carry just the
@@ -4028,14 +4096,12 @@ export class HyperLiquidSubscriptionService {
         }
         const merged = data.isSnapshot
           ? new Map<string, TwapOrder>()
-          : previous;
-        for (const order of adapt(data.history)) {
+          : new Map(previous);
+        for (const order of adapt.history(data.history)) {
           const existing = merged.get(order.orderId);
           if (!existing || order.lastUpdated >= existing.lastUpdated) {
-            // This channel carries schedule state without slice fills, so an
-            // empty `fills` here means "not sent", not "none". Carry forward
-            // whatever a prior frame or REST read resolved so a consumer
-            // replacing its state does not lose fill history.
+            // This frame carries schedule state without slice fills, so an
+            // empty `fills` here means "not sent", not "none".
             const knownFills =
               order.fills.length > 0
                 ? order.fills
@@ -4043,36 +4109,48 @@ export class HyperLiquidSubscriptionService {
             merged.set(order.orderId, { ...order, fills: knownFills });
           }
         }
-        // `userTwapHistory` is history, so terminal schedules would otherwise
-        // accumulate for the life of the session. Cap only the terminal ones:
-        // a long-running active schedule has an old `startedAt`, so a cap over
-        // the whole set would evict the very TWAP the user is monitoring in
-        // favour of newer dead ones.
-        const allOrders = [...merged.values()].sort(
-          (left, right) => right.startedAt - left.startedAt,
-        );
-        const activeOrders = allOrders.filter(
-          (order) => order.status === 'active',
-        );
-        const terminalOrders = allOrders
-          .filter((order) => order.status !== 'active')
-          .slice(0, MAX_RETAINED_TWAP_ORDERS);
-        const twapOrders = [...activeOrders, ...terminalOrders].sort(
-          (left, right) => right.startedAt - left.startedAt,
-        );
-        this.#cachedTwapOrders.set(
-          normalizedAccountId,
-          new Map(twapOrders.map((order) => [order.orderId, order])),
-        );
-
-        const subscribers = this.#twapOrderSubscribers.get(normalizedAccountId);
-        if (subscribers) {
-          subscribers.forEach((subscriberCallback) => {
-            subscriberCallback(twapOrders, data.isSnapshot);
-          });
-        }
+        this.#publishTwapOrders(normalizedAccountId, merged, data.isSnapshot);
       },
     );
+    let fillSubscription: ISubscription;
+    try {
+      fillSubscription = await subscriptionClient.userTwapSliceFills(
+        { user: userAddress },
+        (data: UserTwapSliceFillsWsEvent) => {
+          if (!isCurrent()) {
+            return;
+          }
+          const bySchedule = data.isSnapshot
+            ? new Map<string, Map<string, TwapOrderFill>>()
+            : (this.#twapSliceFills.get(normalizedAccountId) ??
+              new Map<string, Map<string, TwapOrderFill>>());
+          for (const { orderId, fill } of adapt.sliceFills(
+            data.twapSliceFills,
+          )) {
+            const fills =
+              bySchedule.get(orderId) ?? new Map<string, TwapOrderFill>();
+            fills.set(fill.fillId, fill);
+            bySchedule.set(orderId, fills);
+          }
+          this.#twapSliceFills.set(normalizedAccountId, bySchedule);
+          const orders = this.#cachedTwapOrders.get(normalizedAccountId);
+          if (orders) {
+            this.#publishTwapOrders(normalizedAccountId, orders);
+          }
+        },
+      );
+    } catch (error) {
+      historySubscription.unsubscribe().catch(() => undefined);
+      throw error;
+    }
+    const subscription: ISubscription = {
+      unsubscribe: async () => {
+        await Promise.all([
+          historySubscription.unsubscribe(),
+          fillSubscription.unsubscribe(),
+        ]);
+      },
+    };
 
     // Teardown, clearAll, or a reconnect may have run while this open was in
     // flight. Rehydrating the map here would leave a socket with no
@@ -4095,6 +4173,54 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
+   * Add the known slice fills to an account's schedules, hold the result and
+   * deliver it.
+   *
+   * @param normalizedAccountId - Map key for this account.
+   * @param orders - The account's schedules by order ID.
+   * @param isSnapshot - Whether the venue sent its full set.
+   */
+  #publishTwapOrders(
+    normalizedAccountId: string,
+    orders: Map<string, TwapOrder>,
+    isSnapshot?: boolean,
+  ): void {
+    const sliceFills = this.#twapSliceFills.get(normalizedAccountId);
+    const allOrders = [...orders.values()]
+      .map((order): TwapOrder => {
+        const pushed = sliceFills?.get(order.orderId);
+        return pushed
+          ? mergeTwapOrders(
+              [order],
+              [{ ...order, fills: [...pushed.values()] }],
+            )[0]
+          : order;
+      })
+      .sort((left, right) => right.startedAt - left.startedAt);
+    // `userTwapHistory` is history, so terminal schedules would otherwise
+    // accumulate for the life of the session. Cap only the terminal ones:
+    // a long-running active schedule has an old `startedAt`, so a cap over
+    // the whole set would evict the very TWAP the user is monitoring in
+    // favour of newer dead ones.
+    const activeOrders = allOrders.filter((order) => order.status === 'active');
+    const terminalOrders = allOrders
+      .filter((order) => order.status !== 'active')
+      .slice(0, MAX_RETAINED_TWAP_ORDERS);
+    const twapOrders = [...activeOrders, ...terminalOrders].sort(
+      (left, right) => right.startedAt - left.startedAt,
+    );
+    this.#cachedTwapOrders.set(
+      normalizedAccountId,
+      new Map(twapOrders.map((order) => [order.orderId, order])),
+    );
+    this.#twapOrderSubscribers
+      .get(normalizedAccountId)
+      ?.forEach((subscriberCallback) => {
+        subscriberCallback(twapOrders, isSnapshot);
+      });
+  }
+
+  /**
    * Subscribe to live order updates
    * Uses the shared per-DEX subscriptions to avoid duplicate connections
    *
@@ -4102,7 +4228,8 @@ export class HyperLiquidSubscriptionService {
    * @returns A cleanup function to unsubscribe from order updates.
    */
   public subscribeToOrders(params: SubscribeOrdersParams): () => void {
-    const { callback, accountId, includeSnapshotStatus } = params;
+    const { callback, accountId, includeSnapshotStatus, onError } = params;
+    this.#assertUserDataWallet(accountId);
     const scopedUserAddress = includeSnapshotStatus
       ? this.#walletService.getAccountStreamAddress(accountId)
       : undefined;
@@ -4144,10 +4271,7 @@ export class HyperLiquidSubscriptionService {
 
     // Ensure shared subscription is active
     this.#ensureSharedWebData3Subscription(accountId).catch((error) => {
-      this.#logErrorUnlessClearing(
-        ensureError(error, 'HyperLiquidSubscriptionService.subscribeToOrders'),
-        this.#getErrorContext('subscribeToOrders'),
-      );
+      this.#reportSubscriptionError('subscribeToOrders', error, onError);
     });
 
     return unsubscribe;
@@ -4161,7 +4285,7 @@ export class HyperLiquidSubscriptionService {
    * @returns A cleanup function to unsubscribe from account updates.
    */
   public subscribeToAccount(params: SubscribeAccountParams): () => void {
-    const { callback, accountId, requireCompleteAccount } = params;
+    const { callback, accountId, requireCompleteAccount, onError } = params;
     const wallet = this.#walletService.getAccountStreamAddress(accountId);
     const requestedAddress = wallet.toLowerCase();
     const boundAddress = this.#userDataBinding?.address.toLowerCase();
@@ -4235,10 +4359,9 @@ export class HyperLiquidSubscriptionService {
       return unsubscribe;
     }
     this.#ensureSharedWebData3Subscription(accountId).catch((error) => {
-      this.#logErrorUnlessClearing(
-        ensureError(error, 'HyperLiquidSubscriptionService.subscribeToAccount'),
-        this.#getErrorContext('subscribeToAccount'),
-      );
+      if (isCurrent()) {
+        this.#reportSubscriptionError('subscribeToAccount', error, onError);
+      }
     });
 
     return unsubscribe;
@@ -5417,8 +5540,11 @@ export class HyperLiquidSubscriptionService {
         // Cache asset contexts for this DEX
         this.#dexAssetCtxsCache.set(dexKey, data.ctxs);
 
-        // Use cached meta to map ctxs array indices to symbols (no REST API call!)
-        validatedMeta.universe.forEach((asset, index) => {
+        // Use cached meta to map ctxs array indices to symbols (no REST API
+        // call!). A market listed since this feed opened is in the newer meta.
+        const { universe } = this.#dexMetaCache.get(dexKey) ?? validatedMeta;
+        this.#detectMarketChange(dexKey, data.ctxs, universe.length);
+        universe.forEach((asset, index) => {
           const ctx = data.ctxs[index];
           if (ctx && hasProperty(ctx, 'funding')) {
             // This is a perps context
@@ -5565,6 +5691,97 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
+   * Call a listener when the venue's own `assetCtxs` push shows that its
+   * markets changed: one was listed (the list grew) or delisted (the venue
+   * stops quoting it and closes its open interest). The feed is the one price
+   * subscribers share; no read and no timer is added.
+   *
+   * @param params - Subscription parameters.
+   * @param params.callback - Called on each change.
+   * @param params.onError - Receives a failure to open the feed.
+   * @returns A cleanup function.
+   */
+  public subscribeToMarketChanges(params: {
+    callback: () => void;
+    onError?: (error: Error) => void;
+  }): () => void {
+    const listener = (): void => params.callback();
+    this.#marketChangeSubscribers.add(listener);
+    this.#holdMarketChangeFeeds(params.onError);
+    return () => {
+      if (
+        !this.#marketChangeSubscribers.delete(listener) ||
+        this.#marketChangeSubscribers.size > 0
+      ) {
+        return;
+      }
+      const dexs = [...this.#marketChangeDexs];
+      this.#marketChangeDexs.clear();
+      dexs.forEach((dex) => this.#cleanupAssetCtxsSubscription(dex));
+    };
+  }
+
+  /**
+   * Hold the `assetCtxs` feed of every configured DEX for market changes.
+   *
+   * @param onError - Receives a failure to open a feed.
+   */
+  #holdMarketChangeFeeds(onError?: (error: Error) => void): void {
+    if (this.#marketChangeSubscribers.size === 0) {
+      return;
+    }
+    const dexs = this.#hip3Enabled ? ['', ...this.#enabledDexs] : [''];
+    for (const dex of dexs) {
+      if (this.#marketChangeDexs.has(dex)) {
+        continue;
+      }
+      this.#marketChangeDexs.add(dex);
+      this.#ensureAssetCtxsSubscription(dex).catch((error) => {
+        // A failed open keeps no reference to release.
+        this.#marketChangeDexs.delete(dex);
+        this.#reportSubscriptionError(
+          'subscribeToMarketChanges',
+          error,
+          onError,
+        );
+      });
+    }
+  }
+
+  /**
+   * Compare a DEX's markets with its previous frame and report a change.
+   *
+   * @param dex - DEX key ('' for the main DEX).
+   * @param ctxs - The frame's asset contexts, in listing order.
+   * @param listedCount - Markets in the metadata held for the DEX.
+   */
+  #detectMarketChange(
+    dex: string,
+    ctxs: AssetCtxsWsEvent['ctxs'],
+    listedCount: number,
+  ): void {
+    const delisted = ctxs.flatMap((ctx, index) =>
+      ctx.midPx === null && Number(ctx.openInterest) === 0 ? [index] : [],
+    );
+    const signature = `${ctxs.length}:${delisted.join(',')}`;
+    const previous = this.#marketSignatures.get(dex);
+    this.#marketSignatures.set(dex, signature);
+    if (
+      previous === undefined
+        ? ctxs.length !== listedCount
+        : previous !== signature
+    ) {
+      this.#notifyMarketChange();
+    }
+  }
+
+  #notifyMarketChange(): void {
+    for (const listener of [...this.#marketChangeSubscribers]) {
+      listener();
+    }
+  }
+
+  /**
    * Cleanup assetCtxs subscription for specific DEX with reference counting
    * Only unsubscribes when the last subscriber for this DEX is removed
    *
@@ -5609,6 +5826,7 @@ export class HyperLiquidSubscriptionService {
 
       this.#assetCtxsSubscriptions.delete(dexKey);
       this.#dexAssetCtxsCache.delete(dexKey);
+      this.#marketSignatures.delete(dexKey);
       this.#assetCtxsSubscriptionPromises.delete(dexKey);
       this.#dexSubscriberCounts.delete(dexKey);
 
@@ -5769,72 +5987,89 @@ export class HyperLiquidSubscriptionService {
       };
     }
 
+    const { client, release } = this.#orderBookTransports.acquire({
+      mainClient: subscriptionClient,
+      isTestnet: this.#clientService.isTestnetMode(),
+      coin: symbol,
+      payload: JSON.stringify([nSigFigs, mantissa ?? null, fast ?? false]),
+    });
     let subscription: ISubscription | undefined;
     let cancelled = false;
+    // Venue time of the newest frame: a frame that arrives behind it is stale.
+    let latestTime = 0;
 
-    subscriptionClient
+    // The socket is given back once the venue confirms the unsubscribe, so a
+    // book with another precision never meets a frame still in flight here.
+    const close = async (sub: ISubscription, detail: string): Promise<void> => {
+      try {
+        await sub.unsubscribe();
+      } catch (error) {
+        this.#logErrorUnlessClearing(
+          ensureError(
+            error,
+            'HyperLiquidSubscriptionService.subscribeToOrderBook',
+          ),
+          this.#getErrorContext(`subscribeToOrderBook.${detail}`, { symbol }),
+        );
+      } finally {
+        release();
+      }
+    };
+    const fail = (error: unknown): void => {
+      release();
+      if (cancelled) {
+        return;
+      }
+      cancelled = true;
+      const safeError = ensureError(
+        error,
+        'HyperLiquidSubscriptionService.subscribeToOrderBook',
+      );
+      this.#logErrorUnlessClearing(
+        safeError,
+        this.#getErrorContext('subscribeToOrderBook', { symbol }),
+      );
+      onError?.(safeError);
+    };
+
+    client
       .l2Book(
         { coin: symbol, nSigFigs, mantissa, fast },
         (data: L2BookResponse) => {
-          if (cancelled || data?.coin !== symbol || !data?.levels) {
+          if (
+            cancelled ||
+            data?.coin !== symbol ||
+            !data?.levels ||
+            data.time < latestTime
+          ) {
             return;
           }
-
-          const orderBookData = this.#processOrderBookData(data, levels);
-          callback(orderBookData);
+          latestTime = data.time;
+          callback(this.#processOrderBookData(data, levels));
         },
+        // A confirmed subscription that later fails: the SDK has already
+        // dropped it.
+        { onError: fail },
       )
       .then(async (sub) => {
         if (cancelled) {
-          try {
-            await sub.unsubscribe();
-          } catch (unsubError: unknown) {
-            this.#logErrorUnlessClearing(
-              ensureError(
-                unsubError,
-                'HyperLiquidSubscriptionService.subscribeToOrderBook',
-              ),
-              this.#getErrorContext('subscribeToOrderBook.cleanup', { symbol }),
-            );
-          }
+          await close(sub, 'cleanup');
           return;
         }
         subscription = sub;
         this.#deps.debugLogger.log(
           `HyperLiquid: Order book subscription established for ${symbol}`,
         );
-        return;
       })
-      .catch((error) => {
-        this.#logErrorUnlessClearing(
-          ensureError(
-            error,
-            'HyperLiquidSubscriptionService.subscribeToOrderBook',
-          ),
-          this.#getErrorContext('subscribeToOrderBook', { symbol }),
-        );
-        onError?.(
-          ensureError(
-            error,
-            'HyperLiquidSubscriptionService.subscribeToOrderBook',
-          ),
-        );
-      });
+      .catch(fail);
 
     return () => {
+      if (cancelled) {
+        return;
+      }
       cancelled = true;
       if (subscription) {
-        subscription.unsubscribe().catch((error: Error) => {
-          this.#logErrorUnlessClearing(
-            ensureError(
-              error,
-              'HyperLiquidSubscriptionService.subscribeToOrderBook',
-            ),
-            this.#getErrorContext('subscribeToOrderBook.unsubscribe', {
-              symbol,
-            }),
-          );
-        });
+        close(subscription, 'unsubscribe').catch(() => undefined);
       }
     };
   }
@@ -6256,6 +6491,7 @@ export class HyperLiquidSubscriptionService {
       // Drop merged state: the fresh socket opens with a new snapshot.
       this.#cachedTwapOrders.clear();
       this.#cachedTwapOrderSources.clear();
+      this.#twapSliceFills.clear();
 
       // Pair each account with its retained adapter first, so the restore map
       // has no absent-adapter case to represent.
@@ -6343,7 +6579,10 @@ export class HyperLiquidSubscriptionService {
     }
 
     // Re-establish assetCtxs subscriptions if there are market data subscribers
-    if (this.#marketDataSubscribers.size > 0) {
+    if (
+      this.#marketDataSubscribers.size > 0 ||
+      this.#marketChangeSubscribers.size > 0
+    ) {
       // Clear existing subscriptions (they're dead after reconnection)
       this.#assetCtxsSubscriptions.clear();
       this.#assetCtxsSubscriptionPromises.clear();
@@ -6351,7 +6590,7 @@ export class HyperLiquidSubscriptionService {
       this.#dexAllMidsSubscriptionPromises.clear();
 
       // Re-establish subscriptions for all DEXs with market data subscribers
-      const dexsNeeded = new Set<string>();
+      const dexsNeeded = new Set<string>(this.#marketChangeDexs);
       this.#marketDataSubscribers.forEach((_subscribers, symbol) => {
         const { dex } = parseAssetName(symbol);
         if (dex) {
@@ -6486,6 +6725,10 @@ export class HyperLiquidSubscriptionService {
     this.#accountSubscribers.clear();
     this.#marketDataSubscribers.clear();
     this.#orderBookSubscribers.clear();
+    this.#marketChangeSubscribers.clear();
+    this.#marketChangeDexs.clear();
+    this.#marketSignatures.clear();
+    this.#orderBookTransports.clear();
 
     // Retire activeAssetData streams: pending opens drop their subscription
     // and open ones stop delivering frames.
@@ -6504,6 +6747,7 @@ export class HyperLiquidSubscriptionService {
     // subscriber keys naming those accounts were cleared.
     this.#cachedTwapOrders.clear();
     this.#cachedTwapOrderSources.clear();
+    this.#twapSliceFills.clear();
     this.#twapOrderSubscriptions.forEach((subscription) => {
       subscription.unsubscribe().catch(() => {
         // Ignore errors during cleanup

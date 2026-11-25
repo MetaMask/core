@@ -4579,6 +4579,7 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(mockSubscriptionClient.l2Book).toHaveBeenCalledWith(
         { coin: 'BTC', nSigFigs: 5, mantissa: undefined, fast: undefined },
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
 
       expect(typeof unsubscribe).toBe('function');
@@ -4839,6 +4840,7 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(mockSubscriptionClient.l2Book).toHaveBeenCalledWith(
         { coin: 'BTC', nSigFigs: 5, mantissa: 2 },
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
     });
 
@@ -4969,6 +4971,7 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(mockSubscriptionClient.l2Book).toHaveBeenCalledWith(
         expect.objectContaining({ coin: 'BTC', fast: true }),
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
     });
 

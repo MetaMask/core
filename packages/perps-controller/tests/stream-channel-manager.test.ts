@@ -271,54 +271,256 @@ describe('StreamChannelManager', () => {
     expect(account.opens).toBe(1);
   });
 
-  it('detaches a failed channel: its readers keep it, the next subscribe opens a fresh source, and it is never reopened', () => {
-    let setState: (state: WebSocketConnectionState) => void = () => undefined;
-    const manager = new StreamChannelManager({
-      subscribeToConnectionState: (listener): (() => void) => {
-        setState = listener;
-        return () => undefined;
-      },
-    });
-    const failed = createSource({ reopenOnReconnect: true });
-    const fresh = createSource({ reopenOnReconnect: true });
-    const holder = vi.fn();
-    const onError = vi.fn();
-    const stopHolder = manager.subscribe({ stream: 'book' }, failed, {
-      callback: holder,
-      onError,
-    });
-    const stopRetried = manager.subscribe({ stream: 'book' }, failed, {
-      callback: vi.fn(),
-      onError,
-    });
-    setState(WebSocketConnectionState.Connected);
-    failed.emit(4);
+  describe('a failed source', () => {
+    const setup = (): {
+      manager: StreamChannelManager;
+      setState: (state: WebSocketConnectionState) => void;
+    } => {
+      let listener: (state: WebSocketConnectionState) => void = () => undefined;
+      const manager = new StreamChannelManager({
+        subscribeToConnectionState: (next): (() => void) => {
+          listener = next;
+          return () => undefined;
+        },
+      });
+      return { manager, setState: (state): void => listener(state) };
+    };
 
-    failed.fail(new Error('closed'));
-    stopRetried();
-    const retried = vi.fn();
-    const stopRetry = manager.subscribe({ stream: 'book' }, fresh, {
-      callback: retried,
-    });
-    failed.emit(5);
-    fresh.emit(6);
-    setState(WebSocketConnectionState.Disconnected);
-    setState(WebSocketConnectionState.Connected);
+    it('is reopened by the channel with a bounded backoff, and its readers keep their subscription', () => {
+      vi.useFakeTimers();
+      const { manager } = setup();
+      const source = createSource();
+      const callback = vi.fn();
+      const onError = vi.fn();
+      manager.subscribe({ stream: 'book' }, source, { callback, onError });
+      source.emit(1);
 
-    expect(onError.mock.calls).toStrictEqual([
-      [new Error('closed')],
-      [new Error('closed')],
-    ]);
-    expect(holder.mock.calls).toStrictEqual([[4], [5]]);
-    expect(retried.mock.calls).toStrictEqual([[6]]);
-    expect(manager.getLast({ stream: 'book' })).toStrictEqual([6]);
-    // Only the attached channel is reopened on reconnect.
-    expect(failed.opens).toBe(1);
-    expect(fresh.opens).toBe(2);
-    stopHolder();
-    expect(failed.stops).toBe(1);
-    stopRetry();
-    expect(fresh.stops).toBe(2);
+      source.fail(new Error('closed'));
+      expect(source.stops).toBe(1);
+      expect(manager.getLast({ stream: 'book' })).toStrictEqual([1]);
+      vi.advanceTimersByTime(999);
+      expect(source.opens).toBe(1);
+      vi.advanceTimersByTime(1);
+      expect(source.opens).toBe(2);
+      source.emit(2);
+      expect(callback.mock.calls).toStrictEqual([[1], [2]]);
+
+      for (const delay of [2_000, 4_000, 8_000, 16_000]) {
+        source.fail(new Error('closed'));
+        vi.advanceTimersByTime(delay - 1);
+        const { opens } = source;
+        vi.advanceTimersByTime(1);
+        expect(source.opens).toBe(opens + 1);
+      }
+      source.fail(new Error('closed'));
+      vi.advanceTimersByTime(3_600_000);
+      expect(source.opens).toBe(6);
+      expect(vi.getTimerCount()).toBe(0);
+      expect(onError).toHaveBeenCalledTimes(6);
+    });
+
+    it('reopens on reconnect, on reopenAll and for a new reader once its attempts are spent', () => {
+      vi.useFakeTimers();
+      const { manager, setState } = setup();
+      const source = createSource();
+      manager.subscribe({ stream: 'book' }, source, { callback: vi.fn() });
+      const exhaust = (): void => {
+        for (let attempt = 0; attempt < 6; attempt += 1) {
+          source.fail(new Error('closed'));
+          vi.advanceTimersByTime(30_000);
+        }
+      };
+
+      exhaust();
+      setState(WebSocketConnectionState.Connected);
+      expect(source.opens).toBe(7);
+      exhaust();
+      manager.reopenAll();
+      expect(source.opens).toBe(13);
+      exhaust();
+      const joined = vi.fn();
+      manager.subscribe({ stream: 'book' }, source, { callback: joined });
+      expect(source.opens).toBe(19);
+      source.emit(8);
+      expect(joined.mock.calls).toStrictEqual([[8]]);
+    });
+
+    it('moves with a rebind', () => {
+      vi.useFakeTimers();
+      const { manager } = setup();
+      const source = createSource();
+      const callback = vi.fn();
+      const onReset = vi.fn();
+      manager.subscribe({ stream: 'feeRates', accountId: 'a' }, source, {
+        callback,
+        onReset,
+      });
+      source.emit(1);
+      source.fail(new Error('read failed'));
+
+      manager.rebind(
+        (key) => key.accountId === 'b',
+        (key) => ({ ...key, accountId: 'b' }),
+      );
+
+      expect(onReset).toHaveBeenCalledTimes(1);
+      expect(source.opens).toBe(2);
+      source.emit(2);
+      expect(callback.mock.calls).toStrictEqual([[1], [2]]);
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('is only reported when the source recovers by itself', () => {
+      vi.useFakeTimers();
+      const { manager } = setup();
+      const source = createSource({ selfRecovering: true });
+      const callback = vi.fn();
+      const onError = vi.fn();
+      manager.subscribe({ stream: 'chaseOrderLists' }, source, {
+        callback,
+        onError,
+      });
+
+      source.fail(new Error('read failed'));
+      source.emit(1);
+
+      expect(onError.mock.calls).toStrictEqual([[new Error('read failed')]]);
+      expect(callback.mock.calls).toStrictEqual([[1]]);
+      expect(source.opens).toBe(1);
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('stops retrying when its last reader leaves', () => {
+      vi.useFakeTimers();
+      const { manager } = setup();
+      const source = createSource();
+      const leave = manager.subscribe({ stream: 'book' }, source, {
+        callback: vi.fn(),
+      });
+
+      source.fail(new Error('closed'));
+      leave();
+      vi.advanceTimersByTime(60_000);
+
+      expect(source.opens).toBe(1);
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('is never heard again after it stopped', () => {
+      const { manager } = setup();
+      const emits: ((value: number) => void)[] = [];
+      const fails: ((error: Error) => void)[] = [];
+      const callback = vi.fn();
+      const onError = vi.fn();
+      manager.subscribe<[number]>(
+        { stream: 'book' },
+        {
+          open: (emit, fail): (() => void) => {
+            emits.push(emit);
+            fails.push(fail);
+            return () => undefined;
+          },
+        },
+        { callback, onError },
+      );
+
+      manager.reopenAll();
+      emits[0](1);
+      fails[0](new Error('late'));
+      emits[1](2);
+
+      expect(callback.mock.calls).toStrictEqual([[2]]);
+      expect(onError).not.toHaveBeenCalled();
+      expect(emits).toHaveLength(2);
+    });
+  });
+
+  describe('delta streams', () => {
+    const mergeSource = (
+      options: Partial<StreamChannelSource<[Record<string, number>]>> = {},
+    ): StreamChannelSource<[Record<string, number>]> & {
+      emit: (value: Record<string, number>) => void;
+    } => {
+      const source = {
+        reduce: (
+          held: [Record<string, number>] | undefined,
+          [next]: [Record<string, number>],
+        ): [Record<string, number>] => [{ ...held?.[0], ...next }],
+        delivery: 'merge' as const,
+        ...options,
+        emit: (_value: Record<string, number>): void => undefined,
+        open(emit: (value: Record<string, number>) => void): () => void {
+          source.emit = emit;
+          return () => undefined;
+        },
+      };
+      return source;
+    };
+
+    it('keeps every symbol for a throttled reader, a late reader and getLast', async () => {
+      vi.useFakeTimers();
+      const manager = new StreamChannelManager();
+      const source = mergeSource();
+      const throttled = vi.fn();
+      manager.subscribe({ stream: 'prices' }, source, {
+        callback: throttled,
+        throttleMs: 1_000,
+      });
+
+      source.emit({ BTC: 1 });
+      source.emit({ ETH: 2 });
+      source.emit({ SOL: 3 });
+      vi.advanceTimersByTime(1_000);
+      const late = vi.fn();
+      manager.subscribe({ stream: 'prices' }, source, { callback: late });
+      await flush();
+
+      expect(throttled.mock.calls).toStrictEqual([
+        [{ BTC: 1 }],
+        [{ ETH: 2, SOL: 3 }],
+      ]);
+      expect(late.mock.calls).toStrictEqual([[{ BTC: 1, ETH: 2, SOL: 3 }]]);
+      expect(manager.getLast({ stream: 'prices' })).toStrictEqual([
+        { BTC: 1, ETH: 2, SOL: 3 },
+      ]);
+    });
+
+    it('merges what arrived during a pause', () => {
+      const manager = new StreamChannelManager();
+      const source = mergeSource();
+      const callback = vi.fn();
+      manager.subscribe({ stream: 'prices' }, source, { callback });
+
+      const release = manager.pause('prices');
+      source.emit({ BTC: 1 });
+      source.emit({ ETH: 2 });
+      release();
+
+      expect(callback.mock.calls).toStrictEqual([[{ BTC: 1, ETH: 2 }]]);
+    });
+
+    it('queues events for a throttled or paused reader instead of dropping them', () => {
+      vi.useFakeTimers();
+      const manager = new StreamChannelManager();
+      const source = createSource({ delivery: 'queue', replay: false });
+      const callback = vi.fn();
+      manager.subscribe({ stream: 'orderFills' }, source, {
+        callback,
+        throttleMs: 1_000,
+      });
+
+      source.emit(1);
+      source.emit(2);
+      source.emit(3);
+      vi.advanceTimersByTime(1_000);
+      expect(callback.mock.calls).toStrictEqual([[1], [2], [3]]);
+
+      const release = manager.pause('orderFills');
+      source.emit(4);
+      source.emit(5);
+      release();
+      expect(callback.mock.calls).toStrictEqual([[1], [2], [3], [4], [5]]);
+    });
   });
 
   it('isolates a throwing subscriber', () => {
@@ -428,6 +630,80 @@ describe('StreamChannelManager', () => {
       expect(current.stops).toBe(0);
       leaveMoved();
       expect(current.stops).toBe(1);
+    });
+
+    it('stops every stale source before it starts any, and restarts the ones that share their state', () => {
+      const manager = new StreamChannelManager();
+      const log: string[] = [];
+      const source = (name: string): StreamChannelSource<[number]> => ({
+        open: () => {
+          log.push(`open ${name}`);
+          return () => {
+            log.push(`stop ${name}`);
+          };
+        },
+      });
+      for (const stream of ['explicit', 'positions', 'orders', 'book']) {
+        manager.subscribe({ stream, accountId: 'a' }, source(stream), {
+          callback: vi.fn(),
+        });
+      }
+      log.length = 0;
+
+      manager.rebind(
+        (key) => ['explicit', 'book'].includes(key.stream),
+        (key) => ({ ...key, accountId: 'b' }),
+        {
+          restart: (key) => key.stream === 'explicit',
+          onStopped: () => log.push('stopped'),
+        },
+      );
+
+      expect(log).toStrictEqual([
+        'stop positions',
+        'stop orders',
+        'stop explicit',
+        'stopped',
+        'open positions',
+        'open orders',
+        'open explicit',
+      ]);
+    });
+
+    it('keeps a connection drop across an account move, and seeds what moved', async () => {
+      let setState: (state: WebSocketConnectionState) => void = () => undefined;
+      const manager = new StreamChannelManager({
+        subscribeToConnectionState: (listener): (() => void) => {
+          setState = listener;
+          return () => undefined;
+        },
+      });
+      const book = createSource({ reopenOnReconnect: true });
+      const read = vi.fn().mockResolvedValue([7]);
+      const positions = createSource({ read });
+      const callback = vi.fn();
+      manager.subscribe({ stream: 'book', accountId: 'b' }, book, {
+        callback: vi.fn(),
+      });
+      manager.subscribe({ stream: 'positions', accountId: 'a' }, positions, {
+        callback,
+      });
+      setState(WebSocketConnectionState.Connected);
+      setState(WebSocketConnectionState.Disconnected);
+      await flush();
+      read.mockClear();
+      callback.mockClear();
+
+      manager.rebind(
+        (key) => key.accountId === 'b',
+        (key) => ({ ...key, accountId: 'b' }),
+      );
+      await flush();
+
+      expect(read).toHaveBeenCalledTimes(1);
+      expect(callback.mock.calls).toStrictEqual([[7]]);
+      setState(WebSocketConnectionState.Connected);
+      expect(book.opens).toBe(2);
     });
 
     it('leaves current channels untouched and skips the reset when there was no value', () => {

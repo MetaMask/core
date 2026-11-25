@@ -22,7 +22,7 @@ import {
 vi.mock('@nktkas/hyperliquid', () => ({}));
 
 import {
-  CHASE_ORDER_CONFIG,
+  STREAM_RETRY_CONFIG,
   TWAP_ORDER_CONFIG,
 } from '../../src/constants/perpsConfig.js';
 import {
@@ -841,6 +841,24 @@ describe('PerpsController', () => {
       status: 'active' as const,
     };
 
+    let chaseListeners: Set<() => void>;
+
+    /** Report a chase change from the provider and let its reads settle. */
+    const reportChaseChange = async (): Promise<void> => {
+      chaseListeners.forEach((listener) => listener());
+      await vi.advanceTimersByTimeAsync(STREAM_RETRY_CONFIG.BaseDelayMs * 3);
+    };
+
+    beforeEach(() => {
+      chaseListeners = new Set();
+      mockProvider.subscribeToChaseOrderChanges = vi.fn(({ callback }) => {
+        chaseListeners.add(callback);
+        return () => {
+          chaseListeners.delete(callback);
+        };
+      });
+    });
+
     it('reads Chase lifecycle state from the active provider', async () => {
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
@@ -967,7 +985,7 @@ describe('PerpsController', () => {
           // empty, then its own stream reports a new TWAP.
           streams[0].callback([{ ...twapOrder, orderId: 'old' }]);
           await vi.advanceTimersByTimeAsync(
-            TWAP_ORDER_CONFIG.RefreshIntervalMs,
+            TWAP_ORDER_CONFIG.StreamCatchUpIntervalMs,
           );
           streams[1].callback([{ ...twapOrder, orderId: 'new' }]);
           stop();
@@ -1237,9 +1255,7 @@ describe('PerpsController', () => {
           symbol: chaseOrder.symbol,
           orderType: 'chase',
         });
-        await vi.advanceTimersByTimeAsync(
-          CHASE_ORDER_CONFIG.RefreshIntervalMs * 3,
-        );
+        await reportChaseChange();
         stop();
 
         expect(callback).toHaveBeenLastCalledWith({
@@ -1275,9 +1291,7 @@ describe('PerpsController', () => {
         const stop = controller.subscribeToChaseOrderLists({ callback });
         await vi.advanceTimersByTimeAsync(0);
         await controller.cancelOrder({ orderId: '55', symbol: 'ETH' });
-        await vi.advanceTimersByTimeAsync(
-          CHASE_ORDER_CONFIG.RefreshIntervalMs * 3,
-        );
+        await reportChaseChange();
         stop();
 
         expect(callback).toHaveBeenLastCalledWith({
@@ -1310,9 +1324,7 @@ describe('PerpsController', () => {
           symbol: chaseOrder.symbol,
           orderType: 'chase',
         });
-        await vi.advanceTimersByTimeAsync(
-          CHASE_ORDER_CONFIG.RefreshIntervalMs * 3,
-        );
+        await reportChaseChange();
         stop();
 
         // Success alone does not prove canceled, so nothing is invented.
@@ -1404,9 +1416,7 @@ describe('PerpsController', () => {
           await vi.advanceTimersByTimeAsync(0);
           finishCancel?.(canceled);
           const result = await cancel;
-          await vi.advanceTimersByTimeAsync(
-            CHASE_ORDER_CONFIG.RefreshIntervalMs * 2,
-          );
+          await reportChaseChange();
           stopBefore();
           stopAfter();
 
@@ -1438,7 +1448,8 @@ describe('PerpsController', () => {
         const callback = vi.fn();
 
         const stop = controller.subscribeToChaseOrderLists({ callback });
-        await vi.advanceTimersByTimeAsync(CHASE_ORDER_CONFIG.RefreshIntervalMs);
+        await vi.advanceTimersByTimeAsync(0);
+        await reportChaseChange();
         // The second read is still pending when the network switches.
         controller.testUpdate((state) => {
           state.isTestnet = true;

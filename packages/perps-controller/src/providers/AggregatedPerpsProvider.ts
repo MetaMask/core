@@ -105,6 +105,8 @@ import type {
   ReadyToTradeResult,
   SubscribeAccountParams,
   SubscribeCandlesParams,
+  SubscribeChaseOrderChangesParams,
+  SubscribeMarketChangesParams,
   SubscribeOICapsParams,
   SubscribeAvailableToTradeParams,
   SubscribeConnectionLatencyParams,
@@ -2343,6 +2345,48 @@ export class AggregatedPerpsProvider implements PerpsProvider {
         );
       },
     });
+  }
+
+  /**
+   * Call back when a chase on any venue may have changed.
+   *
+   * @param params - Subscription parameters.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToChaseOrderChanges(
+    params: SubscribeChaseOrderChangesParams,
+  ): () => void {
+    const stops = this.#getActiveProviders().flatMap(([, provider]) =>
+      provider.subscribeToChaseOrderChanges
+        ? [provider.subscribeToChaseOrderChanges(params)]
+        : [],
+    );
+    return () => stops.forEach((stop) => stop());
+  }
+
+  /**
+   * Call back when the markets of the named provider, else the default
+   * provider, changed, rebinding when the default changes.
+   *
+   * @param params - Optional route, callback and error handler.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToMarketChanges(params: SubscribeMarketChangesParams): () => void {
+    if (params.providerId === undefined) {
+      return this.#trackDefaultRoutedSubscription({
+        open: (provider) =>
+          provider.subscribeToMarketChanges?.({
+            ...params,
+            providerId: this.#defaultProvider,
+          }) ?? ((): void => undefined),
+        // The new venue's markets replace the old one's.
+        onInvalidate: () => params.callback(),
+      });
+    }
+    const provider = this.#providers.get(params.providerId);
+    return (
+      provider?.subscribeToMarketChanges?.(params) ?? ((): void => undefined)
+    );
   }
 
   subscribeToOICaps(params: SubscribeOICapsParams): () => void {

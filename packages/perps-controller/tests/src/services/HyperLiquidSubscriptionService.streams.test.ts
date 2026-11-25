@@ -10,6 +10,7 @@ import type {
   TwapHistoryResponse,
   UserFillsWsEvent,
   UserTwapHistoryWsEvent,
+  UserTwapSliceFillsWsEvent,
 } from '@nktkas/hyperliquid';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked } from 'vitest';
@@ -17,6 +18,7 @@ import type { Mock, Mocked } from 'vitest';
 import { ABSTRACTION_MODE_REFRESH_THROTTLE_MS } from '../../../src/constants/perpsConfig.js';
 import type { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
 import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
+import type { TwapOrderAdapter } from '../../../src/services/HyperLiquidSubscriptionService.js';
 import type { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
 import type {
   OrderFill,
@@ -381,6 +383,12 @@ describe('HyperLiquidSubscriptionService', () => {
           }, 0);
           return Promise.resolve(mockSubscription);
         },
+      ),
+      userTwapSliceFills: vi.fn(
+        (
+          _params: { user: `0x${string}` },
+          _callback: (event: UserTwapSliceFillsWsEvent) => void,
+        ) => Promise.resolve(mockSubscription),
       ),
       l2Book: vi.fn((_params: any, callback: any) => {
         // Simulate l2Book data
@@ -2937,6 +2945,22 @@ describe('HyperLiquidSubscriptionService', () => {
         fills: [],
       }));
 
+    const adaptSliceFills: TwapOrderAdapter['sliceFills'] = (sliceFills) =>
+      sliceFills.map(({ twapId, fill }) => ({
+        orderId: String(twapId),
+        fill: {
+          fillId: String(fill.tid),
+          orderId: String(fill.oid),
+          side: 'buy',
+          price: fill.px,
+          size: fill.sz,
+          fee: fill.fee,
+          feeToken: fill.feeToken,
+          timestamp: fill.time,
+          transactionHash: fill.hash,
+        },
+      }));
+
     it('delivers adapted schedules from the venue push channel', async () => {
       // Arrange
       const callback = vi.fn();
@@ -2944,7 +2968,7 @@ describe('HyperLiquidSubscriptionService', () => {
       // Act
       const unsubscribe = service.subscribeToTwapOrders({
         callback,
-        adapt: adaptStub,
+        adapt: { history: adaptStub, sliceFills: adaptSliceFills },
       });
       await vi.runAllTimersAsync();
 
@@ -2964,12 +2988,12 @@ describe('HyperLiquidSubscriptionService', () => {
       // Act
       const unsubscribeFirst = service.subscribeToTwapOrders({
         callback: first,
-        adapt: adaptStub,
+        adapt: { history: adaptStub, sliceFills: adaptSliceFills },
       });
       await vi.runAllTimersAsync();
       const unsubscribeSecond = service.subscribeToTwapOrders({
         callback: second,
-        adapt: adaptStub,
+        adapt: { history: adaptStub, sliceFills: adaptSliceFills },
       });
       await vi.runAllTimersAsync();
 
@@ -2985,11 +3009,11 @@ describe('HyperLiquidSubscriptionService', () => {
       const second = vi.fn();
       const unsubscribeFirst = service.subscribeToTwapOrders({
         callback: first,
-        adapt: adaptStub,
+        adapt: { history: adaptStub, sliceFills: adaptSliceFills },
       });
       const unsubscribeSecond = service.subscribeToTwapOrders({
         callback: second,
-        adapt: adaptStub,
+        adapt: { history: adaptStub, sliceFills: adaptSliceFills },
       });
       await vi.runAllTimersAsync();
 
@@ -3010,7 +3034,7 @@ describe('HyperLiquidSubscriptionService', () => {
       const callback = vi.fn();
       const unsubscribe = service.subscribeToTwapOrders({
         callback,
-        adapt: adaptStub,
+        adapt: { history: adaptStub, sliceFills: adaptSliceFills },
       });
       await vi.runAllTimersAsync();
 
@@ -3056,7 +3080,7 @@ describe('HyperLiquidSubscriptionService', () => {
       // Act
       const unsubscribe = service.subscribeToTwapOrders({
         callback,
-        adapt: adaptStub,
+        adapt: { history: adaptStub, sliceFills: adaptSliceFills },
       });
       await vi.runAllTimersAsync();
 
@@ -3103,7 +3127,7 @@ describe('HyperLiquidSubscriptionService', () => {
       // Act
       const unsubscribe = service.subscribeToTwapOrders({
         callback,
-        adapt: adaptStub,
+        adapt: { history: adaptStub, sliceFills: adaptSliceFills },
       });
       await vi.runAllTimersAsync();
 
@@ -3127,12 +3151,12 @@ describe('HyperLiquidSubscriptionService', () => {
       const unsubscribeA = service.subscribeToTwapOrders({
         callback: callbackA,
         accountId: accountA,
-        adapt: adaptStub,
+        adapt: { history: adaptStub, sliceFills: adaptSliceFills },
       });
       const unsubscribeB = service.subscribeToTwapOrders({
         callback: callbackB,
         accountId: accountB,
-        adapt: adaptStub,
+        adapt: { history: adaptStub, sliceFills: adaptSliceFills },
       });
       await vi.runAllTimersAsync();
       // Act: account A's only subscriber leaves
@@ -3149,7 +3173,7 @@ describe('HyperLiquidSubscriptionService', () => {
       service.subscribeToTwapOrders({
         callback: vi.fn(),
         accountId: accountB,
-        adapt: adaptStub,
+        adapt: { history: adaptStub, sliceFills: adaptSliceFills },
       })();
       expect(mockSubscriptionClient.userTwapHistory).toHaveBeenCalledTimes(
         subscribeCallCount,
@@ -3162,7 +3186,7 @@ describe('HyperLiquidSubscriptionService', () => {
       const callback = vi.fn();
       const unsubscribe = service.subscribeToTwapOrders({
         callback,
-        adapt: adaptStub,
+        adapt: { history: adaptStub, sliceFills: adaptSliceFills },
       });
       await vi.runAllTimersAsync();
       expect(mockSubscriptionClient.userTwapHistory).toHaveBeenCalledTimes(1);
@@ -3215,7 +3239,7 @@ describe('HyperLiquidSubscriptionService', () => {
       // Act
       const unsubscribe = service.subscribeToTwapOrders({
         callback,
-        adapt: statusAwareAdapt,
+        adapt: { history: statusAwareAdapt, sliceFills: adaptSliceFills },
       });
       await vi.runAllTimersAsync();
 
@@ -3239,7 +3263,7 @@ describe('HyperLiquidSubscriptionService', () => {
       const callback = vi.fn();
       const unsubscribe = service.subscribeToTwapOrders({
         callback,
-        adapt: adaptStub,
+        adapt: { history: adaptStub, sliceFills: adaptSliceFills },
       });
       await vi.runAllTimersAsync();
       const deliveredWhileSubscribed = callback.mock.calls.length;
@@ -3256,7 +3280,7 @@ describe('HyperLiquidSubscriptionService', () => {
       it('returns the active schedules once the snapshot arrived on this connection', async () => {
         const unsubscribe = service.subscribeToTwapOrders({
           callback: vi.fn(),
-          adapt: statusAwareAdapt,
+          adapt: { history: statusAwareAdapt, sliceFills: adaptSliceFills },
         });
         await vi.runAllTimersAsync();
 
@@ -3296,7 +3320,7 @@ describe('HyperLiquidSubscriptionService', () => {
         );
         const unsubscribe = service.subscribeToTwapOrders({
           callback: vi.fn(),
-          adapt: statusAwareAdapt,
+          adapt: { history: statusAwareAdapt, sliceFills: adaptSliceFills },
         });
         await vi.runAllTimersAsync();
 
@@ -3308,7 +3332,7 @@ describe('HyperLiquidSubscriptionService', () => {
         expect(service.getCachedActiveTwapOrders('0x123')).toBeNull();
         const unsubscribe = service.subscribeToTwapOrders({
           callback: vi.fn(),
-          adapt: statusAwareAdapt,
+          adapt: { history: statusAwareAdapt, sliceFills: adaptSliceFills },
         });
         await vi.runAllTimersAsync();
 
