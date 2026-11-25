@@ -51,10 +51,21 @@ export type AddressBookControllerSetAction = {
 };
 
 /**
+ * Merges the given backup address book into controller state.
+ *
+ * @param backup - The address book state that has been backed up.
+ */
+export type AddressBookControllerLoadBackupAction = {
+  type: `AddressBookController:loadBackup`;
+  handler: AddressBookController['loadBackup'];
+};
+
+/**
  * Union of all AddressBookController action types.
  */
 export type AddressBookControllerMethodActions =
   | AddressBookControllerListAction
   | AddressBookControllerClearAction
   | AddressBookControllerDeleteAction
-  | AddressBookControllerSetAction;
+  | AddressBookControllerSetAction
+  | AddressBookControllerLoadBackupAction;
