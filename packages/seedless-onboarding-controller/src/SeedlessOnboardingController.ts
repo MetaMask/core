@@ -2748,13 +2748,9 @@ export class SeedlessOnboardingController<
       const isPasswordOutdated = await this.#checkIsPasswordOutdated({
         skipCache: true,
       });
-      // After MFA recovery (`isLocalPassword`), the local vault uses a device-only
-      // password even when `passwordAuthPubKey` matches the remote password, so
-      // an explicit `reconcilePassword` call must still run the sync flow to
-      // re-encrypt the vault under the global password and clear `isLocalPassword`.
       let instruction = getPasswordSyncInstruction(
         checkpoint,
-        isPasswordOutdated || Boolean(this.state.isLocalPassword),
+        isPasswordOutdated,
       );
 
       if (

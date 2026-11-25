@@ -5445,7 +5445,7 @@ describe('SeedlessOnboardingController', () => {
     });
 
     describe('after recovery', () => {
-      it('syncs the global password over the local password and clears isLocalPassword', async () => {
+      it('returns InSync and keeps isLocalPassword when the remote password has not changed since recovery', async () => {
         const store = await createMigratedAccount();
 
         await withNewDeviceController(async (args) => {
@@ -5461,12 +5461,55 @@ describe('SeedlessOnboardingController', () => {
             globalPassword: NEW_PASSWORD,
           });
 
+          expect(instruction).toBe(PasswordSyncInstruction.InSync);
+          expect(controller.state.isLocalPassword).toBe(true);
+          expect(
+            await controller.verifyVaultPassword(RECOVERED_PASSWORD),
+          ).toBeUndefined();
+        });
+      });
+
+      it('syncs a later remote global password change over the local password and clears isLocalPassword', async () => {
+        const store = await createMigratedAccount();
+
+        await withNewDeviceController(async (args) => {
+          const { controller, toprfClient } = args;
+          const network = mockNetwork(toprfClient, {
+            store,
+            globalPassword: NEW_PASSWORD,
+            recoverySecret: RECOVERY_SECRET_HEX,
+          });
+          await recover(args);
+
+          const updatedGlobalPassword = 'changed-elsewhere';
+          await withNewDeviceController(async (otherDeviceArgs) => {
+            const otherNetwork = mockNetwork(otherDeviceArgs.toprfClient, {
+              store,
+              globalPassword: NEW_PASSWORD,
+              recoverySecret: RECOVERY_SECRET_HEX,
+            });
+            await otherDeviceArgs.controller.restoreVaultWithPassword({
+              password: NEW_PASSWORD,
+            });
+            await otherDeviceArgs.baseMessenger.call(
+              'SeedlessOnboardingController:changePassword',
+              updatedGlobalPassword,
+              NEW_PASSWORD,
+            );
+            network.setGlobalPassword(updatedGlobalPassword);
+            expect(otherNetwork.spies.persistLocalKey).toHaveBeenCalledTimes(1);
+          });
+
+          const instruction = await controller.reconcilePassword({
+            globalPassword: updatedGlobalPassword,
+          });
+
           expect(instruction).toBe(PasswordSyncInstruction.ReconcileKeyring);
           expect(controller.state.isLocalPassword).toBeUndefined();
           expect(controller.state.envelope).toStrictEqual({
             v: 1,
             vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
-            passwordAuthPubKey: authPubKeyOf(NEW_PASSWORD),
+            passwordAuthPubKey: authPubKeyOf(updatedGlobalPassword),
           });
           expect(
             await controller.resolvePasswordSyncState({ skipCache: true }),
@@ -5477,7 +5520,7 @@ describe('SeedlessOnboardingController', () => {
             await controller.resolvePasswordSyncState({ skipCache: true }),
           ).toBe(PasswordSyncInstruction.InSync);
           expect(
-            await controller.verifyVaultPassword(NEW_PASSWORD),
+            await controller.verifyVaultPassword(updatedGlobalPassword),
           ).toBeUndefined();
         });
       });
@@ -5759,7 +5802,7 @@ describe('SeedlessOnboardingController', () => {
               'SeedlessOnboardingController:reconcilePassword',
               { globalPassword: NEW_PASSWORD },
             ),
-          ).toBe(PasswordSyncInstruction.ReconcileKeyring);
+          ).toBe(PasswordSyncInstruction.InSync);
         });
       });
 
