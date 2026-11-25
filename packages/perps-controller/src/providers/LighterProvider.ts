@@ -17426,16 +17426,17 @@ export class LighterProvider implements PerpsProvider {
       }
       this.#ensureSessionBinding();
       const generationAtIntent = this.#sessionGeneration;
-      await this.#ensureSignerReady();
       const accountIndex = await this.#ensureAccountIndex();
       // The quote debits one Lighter account. Never sign a transfer from
-      // another one of the same wallet.
+      // another one of the same wallet. Checked before the signer is set up
+      // so a mismatched quote never prompts for a venue key registration.
       if (accountIndex !== params.accountIndex) {
         return {
           success: false,
           error: 'transfer account does not match the Lighter account',
         };
       }
+      await this.#ensureSignerReady();
       const memoBytes = Array.from(hexToBytes(memo));
       const transfer = [
         toAccountIndex,

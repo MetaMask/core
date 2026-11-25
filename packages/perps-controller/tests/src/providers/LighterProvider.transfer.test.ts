@@ -144,6 +144,25 @@ describe('LighterProvider.submitTransfer', () => {
     ).toBe(false);
   });
 
+  it('refuses a transfer quoted for another Lighter account before registering a venue key', async () => {
+    const built = buildProvider();
+    built.signPersonalMessageMock.mockClear();
+
+    const result = await built.provider.submitTransfer({
+      ...TRANSFER,
+      accountIndex: 29,
+    });
+
+    expect(result).toStrictEqual({
+      success: false,
+      error: 'transfer account does not match the Lighter account',
+    });
+    expect(built.signPersonalMessageMock).not.toHaveBeenCalled();
+    expect(
+      built.calls.some((call) => call.function === '_signChangePubKey'),
+    ).toBe(false);
+  });
+
   it('accepts the selected wallet address in any letter case', async () => {
     const built = buildProvider({ registeredKey: '9c'.repeat(40) });
 
