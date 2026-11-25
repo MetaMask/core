@@ -22,6 +22,7 @@ import {
   HYPERLIQUID_L1_ACTION_DOMAIN_NAME,
   HYPERLIQUID_L1_ACTION_PRIMARY_TYPE,
   isPerpsErrorCode,
+  LIGHTER_ACCOUNT_DISCOVERY_CONFIG,
   PERPS_ERROR_CODES,
   PERPS_EVENT_PROPERTY,
   PERPS_EVENT_VALUE,
@@ -160,6 +161,14 @@ describe('@metamask/perps-controller public API', () => {
       reason: 'multi_sig_account',
     });
     expect(action).toBe('PerpsController:getAccountSupport');
+  });
+
+  it('exports the Lighter account discovery cadence for status polling', () => {
+    expect(LIGHTER_ACCOUNT_DISCOVERY_CONFIG).toStrictEqual({
+      InitialIntervalMs: 3_000,
+      MaxIntervalMs: 15_000,
+      DeadlineMs: 180_000,
+    });
   });
 
   it('exports the exchange account status method and messenger contract', () => {

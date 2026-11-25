@@ -19809,7 +19809,18 @@ export class LighterProvider implements PerpsProvider {
           this.#emitToOrderSubscribers(orders);
         }
       } catch (error) {
-        this.#repairOrdersSnapshot();
+        if (
+          type.startsWith('subscribed') &&
+          typeof this.#ordersSnapshotRepair === 'symbol'
+        ) {
+          // The repaired snapshot is bad too: retry on the next delta.
+          this.#ordersSnapshotRepair = 'retry';
+          if (!this.#wsOrders?.size) {
+            this.#notifySubscriptionError(ensureError(error), ['orders']);
+          }
+        } else {
+          this.#repairOrdersSnapshot();
+        }
         throw error;
       }
     }

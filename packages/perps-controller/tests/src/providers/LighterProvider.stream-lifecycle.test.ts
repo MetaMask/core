@@ -449,13 +449,14 @@ describe('LighterProvider stream lifecycle', () => {
       }
     });
 
-    it('requests a fresh authenticated snapshot once if the first orders snapshot is malformed', async () => {
+    it('retries on the next delta and reports an error if the repaired orders snapshot is malformed too', async () => {
       const { provider } = buildStreamProvider({
         registeredKey: '9c'.repeat(40),
       });
       try {
         const callback = vi.fn();
-        provider.subscribeToOrders({ callback });
+        const onError = vi.fn();
+        provider.subscribeToOrders({ callback, onError });
         await settle();
         const socket = latestSocket();
         socket.open();
@@ -464,23 +465,26 @@ describe('LighterProvider stream lifecycle', () => {
         const snapshot = 'subscribed/account_all_orders';
         receive(socket, { type: snapshot, orders: null });
         await settle();
+        expect(onError).not.toHaveBeenCalled();
         receive(socket, { type: snapshot, orders: null });
+        expect(onError).toHaveBeenCalledOnce();
         receive(socket, {
           type: 'update/account_all_orders',
           orders: openOrders,
         });
         await settle();
         expect(callback).not.toHaveBeenCalled();
-        expect(
-          socket.sent.slice(before).map((frame): unknown => JSON.parse(frame)),
-        ).toStrictEqual([
+        const resubscribe = [
           { type: 'unsubscribe', channel: 'account_all_orders/28' },
           {
             type: 'subscribe',
             channel: 'account_all_orders/28',
             auth: 'auth-token',
           },
-        ]);
+        ];
+        expect(
+          socket.sent.slice(before).map((frame): unknown => JSON.parse(frame)),
+        ).toStrictEqual([...resubscribe, ...resubscribe]);
         receive(socket, { type: snapshot, orders: openOrders });
         expect(callback).toHaveBeenCalledExactlyOnceWith([
           expect.objectContaining({ orderId: '42' }),
