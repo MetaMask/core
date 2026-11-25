@@ -2290,6 +2290,8 @@ describe('SeedlessOnboardingController', () => {
               NEW_PASSWORD,
               MOCK_PASSWORD,
             );
+            await controller.markPasswordChangeKeySyncPending();
+            await controller.completePasswordChange();
 
             await migrateToEnvelope(args);
 
@@ -3015,6 +3017,46 @@ describe('SeedlessOnboardingController', () => {
 
       it.each([
         [
+          'password change in progress',
+          {
+            operation: SeedlessOnboardingOperation.PasswordChange,
+            checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+          },
+          SeedlessOnboardingControllerErrorMessage.PasswordChangeInProgress,
+        ],
+        [
+          'another operation in progress',
+          {
+            operation: SeedlessOnboardingOperation.PasswordSync,
+            checkpoint: SeedlessOnboardingCheckpoint.KeySyncPending,
+          },
+          SeedlessOnboardingControllerErrorMessage.OperationInProgress,
+        ],
+      ])(
+        'rejects without network calls when %s',
+        async (_label, lifecycle, expectedError) => {
+          await withUnlockedController(async (args) => {
+            const network = mockNetwork(args.toprfClient);
+            await authenticateAal2(args, { hasRecoveryShare: false });
+            // @ts-expect-error Accessing protected method for testing
+            args.controller.update((state) => {
+              state.seedlessOperationLifecycle = lifecycle;
+            });
+
+            await expect(migrateToEnvelope(args)).rejects.toThrow(
+              expectedError,
+            );
+
+            expect(args.controller.state.envelope).toBeUndefined();
+            expect(network.spies.fetchAuthPubKey).not.toHaveBeenCalled();
+            expect(network.spies.persistLocalKey).not.toHaveBeenCalled();
+            expect(network.spies.addSecretDataItem).not.toHaveBeenCalled();
+          });
+        },
+      );
+
+      it.each([
+        [
           'locked',
           SeedlessOnboardingControllerErrorMessage.ControllerLocked,
           async (args: ControllerArgs): Promise<void> => {
@@ -3038,6 +3080,34 @@ describe('SeedlessOnboardingController', () => {
           SeedlessOnboardingControllerErrorMessage.Aal2Required,
           async (): Promise<void> => {
             // no recovery session authenticated
+          },
+        ],
+        [
+          'with a pending password change',
+          SeedlessOnboardingControllerErrorMessage.PasswordChangeInProgress,
+          async (args: ControllerArgs): Promise<void> => {
+            await authenticateAal2(args, { hasRecoveryShare: false });
+            // @ts-expect-error Accessing protected method for testing
+            args.controller.update((state) => {
+              state.seedlessOperationLifecycle = {
+                operation: SeedlessOnboardingOperation.PasswordChange,
+                checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+              };
+            });
+          },
+        ],
+        [
+          'with another pending operation',
+          SeedlessOnboardingControllerErrorMessage.OperationInProgress,
+          async (args: ControllerArgs): Promise<void> => {
+            await authenticateAal2(args, { hasRecoveryShare: false });
+            // @ts-expect-error Accessing protected method for testing
+            args.controller.update((state) => {
+              state.seedlessOperationLifecycle = {
+                operation: SeedlessOnboardingOperation.PasswordSync,
+                checkpoint: SeedlessOnboardingCheckpoint.KeySyncPending,
+              };
+            });
           },
         ],
       ])(

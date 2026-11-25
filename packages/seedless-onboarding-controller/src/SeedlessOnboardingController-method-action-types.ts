@@ -433,6 +433,9 @@ export type SeedlessOnboardingControllerAuthenticateForRecoveryAction = {
  * @throws `EnvelopeMigrationDisabled` if `mfaFlag` is not enabled.
  * @throws `InvalidRecoverySecret` if `recoverySecret` is not a 32-byte
  * `Uint8Array`.
+ * @throws `PasswordChangeInProgress` if a password change lifecycle is
+ * active.
+ * @throws `OperationInProgress` if another operation lifecycle is active.
  * @throws `OutdatedPassword` if the vault is behind the global password.
  * @throws `EnvelopeControlRecordNotFound` if no control record matching the
  * global password reads back.
