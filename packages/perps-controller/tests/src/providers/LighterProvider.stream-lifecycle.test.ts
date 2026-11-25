@@ -386,6 +386,76 @@ describe('LighterProvider stream lifecycle', () => {
       expect(frames()).toHaveLength(1);
     });
 
+    const openOrders = {
+      '100': [
+        {
+          order_index: 42,
+          client_order_index: 1,
+          market_index: 100,
+          owner_account_index: 28,
+          initial_base_amount: '1',
+          remaining_base_amount: '1',
+          price: '90000',
+          is_ask: false,
+          type: 'limit',
+          time_in_force: 'good-till-time',
+          reduce_only: 0,
+          status: 'open',
+          order_expiry: 0,
+          timestamp: 1700000000000,
+        },
+      ],
+    };
+    it.each([
+      { cache: 'empty', orders: {}, count: 0 },
+      { cache: 'populated', orders: openOrders, count: 1 },
+    ])(
+      'waits for a fresh orders snapshot after signer reset (previous snapshot: $cache)',
+      async ({ orders, count }) => {
+        const { provider, fireReset } = buildStreamProvider({
+          registeredKey: '9c'.repeat(40),
+        });
+        try {
+          const existing = vi.fn();
+          provider.subscribeToOrders({ callback: existing });
+          await settle();
+          const socket = latestSocket();
+          socket.open();
+          await settle();
+          const snapshot = 'subscribed/account_all_orders';
+          receive(socket, { type: snapshot, orders });
+          expect(existing.mock.lastCall?.[0]).toHaveLength(count);
+          existing.mockClear();
+
+          fireReset();
+          expect(venueChannels(socket)).not.toContain('account_all_orders/28');
+          expect(venueChannels(socket)).toStrictEqual(
+            expect.arrayContaining([
+              'user_stats/28',
+              'account_all_positions/28',
+            ]),
+          );
+          const late = vi.fn();
+          provider.subscribeToOrders({ callback: late });
+          expect(late).not.toHaveBeenCalled();
+
+          await settle();
+          expect(venueChannels(socket)).toContain('account_all_orders/28');
+          receive(socket, {
+            type: 'update/account_all_orders',
+            orders: openOrders,
+          });
+          expect(existing).not.toHaveBeenCalled();
+          expect(late).not.toHaveBeenCalled();
+          receive(socket, { type: snapshot, orders: {} });
+          expect(existing).toHaveBeenCalledWith([]);
+          expect(late).toHaveBeenCalledWith([]);
+        } finally {
+          await provider.disconnect();
+        }
+      },
+    );
+
     it('uses current signer readiness when reconnecting a channel opened with a retained key', async () => {
       const { provider, bridge, clientInstance, fireReset } =
         buildStreamProvider({

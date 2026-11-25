@@ -2476,8 +2476,10 @@ export class LighterProvider implements PerpsProvider {
     this.#readyApiKeyIndex = null;
     this.#authToken = null;
     this.#clearBridgeOwnership();
-    // Auth getters belong to one generation. Retire the private channel but
-    // leave public balances/positions live while waiting for a usable key.
+    // Retire the private orders channel and its replay cache together. Public
+    // balances and positions remain live while waiting for a usable key.
+    this.#wsOrders.clear();
+    this.#hasOrdersSnapshot = false;
     if (this.#accountIndex !== null) {
       const channel = `account_all_orders/${this.#accountIndex}`;
       if (this.#wsWantedChannels.has(channel)) {
@@ -19736,6 +19738,14 @@ export class LighterProvider implements PerpsProvider {
           );
         }
         const isSnapshot = type.startsWith('subscribed');
+        // A delta is not a complete list of open orders for this session.
+        if (
+          !isSnapshot &&
+          !this.#hasOrdersSnapshot &&
+          this.#wsOrders.size === 0
+        ) {
+          return;
+        }
         const nextOrders = isSnapshot
           ? new Map<string, Order>()
           : new Map(this.#wsOrders);
