@@ -370,20 +370,23 @@ describe('StreamChannelManager', () => {
       expect(vi.getTimerCount()).toBe(0);
     });
 
-    it('is not reopened when it delivers again before the retry', () => {
+    it('is heard until its retry, which a delivery does not cancel: another part of it may have failed', () => {
       vi.useFakeTimers();
       const { manager } = setup();
       const source = createSource();
       const callback = vi.fn();
-      manager.subscribe({ stream: 'orders' }, source, { callback });
+      manager.subscribe({ stream: 'positions' }, source, { callback });
 
-      source.fail(new Error('auth refused'));
+      source.fail(new Error('one part timed out'));
       source.emit(1);
-      vi.advanceTimersByTime(60_000);
+      source.emit(2);
+      expect(callback.mock.calls).toStrictEqual([[1], [2]]);
+      vi.advanceTimersByTime(1_000);
 
-      expect(callback.mock.calls).toStrictEqual([[1]]);
-      expect(source.opens).toBe(1);
-      expect(source.stops).toBe(0);
+      expect(source.opens).toBe(2);
+      expect(manager.getLast({ stream: 'positions' })).toStrictEqual([2]);
+      vi.advanceTimersByTime(60_000);
+      expect(source.opens).toBe(2);
     });
 
     it('stays attached once its attempts are spent, and is heard if it recovers', () => {

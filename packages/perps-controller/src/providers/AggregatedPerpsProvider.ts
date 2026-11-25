@@ -2293,20 +2293,23 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     // `providerStates` and strip the top-level venue identity.
     if (this.#providers.size === 1) {
       const [[providerId, provider]] = this.#getActiveProviders();
-      return provider.subscribeToAccount({
-        ...(params.accountId !== undefined && {
-          accountId: params.accountId,
-        }),
+      return this.#subscriptionMux.openVenue<[AccountState | null]>({
+        method: 'subscribeToAccount',
+        providerId,
+        provider,
         onError: params.onError,
-        callback: (account) => {
-          if (account === null) {
-            // Same semantics as the read path: no venue data is no data,
-            // never a zero-valued total.
-            params.callback(null);
-            return;
-          }
-          params.callback({ ...account, providerId });
-        },
+        open: (emit, fail) =>
+          provider.subscribeToAccount({
+            ...(params.accountId !== undefined && {
+              accountId: params.accountId,
+            }),
+            onError: fail,
+            callback: (account) => emit(account),
+          }),
+        // Same semantics as the read path: no venue data is no data, never a
+        // zero-valued total.
+        callback: (account) =>
+          params.callback(account === null ? null : { ...account, providerId }),
       });
     }
     // A null before the first snapshot leaves the venue pending. After a

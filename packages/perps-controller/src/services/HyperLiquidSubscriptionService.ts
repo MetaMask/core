@@ -526,6 +526,7 @@ export class HyperLiquidSubscriptionService {
         name: string;
         szDecimals: number;
         maxLeverage: number;
+        isDelisted?: boolean;
       }[];
     }
   >();
@@ -838,6 +839,7 @@ export class HyperLiquidSubscriptionService {
         name: string;
         szDecimals: number;
         maxLeverage: number;
+        isDelisted?: boolean;
       }[];
     },
   ): void {
@@ -5546,7 +5548,7 @@ export class HyperLiquidSubscriptionService {
         // Use cached meta to map ctxs array indices to symbols (no REST API
         // call!). A market listed since this feed opened is in the newer meta.
         const { universe } = this.#dexMetaCache.get(dexKey) ?? validatedMeta;
-        this.#detectMarketChange(dexKey, data.ctxs, universe.length);
+        this.#detectMarketChange(dexKey, data.ctxs, universe);
         universe.forEach((asset, index) => {
           const ctx = data.ctxs[index];
           if (ctx && hasProperty(ctx, 'funding')) {
@@ -5762,24 +5764,31 @@ export class HyperLiquidSubscriptionService {
    *
    * @param dex - DEX key ('' for the main DEX).
    * @param ctxs - The frame's asset contexts, in listing order.
-   * @param listedCount - Markets in the metadata held for the DEX.
+   * @param universe - Markets in the metadata held for the DEX, which the
+   * first frame is compared with.
    */
   #detectMarketChange(
     dex: string,
     ctxs: AssetCtxsWsEvent['ctxs'],
-    listedCount: number,
+    universe: readonly { isDelisted?: boolean }[],
   ): void {
-    const delisted = ctxs.flatMap((ctx, index) =>
-      ctx.midPx === null && Number(ctx.openInterest) === 0 ? [index] : [],
+    const getSignature = (
+      markets: readonly unknown[],
+      isRetired: (index: number) => boolean,
+    ): string =>
+      `${markets.length}:${markets
+        .flatMap((_market, index) => (isRetired(index) ? [index] : []))
+        .join(',')}`;
+    const signature = getSignature(
+      ctxs,
+      (index) =>
+        ctxs[index].midPx === null && Number(ctxs[index].openInterest) === 0,
     );
-    const signature = `${ctxs.length}:${delisted.join(',')}`;
-    const previous = this.#marketSignatures.get(dex);
+    const previous =
+      this.#marketSignatures.get(dex) ??
+      getSignature(universe, (index) => universe[index].isDelisted === true);
     this.#marketSignatures.set(dex, signature);
-    if (
-      previous === undefined
-        ? ctxs.length !== listedCount
-        : previous !== signature
-    ) {
+    if (previous !== signature) {
       this.#notifyMarketChange();
     }
   }

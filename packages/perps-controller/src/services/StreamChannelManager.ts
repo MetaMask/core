@@ -29,8 +29,7 @@ export type StreamChannelSource<Args extends unknown[]> = {
    * @param emit - Delivers a value to every subscriber.
    * @param fail - Reports a stream failure, with any detail the source adds
    * (such as the failing venue); the last value stays current. The source
-   * stays attached until the channel reopens it, so one that recovers by
-   * itself is still heard.
+   * stays attached, and heard, until the channel reopens it.
    * @param key - The key the channel opens under, which changes on `rebind`.
    * @param report - Tells the readers of a failure the source recovers from by
    * itself; the channel does not reopen it.
@@ -555,10 +554,6 @@ export class StreamChannelManager {
         (...args) => {
           if (isCurrent()) {
             channel.delivered = true;
-            // A source that delivers is alive, whatever it reported before.
-            channel.failed = false;
-            clearTimeout(channel.retryTimer);
-            channel.retryTimer = undefined;
             this.#emit(channel, args);
           }
         },
@@ -655,8 +650,8 @@ export class StreamChannelManager {
 
   /**
    * Handle a source failure: tell the readers and reopen the source with a
-   * bounded backoff, unless it delivers again before that. Once the attempts
-   * are spent the source stays attached as it is, and the channel reopens it
+   * bounded backoff, also when it delivers meanwhile: one part of a source may
+   * stream while the part that failed does not. Once the attempts are spent the source stays attached as it is, and the channel reopens it
    * when the connection comes back, on a move, on `reopenAll` and for a new
    * reader.
    *

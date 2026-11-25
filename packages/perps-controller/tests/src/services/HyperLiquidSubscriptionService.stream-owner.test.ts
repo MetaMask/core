@@ -670,6 +670,36 @@ describe('shared streams over the HyperLiquid subscription service', () => {
       expect(open('assetCtxs')).toStrictEqual([]);
     });
 
+    it('reports a market delisted before the feed opened', async () => {
+      const callback = vi.fn();
+      service.subscribeToMarketChanges({ callback });
+      await settle();
+
+      deliver(main, 'assetCtxs', {
+        ctxs: [ctx(), ctx({ midPx: null, openInterest: '0' })],
+      });
+
+      expect(callback).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports nothing when the first frame matches the metadata held', async () => {
+      meta.mockResolvedValue({
+        universe: [
+          { name: 'BTC', szDecimals: 5, maxLeverage: 40 },
+          { name: 'OLD', szDecimals: 4, maxLeverage: 25, isDelisted: true },
+        ],
+      });
+      const callback = vi.fn();
+      service.subscribeToMarketChanges({ callback });
+      await settle();
+
+      deliver(main, 'assetCtxs', {
+        ctxs: [ctx(), ctx({ midPx: null, openInterest: '0' })],
+      });
+
+      expect(callback).not.toHaveBeenCalled();
+    });
+
     it('reports markets listed before the feed opened', async () => {
       const callback = vi.fn();
       service.subscribeToMarketChanges({ callback });

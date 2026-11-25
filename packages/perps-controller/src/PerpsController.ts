@@ -4055,6 +4055,7 @@ export class PerpsController extends BaseController<
     let readAgain = false;
     let last: string | undefined;
     let settleTimer: ReturnType<typeof setTimeout> | undefined;
+    const isStale = this.#staleMarketMeta.has(provider);
     const fail = (error: unknown): void => {
       if (!closed) {
         params.onError?.(
@@ -4082,6 +4083,9 @@ export class PerpsController extends BaseController<
           if (metas.length === 0) {
             throw new Error(PERPS_ERROR_CODES.MARKETS_FAILED);
           }
+          if (fresh) {
+            this.#staleMarketMeta.delete(provider);
+          }
           const list = JSON.stringify(metas);
           if (list !== last) {
             last = list;
@@ -4104,6 +4108,8 @@ export class PerpsController extends BaseController<
         providerId: params.providerId,
         // Changes come in bursts; one read after they settle covers them all.
         callback: () => {
+          // Kept until a fresh read, in case this stream closes before its own.
+          this.#staleMarketMeta.add(provider);
           settleTimer ??= setTimeout(() => {
             settleTimer = undefined;
             read(true);
@@ -4114,7 +4120,7 @@ export class PerpsController extends BaseController<
     } catch (error) {
       fail(error);
     }
-    read(skipCache);
+    read(skipCache || isStale);
     return () => {
       closed = true;
       clearTimeout(settleTimer);
@@ -4171,15 +4177,21 @@ export class PerpsController extends BaseController<
           : nextProvider.subscribeToMarginAdjustmentLimits(params),
       );
     } catch (error) {
+      const safeError = ensureError(
+        error,
+        'PerpsController.subscribeToMarginAdjustmentLimits',
+      );
       this.#logError(
-        ensureError(error, 'PerpsController.subscribeToMarginAdjustmentLimits'),
+        safeError,
         this.#getErrorContext(
           'subscribeToMarginAdjustmentLimits',
           { symbol: params.symbol, providerId: params.providerId },
           CONNECTION_ERROR_TAGS,
         ),
       );
-      return unsupported();
+      // Not a venue without the stream: it could not open now.
+      params.onError?.(safeError);
+      return () => undefined;
     }
   }
 
@@ -6646,6 +6658,9 @@ export class PerpsController extends BaseController<
   ]);
 
   #preloadTimer: ReturnType<typeof setInterval> | null = null;
+
+  /** Providers whose markets changed since they were last read afresh. */
+  readonly #staleMarketMeta = new WeakSet<PerpsProvider>();
 
   /** Fee rate reads to repeat when subscription benefits are invalidated. */
   readonly #feeRateRefreshers = new Set<() => void>();

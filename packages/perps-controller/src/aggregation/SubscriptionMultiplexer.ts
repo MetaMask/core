@@ -186,7 +186,8 @@ export class SubscriptionMultiplexer {
   }
 
   /**
-   * Open one venue's part of a subscription.
+   * Open one venue's part of a subscription. A failure reopens it with the
+   * venue's own stream manager and leaves the other venues alone.
    *
    * @param params - What to open.
    * @param params.method - Name for error reports.
@@ -197,7 +198,7 @@ export class SubscriptionMultiplexer {
    * @param params.onError - Receives each failure.
    * @returns A function that closes it.
    */
-  #openVenue<Args extends unknown[]>(params: {
+  openVenue<Args extends unknown[]>(params: {
     method: string;
     providerId: PerpsProviderType;
     provider: PerpsProvider;
@@ -287,7 +288,7 @@ export class SubscriptionMultiplexer {
 
     for (const [providerId, provider] of providers) {
       unsubscribers.push(
-        this.#openVenue<[PriceUpdate[]]>({
+        this.openVenue<[PriceUpdate[]]>({
           method: 'subscribeToPrices',
           providerId,
           provider,
@@ -345,7 +346,7 @@ export class SubscriptionMultiplexer {
 
     for (const [providerId, provider] of providers) {
       unsubscribers.push(
-        this.#openVenue<[Position[]]>({
+        this.openVenue<[Position[]]>({
           method: 'subscribeToPositions',
           providerId,
           provider,
@@ -389,7 +390,7 @@ export class SubscriptionMultiplexer {
 
     for (const [providerId, provider] of providers) {
       unsubscribers.push(
-        this.#openVenue<[OrderFill[], boolean?]>({
+        this.openVenue<[OrderFill[], boolean?]>({
           method: 'subscribeToOrderFills',
           providerId,
           provider,
@@ -427,7 +428,7 @@ export class SubscriptionMultiplexer {
 
     for (const [providerId, provider] of providers) {
       unsubscribers.push(
-        this.#openVenue<[Order[]]>({
+        this.openVenue<[Order[]]>({
           method: 'subscribeToOrders',
           providerId,
           provider,
@@ -481,7 +482,7 @@ export class SubscriptionMultiplexer {
 
     for (const [providerId, provider] of providers) {
       unsubscribers.push(
-        this.#openVenue<[AccountState | null]>({
+        this.openVenue<[AccountState | null]>({
           method: 'subscribeToAccount',
           providerId,
           provider,

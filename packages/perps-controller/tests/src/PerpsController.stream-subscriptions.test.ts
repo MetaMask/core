@@ -279,6 +279,30 @@ describe('PerpsController stream subscriptions', () => {
       expect(stop).toHaveBeenCalledTimes(1);
     });
 
+    it('reads afresh for a later reader when the one that heard a change left before its read', async () => {
+      provider.getMarkets.mockResolvedValue([market('BTC')]);
+      const { report } = watchMarkets();
+      const stop = controller.subscribeToMarketMeta({ callback: vi.fn() });
+      await flush();
+      report();
+      stop();
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(provider.getMarkets).toHaveBeenCalledTimes(1);
+
+      const stopLate = controller.subscribeToMarketMeta({ callback: vi.fn() });
+      await flush();
+      expect(provider.getMarkets).toHaveBeenLastCalledWith({
+        requireComplete: true,
+        skipCache: true,
+      });
+      stopLate();
+      controller.subscribeToMarketMeta({ callback: vi.fn() });
+      await flush();
+      expect(provider.getMarkets).toHaveBeenLastCalledWith({
+        requireComplete: true,
+      });
+    });
+
     it('does not read when the market data preload refreshes', async () => {
       provider.getMarkets.mockResolvedValue([market('BTC')]);
       controller.subscribeToMarketMeta({ callback: vi.fn() });
@@ -383,6 +407,29 @@ describe('PerpsController stream subscriptions', () => {
         maxRemove: '1',
       });
       expect(stop).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports a stream that could not open as a failure, not as an unsupported venue', async () => {
+      Object.assign(provider, {
+        subscribeToMarginAdjustmentLimits: vi.fn(() => {
+          throw new Error('PROVIDER_NOT_AVAILABLE');
+        }),
+      });
+      const callback = vi.fn();
+      const onError = vi.fn();
+
+      controller.subscribeToMarginAdjustmentLimits({
+        symbol: 'ETH',
+        callback,
+        onError,
+      });
+
+      expect(callback).not.toHaveBeenCalled();
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'PROVIDER_NOT_AVAILABLE' }),
+      );
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(onError).toHaveBeenCalledTimes(2);
     });
 
     it('reports a provider without the stream as unavailable', () => {
@@ -771,6 +818,31 @@ describe('PerpsController stream subscriptions', () => {
       );
       provider.subscribeToOrders.mock.calls[0][0].callback([]);
       expect(callback).toHaveBeenCalledWith([], 'hyperliquid');
+    });
+
+    it('opens a single venue account stream again after it failed', async () => {
+      install();
+      const single = new AggregatedPerpsProvider({
+        providers: new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', provider],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure,
+      });
+      controller.testInstallAggregated(single);
+      provider.subscribeToAccount
+        .mockImplementationOnce(() => {
+          throw new Error('PROVIDER_NOT_AVAILABLE');
+        })
+        .mockReturnValue(vi.fn());
+      const onError = vi.fn();
+      controller.subscribeToAccount({ callback: vi.fn(), onError });
+      await flush();
+      expect(onError).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1_000);
+
+      expect(provider.subscribeToAccount).toHaveBeenCalledTimes(2);
     });
 
     it("does not replay the old default's latency to a late reader", async () => {

@@ -2376,13 +2376,21 @@ export class HyperLiquidProvider implements PerpsProvider {
         emit();
       },
     });
-    const stopPositions = this.subscribeToPositions({
-      onError: fail,
-      callback: (next) => {
-        positions = next;
-        emit();
-      },
-    });
+    let stopPositions: () => void;
+    try {
+      stopPositions = this.subscribeToPositions({
+        onError: fail,
+        callback: (next) => {
+          positions = next;
+          emit();
+        },
+      });
+    } catch (error) {
+      // The caller gets no cleanup for streams that did not both open.
+      closed = true;
+      stopAccount();
+      throw error;
+    }
     this.#fetchMarketsForDex({ dex })
       .then((markets) => {
         market = markets.find((item) => item.name === symbol);
@@ -16400,7 +16408,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         // Determine which DEXs to query based on skipFilters flag
         const dexsToQuery = params?.skipFilters
           ? await this.#getAllAvailableDexs()
-          : await this.#getValidatedDexs();
+          : await (params?.requireComplete
+              ? this.#getValidatedDexsStrict()
+              : this.#getValidatedDexs());
 
         if (dexsToQuery.length > 1) {
           // More than just main DEX
