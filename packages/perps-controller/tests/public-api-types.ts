@@ -1819,7 +1819,7 @@ export type MarginLimitsAndMarketMetaContracts = [
   >,
 ];
 
-// Shared streams (TAT-4769): every subscription a client consumes, its
+// Shared streams: every subscription a client consumes, its
 // messenger action and the manager itself.
 type Flat<Type> = { [Key in keyof Type]: Type[Key] };
 type StreamCallbacks<Args extends unknown[]> = {
@@ -2001,6 +2001,15 @@ export type SharedStreamContracts = [
         delivery?: 'latest' | 'merge' | 'queue';
         replay?: boolean;
       }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Pick<
+        PerpsControllerPackage.FeeCalculationParams,
+        'amount' | 'isMaker' | 'skipCache'
+      >,
+      { amount?: string; isMaker?: boolean; skipCache?: boolean }
     >
   >,
 ];

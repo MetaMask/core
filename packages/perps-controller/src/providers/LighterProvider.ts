@@ -18965,18 +18965,26 @@ export class LighterProvider implements PerpsProvider {
   // ============================================================================
 
   /**
-   * Notify each order/fill subscriber without allowing one listener to stop others.
+   * Notify each subscriber without allowing one listener to stop others.
    *
    * @param error - Reason the channel is unavailable.
-   * @param channels - A signer reset retires orders, not the public fills channel.
+   * @param channels - Streams affected by the failure.
    */
   readonly #notifySubscriptionError = (
     error: Error,
-    channels: readonly ('orders' | 'fills')[] = ['orders', 'fills'],
+    channels: readonly ('orders' | 'fills' | 'positions' | 'account')[] = [
+      'orders',
+      'fills',
+    ],
   ): void => {
+    const subscribersByChannel = {
+      orders: this.#orderSubscribers,
+      fills: this.#fillSubscribers,
+      positions: this.#positionSubscribers,
+      account: this.#accountSubscribers,
+    };
     for (const label of channels) {
-      const subscribers =
-        label === 'orders' ? this.#orderSubscribers : this.#fillSubscribers;
+      const subscribers = subscribersByChannel[label];
       for (const subscriber of subscribers) {
         try {
           subscriber.onError?.(error);
@@ -19248,7 +19256,12 @@ export class LighterProvider implements PerpsProvider {
           generation === this.#sessionGeneration &&
           this.#accountChannelSetup?.options === options
         ) {
-          this.#notifySubscriptionError(ensureError(error));
+          this.#notifySubscriptionError(ensureError(error), [
+            'orders',
+            'fills',
+            'positions',
+            'account',
+          ]);
         }
         // An aborted previous-account setup has no authority over the new
         // session. Current-session failures also preserve the last known data.

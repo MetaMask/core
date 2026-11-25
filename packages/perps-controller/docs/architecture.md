@@ -224,7 +224,7 @@ Code: `src/PerpsController.ts` `init`, `#performInitialization`, `#beginReinitia
 
 ## Streams
 
-Every `subscribeTo*` method goes through one `StreamChannelManager` (`src/services/StreamChannelManager.ts`). The public method is a thin wrapper that calls `#subscribeToChannel(stream, params, open)`; `#open<Name>` opens the venue subscription.
+Every `subscribeTo*` method goes through one `StreamChannelManager` (`src/services/StreamChannelManager.ts`), except `subscribeToConnectionState`, which is the manager's own input, and `subscribeToProviderHealth`: those two call back directly, with no replay, throttle or snapshot. The public method is a thin wrapper that calls `#subscribeToChannel(stream, params, open)`; `#open<Name>` opens the venue subscription.
 
 - One channel per key: stream name, provider instance, account (the selected one when none is given) and every other parameter except the callbacks, `onReset` and `throttleMs`. `prices` symbols are sorted, so their order does not split channels. Two subscribers with the same key share one venue subscription; the last one to leave closes it. `#getChannelKey` builds every key.
 - A subscriber that joins an open channel gets the channel's value replayed (on a microtask), except public trades. `prices` keeps every symbol's latest update, because venues push only the symbols that changed; `orderFills` keeps the venue's snapshot plus the fills that followed it and replays it as a snapshot. A lone fill is never replayed.

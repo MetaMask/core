@@ -1038,6 +1038,66 @@ describe('LighterProvider', () => {
       await provider.disconnect();
     });
 
+    it.each(['positions', 'account'] as const)(
+      'reports an account discovery failure to a lone %s reader, whose reopening recovers',
+      async (stream) => {
+        const { provider, clientInstance } = buildProvider({
+          webSocketCtor: fakeCtor,
+          configuredAccountIndex: null,
+        });
+        const failure = new Error('Account discovery transport unavailable');
+        clientInstance.getAccountsByL1Address.mockRejectedValueOnce(failure);
+        const onError = vi.fn();
+        const subscribe = (): (() => void) =>
+          stream === 'positions'
+            ? provider.subscribeToPositions({ callback: vi.fn(), onError })
+            : provider.subscribeToAccount({ callback: vi.fn(), onError });
+        const unsubscribe = subscribe();
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        expect(onError).toHaveBeenCalledExactlyOnceWith(failure);
+
+        unsubscribe();
+        const stop = subscribe();
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        const socket = FakeWebSocket.instances[0];
+        socket.open();
+        expect(onError).toHaveBeenCalledTimes(1);
+        expect(socket.sent).toContainEqual(
+          expect.stringContaining('account_all_positions/'),
+        );
+        stop();
+        await provider.disconnect();
+      },
+    );
+
+    it('tells only orders and fills readers of a signer failure', async () => {
+      const { provider, bridge } = buildProvider({ webSocketCtor: fakeCtor });
+      (bridge.createClient as Mock).mockRejectedValue(
+        new Error('Lighter signer setup failed'),
+      );
+      const onOrderError = vi.fn();
+      const onPositionError = vi.fn();
+      const unsubscribeOrders = provider.subscribeToOrders({
+        callback: vi.fn(),
+        onError: onOrderError,
+      });
+      const unsubscribePositions = provider.subscribeToPositions({
+        callback: vi.fn(),
+        onError: onPositionError,
+      });
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+
+      expect(onOrderError).toHaveBeenCalled();
+      expect(onPositionError).not.toHaveBeenCalled();
+      unsubscribeOrders();
+      unsubscribePositions();
+      await provider.disconnect();
+    });
+
     it('does not report an old-wallet account discovery failure to a replacement session', async () => {
       const { provider, clientInstance, getUserAddressMock } = buildProvider({
         webSocketCtor: fakeCtor,
