@@ -4271,18 +4271,26 @@ export class PerpsController extends BaseController<
    * @returns Cleanup function.
    */
   subscribeToFeeRates(params: SubscribeFeeRatesParams): () => void {
-    return this.#subscribeToChannel('feeRates', params, (channelParams) =>
-      this.#openFeeRates(channelParams),
-    );
+    // A reopen follows a failed read or a moved context, so it reads afresh.
+    let skipCache = false;
+    return this.#subscribeToChannel('feeRates', params, (channelParams) => {
+      const stop = this.#openFeeRates(channelParams, skipCache);
+      skipCache = true;
+      return stop;
+    });
   }
 
   /**
    * Open the reads behind a `feeRates` channel.
    *
    * @param params - The channel's parameters.
+   * @param skipCache - Read the account's venue rates again at once.
    * @returns A cleanup function to stop the reads.
    */
-  #openFeeRates(params: SubscribeFeeRatesParams): () => void {
+  #openFeeRates(
+    params: SubscribeFeeRatesParams,
+    skipCache: boolean,
+  ): () => void {
     if (!this.getActiveProviderOrNull()) {
       params.onError?.(new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND));
       return () => undefined;
@@ -4292,18 +4300,26 @@ export class PerpsController extends BaseController<
     let readId = 0;
     let last: string | undefined;
     let expiryTimer: ReturnType<typeof setTimeout> | undefined;
-    const read = (): void => {
+    const read = (fresh: boolean): void => {
       readId += 1;
       const id = readId;
-      const quote = async (isMaker: boolean): Promise<FeeCalculationResult> =>
+      const quote = async (
+        isMaker: boolean,
+        isFresh: boolean,
+      ): Promise<FeeCalculationResult> =>
         await this.calculateFees({
           symbol,
           providerId,
           isMaker,
           orderType: orderType ?? (isMaker ? 'limit' : 'market'),
           ...(amount !== undefined && { amount }),
+          ...(isFresh && { skipCache: true }),
         });
-      Promise.all([quote(false), quote(true)])
+      // One venue read serves both quotes.
+      (async (): Promise<[FeeCalculationResult, FeeCalculationResult]> => {
+        const taker = await quote(false, fresh);
+        return [taker, await quote(true, false)];
+      })()
         .then(([taker, maker]) => {
           // Only the newest read is reported, so an older one never wins.
           if (closed || id !== readId) {
@@ -4314,7 +4330,10 @@ export class PerpsController extends BaseController<
           const delay = (expiresAt ?? 0) - Date.now();
           // One deadline, set only for a grant that is still running.
           if (delay > 0) {
-            expiryTimer = setTimeout(read, Math.min(delay, MAX_TIMEOUT_MS));
+            expiryTimer = setTimeout(
+              () => read(true),
+              Math.min(delay, MAX_TIMEOUT_MS),
+            );
           }
           const rates: PerpsFeeRates = { symbol, taker, maker };
           const key = JSON.stringify(rates);
@@ -4331,22 +4350,25 @@ export class PerpsController extends BaseController<
           }
         });
     };
-    this.#feeRateRefreshers.add(read);
+    const refresh = (): void => read(true);
+    this.#feeRateRefreshers.add(refresh);
     const stopRewards =
-      this.#options.infrastructure.rewards.subscribeToPerpsFeeChanges?.(read);
+      this.#options.infrastructure.rewards.subscribeToPerpsFeeChanges?.(
+        refresh,
+      );
     const stopFills = this.subscribeToOrderFills({
       callback: (_fills, isSnapshot) => {
         if (!isSnapshot) {
-          read();
+          refresh();
         }
       },
     });
-    read();
+    read(skipCache);
     // An account switch moves the channel, which reopens these reads.
     return () => {
       closed = true;
       clearTimeout(expiryTimer);
-      this.#feeRateRefreshers.delete(read);
+      this.#feeRateRefreshers.delete(refresh);
       stopRewards?.();
       stopFills();
     };

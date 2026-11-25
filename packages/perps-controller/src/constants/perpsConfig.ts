@@ -164,6 +164,12 @@ export const STREAM_RETRY_CONFIG = {
   StableMs: 60000,
 } as const;
 
+/**
+ * How long a market must look retired, or quoted again, before it counts as a
+ * change. An illiquid market's book empties for shorter than that.
+ */
+export const MARKET_STATE_CONFIRM_MS = 60000;
+
 /** Read timing of a live TWAP list. */
 export const TWAP_ORDER_CONFIG = {
   /** Delay before re-reading when the stream lists a schedule no read has. */

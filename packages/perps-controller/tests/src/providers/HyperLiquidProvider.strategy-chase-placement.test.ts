@@ -541,6 +541,46 @@ describe('HyperLiquidProvider - strategy order types', () => {
         }
       });
 
+      it('does not read an unread child again on the changes of another chase', async () => {
+        vi.useFakeTimers();
+        try {
+          const { infoClient } = useStrategyClients({
+            exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
+          });
+          await provider.placeOrder({
+            ...baseOrder,
+            orderType: 'chase',
+            chaseIntervalMs: 3_600_000,
+          });
+          infoClient.orderStatus.mockRejectedValue(new Error('offline'));
+          const stop = provider.subscribeToChaseOrderChanges({
+            callback: vi.fn(),
+          });
+          await provider.getChaseOrders();
+          const perRead = infoClient.orderStatus.mock.calls.length;
+          expect(perRead).toBeGreaterThan(0);
+
+          // Reads another chase's changes bring, well past the budget.
+          for (let index = 0; index < 600; index += 1) {
+            await vi.advanceTimersByTimeAsync(1_000);
+            await provider.getChaseOrders();
+          }
+          expect(infoClient.orderStatus).toHaveBeenCalledTimes(6 * perRead);
+
+          // A push of the child, and a new reader, each start anew.
+          orders.callback([createRestingChild('55')]);
+          orders.callback([]);
+          await provider.getChaseOrders();
+          expect(infoClient.orderStatus).toHaveBeenCalledTimes(7 * perRead);
+          stop();
+          provider.subscribeToChaseOrderChanges({ callback: vi.fn() });
+          await provider.getChaseOrders();
+          expect(infoClient.orderStatus).toHaveBeenCalledTimes(8 * perRead);
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
       it("still reports the sessions' own changes when the child streams cannot open", async () => {
         mockSubscriptionService.subscribeToOrders.mockImplementation(() => {
           throw new Error('PROVIDER_NOT_AVAILABLE');

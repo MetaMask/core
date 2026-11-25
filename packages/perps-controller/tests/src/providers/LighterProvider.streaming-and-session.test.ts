@@ -173,6 +173,8 @@ describe('LighterProvider', () => {
       stats('update/market_stats', ['3']);
       expect(callback).toHaveBeenCalledTimes(1);
       // A retired market stays in the push, unquoted and unheld.
+      const now = Date.now();
+      const clock = vi.spyOn(Date, 'now').mockReturnValue(now);
       socket.receive({
         type: 'update/market_stats',
         channel: 'market_stats:all',
@@ -180,7 +182,12 @@ describe('LighterProvider', () => {
           '2': { ...wsStat('M2', 2, '1'), mid_price: '', open_interest: '0.0' },
         },
       });
+      expect(callback).toHaveBeenCalledTimes(1);
+      // Any later frame carries the time forward.
+      clock.mockReturnValue(now + 60_000);
+      stats('update/market_stats', ['3']);
       expect(callback).toHaveBeenCalledTimes(2);
+      clock.mockRestore();
       // A full list without a market it had.
       stats('subscribed/market_stats', ['1', '3']);
       expect(callback).toHaveBeenCalledTimes(3);

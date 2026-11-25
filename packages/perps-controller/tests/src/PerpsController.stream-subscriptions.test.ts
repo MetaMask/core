@@ -532,6 +532,20 @@ describe('PerpsController stream subscriptions', () => {
       expect(vi.getTimerCount()).toBe(timers);
     });
 
+    it('reads the venue rates again after a fill, once for both quotes', async () => {
+      controller.subscribeToFeeRates({ symbol: 'BTC', callback: vi.fn() });
+      await flush();
+      vi.mocked(controller.calculateFees).mockClear();
+
+      fills?.callback([]);
+      await flush();
+
+      expect(vi.mocked(controller.calculateFees).mock.calls).toStrictEqual([
+        [expect.objectContaining({ isMaker: false, skipCache: true })],
+        [expect.not.objectContaining({ skipCache: true })],
+      ]);
+    });
+
     it('re-reads after a live fill, an account switch and a benefits invalidation, not after the snapshot', async () => {
       const callback = vi.fn();
       controller.subscribeToFeeRates({ symbol: 'BTC', callback });
@@ -603,6 +617,24 @@ describe('PerpsController stream subscriptions', () => {
       expect(callback).toHaveBeenCalledTimes(1);
       expect(onError).toHaveBeenCalledWith(
         expect.objectContaining({ message: 'down' }),
+      );
+    });
+
+    it('retries a failed re-read past the cache', async () => {
+      controller.subscribeToFeeRates({ symbol: 'BTC', callback: vi.fn() });
+      await flush();
+      vi.mocked(controller.calculateFees).mockRejectedValueOnce(
+        new Error('down'),
+      );
+      fills?.callback([]);
+      await flush();
+      vi.mocked(controller.calculateFees).mockClear();
+
+      await vi.advanceTimersByTimeAsync(1_000);
+
+      expect(controller.calculateFees).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ isMaker: false, skipCache: true }),
       );
     });
 

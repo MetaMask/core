@@ -3364,6 +3364,8 @@ export type FeeCalculationParams = {
   symbol: string; // Required: Asset identifier for HIP-3 fee calculation (e.g., 'BTC', 'xyz:TSLA')
   // Optional provider override. Omission uses active/default routing.
   providerId?: PerpsProviderType;
+  // Read the account's venue rates again instead of a cached copy.
+  skipCache?: boolean;
 };
 
 export type FeeCalculationResult = {

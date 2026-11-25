@@ -1825,6 +1825,33 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(infoClient.userFees).toHaveBeenCalledTimes(2);
     });
 
+    it('reads cached user fee rates again when asked to', async () => {
+      const userFees = vi
+        .fn()
+        .mockResolvedValueOnce(mainnetFees)
+        .mockResolvedValueOnce(testnetFees);
+      useStrategyClients({ info: { userFees } });
+      const params = {
+        orderType: 'market' as const,
+        amount: '1000',
+        symbol: 'ETH',
+      };
+
+      await provider.calculateFees(params);
+      expect((await provider.calculateFees(params)).protocolFeeRate).toBe(
+        0.0003,
+      );
+      expect(
+        (await provider.calculateFees({ ...params, skipCache: true }))
+          .protocolFeeRate,
+      ).toBe(0.0006);
+      // The cache holds what that read returned.
+      expect((await provider.calculateFees(params)).protocolFeeRate).toBe(
+        0.0006,
+      );
+      expect(userFees).toHaveBeenCalledTimes(2);
+    });
+
     it('does not cache user fee rates that resolve after a network change', async () => {
       const requestStarted = createDeferred<void>();
       const pendingUserFees = createDeferred<typeof mainnetFees>();

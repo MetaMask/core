@@ -135,6 +135,7 @@ import type {
   LighterTwapReadObservation,
 } from '../services/LighterTwapService.js';
 import { LighterWalletService } from '../services/LighterWalletService.js';
+import { MarketChangeDetector } from '../services/MarketChangeDetector.js';
 import type {
   ScaleOrderGroup,
   GetScalePriceLadderParams,
@@ -2031,7 +2032,7 @@ export class LighterProvider implements PerpsProvider {
    * Markets the venue's price push has listed, and whether each is quoted or
    * held; null before its first frame.
    */
-  #listedMarkets: Map<string, boolean> | null = null;
+  #marketDetector: MarketChangeDetector | null = null;
 
   /** A market changed while no market change listener was there. */
   #hasUnseenMarketChange = false;
@@ -19453,7 +19454,7 @@ export class LighterProvider implements PerpsProvider {
       this.#candleSubscribers.delete(seriesKey);
     } else if (channel === 'market_stats/all') {
       this.#lastPriceBySymbol.clear();
-      this.#listedMarkets = null;
+      this.#marketDetector = null;
     }
     this.#logChannelCount('released', channel);
   };
@@ -20305,21 +20306,14 @@ export class LighterProvider implements PerpsProvider {
     const frame = Object.entries(stats).map(
       ([marketId, { midPrice, openInterest }]): [string, boolean] => [
         marketId,
-        Number(midPrice) > 0 || Number(openInterest) > 0,
+        !(Number(midPrice) > 0 || Number(openInterest) > 0),
       ],
     );
-    const listed = this.#listedMarkets;
-    if (listed === null) {
-      this.#listedMarkets = new Map(frame);
+    if (this.#marketDetector === null) {
+      this.#marketDetector = new MarketChangeDetector(frame);
       return;
     }
-    const changed =
-      frame.some(([marketId, isLive]) => listed.get(marketId) !== isLive) ||
-      (isSnapshot && frame.length !== listed.size);
-    if (isSnapshot) {
-      listed.clear();
-    }
-    frame.forEach(([marketId, isLive]) => listed.set(marketId, isLive));
+    const changed = this.#marketDetector.update(frame, isSnapshot);
     if (changed) {
       this.#hasUnseenMarketChange = this.#marketChangeListeners.size === 0;
       this.#notifyListeners('marketChanges', this.#marketChangeListeners);

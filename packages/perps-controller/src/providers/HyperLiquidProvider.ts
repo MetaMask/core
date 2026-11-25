@@ -1245,6 +1245,18 @@ const getChaseScope = (
 ): string => `${context.network}:${context.userAddress.toLowerCase()}`;
 
 /**
+ * Delay before another read of a chase that could not be settled.
+ *
+ * @param followUps - Follow-ups so far.
+ * @returns The delay in milliseconds.
+ */
+const getChaseFollowUpDelay = (followUps: number): number =>
+  Math.min(
+    STREAM_RETRY_CONFIG.BaseDelayMs * 2 ** followUps,
+    STREAM_RETRY_CONFIG.MaxDelayMs,
+  );
+
+/**
  * A running chase: the order currently resting, and the loop re-pricing it.
  */
 type ChaseSession = {
@@ -1324,6 +1336,10 @@ type ChaseSession = {
    * A later read asks the venue again; until then the status stays unchanged.
    */
   unresolvedOrderId?: string;
+  /** Reads so far that left something of this session to settle. */
+  followUps?: number;
+  /** When the next such read may run. */
+  nextFollowUpAt?: number;
   /** Absolute deadline, as a `Date.now()` stamp. */
   deadline: number;
   maxRepricings: number;
@@ -10255,12 +10271,19 @@ export class HyperLiquidProvider implements PerpsProvider {
     callback,
   }: SubscribeChaseOrderChangesParams): () => void {
     const listener = (): void => callback();
+    const resetFollowUps = (session: ChaseSession): void => {
+      delete session.followUps;
+      delete session.nextFollowUpAt;
+    };
+    // A new reader may settle what the last one could not.
+    this.#chaseSessions.forEach(resetFollowUps);
     const markChanged = (isChanged: (orderId: string) => boolean): void => {
       let changed = false;
       for (const session of this.#chaseSessions.values()) {
         const childId = session.orderId ?? session.unresolvedOrderId;
         if (childId !== undefined && isChanged(childId)) {
           session.isRemainderStale = true;
+          resetFollowUps(session);
           changed = true;
         }
       }
@@ -10619,13 +10642,20 @@ export class HyperLiquidProvider implements PerpsProvider {
       sessions.map(async ([handle, session]) => {
         const now = Date.now();
         let snapshotRemainingSize = session.size;
+        // Changes of any chase bring a subscriber here, so what an earlier read
+        // left unsettled is tried again on its own bounded schedule.
+        const followUps = session.followUps ?? 0;
+        const isFollowUpDue =
+          this.#chaseChangeListeners.size === 0 ||
+          (followUps <= STREAM_RETRY_CONFIG.MaxAttempts &&
+            now >= (session.nextFollowUpAt ?? 0));
         if (
           session.orderId !== null &&
           session.pendingReplacement === null &&
           // A change subscriber hears the child's own pushes; a caller without
           // one is refreshed at the Chase interval.
           (this.#chaseChangeListeners.size > 0
-            ? session.isRemainderStale ||
+            ? (session.isRemainderStale && isFollowUpDue) ||
               session.refreshedOrderId !== session.orderId
             : now - session.lastSnapshotSizeRefreshAt >= session.intervalMs)
         ) {
@@ -10669,7 +10699,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           }
         }
 
-        if (session.unresolvedOrderId !== undefined) {
+        if (session.unresolvedOrderId !== undefined && isFollowUpDue) {
           const remainder = await this.#readOrderRemainder(
             session.unresolvedOrderId,
           ).catch(() => undefined);
@@ -10681,11 +10711,20 @@ export class HyperLiquidProvider implements PerpsProvider {
           }
         }
 
-        if (!session.active && session.hip3Transfer) {
+        if (!session.active && session.hip3Transfer && isFollowUpDue) {
           const rebalanced = await this.#rebalanceChaseSession(session);
           if (rebalanced && session.removeAfterRebalance) {
             this.#chaseSessions.delete(handle);
           }
+        }
+
+        if (!this.#isChaseUnsettled(session)) {
+          delete session.followUps;
+          delete session.nextFollowUpAt;
+        } else if (isFollowUpDue && this.#chaseChangeListeners.size > 0) {
+          session.followUps = followUps + 1;
+          session.nextFollowUpAt =
+            Date.now() + getChaseFollowUpDelay(followUps);
         }
 
         return this.#chaseSnapshot(handle, session, snapshotRemainingSize);
@@ -10694,12 +10733,25 @@ export class HyperLiquidProvider implements PerpsProvider {
     this.#scheduleChaseFollowUp(
       sessions.some(
         ([, session]) =>
-          (session.isRemainderStale === true && session.orderId !== null) ||
-          session.unresolvedOrderId !== undefined ||
-          (!session.active && session.hip3Transfer !== undefined),
+          this.#isChaseUnsettled(session) &&
+          (session.followUps ?? 0) <= STREAM_RETRY_CONFIG.MaxAttempts,
       ),
     );
     return snapshots;
+  }
+
+  /**
+   * Whether the last read left something of a chase to settle.
+   *
+   * @param session - The chase session.
+   * @returns True when a later read may still settle something.
+   */
+  #isChaseUnsettled(session: ChaseSession): boolean {
+    return (
+      (session.isRemainderStale === true && session.orderId !== null) ||
+      session.unresolvedOrderId !== undefined ||
+      (!session.active && session.hip3Transfer !== undefined)
+    );
   }
 
   /**
@@ -10723,10 +10775,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     ) {
       return;
     }
-    const delay = Math.min(
-      STREAM_RETRY_CONFIG.BaseDelayMs * 2 ** this.#chaseFollowUps,
-      STREAM_RETRY_CONFIG.MaxDelayMs,
-    );
+    const delay = getChaseFollowUpDelay(this.#chaseFollowUps);
     this.#chaseFollowUps += 1;
     this.#chaseFollowUpTimer = setTimeout(() => {
       this.#chaseFollowUpTimer = undefined;
@@ -19183,7 +19232,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       });
 
       // Check cache first
-      if (this.#isFeeCacheValid(userAddress)) {
+      if (!params.skipCache && this.#isFeeCacheValid(userAddress)) {
         const cached = this.#userFeeCache.get(userAddress);
         if (cached) {
           // Same maker/taker decision as the base rates above, including the

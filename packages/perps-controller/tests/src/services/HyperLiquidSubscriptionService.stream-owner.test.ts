@@ -44,7 +44,11 @@ type FakeSocket = {
   isClosed: boolean;
 };
 
-const sdk = vi.hoisted(() => ({ sockets: [] as unknown[] }));
+const sdk = vi.hoisted(() => ({
+  sockets: [] as unknown[],
+  /** Channels the venue refuses to open. */
+  refused: new Set<string>(),
+}));
 
 vi.mock('@nktkas/hyperliquid', () => {
   class FakeTransport {
@@ -85,6 +89,9 @@ vi.mock('@nktkas/hyperliquid', () => {
         const listenerIndex = args.findIndex(
           (arg) => typeof arg === 'function',
         );
+        if (sdk.refused.has(type)) {
+          throw new Error(`${type} refused`);
+        }
         const subscription = {
           type,
           params: listenerIndex === 0 ? {} : args[0],
@@ -145,17 +152,20 @@ describe('shared streams over the HyperLiquid subscription service', () => {
   let selected: Hex;
   let main: FakeSocket;
   let meta: Mock;
+  let ensureTransportReady: Mock<() => Promise<void>>;
 
   const open = (type: string): FakeSubscription[] =>
     main.subscriptions.filter((item) => item.type === type && item.isOpen);
 
   beforeEach(() => {
     sdk.sockets.length = 0;
+    sdk.refused.clear();
     selected = WALLET_A;
     const client = new SubscriptionClient({
       transport: new WebSocketTransport(),
     });
     [main] = sockets();
+    ensureTransportReady = vi.fn().mockResolvedValue(undefined);
     meta = vi.fn().mockResolvedValue({
       universe: [
         { name: 'BTC', szDecimals: 5, maxLeverage: 40 },
@@ -167,7 +177,7 @@ describe('shared streams over the HyperLiquid subscription service', () => {
       getSubscriptionClient: () => client,
       isTestnetMode: () => true,
       getConnectionEpoch: () => 1,
-      ensureTransportReady: async () => undefined,
+      ensureTransportReady,
       getInfoClient: vi.fn().mockReturnValue({
         meta,
         userAbstraction: async () => 'standard',
@@ -317,6 +327,94 @@ describe('shared streams over the HyperLiquid subscription service', () => {
       return result;
     };
 
+    it('opens a DEX stream that failed once its readers are retried, with the others open', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      sdk.refused.add('clearinghouseState');
+      const { positions, errors } = readers();
+      await settle();
+      expect(errors).toHaveBeenCalledTimes(3);
+      expect(open('webData3')).toHaveLength(1);
+      expect(open('clearinghouseState')).toStrictEqual([]);
+
+      sdk.refused.clear();
+      await vi.advanceTimersByTimeAsync(1_000);
+      await settle();
+
+      expect(open('clearinghouseState')).toHaveLength(1);
+      expect(open('openOrders')).toHaveLength(1);
+      expect(open('webData3')).toHaveLength(1);
+      deliver(main, 'clearinghouseState', clearinghouse(WALLET_A, '1'));
+      deliver(main, 'openOrders', openOrders(WALLET_A, 1));
+      expect(positions).toHaveBeenLastCalledWith([
+        expect.objectContaining({ size: '1' }),
+      ]);
+    });
+
+    it.each(['webData3', 'spotState'])(
+      'tells user data readers when %s cannot be restored, and still restores the rest',
+      async (channel) => {
+        const { errors } = readers();
+        await service.subscribeToPrices({
+          symbols: ['BTC'],
+          callback: vi.fn(),
+          includeOrderBook: true,
+        });
+        await settle();
+        expect(errors).not.toHaveBeenCalled();
+        const books = open('bbo').length;
+
+        sdk.refused.add(channel);
+        await service.restoreSubscriptions();
+
+        expect(errors).toHaveBeenCalledWith(
+          expect.objectContaining({ message: `${channel} refused` }),
+        );
+        expect(open('bbo')).toHaveLength(books + 1);
+      },
+    );
+
+    it('restores spot balances after a reconnect', async () => {
+      readers();
+      await settle();
+      const before = open('spotState').length;
+
+      await service.restoreSubscriptions();
+
+      expect(open('spotState')).toHaveLength(before + 1);
+    });
+
+    it('tells a fills reader when its stream cannot be restored', async () => {
+      const onError = vi.fn();
+      const stop = service.subscribeToOrderFills({
+        callback: vi.fn(),
+        onError,
+      });
+      await settle();
+
+      sdk.refused.add('userFills');
+      await service.restoreSubscriptions();
+      expect(onError).toHaveBeenCalledTimes(1);
+
+      const other = vi.fn();
+      service.subscribeToOrderFills({ callback: vi.fn(), onError: other });
+      await settle();
+      other.mockClear();
+      stop();
+      await service.restoreSubscriptions();
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(other).toHaveBeenCalledTimes(1);
+    });
+
+    it('tells every reader when the transport is not ready to restore them', async () => {
+      const { errors } = readers();
+      await settle();
+      ensureTransportReady.mockRejectedValueOnce(new Error('not ready'));
+
+      await service.restoreSubscriptions();
+
+      expect(errors).toHaveBeenCalledTimes(3);
+    });
+
     it('drops the old wallet everywhere before any stream of the new one opens', async () => {
       const { positions, orders, account, errors } = readers();
       await settle();
@@ -399,6 +497,69 @@ describe('shared streams over the HyperLiquid subscription service', () => {
       expect(namedErrors).toHaveBeenCalledWith(
         expect.objectContaining({ message: 'PROVIDER_NOT_AVAILABLE' }),
       );
+    });
+  });
+
+  describe('price feed failures', () => {
+    it.each(['allMids', 'activeAssetCtx', 'bbo', 'assetCtxs'])(
+      'reports a %s feed that cannot open to its readers',
+      async (channel) => {
+        sdk.refused.add(channel);
+        const onError = vi.fn();
+
+        await service.subscribeToPrices({
+          symbols: ['BTC'],
+          callback: vi.fn(),
+          includeMarketData: true,
+          includeOrderBook: true,
+          onError,
+        });
+        await settle();
+
+        expect(onError).toHaveBeenCalledWith(
+          expect.objectContaining({
+            message: expect.stringContaining(`${channel} refused`),
+          }),
+        );
+      },
+    );
+
+    it('opens the feed again for a channel that heard the failure', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      sdk.refused.add('allMids');
+      const callback = vi.fn<(prices: PriceUpdate[]) => void>();
+      manager.subscribe<[PriceUpdate[]]>(
+        { stream: 'prices', options: {} },
+        {
+          open: (emit, fail) => {
+            let stop: (() => void) | undefined;
+            service
+              .subscribeToPrices({
+                symbols: ['BTC'],
+                callback: emit,
+                onError: fail,
+              })
+              .then((unsubscribe) => {
+                stop = unsubscribe;
+                return unsubscribe;
+              })
+              .catch(fail);
+            return (): void => stop?.();
+          },
+        },
+        { callback, onError: vi.fn() },
+      );
+      await settle();
+      expect(open('allMids')).toStrictEqual([]);
+
+      sdk.refused.clear();
+      await vi.advanceTimersByTimeAsync(1_000);
+      await settle();
+      deliver(main, 'allMids', { mids: { BTC: '100' } });
+
+      expect(callback).toHaveBeenLastCalledWith([
+        expect.objectContaining({ symbol: 'BTC', price: '100' }),
+      ]);
     });
   });
 
@@ -646,7 +807,13 @@ describe('shared streams over the HyperLiquid subscription service', () => {
       ...overrides,
     });
 
-    it('reports a listing and a delisting from the push, and nothing for an ordinary frame', async () => {
+    const retired = ctx({ midPx: null, openInterest: '0.0' });
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'], now: 1_000_000 });
+    });
+
+    it('reports a listing at once and a delisting once it lasts, and nothing for an ordinary frame', async () => {
       const callback = vi.fn();
       const stop = service.subscribeToMarketChanges({ callback });
       await settle();
@@ -655,14 +822,20 @@ describe('shared streams over the HyperLiquid subscription service', () => {
       deliver(main, 'assetCtxs', { ctxs: [ctx({ midPx: '2' }), ctx()] });
       // A market with open interest and an empty book is not delisted.
       deliver(main, 'assetCtxs', { ctxs: [ctx({ midPx: null }), ctx()] });
+      vi.advanceTimersByTime(60_000);
+      deliver(main, 'assetCtxs', { ctxs: [ctx({ midPx: null }), ctx()] });
       expect(callback).not.toHaveBeenCalled();
 
       deliver(main, 'assetCtxs', { ctxs: [ctx(), ctx(), ctx()] });
       expect(callback).toHaveBeenCalledTimes(1);
 
-      deliver(main, 'assetCtxs', {
-        ctxs: [ctx(), ctx({ midPx: null, openInterest: '0.0' }), ctx()],
-      });
+      deliver(main, 'assetCtxs', { ctxs: [ctx(), retired, ctx()] });
+      vi.advanceTimersByTime(59_999);
+      deliver(main, 'assetCtxs', { ctxs: [ctx(), retired, ctx()] });
+      expect(callback).toHaveBeenCalledTimes(1);
+      vi.advanceTimersByTime(1);
+      deliver(main, 'assetCtxs', { ctxs: [ctx(), retired, ctx()] });
+      deliver(main, 'assetCtxs', { ctxs: [ctx(), retired, ctx()] });
       expect(callback).toHaveBeenCalledTimes(2);
 
       stop();
@@ -670,59 +843,64 @@ describe('shared streams over the HyperLiquid subscription service', () => {
       expect(open('assetCtxs')).toStrictEqual([]);
     });
 
+    it('reports nothing while the book of an idle market empties and refills', async () => {
+      const callback = vi.fn();
+      service.subscribeToMarketChanges({ callback });
+      await settle();
+
+      for (let index = 0; index < 20; index += 1) {
+        deliver(main, 'assetCtxs', { ctxs: [ctx(), retired] });
+        vi.advanceTimersByTime(30_000);
+        deliver(main, 'assetCtxs', { ctxs: [ctx(), ctx()] });
+        vi.advanceTimersByTime(30_000);
+      }
+
+      expect(callback).not.toHaveBeenCalled();
+    });
+
     it('reports a market delisted before the feed opened', async () => {
       const callback = vi.fn();
       service.subscribeToMarketChanges({ callback });
       await settle();
 
-      deliver(main, 'assetCtxs', {
-        ctxs: [ctx(), ctx({ midPx: null, openInterest: '0' })],
-      });
+      deliver(main, 'assetCtxs', { ctxs: [ctx(), retired] });
+      vi.advanceTimersByTime(60_000);
+      deliver(main, 'assetCtxs', { ctxs: [ctx(), retired] });
 
       expect(callback).toHaveBeenCalledTimes(1);
     });
 
-    it('reports nothing when the first frame matches the metadata held', async () => {
-      meta.mockResolvedValue({
-        universe: [
-          { name: 'BTC', szDecimals: 5, maxLeverage: 40 },
-          { name: 'OLD', szDecimals: 4, maxLeverage: 25, isDelisted: true },
-        ],
-      });
-      const callback = vi.fn();
-      service.subscribeToMarketChanges({ callback });
-      await settle();
+    it.each([
+      ['retired', retired],
+      ['still held', ctx({ midPx: null })],
+    ])(
+      'reports nothing for a market the metadata has as delisted and the push as %s',
+      async (_state, delisted) => {
+        meta.mockResolvedValue({
+          universe: [
+            { name: 'BTC', szDecimals: 5, maxLeverage: 40 },
+            { name: 'OLD', szDecimals: 4, maxLeverage: 25, isDelisted: true },
+          ],
+        });
+        const callback = vi.fn();
+        service.subscribeToMarketChanges({ callback });
+        await settle();
 
-      deliver(main, 'assetCtxs', {
-        ctxs: [ctx(), ctx({ midPx: null, openInterest: '0' })],
-      });
+        deliver(main, 'assetCtxs', { ctxs: [ctx(), delisted] });
+        vi.advanceTimersByTime(60_000);
+        deliver(main, 'assetCtxs', { ctxs: [ctx(), delisted] });
 
-      expect(callback).not.toHaveBeenCalled();
-    });
-
-    it('reports nothing for a delisted market that still has open interest', async () => {
-      meta.mockResolvedValue({
-        universe: [
-          { name: 'BTC', szDecimals: 5, maxLeverage: 40 },
-          { name: 'OLD', szDecimals: 4, maxLeverage: 25, isDelisted: true },
-        ],
-      });
-      const callback = vi.fn();
-      service.subscribeToMarketChanges({ callback });
-      await settle();
-
-      deliver(main, 'assetCtxs', { ctxs: [ctx(), ctx({ midPx: null })] });
-
-      expect(callback).not.toHaveBeenCalled();
-    });
+        expect(callback).not.toHaveBeenCalled();
+      },
+    );
 
     it('reports a listed market without trading once, not each time the feed opens', async () => {
       const callback = vi.fn();
-      const idle = {
-        ctxs: [ctx(), ctx({ midPx: null, openInterest: '0' })],
-      };
+      const idle = { ctxs: [ctx(), retired] };
       const stop = service.subscribeToMarketChanges({ callback });
       await settle();
+      deliver(main, 'assetCtxs', idle);
+      vi.advanceTimersByTime(60_000);
       deliver(main, 'assetCtxs', idle);
       expect(callback).toHaveBeenCalledTimes(1);
       stop();
@@ -731,10 +909,9 @@ describe('shared streams over the HyperLiquid subscription service', () => {
       service.subscribeToMarketChanges({ callback });
       await settle();
       deliver(main, 'assetCtxs', idle);
+      vi.advanceTimersByTime(60_000);
+      deliver(main, 'assetCtxs', idle);
       expect(callback).toHaveBeenCalledTimes(1);
-
-      deliver(main, 'assetCtxs', { ctxs: [ctx(), ctx()] });
-      expect(callback).toHaveBeenCalledTimes(2);
     });
 
     it('reports markets listed before the feed opened', async () => {
