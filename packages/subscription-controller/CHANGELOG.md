@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [16.0.0]
+
 ### Added
 
 - `SubscriptionDelegationService` now retries a stuck Money Account Plus charge once the Money Account covers it ([#11612](https://github.com/MetaMask/core/pull/11612))
@@ -35,8 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Delegate the `KeyringController:getState`, `AuthenticationController:isSignedIn`, `SubscriptionController:retryCryptoCharge` and `SubscriptionController:setChargeRetryInProgress` actions
   - Delegate the `AuthenticationController:stateChanged`, `KeyringController:unlock`, `SubscriptionController:stateChanged` and `TransactionController:transactionConfirmed` events
 - **BREAKING:** `SubscriptionControllerMessenger` requires the `SubscriptionService:payLastInvoice` and `SubscriptionService:verifyPaymentMethod` actions ([#11612](https://github.com/MetaMask/core/pull/11612))
+- **BREAKING:** `ISubscriptionService` now requires `payLastInvoice` and `verifyPaymentMethod` ([#11612](https://github.com/MetaMask/core/pull/11612))
 - Add dependency on `@metamask/keyring-controller` `^28.2.2` ([#11612](https://github.com/MetaMask/core/pull/11612))
-- Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.4.1` ([#11732](https://github.com/MetaMask/core/pull/11732), [#11761](https://github.com/MetaMask/core/pull/11761))
+- Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.5.0` ([#11732](https://github.com/MetaMask/core/pull/11732), [#11761](https://github.com/MetaMask/core/pull/11761), [#11784](https://github.com/MetaMask/core/pull/11784))
 
 ### Deprecated
 
@@ -784,7 +787,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@16.0.0...HEAD
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.4.0...@metamask/subscription-controller@16.0.0
 [15.4.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.3.0...@metamask/subscription-controller@15.4.0
 [15.3.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.2.2...@metamask/subscription-controller@15.3.0
 [15.2.2]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.2.1...@metamask/subscription-controller@15.2.2

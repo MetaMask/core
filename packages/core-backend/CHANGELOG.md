@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.0]
+
 ### Added
 
 - Add `MarketStatsService` for real-time spot prices over the shared backend WebSocket. `subscribe` and `unsubscribe` take one `{ assetId, currency }` or a list, and a required `caller` name. `subscribe` makes that caller's channels exactly the list it passes, and `unsubscribe` removes the caller from the listed channels. A channel stays open while any caller wants it. `getSubscriptions` returns the open channels and `getChainStatuses` returns chain health. Price batches, closed channels, and open channels on a chain reported down are published as `MarketStatsService:pricesUpdated` ([#11193](https://github.com/MetaMask/core/pull/11193))
@@ -588,7 +590,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@14.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@15.0.0...HEAD
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@14.1.0...@metamask/core-backend@15.0.0
 [14.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@14.0.0...@metamask/core-backend@14.1.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@13.0.0...@metamask/core-backend@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.3.0...@metamask/core-backend@13.0.0
