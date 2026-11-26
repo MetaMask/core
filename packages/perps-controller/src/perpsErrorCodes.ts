@@ -23,6 +23,7 @@ export const PERPS_ERROR_CODES = {
   POSITIONS_FAILED: 'POSITIONS_FAILED',
   ACCOUNT_STATE_FAILED: 'ACCOUNT_STATE_FAILED',
   ORDERS_FAILED: 'ORDERS_FAILED', // An orders read failed; the order list is unknown, not empty
+  ORDERS_STREAM_PAUSED: 'ORDERS_STREAM_PAUSED', // Orders stream onError: waiting for a usable trading key, not a failure. It resumes once trading is set up; the order list is unknown, not empty
   MARKETS_FAILED: 'MARKETS_FAILED',
   MARKET_NOT_FOUND: 'MARKET_NOT_FOUND', // getMarketMeta: the provider lists no market with that symbol
   UNKNOWN_ERROR: 'UNKNOWN_ERROR',

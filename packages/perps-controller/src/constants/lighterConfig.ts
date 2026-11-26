@@ -284,6 +284,19 @@ export const LIGHTER_RECONNECT_MAX_DELAY_MS = 30_000;
 /** How long the socket may stay down with listeners before health degrades. */
 export const LIGHTER_SOCKET_DOWN_GRACE_MS = 10_000;
 
+/** Bounded discovery while Lighter account streams await a first deposit. */
+export const LIGHTER_ACCOUNT_DISCOVERY_CONFIG = {
+  InitialIntervalMs: 3_000,
+  MaxIntervalMs: 15_000,
+  DeadlineMs: 180_000,
+} as const;
+
+/** Bounded re-mint when a reconnect fails to re-subscribe the orders channel. */
+export const LIGHTER_ORDERS_RESUBSCRIBE_RETRY = {
+  DelayMs: 5_000,
+  MaxAttempts: 3,
+} as const;
+
 /**
  * Maximum leverage placeholder until per-market margin fractions are wired.
  */
