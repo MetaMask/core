@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix `isTrusted` to compare social identifiers against `SeedlessOnboardingController`'s already-hashed `userId` ([#TBD](https://github.com/MetaMask/core/pull/0))
+- Fix `isTrusted` to compare social identifiers against `SeedlessOnboardingController`'s already-hashed `userId` ([#11776](https://github.com/MetaMask/core/pull/11776))
 
 ## [0.1.0]
 
