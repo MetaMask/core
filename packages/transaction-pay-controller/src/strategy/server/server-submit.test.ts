@@ -1768,6 +1768,8 @@ describe('submitServerQuotes', () => {
   }
 
   describe('Lighter transfer steps', () => {
+    const getTransactionMock = vi.mocked(getTransaction);
+
     const LIGHTER_STEP_MOCK = {
       type: 'lighterTransfer' as const,
       toAccountIndex: 723071,
