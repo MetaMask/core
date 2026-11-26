@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { detectResolution, INTERVAL_MS_TO_TV } from '../resolution.js';
+import {
+  canonicalResolution,
+  detectResolution,
+  INTERVAL_MS_TO_TV,
+} from '../resolution.js';
 
 const bars = (intervals: number[]): { time: number }[] => {
   const out: { time: number }[] = [{ time: 0 }];
@@ -36,5 +40,21 @@ describe('detectResolution', () => {
     // 6.5 min between bars → closest mapped is 5min ("5") not 15min ("15").
     const data = bars([390_000, 390_000, 390_000]);
     expect(detectResolution(data)).toBe('5');
+  });
+});
+
+describe('canonicalResolution', () => {
+  it('expands single-letter shorthands', () => {
+    expect(canonicalResolution('D')).toBe('1D');
+    expect(canonicalResolution('W')).toBe('1W');
+    expect(canonicalResolution('M')).toBe('1M');
+    expect(canonicalResolution('S')).toBe('1S');
+  });
+
+  it('leaves canonical resolutions unchanged', () => {
+    expect(canonicalResolution('1')).toBe('1');
+    expect(canonicalResolution('60')).toBe('60');
+    expect(canonicalResolution('1D')).toBe('1D');
+    expect(canonicalResolution('3D')).toBe('3D');
   });
 });

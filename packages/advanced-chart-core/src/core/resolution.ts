@@ -26,6 +26,18 @@ export const INTERVAL_MS_TO_TV: Readonly<Record<number, TVResolution>> = {
 const DEFAULT_RESOLUTION: TVResolution = '5';
 
 /**
+ * Normalize a TradingView resolution so equivalent spellings compare equal.
+ * TradingView may pass the shorthand `D`/`W`/`M`/`S` to `subscribeBars`,
+ * while the engine stores `1D`/`1W`/`1M`/`1S`.
+ *
+ * @param resolution - A TradingView resolution string.
+ * @returns The canonical form (e.g. `D` → `1D`).
+ */
+export function canonicalResolution(resolution: string): string {
+  return /^[SDWM]$/u.test(resolution) ? `1${resolution}` : resolution;
+}
+
+/**
  * Picks the closest matching TV resolution for an OHLCV bar series.
  * Uses the median diff over the first few bars so a single gap doesn't skew
  * the result (matches legacy chartLogic.js detectResolution semantics).

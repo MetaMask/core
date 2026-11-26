@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix out-of-order bars after rapid interval switches (e.g. 1m → 5m → 1h → 1m)
+  - `REALTIME_UPDATE` bars older than the last stored bar are dropped instead of being appended after newer bars
+  - Realtime ticks are only forwarded to TradingView listeners subscribed for the current resolution
+  - The TradingView datafeed cache is reset before `setResolution`, so switching back to a previously loaded interval uses the bars from the latest `SET_OHLCV_DATA`
+
 ## [2.0.0]
 
 ### Changed

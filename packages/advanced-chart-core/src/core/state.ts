@@ -37,6 +37,8 @@ type CoreState = {
   visibleToMs: number | null;
   /** TradingView subscribeBars listenerGuid → tick callback (forwarded by REALTIME_UPDATE). */
   realtimeCallbacks: Record<string, RealtimeTickCallback>;
+  /** TradingView subscribeBars listenerGuid → resolution it subscribed with. */
+  realtimeCallbackResolutions: Record<string, string>;
   /** Curated indicators (MACD, RSI, BOL, MA200) keyed by indicator name → studyId. */
   activeStudies: Map<string, StudyId>;
   /** MA visibility-driven studies (MA5/10/20/50/200) keyed by name → studyId. */
@@ -104,6 +106,7 @@ const state: CoreState = {
   visibleFromMs: null,
   visibleToMs: null,
   realtimeCallbacks: {},
+  realtimeCallbackResolutions: {},
   activeStudies: new Map(),
   maStudies: new Map(),
   legendStudyOrder: new Map(),
@@ -284,16 +287,35 @@ export function setVisibleToMs(ms: number | null): void {
 export function registerRealtimeCallback(
   listenerGuid: string,
   callback: RealtimeTickCallback,
+  resolution?: string,
 ): void {
   state.realtimeCallbacks[listenerGuid] = callback;
+  if (resolution === undefined) {
+    delete state.realtimeCallbackResolutions[listenerGuid];
+  } else {
+    state.realtimeCallbackResolutions[listenerGuid] = resolution;
+  }
 }
 
 export function unregisterRealtimeCallback(listenerGuid: string): void {
   delete state.realtimeCallbacks[listenerGuid];
+  delete state.realtimeCallbackResolutions[listenerGuid];
 }
 
 export function getRealtimeCallbacks(): Record<string, RealtimeTickCallback> {
   return state.realtimeCallbacks;
+}
+
+/**
+ * Resolution a TradingView realtime listener subscribed with, if known.
+ *
+ * @param listenerGuid - The subscribeBars listener GUID.
+ * @returns The listener's resolution, or undefined when not recorded.
+ */
+export function getRealtimeCallbackResolution(
+  listenerGuid: string,
+): string | undefined {
+  return state.realtimeCallbackResolutions[listenerGuid];
 }
 
 // ----- Indicator studies --------------------------------------------------
@@ -455,6 +477,7 @@ export function _resetStateForTests(): void {
   state.visibleFromMs = null;
   state.visibleToMs = null;
   state.realtimeCallbacks = {};
+  state.realtimeCallbackResolutions = {};
   state.activeStudies = new Map();
   state.maStudies = new Map();
   state.legendStudyOrder = new Map();

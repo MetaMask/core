@@ -9,6 +9,7 @@ import {
   getOhlcvPagination,
   getRnBackedPagination,
   getVisibleFromMs,
+  registerRealtimeCallback,
   setChartReady,
   setWidget,
 } from '../../core/state.js';
@@ -228,6 +229,36 @@ describe('handleSetOHLCVData', () => {
     const resetDataOrder = resetData.mock.invocationCallOrder[0];
     expect(resetCacheOrder).toBeLessThan(resetDataOrder);
   });
+
+  it('calls widget.resetCache before setResolution on a resolution change', () => {
+    const resetCache = vi.fn();
+    const setResolution = vi.fn();
+    const chart = {
+      resetData: vi.fn(),
+      setResolution,
+      onDataLoaded: vi
+        .fn()
+        .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() }),
+      getTimeScale: vi.fn().mockReturnValue({ setRightOffset: vi.fn() }),
+    } as unknown as TVActiveChart;
+
+    handleSetOHLCVData({ data: oneMinuteApart(3) });
+    setWidget({
+      activeChart: () => chart,
+      resetCache,
+    } as unknown as TVChartingLibraryWidget);
+    setChartReady(true);
+
+    handleSetOHLCVData({
+      data: Array.from({ length: 3 }, (_, i) => bar(i * 300_000)),
+    });
+
+    expect(resetCache).toHaveBeenCalledTimes(1);
+    expect(setResolution).toHaveBeenCalledWith('5', expect.any(Function));
+    expect(resetCache.mock.invocationCallOrder[0]).toBeLessThan(
+      setResolution.mock.invocationCallOrder[0],
+    );
+  });
 });
 
 describe('handleRealtimeUpdate', () => {
@@ -246,6 +277,26 @@ describe('handleRealtimeUpdate', () => {
     handleRealtimeUpdate({ bar: bar(0, 99) });
     expect(getOhlcvData()).toHaveLength(1);
     expect(getOhlcvData()[0].close).toBe(99);
+  });
+
+  it('drops a bar older than the last stored bar', () => {
+    const tick = vi.fn();
+    registerRealtimeCallback('guid-1', tick, '1');
+    // Last stored bar is 13:52-style; a late 13:00-style bar arrives.
+    handleSetOHLCVData({ data: oneMinuteApart(53) });
+    const lastTime = getOhlcvData().at(-1)?.time;
+
+    handleRealtimeUpdate({ bar: bar(0, 42) });
+
+    expect(getOhlcvData()).toHaveLength(53);
+    expect(getOhlcvData().at(-1)?.time).toBe(lastTime);
+    expect(getOhlcvData()[0].close).toBe(1);
+    expect(tick).not.toHaveBeenCalled();
+  });
+
+  it('accepts bars into an empty series', () => {
+    handleRealtimeUpdate({ bar: bar(0) });
+    expect(getOhlcvData()).toHaveLength(1);
   });
 });
 
