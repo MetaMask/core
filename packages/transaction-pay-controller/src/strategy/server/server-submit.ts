@@ -26,7 +26,6 @@ import type {
 import { accountSupports7702 } from '../../utils/account.js';
 import {
   getServerPollingInterval,
-  getServerPollingTimeout,
 } from '../../utils/feature-flags.js';
 import type { GasPayment } from '../../utils/gas-payment.js';
 import {
@@ -1352,7 +1351,7 @@ function deriveEIP712DomainType(
  * up first, such as sweeping a deposit wallet refund.
  *
  * The server owns the provider-specific timeout and reports it as a `TIMEOUT`
- * status, while the local polling timeout remains as a backstop.
+ * status, so there is no local polling timeout.
  *
  * @param quote - Server quote being polled.
  * @param messenger - Controller messenger.
@@ -1367,10 +1366,8 @@ async function waitForServerCompletion(
   statusId?: string,
 ): Promise<ServerCompletion> {
   const pollingInterval = getServerPollingInterval(messenger);
-  const pollingTimeout = getServerPollingTimeout(messenger);
-  const hasTimeout = pollingTimeout > 0;
 
-  log('Server polling config', { pollingInterval, pollingTimeout });
+  log('Server polling config', { pollingInterval });
 
   const startTime = Date.now();
 
@@ -1437,10 +1434,6 @@ async function waitForServerCompletion(
       }
 
       lastStatus = status;
-    }
-
-    if (hasTimeout && Date.now() - startTime >= pollingTimeout) {
-      return { lastStatus, status: ServerStatus.Timeout };
     }
 
     await new Promise((resolve) => setTimeout(resolve, pollingInterval));

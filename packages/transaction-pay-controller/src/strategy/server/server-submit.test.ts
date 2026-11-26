@@ -19,7 +19,6 @@ import type {
 } from '../../types.js';
 import {
   getServerPollingInterval,
-  getServerPollingTimeout,
   getSlippage,
   isEIP7702Chain,
 } from '../../utils/feature-flags.js';
@@ -199,7 +198,6 @@ const DELEGATION_MOCK = {
 describe('submitServerQuotes', () => {
   const getLiveTokenBalanceMock = vi.mocked(getLiveTokenBalanceOrUndefined);
   const getServerPollingIntervalMock = vi.mocked(getServerPollingInterval);
-  const getServerPollingTimeoutMock = vi.mocked(getServerPollingTimeout);
   const getServerStatusMock = vi.mocked(getServerStatus);
   const submitServerIntentMock = vi.mocked(submitServerIntent);
   const generateEIP7702BatchTransactionMock = vi.mocked(
@@ -250,7 +248,6 @@ describe('submitServerQuotes', () => {
     getDelegationTransactionMock.mockResolvedValue(DELEGATION_MOCK);
     getLiveTokenBalanceMock.mockResolvedValue('999999999999999999');
     getServerPollingIntervalMock.mockReturnValue(0);
-    getServerPollingTimeoutMock.mockReturnValue(0);
     getServerStatusMock.mockResolvedValue({
       status: ServerStatus.Confirmed,
       targetHash: TARGET_HASH_MOCK,
@@ -715,45 +712,12 @@ describe('submitServerQuotes', () => {
     );
   });
 
-  it('honors the polling timeout and includes the last status', async () => {
-    const dateNowMock = vi
-      .spyOn(Date, 'now')
-      .mockReturnValueOnce(100)
-      .mockReturnValue(110);
-
-    getServerPollingTimeoutMock.mockReturnValue(5);
-    getServerStatusMock.mockResolvedValue({ status: ServerStatus.Pending });
-
-    await expect(submitServerQuotes(request)).rejects.toThrow(
-      'Server intent timed out (last status: PENDING)',
-    );
-
-    dateNowMock.mockRestore();
-  });
-
-  it('omits last status detail when polling times out before any status is received', async () => {
-    const dateNowMock = vi
-      .spyOn(Date, 'now')
-      .mockReturnValueOnce(100)
-      .mockReturnValue(110);
-
-    getServerPollingTimeoutMock.mockReturnValue(5);
-    getServerStatusMock.mockRejectedValue(new Error('network error'));
-
-    await expect(submitServerQuotes(request)).rejects.toThrow(
-      /^Server intent timed out$/u,
-    );
-
-    dateNowMock.mockRestore();
-  });
-
-  it('does not time out locally when the polling timeout is zero', async () => {
+  it('keeps polling while pending without a local timeout', async () => {
     const dateNowMock = vi
       .spyOn(Date, 'now')
       .mockReturnValueOnce(100)
       .mockReturnValue(Number.MAX_SAFE_INTEGER);
 
-    getServerPollingTimeoutMock.mockReturnValue(0);
     getServerStatusMock
       .mockResolvedValueOnce({ status: ServerStatus.Pending })
       .mockResolvedValue({
@@ -775,6 +739,14 @@ describe('submitServerQuotes', () => {
 
     await expect(submitServerQuotes(request)).rejects.toThrow(
       'Server intent timed out (last status: PENDING)',
+    );
+  });
+
+  it('omits last status detail when the first status is a timeout', async () => {
+    getServerStatusMock.mockResolvedValue({ status: ServerStatus.Timeout });
+
+    await expect(submitServerQuotes(request)).rejects.toThrow(
+      /^Server intent timed out$/u,
     );
   });
 
