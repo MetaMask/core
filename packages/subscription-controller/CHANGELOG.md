@@ -39,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `SubscriptionControllerMessenger` requires the `SubscriptionService:payLastInvoice` and `SubscriptionService:verifyPaymentMethod` actions ([#11612](https://github.com/MetaMask/core/pull/11612))
 - **BREAKING:** `ISubscriptionService` now requires `payLastInvoice` and `verifyPaymentMethod` ([#11612](https://github.com/MetaMask/core/pull/11612))
 - Add dependency on `@metamask/keyring-controller` `^28.2.2` ([#11612](https://github.com/MetaMask/core/pull/11612))
-- Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.4.1` ([#11732](https://github.com/MetaMask/core/pull/11732), [#11761](https://github.com/MetaMask/core/pull/11761))
+- Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.5.0` ([#11732](https://github.com/MetaMask/core/pull/11732), [#11761](https://github.com/MetaMask/core/pull/11761), [#11784](https://github.com/MetaMask/core/pull/11784))
 
 ### Deprecated
 
