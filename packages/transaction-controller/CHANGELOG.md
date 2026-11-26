@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `assetId` (CAIP-19 asset type) to `RequiredAsset` to identify an asset that `address` alone does not, such as a balance held off-chain ([#11730](https://github.com/MetaMask/core/pull/11730))
+
 ## [74.5.1]
 
 ### Fixed
@@ -20,7 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add support for passing `undefined` as `multiplier` to `estimateGasBuffered`, which then uses the value from `confirmations_gas_buffer`. The buffer is applied even when estimation fails ([#11756](https://github.com/MetaMask/core/pull/11756))
-- Add optional `assetId` (CAIP-19 asset type) to `RequiredAsset` to identify an asset that `address` alone does not, such as a balance held off-chain ([#11730](https://github.com/MetaMask/core/pull/11730))
 
 ### Changed
 
