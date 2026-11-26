@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Clears a pending `authorizing` `register` or `updateRecoverySecret`, which reached no escrow, and throws `MutationRejectedError`.
 - **BREAKING:** `Identifier.verifier` is typed as `Json` instead of `unknown`, since identifiers are persisted in controller state ([#11679](https://github.com/MetaMask/core/pull/11679))
 - `register` and `updateRecoverySecret` reject an empty recovery secret with `invalid_recovery_secret` before requesting approval ([#11679](https://github.com/MetaMask/core/pull/11679))
+- Bump `@metamask/seedless-onboarding-controller` from `^12.1.0` to `^13.0.0` ([#11773](https://github.com/MetaMask/core/pull/11773))
 
 ### Removed
 

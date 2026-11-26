@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/keyring-controller` from `^28.2.1` to `^28.2.2` ([#11537](https://github.com/MetaMask/core/pull/11537))
-- Bump `@metamask/seedless-onboarding-controller` from `^12.0.0` to `^12.1.0` ([#11569](https://github.com/MetaMask/core/pull/11569))
+- Bump `@metamask/seedless-onboarding-controller` from `^12.0.0` to `^13.0.0` ([#11569](https://github.com/MetaMask/core/pull/11569), [#11773](https://github.com/MetaMask/core/pull/11773))
 - Bump `immer` from `^11.1.18` to `^11.2.10` ([#11645](https://github.com/MetaMask/core/pull/11645))
 
 ## [36.1.2]
