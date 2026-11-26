@@ -303,6 +303,33 @@ describe('PerpsController stream subscriptions', () => {
       });
     });
 
+    it('reads afresh at once when the provider reports, as it subscribes, a change no one heard', async () => {
+      provider.getMarkets.mockResolvedValue([market('BTC'), market('NEW')]);
+      Object.assign(provider, {
+        subscribeToMarketChanges: vi.fn<
+          NonNullable<PerpsProvider['subscribeToMarketChanges']>
+        >(({ callback }) => {
+          callback();
+          return vi.fn();
+        }),
+      });
+      const callback = vi.fn();
+
+      controller.subscribeToMarketMeta({ callback });
+      await flush();
+
+      expect(provider.getMarkets).toHaveBeenNthCalledWith(1, {
+        requireComplete: true,
+        skipCache: true,
+      });
+      expect(callback.mock.calls[0]).toStrictEqual([
+        [
+          expect.objectContaining({ symbol: 'BTC' }),
+          expect.objectContaining({ symbol: 'NEW' }),
+        ],
+      ]);
+    });
+
     it('does not read when the market data preload refreshes', async () => {
       provider.getMarkets.mockResolvedValue([market('BTC')]);
       controller.subscribeToMarketMeta({ callback: vi.fn() });

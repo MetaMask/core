@@ -4067,7 +4067,6 @@ export class PerpsController extends BaseController<
       provider instanceof AggregatedPerpsProvider
         ? provider.getWriteProviderId(params.providerId)
         : undefined;
-    const isStale = stale.has(venue);
     const fail = (error: unknown): void => {
       if (!closed) {
         params.onError?.(
@@ -4132,7 +4131,9 @@ export class PerpsController extends BaseController<
     } catch (error) {
       fail(error);
     }
-    read(skipCache || isStale);
+    // After subscribing: the provider may report there, at once, a change
+    // no one heard, which the session cache predates.
+    read(skipCache || stale.has(venue));
     return () => {
       closed = true;
       clearTimeout(settleTimer);
