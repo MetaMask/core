@@ -39,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Remove `AuthApiRecoveryAuthProvider`, `AuthApiRecoveryAuthProviderOptions`, `AuthApiRecoveryAuthProviderMessenger`, and the `RecoveryAuthProvider` type ([#11643](https://github.com/MetaMask/core/pull/11643))
 - **BREAKING:** Remove the `PendingOperationEncryptor` and `EncryptedPendingOperation` types ([#11679](https://github.com/MetaMask/core/pull/11679))
 
+### Fixed
+
+- Fix `isTrusted` to compare social identifiers against `SeedlessOnboardingController`'s already-hashed `userId` ([#TBD](https://github.com/MetaMask/core/pull/0))
+
 ## [0.1.0]
 
 ### Added

@@ -64,8 +64,8 @@ build the new set from Auth's entries.
 
 `register` and `updateIdentifiers` reject, with `untrusted_identifier`, any
 passkey no user device recorded and any social identifier other than the
-device's seedless login (the email for Google, `sub` for Apple, read through
-`SeedlessOnboardingController:getState`), so a compromised Auth API cannot add
+device's seedless login (`userId` from `SeedlessOnboardingController:getState`,
+for Google and Apple), so a compromised Auth API cannot add
 its own or swap a passkey's public key. After creating a passkey, record it with
 `trustIdentifier({ type: 'passkey', attestationObject })`. Auth's verifier must
 carry the same `rpId`, `credentialId` and `publicKey.cose`.

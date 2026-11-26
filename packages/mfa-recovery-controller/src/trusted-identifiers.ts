@@ -12,7 +12,6 @@ import {
 import type { SeedlessOnboardingControllerState } from '@metamask/seedless-onboarding-controller';
 import { bytesToHex, isObject, remove0x, stringToBytes } from '@metamask/utils';
 import { sha256 } from '@noble/hashes/sha2';
-import { keccak_256 as keccak256 } from '@noble/hashes/sha3';
 
 import { fromBase64Url } from './crypto.js';
 import { MfaRecoveryError } from './errors.js';
@@ -29,20 +28,18 @@ const STORAGE_FEATURE = 'mfaRecoveryTrustedIdentifiers';
 const CREDENTIAL_ID_OFFSET = 55;
 const FLAG_ATTESTED_CREDENTIAL = 0x40;
 
-// The escrow identifies Google logins by email and Apple logins by `sub`.
-const IDENTITY_FIELD: Partial<
-  Record<AuthConnection, 'socialLoginEmail' | 'userId'>
-> = {
-  [AuthConnection.Google]: 'socialLoginEmail',
-  [AuthConnection.Apple]: 'userId',
-};
+// Auth's Google and Apple `sub` (stored as `userId`) is already keccak256-hashed.
+const SUPPORTED_SOCIAL_CONNECTIONS = new Set<AuthConnection>([
+  AuthConnection.Google,
+  AuthConnection.Apple,
+]);
 
 /**
  * The device's seedless social login.
  */
 export type SocialLogin = Pick<
   SeedlessOnboardingControllerState,
-  'authConnection' | 'userId' | 'socialLoginEmail'
+  'authConnection' | 'userId'
 >;
 
 /**
@@ -130,18 +127,14 @@ export function isTrustedIdentifier(
 }
 
 function isSocialLogin(identifier: Identifier, login: SocialLogin): boolean {
-  if (
-    AUTH_CONNECTION_BY_NAMESPACE[trimSlash(identifier.namespace)] !==
-    login.authConnection
-  ) {
-    return false;
-  }
-  const field = login.authConnection && IDENTITY_FIELD[login.authConnection];
-  const identity = field && login[field];
+  const connection =
+    AUTH_CONNECTION_BY_NAMESPACE[trimSlash(identifier.namespace)];
   return (
-    identity !== undefined &&
-    identifier.value ===
-      remove0x(bytesToHex(keccak256(stringToBytes(identity.toLowerCase()))))
+    connection !== undefined &&
+    SUPPORTED_SOCIAL_CONNECTIONS.has(connection) &&
+    connection === login.authConnection &&
+    Boolean(login.userId) &&
+    identifier.value === login.userId
   );
 }
 
