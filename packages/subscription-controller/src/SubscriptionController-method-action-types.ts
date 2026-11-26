@@ -175,6 +175,21 @@ export type SubscriptionControllerUpdatePaymentMethodAction = {
 };
 
 /**
+ * Retries a failed crypto charge with the stored payment method: verifies
+ * the payment method of a paused subscription, otherwise pays the last
+ * invoice. The charged subscription from the response replaces the one in
+ * the refreshed subscriptions.
+ *
+ * @param request - The retry request.
+ * @param request.subscriptionId - The subscription to retry.
+ * @returns The refreshed subscriptions.
+ */
+export type SubscriptionControllerRetryCryptoChargeAction = {
+  type: `SubscriptionController:retryCryptoCharge`;
+  handler: SubscriptionController['retryCryptoCharge'];
+};
+
+/**
  * Gets the billing portal URL.
  *
  * @returns The billing portal URL
@@ -207,6 +222,17 @@ export type SubscriptionControllerCacheLastSelectedPaymentMethodAction = {
 export type SubscriptionControllerClearLastSelectedPaymentMethodAction = {
   type: `SubscriptionController:clearLastSelectedPaymentMethod`;
   handler: SubscriptionController['clearLastSelectedPaymentMethod'];
+};
+
+/**
+ * Sets whether `SubscriptionDelegationService` is retrying a stuck Money
+ * Account Plus charge.
+ *
+ * @param isChargeRetryInProgress - Whether the charge retry is in progress.
+ */
+export type SubscriptionControllerSetChargeRetryInProgressAction = {
+  type: `SubscriptionController:setChargeRetryInProgress`;
+  handler: SubscriptionController['setChargeRetryInProgress'];
 };
 
 /**
@@ -338,9 +364,11 @@ export type SubscriptionControllerMethodActions =
   | SubscriptionControllerSubmitSubscriptionCryptoApprovalAction
   | SubscriptionControllerGetCryptoApproveTransactionParamsAction
   | SubscriptionControllerUpdatePaymentMethodAction
+  | SubscriptionControllerRetryCryptoChargeAction
   | SubscriptionControllerGetBillingPortalUrlAction
   | SubscriptionControllerCacheLastSelectedPaymentMethodAction
   | SubscriptionControllerClearLastSelectedPaymentMethodAction
+  | SubscriptionControllerSetChargeRetryInProgressAction
   | SubscriptionControllerSubmitSponsorshipIntentsAction
   | SubscriptionControllerSubmitUserEventAction
   | SubscriptionControllerAssignUserToCohortAction
