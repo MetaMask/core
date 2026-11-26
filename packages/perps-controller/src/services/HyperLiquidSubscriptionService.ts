@@ -5964,8 +5964,9 @@ export class HyperLiquidSubscriptionService {
     for (const dex of [...this.#marketChangeDexs]) {
       if (!dexs.includes(dex)) {
         this.#marketChangeDexs.delete(dex);
-        // Its feed opened, so the last hold closes it; a failed open below
-        // has nothing to close and only drops its count.
+        // The hold was counted before its feed's open, which may still be
+        // pending: this drops the hold and closes an installed feed once no
+        // one else holds it (a failed open below only drops the count).
         this.#cleanupAssetCtxsSubscription(dex);
       }
     }
