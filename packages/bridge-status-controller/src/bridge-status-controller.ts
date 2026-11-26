@@ -335,7 +335,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
         handler(params);
       },
-      (payload) => resolveHistoryKeyForTxMeta(payload, this.state.txHistory),
+      ({ transactionMeta }) =>
+        resolveHistoryKeyForTxMeta(transactionMeta, this.state.txHistory),
     );
 
     // Seed any missing quote-status entries from persisted history before

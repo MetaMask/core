@@ -1243,13 +1243,11 @@ describe('BridgeStatusController (target uncovered branches)', () => {
     failedCb(
       historyUtils.resolveHistoryKeyForTxMeta(
         {
-          transactionMeta: {
-            id: 'feat1',
-            type: TransactionType.bridge,
-            status: TransactionStatus.failed,
-            chainId: '0x1',
-          } as unknown as TransactionMeta,
-        },
+          id: 'feat1',
+          type: TransactionType.bridge,
+          status: TransactionStatus.failed,
+          chainId: '0x1',
+        } as unknown as TransactionMeta,
         controller.state.txHistory,
       ),
     );

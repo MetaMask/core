@@ -299,14 +299,18 @@ export const isBatchSellHistoryItem = (
 /**
  * Returns the history entry that matches the txMeta by id, actionId, batchId, or txHash
  *
- * @param txHistory - The transaction history
- * @param txMeta - The transaction meta
+ * @param params - The parameters for the function
+ * @param params.txHistory - The transaction history
+ * @param params.txMeta - The transaction meta
  * @returns The history entry that matches the txMeta
  */
-export const getMatchingHistoryEntryForTxMeta = (
-  txHistory: BridgeStatusControllerState['txHistory'],
-  txMeta: TransactionMeta,
-): [string, BridgeHistoryItem] | undefined => {
+export const getMatchingHistoryEntryForTxMeta = ({
+  txHistory,
+  txMeta,
+}: {
+  txHistory: BridgeStatusControllerState['txHistory'];
+  txMeta: TransactionMeta;
+}): [string, BridgeHistoryItem] | undefined => {
   const historyEntries = Object.entries(txHistory);
 
   return historyEntries.find(([key, historyItem]) => {
@@ -358,14 +362,18 @@ export const getMatchingHistoryEntryForTxMeta = (
 /**
  * Returns the history entry whose approvalTxId matches the approval transaction
  *
- * @param txHistory - The transaction history
- * @param txMeta - The transaction meta
+ * @param params - The parameters for the function
+ * @param params.txHistory - The transaction history
+ * @param params.txMeta - The transaction meta
  * @returns The history entry that matches the txMeta
  */
-export const getMatchingHistoryEntryForApprovalTxMeta = (
-  txHistory: BridgeStatusControllerState['txHistory'],
-  txMeta: TransactionMeta,
-): [string, BridgeHistoryItem] | undefined => {
+export const getMatchingHistoryEntryForApprovalTxMeta = ({
+  txHistory,
+  txMeta,
+}: {
+  txHistory: BridgeStatusControllerState['txHistory'];
+  txMeta: TransactionMeta;
+}): [string, BridgeHistoryItem] | undefined => {
   const historyEntries = Object.entries(txHistory);
 
   return historyEntries.find(([key, value]) => {
@@ -387,14 +395,18 @@ export const getMatchingHistoryEntryForApprovalTxMeta = (
 /**
  * Returns the history entry whose depositTxMeta matches the txMeta's batchId
  *
- * @param txHistory - The transaction history
- * @param txMeta - The transaction meta
+ * @param params - The parameters for the function
+ * @param params.txHistory - The transaction history
+ * @param params.txMeta - The transaction meta
  * @returns The history entry that matches the txMeta
  */
-const getMatchingHistoryItemForDepositTxMeta = (
-  txHistory: BridgeStatusControllerState['txHistory'],
-  txMeta: TransactionMeta,
-): [string, BridgeHistoryItem] | undefined => {
+const getMatchingHistoryItemForDepositTxMeta = ({
+  txHistory,
+  txMeta,
+}: {
+  txHistory: BridgeStatusControllerState['txHistory'];
+  txMeta: TransactionMeta;
+}): [string, BridgeHistoryItem] | undefined => {
   const historyEntries = Object.entries(txHistory);
 
   return historyEntries.find(([_, value]) => {
@@ -411,14 +423,18 @@ const getMatchingHistoryItemForDepositTxMeta = (
 /**
  * Returns the history entry whose withdrawTxMeta matches the txMeta's batchId
  *
- * @param txHistory - The transaction history
- * @param txMeta - The transaction meta
+ * @param params - The parameters for the function
+ * @param params.txHistory - The transaction history
+ * @param params.txMeta - The transaction meta
  * @returns The history entry that matches the txMeta
  */
-const getMatchingHistoryItemForWithdrawTxMeta = (
-  txHistory: BridgeStatusControllerState['txHistory'],
-  txMeta: TransactionMeta,
-): [string, BridgeHistoryItem] | undefined => {
+const getMatchingHistoryItemForWithdrawTxMeta = ({
+  txHistory,
+  txMeta,
+}: {
+  txHistory: BridgeStatusControllerState['txHistory'];
+  txMeta: TransactionMeta;
+}): [string, BridgeHistoryItem] | undefined => {
   const historyEntries = Object.entries(txHistory);
 
   return historyEntries.find(([_, value]) => {
@@ -433,20 +449,25 @@ const getMatchingHistoryItemForWithdrawTxMeta = (
 };
 
 export const resolveHistoryKeyForTxMeta = (
-  { transactionMeta }: { transactionMeta: TransactionMeta },
+  txMeta: TransactionMeta,
   txHistory: BridgeStatusControllerState['txHistory'],
-): { historyKey?: string; txMeta: TransactionMeta } => ({
-  historyKey:
-    // Match swap/bridge/batch src tx
-    (getMatchingHistoryEntryForTxMeta(txHistory, transactionMeta) ??
-      // Match approval tx
-      getMatchingHistoryEntryForApprovalTxMeta(txHistory, transactionMeta) ??
-      // Match deposit tx
-      getMatchingHistoryItemForDepositTxMeta(txHistory, transactionMeta) ??
-      // Match withdrawal tx
-      getMatchingHistoryItemForWithdrawTxMeta(txHistory, transactionMeta))?.[0],
-  txMeta: transactionMeta,
-});
+): { historyKey?: string; txMeta: TransactionMeta } => {
+  const params = { txHistory, txMeta };
+  const matchedBridge = getMatchingHistoryEntryForTxMeta(params);
+  const matchedApproval = getMatchingHistoryEntryForApprovalTxMeta(params);
+  const matchedDeposit = getMatchingHistoryItemForDepositTxMeta(params);
+  const matchedWithdraw = getMatchingHistoryItemForWithdrawTxMeta(params);
+
+  return {
+    historyKey: (matchedDeposit ??
+      // Match swap/bridge/batch src tx
+      matchedBridge ??
+      // Match history item for approval tx
+      matchedApproval ??
+      matchedWithdraw)?.[0],
+    txMeta,
+  };
+};
 
 /**
  * Returns the BatchSell history items in the same batch as the provided tx hash.
