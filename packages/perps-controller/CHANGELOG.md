@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 1459.0.0 ([#11784](https://github.com/MetaMask/core/pull/11784))
+- Release 1455.0.0 ([#11761](https://github.com/MetaMask/core/pull/11761))
+
 ### Added
 
 - Export `PERPS_EVENT_VALUE.INTERACTION_TYPE.TRADE_ON_SHEET_OPENED` and `TRADE_ON_VENUE_CHANGED` for the Lite market page's per-order venue selector ([#11778](https://github.com/MetaMask/core/pull/11778))
