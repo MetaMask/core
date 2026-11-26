@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Add `MarketStatsService` to the default initialization configurations ([#11193](https://github.com/MetaMask/core/pull/11193))
+- Add `MarketStatsService` to the default initialization configurations ([#11193](https://github.com/MetaMask/core/pull/11193))
 
 ### Changed
 
