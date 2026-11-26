@@ -296,20 +296,23 @@ export class TokensController extends BaseController<
    * The selected account is read before this method settles. Token-list
    * enrichment runs in the background and is not awaited, so a slow or hung
    * token-list request does not keep this method from settling. Tokens remain
-   * usable when enrichment fails. Calling it more than once has no effect.
+   * usable when enrichment fails. Calling it more than once has no effect. If
+   * reading the selected account throws, the error is rethrown and a later call
+   * retries.
    */
   async init(): Promise<void> {
     if (this.#initialized) {
       return;
     }
-    this.#initialized = true;
 
     if (this.#isDeprecated()) {
+      this.#initialized = true;
       this.#enforceDisabledState();
       return;
     }
 
     this.#selectedAccountId ??= this.#getSelectedAccount().id;
+    this.#initialized = true;
 
     // Fire-and-forget. This used to run from the constructor without being
     // awaited. Failures are swallowed; tokens stay usable without metadata.

@@ -3461,6 +3461,54 @@ describe('TokensController', () => {
       expect(fetchTokensByChainId).toHaveBeenCalledTimes(1);
     });
 
+    it('retries init when the selected account lookup throws the first time', async () => {
+      const fetchTokensByChainId = vi.fn().mockResolvedValue({});
+      const getSelectedAccount = vi
+        .fn()
+        .mockImplementationOnce(() => {
+          throw new Error('Accounts not ready');
+        })
+        .mockReturnValue(defaultMockInternalAccount);
+      const messenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+      const tokensControllerMessenger: TokensControllerMessenger =
+        new Messenger({ namespace: 'TokensController', parent: messenger });
+      messenger.delegate({
+        messenger: tokensControllerMessenger,
+        actions: ['AccountsController:getSelectedAccount'],
+      });
+      messenger.registerActionHandler(
+        'AccountsController:getSelectedAccount',
+        getSelectedAccount,
+      );
+      const controller = new TokensController({
+        messenger: tokensControllerMessenger,
+        state: {
+          allTokens: {
+            [ChainId.mainnet]: {
+              [defaultMockInternalAccount.address]: [
+                buildToken({ address: '0x01', symbol: 'bar', name: undefined }),
+              ],
+            },
+          },
+        },
+        tokenListService: {
+          fetchTokensByChainId,
+        } as unknown as import('./TokenListService.js').TokenListService,
+      });
+
+      await expect(controller.init()).rejects.toThrow('Accounts not ready');
+      expect(fetchTokensByChainId).not.toHaveBeenCalled();
+
+      await controller.init();
+      await controller.init();
+
+      expect(getSelectedAccount).toHaveBeenCalledTimes(2);
+      expect(fetchTokensByChainId).toHaveBeenCalledTimes(1);
+      expect(fetchTokensByChainId).toHaveBeenCalledWith(ChainId.mainnet);
+    });
+
     it('does not read the selected account or enrich tokens in init when isDeprecated() returns true', async () => {
       const fetchTokensByChainId = vi.fn().mockResolvedValue({});
       await withController(

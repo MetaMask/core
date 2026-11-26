@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `init` method to `TokensController`, `TokenBalancesController`, `TokenDetectionController`, `TokenRatesController`, `AccountTrackerController`, `NftController`, `NftDetectionController`, `AssetsContractController`, `MultichainBalancesController`, `MultichainAssetsRatesController`, `MultichainAssetsController` and `TokenListController` ([#11315](https://github.com/MetaMask/core/pull/11315))
-  - `init` reads the other controllers that the constructor used to read. Calling it more than once has no effect.
+  - `init` reads the other controllers that the constructor used to read. Calling it more than once has no effect. If `init` throws while reading the selected account (`TokensController`, `TokenDetectionController`, `NftController`), a later call retries.
   - `TokenListController.init` calls `initialize` after the token-list cache loads. A failed storage load is retried the next time `init` is called.
   - When `disabled` is omitted, `NftDetectionController.init` sets it from `!PreferencesController:getState().useNftDetection`. `detectNfts` reads that preference again if the first read failed.
   - `NftController.init` reads `ipfsGateway`, `isIpfsGatewayEnabled`, and `displayNftMedia` (`openSeaEnabled` is treated as `displayNftMedia`) when those options were not passed to the constructor.

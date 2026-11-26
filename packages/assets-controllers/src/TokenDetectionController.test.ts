@@ -289,6 +289,44 @@ describe('TokenDetectionController construction and init', () => {
     expect(getPreferencesState).toHaveBeenCalledTimes(1);
   });
 
+  it('retries init when the selected account lookup throws the first time', () => {
+    const rootMessenger = buildRootMessenger();
+    const getSelectedAccount = vi
+      .fn()
+      .mockImplementationOnce(() => {
+        throw new Error('Accounts not ready');
+      })
+      .mockReturnValue(createMockInternalAccount());
+    rootMessenger.registerActionHandler(
+      'AccountsController:getSelectedAccount',
+      getSelectedAccount,
+    );
+    rootMessenger.registerActionHandler('KeyringController:getState', () => ({
+      isUnlocked: true,
+      keyrings: [],
+    }));
+    const getPreferencesState = vi
+      .fn()
+      .mockReturnValue(getDefaultPreferencesState());
+    rootMessenger.registerActionHandler(
+      'PreferencesController:getState',
+      getPreferencesState,
+    );
+    const controller = buildController(
+      buildTokenDetectionControllerMessenger(rootMessenger),
+    );
+
+    expect(() => controller.init()).toThrow('Accounts not ready');
+    expect(controller.isActive).toBe(false);
+
+    controller.init();
+    controller.init();
+
+    expect(controller.isActive).toBe(true);
+    expect(getSelectedAccount).toHaveBeenCalledTimes(2);
+    expect(getPreferencesState).toHaveBeenCalledTimes(1);
+  });
+
   it('uses the selected account address before init is called', async () => {
     const rootMessenger = buildRootMessenger();
     const getSelectedAccount = vi

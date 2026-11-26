@@ -312,15 +312,16 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * stays unset. Detection reads it again the next time it runs, and while the
    * controller is still unavailable non-mainnet chains are skipped and mainnet
    * uses the static token list. `PreferencesController:stateChange` also updates
-   * the preference. Calling this more than once has no effect.
+   * the preference. Calling this more than once has no effect. If reading the
+   * selected account throws, the error is rethrown and a later call retries.
    */
   init(): void {
     if (this.#initialized) {
       return;
     }
-    this.#initialized = true;
 
     this.#selectedAccountId ??= this.#getSelectedAccount().id;
+    this.#initialized = true;
 
     const { isUnlocked } = this.messenger.call('KeyringController:getState');
     this.#isUnlocked = isUnlocked;
