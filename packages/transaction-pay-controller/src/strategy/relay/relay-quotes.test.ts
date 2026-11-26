@@ -398,7 +398,7 @@ describe('Relay Quotes Utils', () => {
       );
 
       expect(body.originGasOverhead).toBeUndefined();
-      expect(body.metamask).toBeUndefined();
+      expect(body.metamask).toStrictEqual({ executeVersion: 2 });
     });
 
     it('includes originGasOverhead when relay execute is enabled on EIP-7702 chain', async () => {
@@ -788,6 +788,7 @@ describe('Relay Quotes Utils', () => {
         amount: QUOTE_REQUEST_MOCK.sourceTokenAmount,
         destinationChainId: 2,
         destinationCurrency: QUOTE_REQUEST_MOCK.targetTokenAddress,
+        metamask: { executeVersion: 2 },
         originChainId: 1,
         originCurrency: SOURCE_TOKEN_ADDRESS_MOCK,
         recipient: QUOTE_REQUEST_MOCK.from,
