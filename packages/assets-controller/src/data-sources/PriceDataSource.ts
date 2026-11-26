@@ -25,6 +25,14 @@ import {
 import { fetchWithTimeout } from '../utils/index.js';
 import type { SubscriptionRequest } from './AbstractDataSource.js';
 import { reduceInBatchesSerially } from './evm-rpc-services/index.js';
+import type {
+  MarketStatsPriceStreamMessenger,
+  StreamCandidate,
+} from './MarketStatsPriceStream.js';
+import {
+  MarketStatsPriceStream,
+  readSpotPriceStreamEligibility,
+} from './MarketStatsPriceStream.js';
 
 // ============================================================================
 // CONSTANTS
@@ -101,6 +109,8 @@ export type PriceDataSourceConfig = {
   priceFreshnessTtlMs?: number;
 };
 
+export type { MarketStatsPriceStreamMessenger } from './MarketStatsPriceStream.js';
+
 export type PriceDataSourceOptions = PriceDataSourceConfig & {
   /** ApiPlatformClient for API calls with caching */
   queryApiClient: ApiPlatformClient;
@@ -108,6 +118,12 @@ export type PriceDataSourceOptions = PriceDataSourceConfig & {
   getSelectedCurrency: () => SupportedCurrency;
   /** Current AssetsController state. Used for balance-based pricing and freshness checks. */
   getAssetsState: () => AssetsControllerState;
+  /**
+   * Messenger that can call MarketStatsService. When the service is registered,
+   * assets with `wssSupport` stream as well as polling. When it is not
+   * registered, every asset stays on the poll.
+   */
+  messenger: MarketStatsPriceStreamMessenger;
 };
 
 // ============================================================================
@@ -151,8 +167,13 @@ function isValidMarketData(data: unknown): data is SpotPriceMarketData {
  * - Fetches prices from Price API v3 spot-prices endpoint
  * - Supports one-time fetch and subscription-based polling
  * - In subscribe mode, uses constructor `getAssetsState` to read assetsBalance and fetch prices
+ * - Streams the same assets the price poll tracks, when the spot-price
+ *   response marks them `wssSupport: true`, on market-stats.v1. The poll
+ *   itself is the same as before: every tracked asset, on the same interval.
+ *   Socket ticks are not written into controller state. The UI reads
+ *   `MarketStatsService:pricesUpdated`.
  *
- * Usage: Create with queryApiClient and getAssetsState; subscribe() polls prices for held assets.
+ * Usage: Create with queryApiClient, messenger, and getAssetsState; subscribe() polls prices for held assets.
  */
 export class PriceDataSource {
   static readonly controllerName = CONTROLLER_NAME;
@@ -180,15 +201,17 @@ export class PriceDataSource {
 
   readonly #getAssetsState: () => AssetsControllerState;
 
-  /** Active subscriptions by ID */
-  readonly #activeSubscriptions: Map<
-    string,
-    {
-      cleanup: () => void;
-      request: DataRequest;
-      onAssetsUpdate: (response: DataResponse) => void | Promise<void>;
-    }
-  > = new Map();
+  readonly #marketStats: MarketStatsPriceStream;
+
+  /** The reconcile run in flight, shared by callers that overlap it. */
+  #reconcileInFlight: Promise<void> | null = null;
+
+  /** The one price poll. The controller keeps a single PriceDataSource subscription. */
+  #subscription: {
+    cleanup: () => void;
+    request: DataRequest;
+    onAssetsUpdate: (response: DataResponse) => void | Promise<void>;
+  } | null = null;
 
   constructor(options: PriceDataSourceOptions) {
     this.#getSelectedCurrency = options.getSelectedCurrency;
@@ -196,6 +219,10 @@ export class PriceDataSource {
     this.#apiClient = options.queryApiClient;
     this.#fetchTimeoutMs = options.fetchTimeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
     this.#getAssetsState = options.getAssetsState;
+    this.#marketStats = new MarketStatsPriceStream({
+      messenger: options.messenger,
+      getSelectedCurrency: (): SupportedCurrency => this.#getSelectedCurrency(),
+    });
     this.#deduper = new DedupingBatchFetcher({
       fetchBatch: (
         assetIds,
@@ -297,6 +324,7 @@ export class PriceDataSource {
           this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
             currency: selectedCurrency,
             includeMarketData: true,
+            includeWssSupportField: true,
           }),
         this.#fetchTimeoutMs,
       );
@@ -309,6 +337,7 @@ export class PriceDataSource {
           this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
             currency: selectedCurrency,
             includeMarketData: true,
+            includeWssSupportField: true,
           }),
         this.#fetchTimeoutMs,
       ),
@@ -317,6 +346,7 @@ export class PriceDataSource {
           this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
             currency: 'usd',
             includeMarketData: true,
+            includeWssSupportField: true,
           }),
         this.#fetchTimeoutMs,
       ),
@@ -488,18 +518,27 @@ export class PriceDataSource {
    * @returns DataResponse containing asset prices.
    */
   async fetch(request: DataRequest): Promise<DataResponse> {
-    const response: DataResponse = {};
-
     const assetIds = await this.#filterToSupportedPriceableAssets(
       this.#getAssetIdsFromBalanceState(request),
     );
+    return this.#fetchAssetIdList(assetIds);
+  }
+
+  /**
+   * Fetch spot prices for an explicit id list. Empty when there is nothing to
+   * price or the Price API call fails.
+   *
+   * @param assetIds - CAIP-19 asset IDs already filtered to priceable assets.
+   * @returns DataResponse containing asset prices.
+   */
+  async #fetchAssetIdList(assetIds: Caip19AssetId[]): Promise<DataResponse> {
+    const response: DataResponse = {};
     if (assetIds.length === 0) {
       return response;
     }
 
     try {
       const spotPrices = await this.#fetchSpotPrices(assetIds);
-
       response.assetsPrice = {
         ...(response.assetsPrice ?? {}),
         ...spotPrices,
@@ -517,116 +556,93 @@ export class PriceDataSource {
 
   /**
    * Subscribe to price updates.
-   * Sets up polling that fetches prices for all assets in assetsBalance state.
+   * Polls the Price API, and streams assets that support market-stats.v1.
    *
    * @param subscriptionRequest - The subscription request configuration.
    */
   async subscribe(subscriptionRequest: SubscriptionRequest): Promise<void> {
-    const { request, subscriptionId, isUpdate } = subscriptionRequest;
+    const { request, onAssetsUpdate } = subscriptionRequest;
 
-    // Handle subscription update: refresh request and fetch immediately so
-    // newly held / still-unpriced assets (e.g. seeded natives) do not wait
-    // for the next poll tick. Deduper freshness TTL skips recently priced IDs.
-    if (isUpdate) {
-      const existing = this.#activeSubscriptions.get(subscriptionId);
-      if (existing) {
-        existing.request = request;
-        existing.onAssetsUpdate = subscriptionRequest.onAssetsUpdate;
+    if (this.#subscription) {
+      // Keep the interval. Refresh the request and fetch now so newly held
+      // assets do not wait for the next tick.
+      this.#subscription.request = request;
+      this.#subscription.onAssetsUpdate = onAssetsUpdate;
+    } else {
+      const pollInterval = request.updateInterval ?? this.#pollInterval;
 
-        try {
-          const fetchResponse = await this.fetch(request);
-          if (
-            fetchResponse.assetsPrice &&
-            Object.keys(fetchResponse.assetsPrice).length > 0
-          ) {
-            await existing.onAssetsUpdate({
-              ...fetchResponse,
-              updateMode: 'merge',
-            });
-          }
-        } catch (error) {
-          log('Subscription update fetch failed', { subscriptionId, error });
-        }
-        return;
-      }
+      // Cap the freshness TTL strictly below the effective poll interval.
+      // `fetchedAt` is stamped when a fetch completes (slightly after the tick
+      // that triggered it), so a TTL equal to the poll interval would leave the
+      // asset still "fresh" at the next tick, making the subscription re-fetch
+      // only every other poll. The margin also absorbs network latency / jitter.
+      this.#deduper.freshnessTtlMs = Math.min(
+        this.#deduper.freshnessTtlMs,
+        Math.floor(pollInterval * FRESHNESS_TTL_POLL_RATIO),
+      );
+
+      const timer = setInterval(() => {
+        this.#runPoll().catch((error: unknown) => {
+          log('Subscription poll failed', { error });
+        });
+      }, pollInterval);
+
+      this.#subscription = {
+        cleanup: (): void => {
+          clearInterval(timer);
+        },
+        request,
+        onAssetsUpdate,
+      };
     }
 
-    // Clean up existing subscription
-    await this.unsubscribe(subscriptionId);
-
-    const pollInterval = request.updateInterval ?? this.#pollInterval;
-
-    // Cap the freshness TTL strictly below the effective poll interval.
-    // `fetchedAt` is stamped when a fetch completes (slightly after the tick
-    // that triggered it), so a TTL equal to the poll interval would leave the
-    // asset still "fresh" at the next tick, making the subscription re-fetch
-    // only every other poll. The margin also absorbs network latency / jitter.
-    this.#deduper.freshnessTtlMs = Math.min(
-      this.#deduper.freshnessTtlMs,
-      Math.floor(pollInterval * FRESHNESS_TTL_POLL_RATIO),
-    );
-
-    // Create poll function - fetches prices using constructor getAssetsState.
-    // The freshness TTL naturally gates re-fetches: assets fetched less than
-    // `priceFreshnessTtlMs` ago are skipped, preventing duplicates when middleware
-    // or other triggers already fetched the same assets between polls.
-    // Concurrent middleware calls will join the inflight promise rather than
-    // issuing duplicate requests.
-    const pollFn = async (): Promise<void> => {
-      try {
-        const subscription = this.#activeSubscriptions.get(subscriptionId);
-        if (!subscription) {
-          return;
-        }
-
-        const fetchResponse = await this.fetch(subscription.request);
-
-        // Only report if we got prices
-        if (
-          fetchResponse.assetsPrice &&
-          Object.keys(fetchResponse.assetsPrice).length > 0
-        ) {
-          await subscription.onAssetsUpdate({
-            ...fetchResponse,
-            // merge overwrites existing spot prices on each poll; update would
-            // seed-only and leave the first price forever.
-            updateMode: 'merge',
-          });
-        }
-      } catch (error) {
-        log('Subscription poll failed', { subscriptionId, error });
-      }
-    };
-
-    // Set up polling
-    const timer = setInterval(() => {
-      pollFn().catch(console.error);
-    }, pollInterval);
-
-    // Store subscription
-    this.#activeSubscriptions.set(subscriptionId, {
-      cleanup: () => {
-        clearInterval(timer);
-      },
-      request,
-      onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
-    });
-
-    // Initial fetch
-    await pollFn();
+    await this.#runPoll();
   }
 
   /**
-   * Unsubscribe from price updates.
+   * Stop the price poll and release market-stats channels.
    *
-   * @param subscriptionId - The ID of the subscription to cancel.
+   * @param _subscriptionId - Ignored. The controller passes its subscription key.
    */
-  async unsubscribe(subscriptionId: string): Promise<void> {
-    const subscription = this.#activeSubscriptions.get(subscriptionId);
-    if (subscription) {
-      subscription.cleanup();
-      this.#activeSubscriptions.delete(subscriptionId);
+  async unsubscribe(_subscriptionId?: string): Promise<void> {
+    if (!this.#subscription) {
+      return;
     }
+
+    this.#subscription.cleanup();
+    this.#subscription = null;
+    await this.#marketStats.releaseSubscriptions();
+  }
+
+  /**
+   * Drop market-stats channels and open them again for the current currency.
+   * Called when the selected currency changes so batches match `assetsPrice`.
+   */
+  async resubscribeForCurrencyChange(): Promise<void> {
+    if (!this.#subscription) {
+      return;
+    }
+
+    // Let a run in flight finish first, so its subscribe cannot land after the
+    // release, and the fresh run below reads the new currency.
+    await this.#reconcileInFlight?.catch(() => undefined);
+    await this.#marketStats.releaseSubscriptions();
+    await this.#reconcileMarketStats();
+  }
+
+  /**
+   * Align market-stats channels with the price-fetch set and the `wssSupport`
+   * already stored in `assetsPrice`.
+   *
+   * Called after the spot-price response is in `assetsPrice`. A balance
+   * update reconciles from `AssetsController` once that write has landed.
+   * The price poll reconciles at the end of its own tick.
+   */
+  async reconcileMarketStreams(): Promise<void> {
+    if (!this.#subscription) {
+      return;
+    }
+    await this.#reconcileMarketStats();
   }
 
   /**
@@ -642,10 +658,72 @@ export class PriceDataSource {
    * Destroy the data source and clean up all subscriptions.
    */
   destroy(): void {
-    for (const subscription of this.#activeSubscriptions.values()) {
-      subscription.cleanup();
-    }
-    this.#activeSubscriptions.clear();
+    this.#subscription?.cleanup();
+    this.#subscription = null;
+    this.#marketStats.destroy();
     this.#deduper.destroy();
+  }
+
+  /**
+   * One poll tick: REST-fetch every tracked asset, then open market-stats
+   * channels for assets the response marks `wssSupport`.
+   */
+  async #runPoll(): Promise<void> {
+    const subscription = this.#subscription;
+    if (!subscription) {
+      return;
+    }
+
+    try {
+      const fetchResponse = await this.fetch(subscription.request);
+      if (
+        fetchResponse.assetsPrice &&
+        Object.keys(fetchResponse.assetsPrice).length > 0
+      ) {
+        await subscription.onAssetsUpdate({
+          ...fetchResponse,
+          updateMode: 'merge',
+        });
+      }
+
+      await this.#reconcileMarketStats();
+    } catch (error) {
+      log('Subscription poll failed', { error });
+    }
+  }
+
+  /**
+   * Reconcile the market-stats channels. A call made while a run is in flight
+   * shares that run. Assets added meanwhile wait for the next poll tick.
+   *
+   * @returns A promise that settles when the run does.
+   */
+  #reconcileMarketStats(): Promise<void> {
+    this.#reconcileInFlight ??= this.#runReconcile().finally(() => {
+      this.#reconcileInFlight = null;
+    });
+    return this.#reconcileInFlight;
+  }
+
+  async #runReconcile(): Promise<void> {
+    const subscription = this.#subscription;
+    if (!subscription) {
+      return;
+    }
+
+    const assetIds = await this.#filterToSupportedPriceableAssets(
+      this.#getAssetIdsFromBalanceState(subscription.request),
+    );
+    await this.#marketStats.reconcile(this.#candidatesFor(assetIds));
+  }
+
+  #candidatesFor(assetIds: Caip19AssetId[]): StreamCandidate[] {
+    const prices = this.#getAssetsState().assetsPrice ?? {};
+    return assetIds.map((assetId) => ({
+      assetId,
+      wssSupport:
+        prices[assetId] !== undefined &&
+        readSpotPriceStreamEligibility(prices[assetId]),
+    }));
   }
 }

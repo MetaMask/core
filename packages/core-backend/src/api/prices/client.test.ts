@@ -179,6 +179,8 @@ describe('PricesApiClient', () => {
         expect.stringContaining('/v3/spot-prices'),
         expect.any(Object),
       );
+      const calledUrl = mockFetch.mock.calls[0]?.[0] as string;
+      expect(calledUrl).toContain('includeWssSupportField=true');
     });
 
     it('returns empty object for empty assetIds array in v3 spot prices', async () => {
