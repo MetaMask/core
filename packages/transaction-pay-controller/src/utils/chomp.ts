@@ -2,7 +2,12 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { CHAIN_ID_MONAD, MUSD_MONAD_ADDRESS } from '../constants.js';
+import {
+  CHAIN_ID_MONAD,
+  CHOMP_WAIT_INTERVAL_MS,
+  CHOMP_WAIT_TIMEOUT_MS,
+  MUSD_MONAD_ADDRESS,
+} from '../constants.js';
 import { projectLogger } from '../logger.js';
 import { isMoneyAccountDepositTransaction } from '../strategy/fiat/utils.js';
 import type { TransactionPayControllerMessenger } from '../types.js';
@@ -160,6 +165,76 @@ export async function withChompRecovery(
     }
 
     throw prefixError(error, VAULT_ERROR_PREFIX);
+  }
+}
+
+/**
+ * Waits for CHOMP to vault a settled Money Account deposit after call resolution fails.
+ *
+ * @param options - The settled deposit to watch for.
+ * @param options.from - Money Account that received the settlement.
+ * @param options.fromBlock - Block at or after which the funds settled.
+ * @param options.messenger - Controller messenger.
+ * @param options.sourceAmountRaw - Settled amount in raw units.
+ * @param options.transaction - Parent transaction meta.
+ * @returns The CHOMP transaction hash, if found before the deadline.
+ */
+export async function waitForChompDeposit({
+  from,
+  fromBlock,
+  messenger,
+  sourceAmountRaw,
+  transaction,
+}: {
+  from: Hex;
+  fromBlock?: Hex;
+  messenger: TransactionPayControllerMessenger;
+  sourceAmountRaw: string;
+  transaction: TransactionMeta;
+}): Promise<Hex | undefined> {
+  if (!isMoneyAccountDepositTransaction(transaction) || !fromBlock) {
+    return undefined;
+  }
+
+  const deadline = Date.now() + CHOMP_WAIT_TIMEOUT_MS;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<undefined>((resolve) => {
+    timer = setTimeout(resolve, CHOMP_WAIT_TIMEOUT_MS, undefined);
+  });
+
+  try {
+    while (Date.now() < deadline) {
+      const hash = await Promise.race([
+        timeout,
+        tryFindChompDeposit({
+          fromBlock,
+          messenger,
+          moneyAccountAddress: from,
+          sourceAmountRaw,
+          transactionId: transaction.id,
+        }),
+      ]);
+      if (Date.now() >= deadline) {
+        return undefined;
+      }
+      if (hash) {
+        log('CHOMP vaulted the funds after call resolution failed', {
+          chompHash: hash,
+          transactionId: transaction.id,
+        });
+        return hash;
+      }
+
+      if (deadline - Date.now() <= CHOMP_WAIT_INTERVAL_MS) {
+        return await timeout;
+      }
+      await new Promise((resolve) =>
+        setTimeout(resolve, CHOMP_WAIT_INTERVAL_MS),
+      );
+    }
+    return undefined;
+  } finally {
+    clearTimeout(timer);
   }
 }
 

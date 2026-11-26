@@ -6,7 +6,11 @@ import type { Mock } from 'vitest';
 
 import { CHAIN_ID_MONAD, MUSD_MONAD_ADDRESS } from '../constants.js';
 import type { TransactionPayControllerMessenger } from '../types.js';
-import { findRecentChompVaultDeposit, withChompRecovery } from './chomp.js';
+import {
+  findRecentChompVaultDeposit,
+  waitForChompDeposit,
+  withChompRecovery,
+} from './chomp.js';
 import { rpcRequest } from './provider.js';
 
 vi.mock(import('./provider.js'));
@@ -221,6 +225,103 @@ describe('chomp', () => {
 
       expect(result).toBeUndefined();
     });
+  });
+
+  describe('waitForChompDeposit', () => {
+    const options = {
+      from: MONEY_ACCOUNT_ADDRESS,
+      fromBlock: FROM_BLOCK,
+      messenger: buildMessenger(),
+      sourceAmountRaw: SOURCE_AMOUNT_RAW,
+      transaction: MONEY_ACCOUNT_DEPOSIT,
+    };
+
+    beforeEach(() => {
+      rpcRequestMock.mockReset();
+    });
+
+    it.each([{ fromBlock: undefined }, { transaction: OTHER_TRANSACTION }])(
+      'skips polling when prerequisites are missing: %j',
+      async (override) => {
+        expect(
+          await waitForChompDeposit({ ...options, ...override }),
+        ).toBeUndefined();
+        expect(rpcRequestMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it('ignores a match received at the deadline before the timeout callback runs', async () => {
+      vi.useFakeTimers();
+      try {
+        const start = Date.now();
+        rpcRequestMock.mockImplementationOnce(async () => {
+          vi.setSystemTime(start + 60_000);
+          return [buildMusdTransferLog()];
+        });
+
+        expect(await waitForChompDeposit(options)).toBeUndefined();
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('returns an existing deposit without waiting for the first interval', async () => {
+      rpcRequestMock.mockResolvedValueOnce([buildMusdTransferLog()]);
+
+      expect(await waitForChompDeposit(options)).toBe(CHOMP_TX_HASH);
+      expect(rpcRequestMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('finds a deposit on the next poll after an RPC error', async () => {
+      vi.useFakeTimers();
+      try {
+        rpcRequestMock.mockRejectedValueOnce(new Error('RPC unavailable'));
+        rpcRequestMock.mockResolvedValueOnce([buildMusdTransferLog()]);
+
+        const result = waitForChompDeposit(options);
+        expect(rpcRequestMock).toHaveBeenCalledTimes(1);
+        await vi.advanceTimersByTimeAsync(4_999);
+        expect(rpcRequestMock).toHaveBeenCalledTimes(1);
+        await vi.advanceTimersByTimeAsync(1);
+        expect(await result).toBe(CHOMP_TX_HASH);
+        expect(rpcRequestMock).toHaveBeenCalledTimes(2);
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it.each([
+      { name: 'empty', reply: async (): Promise<[]> => [], count: 12 },
+      {
+        name: 'stalled',
+        reply: async (): Promise<never> => await new Promise(() => undefined),
+        count: 1,
+      },
+    ])(
+      'stops after 60 seconds when the RPC is $name',
+      async ({ reply, count }) => {
+        vi.useFakeTimers();
+        try {
+          rpcRequestMock.mockImplementation(reply);
+          const settled = vi.fn();
+          const result = waitForChompDeposit(options).then(settled);
+
+          await vi.advanceTimersByTimeAsync(59_999);
+          expect(settled).not.toHaveBeenCalled();
+          expect(rpcRequestMock).toHaveBeenCalledTimes(count);
+          await vi.advanceTimersByTimeAsync(1);
+          await result;
+          expect(settled).toHaveBeenCalledExactlyOnceWith(undefined);
+          await vi.advanceTimersByTimeAsync(5_000);
+          expect(rpcRequestMock).toHaveBeenCalledTimes(count);
+          expect(vi.getTimerCount()).toBe(0);
+        } finally {
+          vi.useRealTimers();
+        }
+      },
+    );
   });
 
   describe('withChompRecovery', () => {

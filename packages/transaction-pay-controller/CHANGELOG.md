@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add the optional `secondLeg` flag to `GetAmountDataRequest`, set only when encoding calls for the settled amount in the non-atomic second leg ([PR pending](https://github.com/MetaMask/core/pulls)).
+
+### Changed
+
+- If building second-leg calls for a Money Account deposit fails, wait up to 60 seconds for a CHOMP vault deposit and return its transaction hash if found ([PR pending](https://github.com/MetaMask/core/pulls)).
+
 ## [33.2.0]
 
 ### Changed

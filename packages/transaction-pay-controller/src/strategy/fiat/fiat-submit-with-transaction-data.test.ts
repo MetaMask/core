@@ -299,7 +299,7 @@ describe('submitWithCalldataReEncoding', () => {
 
     expect(callMock).toHaveBeenCalledWith(
       'TransactionPayController:getAmountData',
-      expect.objectContaining({ amount: '12268041' }),
+      { amount: '12268041', transaction: TRANSACTION_MOCK },
     );
   });
 

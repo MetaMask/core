@@ -211,6 +211,12 @@ export type GetAmountDataRequest = {
   /** Raw token amount (atomic units) to encode into calldata. */
   amount: string;
 
+  /**
+   * True only when called from the non-atomic second leg with the settled
+   * amount, after funds landed on the account that submits the calls.
+   */
+  secondLeg?: boolean;
+
   /** Metadata of the transaction whose nested calls need updating. */
   transaction: TransactionMeta;
 };
