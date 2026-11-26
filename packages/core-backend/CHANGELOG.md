@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [15.0.0]
 
-### Uncategorized
-
-- chore: add vite as a devDependency to packages using vitest ([#11661](https://github.com/MetaMask/core/pull/11661))
-- chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
-
 ### Added
 
 - Add `MarketStatsService` for real-time spot prices over the shared backend WebSocket. `subscribe` and `unsubscribe` take one `{ assetId, currency }` or a list, and a required `caller` name. `subscribe` makes that caller's channels exactly the list it passes, and `unsubscribe` removes the caller from the listed channels. A channel stays open while any caller wants it. `getSubscriptions` returns the open channels and `getChainStatuses` returns chain health. Price batches, closed channels, and open channels on a chain reported down are published as `MarketStatsService:pricesUpdated` ([#11193](https://github.com/MetaMask/core/pull/11193))

@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [84.0.1]
 
+### Changed
+
+- Bump `@metamask/assets-controller` from `^21.0.0` to `^22.0.0`
+- Bump `@metamask/assets-controllers` from `^113.3.3` to `^113.3.4`
+- Bump `@metamask/transaction-controller` from `^74.4.1` to `^74.5.0`
+
 ## [84.0.0]
 
 ### Added

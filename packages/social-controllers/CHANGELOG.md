@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.24.1]
 
-### Uncategorized
+### Changed
 
-- feat(assets-controller): add real time market stats ([#11193](https://github.com/MetaMask/core/pull/11193))
+- Bump `@metamask/core-backend` from `^14.1.0` to `^15.0.0`
 
 ## [3.24.0]
 

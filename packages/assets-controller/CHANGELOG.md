@@ -9,13 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [22.0.0]
 
-### Uncategorized
-
-- chore: add vite as a devDependency to packages using vitest ([#11661](https://github.com/MetaMask/core/pull/11661))
-- Revert "Release 1441.0.0 (#11653)" ([#11665](https://github.com/MetaMask/core/pull/11665))
-- chore: pin nock to 15.0.5 to fix Node 22 test crash ([#11664](https://github.com/MetaMask/core/pull/11664))
-- Release 1441.0.0 ([#11653](https://github.com/MetaMask/core/pull/11653))
-
 ### Added
 
 - Poll `/v3/spot-prices` for every tracked asset, and also stream prices over `market-stats.v1` when the spot price reports `wssSupport`. An open channel does not take that asset off the poll. Without a registered `MarketStatsService`, every asset stays on the poll ([#11193](https://github.com/MetaMask/core/pull/11193))
