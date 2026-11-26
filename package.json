@@ -110,6 +110,7 @@
     "oxlint": "^1.85.0",
     "oxlint-tsgolint": "^7.0.2002",
     "prettier": "^3.10.1",
+    "resolve-pkg-maps": "^1.0.0",
     "rimraf": "^6.1.4",
     "semver": "^7.8.6",
     "simple-git-hooks": "^2.14.0",

@@ -1,5 +1,8 @@
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
+import { resolveExports } from 'resolve-pkg-maps';
+import type { PathConditions } from 'resolve-pkg-maps';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 
@@ -12,7 +15,9 @@ const WORKSPACE_PACKAGES_DIRECTORY = path.join(
 
 /**
  * Find the directory that Node.js would resolve a package to when it is
- * imported from the given file, by walking up through `node_modules`.
+ * imported from the given file. This resolves the `package.json` of the
+ * package rather than the import itself, since the build output that the
+ * import points to does not exist when tests run.
  *
  * @param importer - The absolute path of the importing file.
  * @param packageName - The name of the imported package.
@@ -22,17 +27,56 @@ function findInstalledPackage(
   importer: string,
   packageName: string,
 ): string | undefined {
-  let directory = path.dirname(importer);
-  while (directory !== path.dirname(directory)) {
-    const candidate = path.join(directory, 'node_modules', packageName);
-    if (fs.existsSync(candidate)) {
-      return fs.realpathSync(candidate);
-    }
+  try {
+    return path.dirname(
+      createRequire(importer).resolve(`${packageName}/package.json`),
+    );
+  } catch {
+    return undefined;
+  }
+}
 
-    directory = path.dirname(directory);
+/**
+ * Find the source file of a workspace package export, by resolving the subpath
+ * against the `exports` field of the package, and mapping the build output
+ * path back to its source path.
+ *
+ * @param packageDirectory - The directory of the workspace package.
+ * @param subpath - The subpath of the export without a leading `./`, e.g.,
+ * `sha`, or an empty string for the main export.
+ * @returns The path of the source file, or `undefined`.
+ */
+function findExportSource(
+  packageDirectory: string,
+  subpath: string,
+): string | null {
+  const manifest: { exports?: PathConditions } = JSON.parse(
+    fs.readFileSync(path.join(packageDirectory, 'package.json'), 'utf8'),
+  );
+
+  if (!manifest.exports) {
+    return null;
   }
 
-  return undefined;
+  let target: string | null;
+  try {
+    [target] = resolveExports(manifest.exports, subpath, ['import']);
+  } catch {
+    // The subpath is not exported by the package.
+    return null;
+  }
+
+  if (!target?.startsWith('./dist/') || !target.endsWith('.js')) {
+    return null;
+  }
+
+  const source = path.join(
+    packageDirectory,
+    'src',
+    `${target.slice('./dist/'.length, -'.js'.length)}.ts`,
+  );
+
+  return fs.existsSync(source) ? source : null;
 }
 
 /**
@@ -45,11 +89,13 @@ const workspacePackageSources: Plugin = {
   name: 'workspace-package-sources',
   enforce: 'pre',
   resolveId(source, importer) {
-    if (!importer || !/^@metamask\/[^/]+$/u.test(source)) {
+    const match = /^(@metamask\/[^/]+)(?:\/(.+))?$/u.exec(source);
+    if (!importer || !match) {
       return null;
     }
 
-    const installed = findInstalledPackage(importer.split('?')[0], source);
+    const [, packageName, subpath = ''] = match;
+    const installed = findInstalledPackage(importer.split('?')[0], packageName);
     if (
       installed === undefined ||
       path.dirname(installed) !== WORKSPACE_PACKAGES_DIRECTORY
@@ -57,8 +103,7 @@ const workspacePackageSources: Plugin = {
       return null;
     }
 
-    const entry = path.join(installed, 'src/index.ts');
-    return fs.existsSync(entry) ? entry : null;
+    return findExportSource(installed, subpath);
   },
 };
 
