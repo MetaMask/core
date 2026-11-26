@@ -401,6 +401,20 @@ export type SentinelGetFeesRequest = {
   transactions: SentinelSimulationTransaction[];
 };
 
+/** Request for a signature authorizing a vault deposit. */
+export type SentinelVaultWhitelistSignRequest = {
+  chainId: Hex;
+  sender: Hex;
+  recipient: Hex;
+  /** Raw token amount as a decimal string. */
+  amount: string;
+};
+
+/** The deposit signature and its Unix deadline, or an ineligible result. */
+export type SentinelVaultWhitelistSignResponse =
+  | { eligible: true; deadline: number; signature: Hex }
+  | { eligible: false };
+
 /**
  * A raw signed smart transaction and the metadata stored with it.
  */

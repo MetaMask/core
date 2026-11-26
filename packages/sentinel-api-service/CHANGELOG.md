@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `getVaultWhitelistSignature` and the `SentinelApiService:getVaultWhitelistSignature` messenger action to request a vault deposit signature or report subscriber ineligibility ([PR pending](https://github.com/MetaMask/core/pulls)).
+
 ### Changed
 
 - Bump `@tanstack/query-core` from `^5.103.2` to `^5.107.1` ([#11645](https://github.com/MetaMask/core/pull/11645))

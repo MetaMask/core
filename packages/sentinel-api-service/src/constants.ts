@@ -75,6 +75,12 @@ export const ENDPOINT_NETWORKS = 'networks';
  */
 export const ENDPOINT_SMART_TRANSACTIONS = 'smart-transactions';
 
+/** The REST path used to request a vault deposit signature. */
+export const ENDPOINT_VAULT_WHITELIST_SIGN = 'api/vault-whitelist-sign';
+
+/** Maximum time to wait for the vault signing HTTP request and response body. */
+export const VAULT_WHITELIST_SIGN_TIMEOUT_MS = 10_000;
+
 /**
  * How long the single network configuration (`/network`) response is
  * considered fresh. Set to `0` so every request refetches, since the response

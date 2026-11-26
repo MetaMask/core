@@ -10,12 +10,14 @@ import {
   ENDPOINT_NETWORK,
   ENDPOINT_NETWORKS,
   ENDPOINT_SMART_TRANSACTIONS,
+  ENDPOINT_VAULT_WHITELIST_SIGN,
   ENVIRONMENT_DOMAIN,
   NETWORK_STALE_TIME_MS,
   NETWORKS_STALE_TIME_MS,
   NETWORKS_SUBDOMAIN,
   RPC_METHOD_SEND_RELAY,
   RPC_METHOD_SIMULATE,
+  VAULT_WHITELIST_SIGN_TIMEOUT_MS,
   serviceName,
 } from './constants.js';
 import {
@@ -34,6 +36,7 @@ import {
   SentinelRelaySubmitResponseStruct,
   SentinelSimulationResponseStruct,
   SentinelSubmitTransactionsResponseStruct,
+  SentinelVaultWhitelistSignResponseStruct,
 } from './structs.js';
 import type {
   SentinelApiServiceMessenger,
@@ -57,6 +60,8 @@ import type {
   SentinelSmartTransactionResponse,
   SentinelSubmitTransactionsRequest,
   SentinelSubmitTransactionsResponse,
+  SentinelVaultWhitelistSignRequest,
+  SentinelVaultWhitelistSignResponse,
 } from './types.js';
 import { TRACES } from './types.js';
 
@@ -73,6 +78,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'submitRelayTransaction',
   'submitTransactions',
   'getSmartTransaction',
+  'getVaultWhitelistSignature',
 ] as const;
 
 /**
@@ -99,6 +105,8 @@ const MESSENGER_EXPOSED_METHODS = [
  * (`POST /v1/networks/{chainId}/cancel`). Not cached.
  * - {@link SentinelApiService.getBatchStatus} — smart-transaction status lookup
  * for several UUIDs (`GET /v1/networks/{chainId}/batchStatus`). Not cached.
+ * - {@link SentinelApiService.getVaultWhitelistSignature} — vault deposit signing
+ * (`POST /api/vault-whitelist-sign`). Not cached.
  *
  * Consumers derive higher-level concerns (whether a chain supports simulation
  * or relay, polling loops, etc.) from the raw endpoint responses.
@@ -549,6 +557,86 @@ export class SentinelApiService extends BaseDataService<
   }
 
   /**
+   * Requests a signature authorizing a vault deposit on the given chain.
+   *
+   * @param request - The chain, participants, and raw deposit amount.
+   * @returns The signature and deadline, or an ineligible result.
+   */
+  async getVaultWhitelistSignature(
+    request: SentinelVaultWhitelistSignRequest,
+  ): Promise<SentinelVaultWhitelistSignResponse> {
+    const { chainId, sender, recipient, amount } = request;
+    const network = await this.#getRegistryEntry(chainId);
+    if (!network) {
+      throw new SentinelChainNotSupportedError(chainId);
+    }
+
+    const url = `${this.#buildUrl(network.network)}${ENDPOINT_VAULT_WHITELIST_SIGN}`;
+    const result = await this.fetchQuery({
+      queryKey: [`${this.name}:getVaultWhitelistSignature`, request],
+      staleTime: 0,
+      queryFn: async (): Promise<SentinelVaultWhitelistSignResponse> => {
+        const headers = await this.#getHeaders();
+        const controller = new AbortController();
+        const timeout = setTimeout(
+          () => controller.abort(),
+          VAULT_WHITELIST_SIGN_TIMEOUT_MS,
+        );
+
+        try {
+          const response = await this.#fetch(url, {
+            method: 'POST',
+            headers: { ...headers, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sender, recipient, amount }),
+            signal: controller.signal,
+          });
+          const data = await readJsonBody(response, controller.signal);
+          if (!response.ok) {
+            if (
+              response.status === 403 &&
+              data &&
+              typeof data === 'object' &&
+              !Array.isArray(data) &&
+              data.error === 'neither sender nor recipient is a subscriber'
+            ) {
+              return { eligible: false };
+            }
+
+            const error = new HttpError(
+              response.status,
+              `Sentinel API: vault-whitelist-sign request failed with status '${response.status}'`,
+            );
+            if (data !== undefined) {
+              Object.assign(error, { data });
+            }
+            throw error;
+          }
+
+          const [error, payload] = validate(
+            data,
+            SentinelVaultWhitelistSignResponseStruct,
+          );
+          if (error) {
+            throw new SentinelApiResponseValidationError(
+              `Sentinel API: Malformed response from /api/vault-whitelist-sign endpoint: ${error.message}`,
+            );
+          }
+
+          return {
+            eligible: true,
+            deadline: payload.deadline,
+            signature: payload.signature,
+          };
+        } finally {
+          clearTimeout(timeout);
+        }
+      },
+    });
+
+    return result;
+  }
+
+  /**
    * Submits signed smart transactions via
    * `POST /v1/networks/{chainId}/submitTransactions`. Not cached.
    *
@@ -880,12 +968,19 @@ export class SentinelApiService extends BaseDataService<
  * not JSON, so a failed request can still surface its HTTP status.
  *
  * @param response - The response to read.
+ * @param signal - The signal used for the request, if any.
  * @returns The parsed JSON body, or undefined.
  */
-async function readJsonBody(response: Response): Promise<Json | undefined> {
+async function readJsonBody(
+  response: Response,
+  signal?: AbortSignal,
+): Promise<Json | undefined> {
   try {
     return (await response.json()) as Json;
-  } catch {
+  } catch (error) {
+    if (signal?.aborted) {
+      throw error;
+    }
     return undefined;
   }
 }
