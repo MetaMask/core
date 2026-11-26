@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/core-backend` from `^14.1.0` to `^15.0.0`
+- Bump `@metamask/core-backend` from `^14.1.0` to `^15.0.0` ([#11780](https://github.com/MetaMask/core/pull/11780))
 
 ## [3.24.0]
 
