@@ -11,6 +11,7 @@ import {
   isLighterSourceRequest,
   isLighterTransferStep,
   LighterNormalizer,
+  processLighterRequest,
 } from './lighter.js';
 import type { ServerLighterTransferStep, ServerStep } from './types.js';
 
@@ -58,6 +59,43 @@ describe('getLighterAccountIndex', () => {
     await expect(getLighterAccountIndex(L1_ADDRESS_MOCK)).rejects.toThrow(
       'No Lighter account found',
     );
+  });
+});
+
+describe('processLighterRequest', () => {
+  const request = (overrides: Partial<QuoteRequest>): QuoteRequest =>
+    overrides as QuoteRequest;
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockAccounts([{ account_type: 0, index: 770167 }]);
+  });
+
+  it('returns the account index as recipient for a deposit', async () => {
+    expect(
+      await processLighterRequest(
+        request({ paymentOverride: PaymentOverride.PerpsLighter }),
+        L1_ADDRESS_MOCK,
+      ),
+    ).toStrictEqual({ recipient: '770167' });
+  });
+
+  it('returns the declared asset and account index as source for a withdrawal', async () => {
+    expect(
+      await processLighterRequest(
+        request({ sourceAssetIdOverride: 'lighter:mainnet/perps:usdc' }),
+        L1_ADDRESS_MOCK,
+      ),
+    ).toStrictEqual({
+      source: { asset: 'lighter:mainnet/perps:usdc', sender: '770167' },
+    });
+  });
+
+  it('returns undefined and skips the lookup if the request does not involve Lighter', async () => {
+    expect(
+      await processLighterRequest(request({}), L1_ADDRESS_MOCK),
+    ).toBeUndefined();
+    expect(successfulFetch).not.toHaveBeenCalled();
   });
 });
 
