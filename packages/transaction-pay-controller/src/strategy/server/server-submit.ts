@@ -285,9 +285,10 @@ async function executeSingleServerQuote(
     await submitSignatureStep(step, quote.request.from, messenger);
   }
 
-  // A Lighter withdrawal is a transfer signed with the Lighter API key.
+  // A Lighter withdrawal is a transfer signed with the Lighter API key of the
+  // account that owns the Lighter balance, which is the payer.
   await submitLighterSteps({
-    eoa: transaction.txParams.from as Hex,
+    eoa: quote.request.from,
     messenger,
     quote: quote.original,
   });

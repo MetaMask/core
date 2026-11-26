@@ -6,6 +6,10 @@ import { createModuleLogger, parseCaipAssetType } from '@metamask/utils';
 
 import { PaymentOverride, TransactionPayStrategy } from '../constants.js';
 import { projectLogger } from '../logger.js';
+import {
+  isLighterAsset,
+  LIGHTER_USDC_STAND_IN_ASSET_ID,
+} from '../strategy/server/lighter.js';
 import type {
   EvmPaymentToken,
   QuoteRequest,
@@ -205,8 +209,12 @@ export async function updateQuotes(
   });
 
   try {
+    // A Lighter balance is held by the EVM account that owns the Lighter
+    // account, so it has no account of its own to resolve.
     const sourceAccount =
-      originalPaymentToken && isNonEvmPaymentToken(originalPaymentToken)
+      originalPaymentToken &&
+      isNonEvmPaymentToken(originalPaymentToken) &&
+      !isLighterAsset(originalPaymentToken.assetId)
         ? getAssetAccount(messenger, {
             accountOverride,
             assetId: originalPaymentToken.assetId,
@@ -657,7 +665,13 @@ function buildQuoteRequests({
     });
   }
 
-  const sourceAccountId = getCaipAccountId(paymentToken.assetId, sourceAddress);
+  // A Lighter balance is not an EVM asset, so the USDC that stands in for it
+  // is the source and the Lighter asset is declared as the override.
+  const isLighterSource = isLighterAsset(paymentToken.assetId);
+  const sourceAssetId = isLighterSource
+    ? LIGHTER_USDC_STAND_IN_ASSET_ID
+    : paymentToken.assetId;
+  const sourceAccountId = getCaipAccountId(sourceAssetId, sourceAddress);
 
   // Standard flow: source = paymentToken, target = required tokens
   const requests = (sourceAmounts ?? []).map((sourceAmount) => {
@@ -672,10 +686,14 @@ function buildQuoteRequests({
       paymentOverride,
       refundTo,
       sourceAccountId,
-      sourceAssetId: paymentToken.assetId,
+      sourceAssetId,
+      ...(isLighterSource
+        ? { sourceAssetIdOverride: paymentToken.assetId }
+        : {}),
       sourceBalanceRaw: paymentToken.balanceRaw,
       sourceTokenAmount: sourceAmount.sourceAmountRaw,
       targetAmountMinimum: token.allowUnderMinimum ? '0' : token.amountRaw,
+      ...(token.assetId ? { targetAssetIdOverride: token.assetId } : {}),
       targetChainId: token.chainId,
       targetTokenAddress: token.address,
     };
@@ -802,6 +820,11 @@ async function refreshPaymentTokenBalance({
 }): Promise<TransactionPaymentToken | undefined> {
   if (!paymentToken) {
     return undefined;
+  }
+
+  // The Lighter balance cannot be read here, so the client supplies it.
+  if (isLighterAsset(paymentToken.assetId)) {
+    return paymentToken;
   }
 
   if (sourceAccount) {

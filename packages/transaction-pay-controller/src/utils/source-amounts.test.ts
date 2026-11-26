@@ -263,6 +263,44 @@ describe('Source Amounts Utils', () => {
       expect(transactionData.sourceAmounts).toHaveLength(1);
     });
 
+    it('does not return empty array if payment token matches but the required token is a Lighter deposit target', () => {
+      const transactionData: TransactionData = {
+        isLoading: false,
+        paymentToken: PAYMENT_TOKEN_MOCK,
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            address: PAYMENT_TOKEN_ADDRESS_MOCK,
+            assetId: 'lighter:mainnet/perps:usdc',
+            chainId: PAYMENT_TOKEN_CHAIN_ID_MOCK,
+          },
+        ],
+      };
+
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+      expect(transactionData.sourceAmounts).toHaveLength(1);
+    });
+
+    it('returns source amounts for a Lighter payment token, priced by the fiat rate of its asset', () => {
+      const transactionData: TransactionData = {
+        isLoading: false,
+        paymentToken: {
+          ...PAYMENT_TOKEN_MOCK,
+          assetId: 'lighter:mainnet/perps:usdc',
+        },
+        tokens: [TRANSACTION_TOKEN_MOCK],
+      };
+
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+      expect(getAssetFiatRateMock).toHaveBeenCalledWith(
+        messenger,
+        'lighter:mainnet/perps:usdc',
+      );
+      expect(transactionData.sourceAmounts).toHaveLength(1);
+    });
+
     it('returns empty array if skipIfBalance and has balance', () => {
       const transactionData: TransactionData = {
         isLoading: false,

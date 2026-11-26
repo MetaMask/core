@@ -3,6 +3,10 @@ import type { CaipAssetType, Hex } from '@metamask/utils';
 
 import type { TransactionPayControllerMessenger } from '../index.js';
 import { projectLogger } from '../logger.js';
+import {
+  isLighterAsset,
+  LIGHTER_USDC_DECIMALS,
+} from '../strategy/server/lighter.js';
 import type {
   TransactionPaymentToken,
   UpdatePaymentTokenRequest,
@@ -49,22 +53,24 @@ export function updatePaymentToken(
   const accountOverride = transactionPayData?.accountOverride;
   const from = transaction.txParams.from as Hex;
 
-  const paymentToken = getPaymentToken({
-    accountId: getAssetAccountId({
-      accountOverride,
-      assetId,
-      from,
-      messenger,
-    }),
-    assetId,
-    messenger,
-    // For post-quote (withdraw) flows the selected token is the receive
-    // destination, which may live on a chain the wallet does not actively
-    // track, so no local market price or native-currency rate exists.
-    // Allow resolution without a fiat rate so selection is not blocked; the
-    // received amount is determined by the quote, not local rates.
-    allowMissingFiatRate: Boolean(transactionPayData?.isPostQuote),
-  });
+  const paymentToken = isLighterAsset(assetId)
+    ? getLighterPaymentToken(assetId)
+    : getPaymentToken({
+        accountId: getAssetAccountId({
+          accountOverride,
+          assetId,
+          from,
+          messenger,
+        }),
+        assetId,
+        messenger,
+        // For post-quote (withdraw) flows the selected token is the receive
+        // destination, which may live on a chain the wallet does not actively
+        // track, so no local market price or native-currency rate exists.
+        // Allow resolution without a fiat rate so selection is not blocked; the
+        // received amount is determined by the quote, not local rates.
+        allowMissingFiatRate: Boolean(transactionPayData?.isPostQuote),
+      });
 
   if (!paymentToken) {
     throw new Error('Payment token not found');
@@ -140,6 +146,29 @@ function getPaymentToken({
     balanceUsd,
     decimals,
     symbol,
+  };
+}
+
+/**
+ * Get the payment token for a Lighter perps balance.
+ *
+ * `AssetsController` does not track the balance, so it is zero here and the
+ * client supplies it through `getBalance` where Pay needs it.
+ *
+ * @param assetId - CAIP-19 asset type of the Lighter perps balance.
+ * @returns The payment token.
+ */
+function getLighterPaymentToken(
+  assetId: CaipAssetType,
+): TransactionPaymentToken {
+  return {
+    assetId,
+    balanceFiat: '0',
+    balanceHuman: '0',
+    balanceRaw: '0',
+    balanceUsd: '0',
+    decimals: LIGHTER_USDC_DECIMALS,
+    symbol: 'USDC',
   };
 }
 

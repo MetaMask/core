@@ -319,7 +319,9 @@ function isQuoteAlwaysRequired(
   transaction: TransactionMeta,
   isQuoteRequired?: boolean,
 ): boolean {
-  if (isQuoteRequired) {
+  // A Lighter target is a deposit into the Lighter balance, even when the
+  // payment token is the mainnet USDC that stands in for it.
+  if (isQuoteRequired || isLighterAsset(token.assetId)) {
     return true;
   }
 

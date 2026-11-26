@@ -370,6 +370,45 @@ describe('Update Payment Token Action', () => {
       ),
     ).toThrow('Transaction not found');
   });
+  describe('Lighter payment token', () => {
+    const getAssetAccountMock = vi.mocked(getAssetAccount);
+
+    it('resolves the Lighter perps balance without AssetsController data', () => {
+      const updateTransactionDataMock =
+        vi.fn<
+          (transactionId: string, fn: (data: TransactionData) => void) => void
+        >();
+
+      updatePaymentToken(
+        {
+          assetId: 'lighter:mainnet/perps:usdc',
+          transactionId: TRANSACTION_ID_MOCK,
+        },
+        {
+          messenger: createMessengerMock(),
+          updateTransactionData: updateTransactionDataMock,
+        },
+      );
+
+      expect(getAssetInfoMock).not.toHaveBeenCalled();
+      expect(getAssetBalanceMock).not.toHaveBeenCalled();
+      expect(getAssetAccountMock).not.toHaveBeenCalled();
+
+      const transactionDataMock = {} as TransactionData;
+      updateTransactionDataMock.mock.calls[0][1](transactionDataMock);
+
+      expect(transactionDataMock.paymentToken).toStrictEqual({
+        assetId: 'lighter:mainnet/perps:usdc',
+        balanceFiat: '0',
+        balanceHuman: '0',
+        balanceRaw: '0',
+        balanceUsd: '0',
+        decimals: 6,
+        symbol: 'USDC',
+      });
+    });
+  });
+
   describe('non-EVM payment token', () => {
     const getAssetAccountMock = vi.mocked(getAssetAccount);
 

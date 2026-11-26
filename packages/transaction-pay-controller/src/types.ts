@@ -480,6 +480,10 @@ export type TransactionPayRequiredToken = {
    * `address` alone does not identify it, for example a Lighter perps balance
    * (`lighter:mainnet/perps:usdc`). `address` and `chainId` then stand in for
    * it in balance, price and amount lookups.
+   *
+   * The required token is the target of a deposit and the source of a
+   * post-quote flow, so this declares the Lighter balance deposited into or
+   * withdrawn from respectively.
    */
   assetId?: CaipAssetType;
 
@@ -563,6 +567,11 @@ export type TransactionPaymentToken = {
   /**
    * CAIP-19 asset type of the payment token, as keyed in `AssetsController`
    * state. The chain and, for EVM tokens, the token address are derived from it.
+   *
+   * A Lighter perps balance (`lighter:mainnet/perps:usdc`) is not in
+   * `AssetsController`. Selecting it as the payment token of a flow that is not
+   * post-quote pays from that balance. Pay does not know the balance, so it is
+   * zero here and clients supply it through `getBalance`.
    */
   assetId: CaipAssetType;
 
@@ -693,6 +702,14 @@ export type QuoteRequest = {
 
   /** Minimum amount required of the target token in atomic format without factoring token decimals. */
   targetAmountMinimum: string;
+
+  /**
+   * CAIP-19 asset type the client declared for the target, when it is not the
+   * EVM token below, for example a Lighter perps balance. `targetChainId` and
+   * `targetTokenAddress` then hold the EVM token that stands in for it.
+   * Only set for flows that are not post-quote.
+   */
+  targetAssetIdOverride?: CaipAssetType;
 
   /** Chain ID of the target token. */
   targetChainId: Hex;

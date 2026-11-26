@@ -2,12 +2,15 @@ import { successfulFetch } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { PaymentOverride } from '../../constants.js';
+import type { QuoteRequest } from '../../types.js';
 import {
   getLighterAccountIndex,
   getLighterTransferFee,
   isLighterAsset,
   isLighterSourceRequest,
   isLighterTransferStep,
+  LighterNormalizer,
 } from './lighter.js';
 import type { ServerLighterTransferStep, ServerStep } from './types.js';
 
@@ -113,6 +116,46 @@ describe('Lighter assets', () => {
 
     it('is false without an asset', () => {
       expect(isLighterAsset(undefined)).toBe(false);
+    });
+  });
+
+  describe('LighterNormalizer.isLighterRequest', () => {
+    const request = (overrides: Partial<QuoteRequest>): QuoteRequest =>
+      overrides as QuoteRequest;
+
+    it('is true for the perpsLighter payment override', () => {
+      expect(
+        LighterNormalizer.isLighterRequest(
+          request({ paymentOverride: PaymentOverride.PerpsLighter }),
+        ),
+      ).toBe(true);
+    });
+
+    it('is true when the client declared a Lighter target asset, whatever the payment override', () => {
+      expect(
+        LighterNormalizer.isLighterRequest(
+          request({
+            paymentOverride: PaymentOverride.MoneyAccount,
+            targetAssetIdOverride: 'lighter:mainnet/perps:usdc',
+          }),
+        ),
+      ).toBe(true);
+    });
+
+    it('is false for another payment override and no Lighter target asset', () => {
+      expect(
+        LighterNormalizer.isLighterRequest(
+          request({ paymentOverride: PaymentOverride.MoneyAccount }),
+        ),
+      ).toBe(false);
+    });
+
+    it('is false for a Lighter source asset', () => {
+      expect(
+        LighterNormalizer.isLighterRequest(
+          request({ sourceAssetIdOverride: 'lighter:mainnet/perps:usdc' }),
+        ),
+      ).toBe(false);
     });
   });
 

@@ -390,6 +390,68 @@ describe('server-quotes', () => {
     expect(result[0].request.recipient).toBe(FROM_MOCK);
   });
 
+  it('requests the Lighter perps asset when the target asset is Lighter, leaving the payment override free', async () => {
+    vi.mocked(getLighterAccountIndex).mockResolvedValue('770167');
+
+    await getServerQuotes({
+      accountSupports7702: true,
+      from: FROM_MOCK,
+      messenger,
+      requests: [
+        {
+          ...QUOTE_REQUEST_MOCK,
+          paymentOverride: PaymentOverride.MoneyAccount,
+          targetAssetIdOverride: 'lighter:mainnet/perps:usdc',
+        },
+      ],
+      transaction: TRANSACTION_META_MOCK,
+    });
+
+    expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+      messenger,
+      expect.objectContaining({
+        sourceAsset: SOURCE_ASSET_MOCK,
+        targetAsset: SERVER_LIGHTER_PERPS_USDC_ASSET,
+        recipient: '770167',
+      }),
+      undefined,
+    );
+    expect(getLighterAccountIndex).toHaveBeenCalledWith(
+      TRANSACTION_META_MOCK.txParams.from,
+    );
+  });
+
+  it('requests the Lighter perps asset as the source of a flow that is not post-quote, for the account of the payer', async () => {
+    const payer = '0x3333333333333333333333333333333333333333' as Hex;
+    vi.mocked(getLighterAccountIndex).mockResolvedValue('770167');
+
+    await getServerQuotes({
+      accountSupports7702: true,
+      from: payer,
+      messenger,
+      requests: [
+        {
+          ...QUOTE_REQUEST_MOCK,
+          from: payer,
+          sourceAssetIdOverride: 'lighter:mainnet/perps:usdc',
+        },
+      ],
+      transaction: TRANSACTION_META_MOCK,
+    });
+
+    expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+      messenger,
+      expect.objectContaining({
+        sourceAsset: SERVER_LIGHTER_PERPS_USDC_ASSET,
+        sender: '770167',
+        supportsGasless: false,
+      }),
+      undefined,
+    );
+    expect(fetchServerQuoteMock.mock.calls[0][1].calls).toBeUndefined();
+    expect(getLighterAccountIndex).toHaveBeenCalledWith(payer);
+  });
+
   it('requests the Lighter perps asset with the account index as sender when the source is Lighter', async () => {
     mockLighterAccountIndex('770167');
 

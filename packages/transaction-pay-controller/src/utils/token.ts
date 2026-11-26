@@ -18,6 +18,10 @@ import {
   SLIP44_COIN_TYPE_BY_CHAIN,
 } from '../constants.js';
 import { projectLogger } from '../logger.js';
+import {
+  isLighterAsset,
+  LIGHTER_USDC_STAND_IN_ASSET_ID,
+} from '../strategy/server/lighter.js';
 import type {
   EvmPaymentToken,
   FiatRates,
@@ -255,7 +259,9 @@ export function getAssetInfo(
 /**
  * Get the fiat rates for a CAIP-19 asset.
  *
- * Configured EVM stablecoins are priced at exactly 1 USD.
+ * Configured EVM stablecoins are priced at exactly 1 USD. A Lighter perps
+ * balance is not in `AssetsController`, so it is priced as the USDC that
+ * stands in for it.
  *
  * @param messenger - Controller messenger.
  * @param assetId - CAIP-19 asset type as keyed in `AssetsController` state.
@@ -266,13 +272,16 @@ export function getAssetFiatRate(
   assetId: CaipAssetType,
 ): FiatRates | undefined {
   const { assetsPrice } = messenger.call('AssetsController:getState');
-  const price = assetsPrice[assetId];
+  const pricedAssetId = isLighterAsset(assetId)
+    ? LIGHTER_USDC_STAND_IN_ASSET_ID
+    : assetId;
+  const price = assetsPrice[pricedAssetId];
 
   if (price?.assetPriceType !== 'fungible') {
     return undefined;
   }
 
-  const evmAsset = getEvmAsset(assetId);
+  const evmAsset = getEvmAsset(pricedAssetId);
 
   const isStablecoin =
     evmAsset &&
