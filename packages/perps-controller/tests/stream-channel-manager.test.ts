@@ -345,6 +345,34 @@ describe('StreamChannelManager', () => {
       expect(joined.mock.calls).toStrictEqual([[8]]);
     });
 
+    it('keeps the pending retry and its backoff when a reader joins inside it', () => {
+      vi.useFakeTimers();
+      const { manager } = setup();
+      const source = createSource();
+      manager.subscribe({ stream: 'book' }, source, { callback: vi.fn() });
+      source.fail(new Error('closed'));
+      vi.advanceTimersByTime(1_000);
+      source.fail(new Error('closed'));
+
+      const leave = manager.subscribe({ stream: 'book' }, source, {
+        callback: vi.fn(),
+      });
+      leave();
+      manager.subscribe({ stream: 'book' }, source, { callback: vi.fn() });
+
+      expect(source.opens).toBe(2);
+      vi.advanceTimersByTime(1_999);
+      expect(source.opens).toBe(2);
+      vi.advanceTimersByTime(1);
+      expect(source.opens).toBe(3);
+      // The count went on: the next wait is the third.
+      source.fail(new Error('closed'));
+      vi.advanceTimersByTime(3_999);
+      expect(source.opens).toBe(3);
+      vi.advanceTimersByTime(1);
+      expect(source.opens).toBe(4);
+    });
+
     it('moves with a rebind', () => {
       vi.useFakeTimers();
       const { manager } = setup();

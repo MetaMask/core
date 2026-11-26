@@ -248,8 +248,9 @@ export class StreamChannelManager {
     };
     if (open) {
       this.#join(open, reader);
-      if (open.failed) {
-        // A new reader is a fresh reason to reach the venue.
+      if (open.failed && open.retryTimer === undefined) {
+        // A new reader is a fresh reason to reach the venue, once its
+        // attempts are spent; a pending retry keeps its backoff.
         this.#reopen(open);
       }
     } else {
