@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 1455.0.0 ([#11761](https://github.com/MetaMask/core/pull/11761))
+
 ### Changed
 
 - Add the partner's permissioned `ignp` HIP-3 dex to `TESTNET_HIP3_CONFIG.EnabledDexs`, so testnet loads and trades `ignp:*` markets alongside `xyz` ([#11701](https://github.com/MetaMask/core/pull/11701))
