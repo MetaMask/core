@@ -278,6 +278,9 @@ export class TokenApiClient extends BaseApiClient {
     const normalizedQueryOptions =
       normalizeTokenSearchQueryOptions(queryOptions);
 
+    const { serviceProfile, ...paramsWithoutServiceProfile } =
+      normalizedQueryOptions;
+
     return {
       queryKey: ['token', 'search', normalizedQueryOptions],
       queryFn: async ({
@@ -288,11 +291,14 @@ export class TokenApiClient extends BaseApiClient {
         }
 
         return await this.fetch<TokenSearchResponse>(
-          API_URLS.TOKEN,
+          this.apiUrls.TOKEN,
           '/tokens/search',
           {
             signal,
-            params: normalizedQueryOptions,
+            params: paramsWithoutServiceProfile,
+            ...(serviceProfile && {
+              headers: { 'x-mm-service-profile': serviceProfile },
+            }),
           },
         );
       },
@@ -318,15 +324,12 @@ export class TokenApiClient extends BaseApiClient {
     queryOptions: TokenSearchQueryOptions,
     options?: FetchOptions,
   ): Promise<TokenSearchResponse> {
-    const normalizedQueryOptions =
-      normalizeTokenSearchQueryOptions(queryOptions);
-
-    if (!normalizedQueryOptions.query) {
+    if (!queryOptions.query.trim()) {
       return getEmptyTokenSearchResponse();
     }
 
     return await this.queryClient.fetchQuery(
-      this.getTokenSearchQueryOptions(normalizedQueryOptions, options),
+      this.getTokenSearchQueryOptions(queryOptions, options),
     );
   }
 

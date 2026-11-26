@@ -220,6 +220,94 @@ describe('TokenApiClient', () => {
       );
     });
 
+    it('uses custom TOKEN API URL when provided', async () => {
+      const customTokenUrl = 'https://custom.token.api.test';
+      const { client: customClient } = setupTestEnvironment({
+        apiUrls: { TOKEN: customTokenUrl },
+      });
+
+      const mockResponse: TokenSearchResponse = {
+        data: [],
+        count: 0,
+        totalCount: 0,
+        pageInfo: {
+          hasNextPage: false,
+          endCursor: '',
+        },
+      };
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      await customClient.token.fetchTokenSearch({
+        query: 'test',
+      });
+
+      const calledUrl = new URL(mockFetch.mock.calls[0]?.[0] as string);
+      expect(calledUrl.origin).toBe(customTokenUrl);
+      expect(calledUrl.pathname).toBe('/tokens/search');
+    });
+
+    it('sends x-mm-service-profile header when serviceProfile is provided', async () => {
+      const mockResponse: TokenSearchResponse = {
+        data: [],
+        count: 0,
+        totalCount: 0,
+        pageInfo: {
+          hasNextPage: false,
+          endCursor: '',
+        },
+      };
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      await client.token.fetchTokenSearch({
+        query: 'usdc',
+        serviceProfile: 'assets--trending-search',
+      });
+
+      const calledHeaders = mockFetch.mock.calls[0]?.[1]
+        ?.headers as Record<string, string>;
+      expect(calledHeaders?.['x-mm-service-profile']).toBe(
+        'assets--trending-search',
+      );
+    });
+
+    it('does not send x-mm-service-profile header when serviceProfile is not provided', async () => {
+      const mockResponse: TokenSearchResponse = {
+        data: [],
+        count: 0,
+        totalCount: 0,
+        pageInfo: {
+          hasNextPage: false,
+          endCursor: '',
+        },
+      };
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      await client.token.fetchTokenSearch({
+        query: 'usdc',
+      });
+
+      const calledHeaders = mockFetch.mock.calls[0]?.[1]
+        ?.headers as Record<string, string>;
+      expect(calledHeaders?.['x-mm-service-profile']).toBeUndefined();
+    });
+
+    it('includes serviceProfile in query key', () => {
+      const queryOptions = client.token.getTokenSearchQueryOptions({
+        query: 'usdc',
+        serviceProfile: 'custom-profile',
+      });
+
+      expect(queryOptions.queryKey).toStrictEqual([
+        'token',
+        'search',
+        {
+          query: 'usdc',
+          networks: undefined,
+          serviceProfile: 'custom-profile',
+        },
+      ]);
+    });
+
     it('short-circuits empty token search queries', async () => {
       const result = await client.token.fetchTokenSearch({
         query: '   ',

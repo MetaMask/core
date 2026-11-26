@@ -120,6 +120,8 @@ export type TokenSearchQueryOptions = {
   after?: string;
   /** Whether to include token security data in each result. */
   includeTokenSecurityData?: boolean;
+  /** Service profile sent as the `x-mm-service-profile` header. */
+  serviceProfile?: string;
 };
 
 // ============================================================================
