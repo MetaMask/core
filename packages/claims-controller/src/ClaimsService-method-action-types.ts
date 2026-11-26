@@ -59,9 +59,9 @@ export type ClaimsServiceGetRequestHeadersAction = {
 };
 
 /**
- * Get the URL for the claims API for the current environment.
+ * Get the configured base URL for the claims API.
  *
- * @returns The URL for the claims API for the current environment.
+ * @returns The configured base URL.
  */
 export type ClaimsServiceGetClaimsApiUrlAction = {
   type: `ClaimsService:getClaimsApiUrl`;

@@ -17,12 +17,7 @@ import {
   generateMockTxMeta,
   getRandomCoverageResult,
 } from '../tests/utils.js';
-import {
-  Env,
-  getShieldApiBaseUrl,
-  SHIELD_API_URL_MAP,
-  SignTypedDataVersion,
-} from './constants.js';
+import { SignTypedDataVersion } from './constants.js';
 import type { ShieldApiServiceMessenger } from './shield-api-service.js';
 import {
   makeInitCoverageCheckBody,
@@ -78,7 +73,7 @@ function createService({
   });
   const service = new ShieldApiService({
     fetch: globalThis.fetch,
-    env: Env.PRD,
+    baseUrl: 'https://shield.test',
     captureException: mockCaptureException,
     messenger,
     ...options,
@@ -168,13 +163,13 @@ describe('ShieldApiService', () => {
       });
       const service = new ShieldApiService({
         messenger,
-        env: Env.PRD,
+        baseUrl: 'https://shield.test',
       });
 
       await service.checkCoverage({ txMeta: generateMockTxMeta() });
 
       expect(fetchSpy).toHaveBeenCalledWith(
-        `${getShieldApiBaseUrl(Env.PRD)}/v1/transaction/coverage/init`,
+        'https://shield.test/v1/transaction/coverage/init',
         expect.anything(),
       );
     } finally {
@@ -830,24 +825,10 @@ describe('ShieldApiService', () => {
         string,
         RequestInit,
       ];
-      expect(url).toStrictEqual(
-        expect.stringContaining(SHIELD_API_URL_MAP[Env.PRD]),
-      );
+      expect(url).toContain('https://shield.test/');
       expect(requestInit.headers).toMatchObject({
         Authorization: 'Bearer bearer-token',
       });
     });
-  });
-});
-
-describe('getShieldApiBaseUrl', () => {
-  it.each(Object.values(Env))('returns the base URL for %s', (env) => {
-    expect(getShieldApiBaseUrl(env)).toBe(SHIELD_API_URL_MAP[env]);
-  });
-
-  it('throws on an invalid environment', () => {
-    expect(() => getShieldApiBaseUrl('invalid' as Env)).toThrow(
-      'invalid environment configuration',
-    );
   });
 });

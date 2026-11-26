@@ -1,9 +1,5 @@
 import { Messenger } from '@metamask/messenger';
-import {
-  Env,
-  SubscriptionService,
-  SUBSCRIPTION_URL,
-} from '@metamask/subscription-controller';
+import { SubscriptionService } from '@metamask/subscription-controller';
 import { describe, expect, it, vi } from 'vitest';
 
 import { defaultConfigurations } from '../../defaults.js';
@@ -51,59 +47,10 @@ describe('subscriptionService', () => {
     const instance = subscriptionService.init({
       state: undefined,
       messenger,
-      options: {},
+      options: { baseUrl: 'https://subscription.test' },
     });
 
     expect(instance).toBeInstanceOf(SubscriptionService);
-  });
-
-  it('defaults to the production environment when env is omitted', async () => {
-    const rootMessenger = getRootMessenger();
-    registerActionHandler(
-      rootMessenger,
-      'AuthenticationController',
-      'AuthenticationController:getBearerToken',
-      async () => 'test-bearer-token',
-    );
-    registerActionHandler(
-      rootMessenger,
-      'AuthenticationController',
-      'AuthenticationController:getSessionProfile',
-      async () => ({
-        profileId: 'profile-1',
-        canonicalProfileId: 'canonical-profile-1',
-        metaMetricsId: 'metametrics-1',
-      }),
-    );
-    const messenger = subscriptionService.getMessenger(rootMessenger);
-    const fetchFunction = vi.fn(
-      async () =>
-        new globalThis.Response(
-          JSON.stringify({
-            customerId: 'cus_1',
-            subscriptions: [],
-            trialedProducts: [],
-          }),
-          { status: 200 },
-        ),
-    );
-
-    subscriptionService.init({
-      state: undefined,
-      messenger,
-      options: {
-        fetchFunction,
-      },
-    });
-
-    await rootMessenger.call('SubscriptionService:getSubscriptions');
-
-    expect(fetchFunction).toHaveBeenCalledWith(
-      SUBSCRIPTION_URL(Env.PRD, 'subscriptions'),
-      expect.objectContaining({
-        method: 'GET',
-      }),
-    );
   });
 
   it('delegates AuthenticationController auth actions', () => {
@@ -155,7 +102,7 @@ describe('subscriptionService', () => {
       state: undefined,
       messenger,
       options: {
-        env: Env.DEV,
+        baseUrl: 'https://subscription.test',
         fetchFunction,
       },
     });
@@ -163,7 +110,7 @@ describe('subscriptionService', () => {
     await rootMessenger.call('SubscriptionService:getSubscriptions');
 
     expect(fetchFunction).toHaveBeenCalledWith(
-      SUBSCRIPTION_URL(Env.DEV, 'subscriptions'),
+      'https://subscription.test/v1/subscriptions',
       expect.objectContaining({
         method: 'GET',
       }),

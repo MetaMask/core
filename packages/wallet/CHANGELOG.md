@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Wallet instance options now require `claimsService`, `shieldApiService`, and `subscriptionService` to specify a `baseUrl` instead of using `env` or a production default. ([#11703](https://github.com/MetaMask/core/pull/11703))
+  - Set each service's `baseUrl` to its trusted API endpoint without a trailing slash. For production, use `https://claims.api.cx.metamask.io`, `https://ruleset-engine.api.cx.metamask.io`, and `https://subscription.api.cx.metamask.io`, respectively.
 - Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.4.0` ([#11732](https://github.com/MetaMask/core/pull/11732))
 
 ## [21.0.5]

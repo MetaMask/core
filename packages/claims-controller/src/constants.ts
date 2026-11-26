@@ -4,12 +4,6 @@ export const CONTROLLER_NAME = 'ClaimsController';
 
 export const SERVICE_NAME = 'ClaimsService';
 
-export enum Env {
-  DEV = 'dev',
-  UAT = 'uat',
-  PRD = 'prd',
-}
-
 export enum ClaimStatusEnum {
   // created but not yet submitted to Intercom
   CREATED = 'created',
@@ -28,12 +22,6 @@ export enum ClaimStatusEnum {
   // unknown status
   UNKNOWN = 'unknown',
 }
-
-export const CLAIMS_API_URL_MAP: Record<Env, string> = {
-  [Env.DEV]: 'https://claims.dev-api.cx.metamask.io',
-  [Env.UAT]: 'https://claims.uat-api.cx.metamask.io',
-  [Env.PRD]: 'https://claims.api.cx.metamask.io',
-};
 
 export const ClaimsControllerErrorMessages = {
   CLAIM_ALREADY_SUBMITTED: 'Claim already submitted',

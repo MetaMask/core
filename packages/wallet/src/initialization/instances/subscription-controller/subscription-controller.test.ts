@@ -1,9 +1,7 @@
 import { Messenger } from '@metamask/messenger';
 import {
-  Env,
   getDefaultSubscriptionControllerState,
   SubscriptionController,
-  SUBSCRIPTION_URL,
 } from '@metamask/subscription-controller';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -180,6 +178,7 @@ describe('subscriptionController', () => {
       state: undefined,
       messenger: serviceMessenger,
       options: {
+        baseUrl: 'https://subscription.test',
         fetchFunction,
       },
     });
@@ -254,7 +253,7 @@ describe('subscriptionController', () => {
     );
     const serviceMessenger = subscriptionService.getMessenger(rootMessenger);
     const fetchFunction = vi.fn(async (url: string, _init?: RequestInit) => {
-      if (url === SUBSCRIPTION_URL(Env.PRD, 'subscriptions/card')) {
+      if (url === 'https://subscription.test/v1/subscriptions/card') {
         return new globalThis.Response(
           JSON.stringify({
             checkoutSessionUrl: 'https://checkout.example.com/session/123',
@@ -277,6 +276,7 @@ describe('subscriptionController', () => {
       state: undefined,
       messenger: serviceMessenger,
       options: {
+        baseUrl: 'https://subscription.test',
         fetchFunction,
       },
     });
@@ -324,17 +324,17 @@ describe('subscriptionController', () => {
       checkoutSessionUrl: 'https://checkout.example.com/session/123',
     });
     expect(fetchFunction).toHaveBeenCalledWith(
-      SUBSCRIPTION_URL(Env.PRD, 'subscriptions'),
+      'https://subscription.test/v1/subscriptions',
       expect.objectContaining({ method: 'GET' }),
     );
     expect(fetchFunction).toHaveBeenCalledWith(
-      SUBSCRIPTION_URL(Env.PRD, 'subscriptions/card'),
+      'https://subscription.test/v1/subscriptions/card',
       expect.objectContaining({
         method: 'POST',
       }),
     );
     const cardRequest = fetchFunction.mock.calls.find(
-      ([url]) => url === SUBSCRIPTION_URL(Env.PRD, 'subscriptions/card'),
+      ([url]) => url === 'https://subscription.test/v1/subscriptions/card',
     );
     const body = cardRequest?.[1]?.body;
     if (typeof body !== 'string') {

@@ -11,19 +11,12 @@ import type { Mock } from 'vitest';
 
 import {
   CANCELLATION_REASONS,
-  Env,
-  getEnvUrls,
   SubscriptionControllerErrorMessage,
   SubscriptionServiceErrorMessage,
 } from './constants.js';
-import * as constants from './constants.js';
 import { SubscriptionServiceError } from './errors.js';
 import { SubscriptionBenefitsResponseStruct } from './SubscriptionService-structs.js';
-import {
-  serviceName,
-  SUBSCRIPTION_URL,
-  SubscriptionService,
-} from './SubscriptionService.js';
+import { serviceName, SubscriptionService } from './SubscriptionService.js';
 import type { SubscriptionServiceMessenger } from './SubscriptionService.js';
 import type {
   StartSubscriptionRequest,
@@ -192,12 +185,12 @@ type RootMessenger = Messenger<
   MessengerEvents<SubscriptionServiceMessenger>
 >;
 
+const TEST_BASE_URL = 'https://subscription.test';
+
 type MockServiceContext = {
   service: SubscriptionService;
   fetchMock: Mock;
   captureExceptionMock: Mock;
-  env: Env;
-  testUrl: string;
   rootMessenger: RootMessenger;
   messenger: SubscriptionServiceMessenger;
   getBearerToken: Mock;
@@ -209,13 +202,13 @@ function createRootMessenger(): RootMessenger {
 }
 
 function createService({
-  env = Env.DEV,
+  baseUrl = TEST_BASE_URL,
   fetchMock,
   captureExceptionMock = vi.fn(),
   getBearerToken = vi.fn().mockResolvedValue(MOCK_ACCESS_TOKEN),
   getSessionProfile = vi.fn().mockResolvedValue(MOCK_SESSION_PROFILE),
 }: {
-  env?: Env;
+  baseUrl?: string;
   fetchMock: Mock;
   captureExceptionMock?: Mock;
   getBearerToken?: Mock;
@@ -244,7 +237,7 @@ function createService({
   });
   const service = new SubscriptionService({
     messenger,
-    env,
+    baseUrl,
     fetchFunction: fetchMock,
     captureException: captureExceptionMock,
   });
@@ -253,14 +246,6 @@ function createService({
     service,
     fetchMock,
     captureExceptionMock,
-    env,
-    testUrl: ((): string => {
-      try {
-        return getTestUrl(env);
-      } catch {
-        return '';
-      }
-    })(),
     rootMessenger,
     messenger,
     getBearerToken,
@@ -271,7 +256,6 @@ function createService({
 function withMockSubscriptionService(
   fn: (params: MockServiceContext) => Promise<void>,
   options: {
-    env?: Env;
     getBearerToken?: Mock;
     getSessionProfile?: Mock;
   } = {},
@@ -279,7 +263,6 @@ function withMockSubscriptionService(
   const fetchMock = vi.fn();
   const captureExceptionMock = vi.fn();
   const context = createService({
-    env: options.env ?? Env.DEV,
     fetchMock,
     captureExceptionMock,
     getBearerToken: options.getBearerToken,
@@ -316,13 +299,13 @@ function createMockResponse({
 }
 
 /**
- * Gets the test URL for the given environment
+ * Builds an expected request URL.
  *
- * @param env - The environment to get the URL for
- * @returns The test URL for the environment
+ * @param path - The endpoint path.
+ * @returns The expected request URL.
  */
-function getTestUrl(env: Env): string {
-  return getEnvUrls(env).subscriptionApiUrl;
+function subscriptionUrl(path: string): string {
+  return `${TEST_BASE_URL}/v1/${path}`;
 }
 
 describe('SubscriptionService', () => {
@@ -331,18 +314,6 @@ describe('SubscriptionService', () => {
       const { service } = createService({ fetchMock: vi.fn() });
 
       expect(service).toBeInstanceOf(SubscriptionService);
-    });
-
-    it('should create instance with different environments', () => {
-      expect(
-        () => createService({ env: Env.DEV, fetchMock: vi.fn() }).service,
-      ).not.toThrow();
-      expect(
-        () => createService({ env: Env.UAT, fetchMock: vi.fn() }).service,
-      ).not.toThrow();
-      expect(
-        () => createService({ env: Env.PRD, fetchMock: vi.fn() }).service,
-      ).not.toThrow();
     });
 
     it('defaults fetchFunction to globalThis.fetch when omitted', async () => {
@@ -380,12 +351,13 @@ describe('SubscriptionService', () => {
         });
         const service = new SubscriptionService({
           messenger,
+          baseUrl: TEST_BASE_URL,
         });
 
         await service.getSubscriptions();
 
         expect(fetchSpy).toHaveBeenCalledWith(
-          SUBSCRIPTION_URL(Env.PRD, 'subscriptions'),
+          subscriptionUrl('subscriptions'),
           expect.anything(),
         );
       } finally {
@@ -393,7 +365,7 @@ describe('SubscriptionService', () => {
       }
     });
 
-    it('defaults env to PRD when omitted', async () => {
+    it('uses the configured base URL for requests', async () => {
       const fetchMock = vi.fn();
       const rootMessenger = createRootMessenger();
       rootMessenger.registerActionHandler(
@@ -418,6 +390,7 @@ describe('SubscriptionService', () => {
       });
       const service = new SubscriptionService({
         messenger,
+        baseUrl: 'https://subscription.example.com',
         fetchFunction: fetchMock,
       });
 
@@ -434,7 +407,7 @@ describe('SubscriptionService', () => {
       await service.getSubscriptions();
 
       expect(fetchMock).toHaveBeenCalledWith(
-        SUBSCRIPTION_URL(Env.PRD, 'subscriptions'),
+        'https://subscription.example.com/v1/subscriptions',
         expect.anything(),
       );
     });
@@ -506,7 +479,7 @@ describe('SubscriptionService', () => {
 
     it('should throw SubscriptionServiceError for network errors', async () => {
       await withMockSubscriptionService(
-        async ({ service, fetchMock, captureExceptionMock, testUrl }) => {
+        async ({ service, fetchMock, captureExceptionMock }) => {
           const networkError = new Error('Network error');
           fetchMock.mockRejectedValue(networkError);
 
@@ -517,7 +490,7 @@ describe('SubscriptionService', () => {
           expect(error).toBeInstanceOf(SubscriptionServiceError);
           const serviceError = error as SubscriptionServiceError;
           expect(serviceError.message).toBe(
-            `Failed to make request. ${SubscriptionServiceErrorMessage.FailedToGetBenefits} (url: ${testUrl}/v1/benefits)`,
+            `Failed to make request. ${SubscriptionServiceErrorMessage.FailedToGetBenefits} (url: ${TEST_BASE_URL}/v1/benefits)`,
           );
           expect(serviceError.cause).toBe(networkError);
           expect(captureExceptionMock).toHaveBeenCalledTimes(1);
@@ -527,7 +500,7 @@ describe('SubscriptionService', () => {
 
     it('should throw SubscriptionServiceError for non-ok responses', async () => {
       await withMockSubscriptionService(
-        async ({ service, fetchMock, captureExceptionMock, testUrl }) => {
+        async ({ service, fetchMock, captureExceptionMock }) => {
           fetchMock.mockResolvedValue(
             createMockResponse({
               ok: false,
@@ -542,7 +515,7 @@ describe('SubscriptionService', () => {
             SubscriptionServiceError,
           );
           await expect(requestPromise).rejects.toThrow(
-            `Failed to make request. ${SubscriptionServiceErrorMessage.FailedToGetBenefits} (url: ${testUrl}/v1/benefits)`,
+            `Failed to make request. ${SubscriptionServiceErrorMessage.FailedToGetBenefits} (url: ${TEST_BASE_URL}/v1/benefits)`,
           );
           expect(captureExceptionMock).toHaveBeenCalledTimes(1);
         },
@@ -1090,7 +1063,7 @@ describe('SubscriptionService', () => {
     });
 
     it('should send correct URL and headers', async () => {
-      await withMockSubscriptionService(async ({ service, fetchMock, env }) => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
         fetchMock.mockResolvedValue(
           createMockResponse({
             jsonData: {
@@ -1104,7 +1077,7 @@ describe('SubscriptionService', () => {
         await service.getSubscriptions();
 
         expect(fetchMock).toHaveBeenCalledWith(
-          SUBSCRIPTION_URL(env, 'subscriptions'),
+          subscriptionUrl('subscriptions'),
           {
             method: 'GET',
             headers: MOCK_HEADERS,
@@ -1118,21 +1091,19 @@ describe('SubscriptionService', () => {
       const fetchMock = vi.fn();
       const captureExceptionMock = vi.fn();
       const { service } = createService({
-        env: 'invalid' as Env,
+        baseUrl: 'not-a-url',
         fetchMock,
         captureExceptionMock,
       });
 
-      await expect(service.getSubscriptions()).rejects.toThrow(
-        'invalid environment configuration',
-      );
+      await expect(service.getSubscriptions()).rejects.toThrow('Invalid URL');
       expect(fetchMock).not.toHaveBeenCalled();
       expect(captureExceptionMock).toHaveBeenCalledTimes(1);
       const capturedError = captureExceptionMock.mock.calls[0][0] as Error & {
         cause?: Error;
       };
       expect(capturedError.message).toBe(
-        'Failed to get subscription API URL. invalid environment configuration',
+        'Failed to get subscription API URL. Invalid URL',
       );
     });
 
@@ -1140,9 +1111,9 @@ describe('SubscriptionService', () => {
       const fetchMock = vi.fn();
       const captureExceptionMock = vi.fn();
       const { service } = createService({ fetchMock, captureExceptionMock });
-      const getEnvUrlsSpy = vi
-        .spyOn(constants, 'getEnvUrls')
-        .mockImplementation(() => {
+      const urlSpy = vi
+        .spyOn(globalThis, 'URL')
+        .mockImplementation(function () {
           // eslint-disable-next-line @typescript-eslint/only-throw-error
           throw 'string error';
         });
@@ -1153,7 +1124,7 @@ describe('SubscriptionService', () => {
           .catch((rejection) => rejection);
         expect(error).toBe('string error');
       } finally {
-        getEnvUrlsSpy.mockRestore();
+        urlSpy.mockRestore();
       }
 
       expect(fetchMock).not.toHaveBeenCalled();
@@ -1186,7 +1157,7 @@ describe('SubscriptionService', () => {
           expect(error).toBeInstanceOf(SubscriptionServiceError);
           const serviceError = error as SubscriptionServiceError;
           expect(serviceError.message).toBe(
-            `Failed to make request. ${SubscriptionServiceErrorMessage.FailedToGetSubscriptions} (url: ${getTestUrl(Env.DEV)}/v1/subscriptions)`,
+            `Failed to make request. ${SubscriptionServiceErrorMessage.FailedToGetSubscriptions} (url: ${TEST_BASE_URL}/v1/subscriptions)`,
           );
           expect(serviceError.cause).toBe(networkError);
           expect(captureExceptionMock).toHaveBeenCalledTimes(1);
@@ -1203,7 +1174,7 @@ describe('SubscriptionService', () => {
             SubscriptionServiceError,
           );
           await expect(requestPromise).rejects.toThrow(
-            `Failed to make request. ${SubscriptionServiceErrorMessage.FailedToGetSubscriptions} (url: ${getTestUrl(Env.DEV)}/v1/subscriptions)`,
+            `Failed to make request. ${SubscriptionServiceErrorMessage.FailedToGetSubscriptions} (url: ${TEST_BASE_URL}/v1/subscriptions)`,
           );
           const error = await requestPromise.catch((rejection) => rejection);
           expect(error).toBeInstanceOf(SubscriptionServiceError);
@@ -1234,7 +1205,7 @@ describe('SubscriptionService', () => {
             SubscriptionServiceError,
           );
           await expect(requestPromise).rejects.toThrow(
-            `Failed to make request. ${SubscriptionServiceErrorMessage.FailedToGetSubscriptions} (url: ${getTestUrl(Env.DEV)}/v1/subscriptions)`,
+            `Failed to make request. ${SubscriptionServiceErrorMessage.FailedToGetSubscriptions} (url: ${TEST_BASE_URL}/v1/subscriptions)`,
           );
           expect(captureExceptionMock).toHaveBeenCalledTimes(1);
         },
@@ -1281,7 +1252,7 @@ describe('SubscriptionService', () => {
   describe('cancelSubscription', () => {
     it('should cancel subscription successfully', async () => {
       await withMockSubscriptionService(
-        async ({ service, fetchMock, getBearerToken, env }) => {
+        async ({ service, fetchMock, getBearerToken }) => {
           fetchMock.mockResolvedValue(
             createMockResponse({ jsonData: MOCK_SUBSCRIPTION }),
           );
@@ -1293,7 +1264,7 @@ describe('SubscriptionService', () => {
           expect(result).toStrictEqual(MOCK_SUBSCRIPTION);
           expect(getBearerToken).toHaveBeenCalledTimes(1);
           expect(fetchMock).toHaveBeenCalledWith(
-            SUBSCRIPTION_URL(env, 'subscriptions/sub_123456789/cancel'),
+            subscriptionUrl('subscriptions/sub_123456789/cancel'),
             {
               method: 'POST',
               headers: MOCK_HEADERS,
@@ -1305,7 +1276,7 @@ describe('SubscriptionService', () => {
     });
 
     it('should serialize cancellation reason and feedback without subscriptionId in the body', async () => {
-      await withMockSubscriptionService(async ({ service, fetchMock, env }) => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
         fetchMock.mockResolvedValue(
           createMockResponse({ jsonData: MOCK_SUBSCRIPTION }),
         );
@@ -1318,7 +1289,7 @@ describe('SubscriptionService', () => {
         });
 
         expect(fetchMock).toHaveBeenCalledWith(
-          SUBSCRIPTION_URL(env, 'subscriptions/sub_123456789/cancel'),
+          subscriptionUrl('subscriptions/sub_123456789/cancel'),
           {
             method: 'POST',
             headers: MOCK_HEADERS,
@@ -1335,25 +1306,23 @@ describe('SubscriptionService', () => {
     it.each(Object.values(CANCELLATION_REASONS))(
       'should serialize cancellation reason %s',
       async (cancellationReason) => {
-        await withMockSubscriptionService(
-          async ({ service, fetchMock, env }) => {
-            fetchMock.mockResolvedValue(
-              createMockResponse({ jsonData: MOCK_SUBSCRIPTION }),
-            );
+        await withMockSubscriptionService(async ({ service, fetchMock }) => {
+          fetchMock.mockResolvedValue(
+            createMockResponse({ jsonData: MOCK_SUBSCRIPTION }),
+          );
 
-            await service.cancelSubscription({
-              subscriptionId: 'sub_123456789',
-              cancellationReason,
-            });
+          await service.cancelSubscription({
+            subscriptionId: 'sub_123456789',
+            cancellationReason,
+          });
 
-            expect(fetchMock).toHaveBeenCalledWith(
-              SUBSCRIPTION_URL(env, 'subscriptions/sub_123456789/cancel'),
-              expect.objectContaining({
-                body: JSON.stringify({ cancellationReason }),
-              }),
-            );
-          },
-        );
+          expect(fetchMock).toHaveBeenCalledWith(
+            subscriptionUrl('subscriptions/sub_123456789/cancel'),
+            expect.objectContaining({
+              body: JSON.stringify({ cancellationReason }),
+            }),
+          );
+        });
       },
     );
 
@@ -1895,7 +1864,7 @@ describe('SubscriptionService', () => {
 
   describe('updatePaymentMethodCard', () => {
     it('should update card payment method successfully', async () => {
-      await withMockSubscriptionService(async ({ service, fetchMock, env }) => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
         const request: UpdatePaymentMethodCardRequest = {
           subscriptionId: 'sub_123456789',
           recurringInterval: RECURRING_INTERVALS.month,
@@ -1910,10 +1879,7 @@ describe('SubscriptionService', () => {
         await service.updatePaymentMethodCard(request);
 
         expect(fetchMock).toHaveBeenCalledWith(
-          SUBSCRIPTION_URL(
-            env,
-            'subscriptions/sub_123456789/payment-method/card',
-          ),
+          subscriptionUrl('subscriptions/sub_123456789/payment-method/card'),
           {
             method: 'PATCH',
             headers: MOCK_HEADERS,
@@ -1927,7 +1893,7 @@ describe('SubscriptionService', () => {
     });
 
     it('should update crypto payment method successfully', async () => {
-      await withMockSubscriptionService(async ({ service, fetchMock, env }) => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
         const request: UpdatePaymentMethodCryptoRequest = {
           subscriptionId: 'sub_123456789',
           chainId: '0x1',
@@ -1943,10 +1909,7 @@ describe('SubscriptionService', () => {
         await service.updatePaymentMethodCrypto(request);
 
         expect(fetchMock).toHaveBeenCalledWith(
-          SUBSCRIPTION_URL(
-            env,
-            'subscriptions/sub_123456789/payment-method/crypto',
-          ),
+          subscriptionUrl('subscriptions/sub_123456789/payment-method/crypto'),
           {
             method: 'PATCH',
             headers: MOCK_HEADERS,
@@ -1960,7 +1923,7 @@ describe('SubscriptionService', () => {
     });
 
     it('should update crypto payment method with a delegation hash', async () => {
-      await withMockSubscriptionService(async ({ service, fetchMock, env }) => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
         const request: UpdatePaymentMethodCryptoRequest = {
           subscriptionId: 'sub_123456789',
           chainId: '0x1',
@@ -1977,10 +1940,7 @@ describe('SubscriptionService', () => {
         await service.updatePaymentMethodCrypto(request);
 
         expect(fetchMock).toHaveBeenCalledWith(
-          SUBSCRIPTION_URL(
-            env,
-            'subscriptions/sub_123456789/payment-method/crypto',
-          ),
+          subscriptionUrl('subscriptions/sub_123456789/payment-method/crypto'),
           {
             method: 'PATCH',
             headers: MOCK_HEADERS,
@@ -2195,28 +2155,25 @@ describe('SubscriptionService', () => {
 
   describe('submitUserEvent', () => {
     it('should submit user event successfully', async () => {
-      await withMockSubscriptionService(async ({ service, fetchMock, env }) => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
         fetchMock.mockResolvedValue(createMockResponse({ jsonData: {} }));
 
         await service.submitUserEvent({
           event: SubscriptionUserEvent.ShieldEntryModalViewed,
         });
 
-        expect(fetchMock).toHaveBeenCalledWith(
-          SUBSCRIPTION_URL(env, 'user-events'),
-          {
-            method: 'POST',
-            headers: MOCK_HEADERS,
-            body: JSON.stringify({
-              event: SubscriptionUserEvent.ShieldEntryModalViewed,
-            }),
-          },
-        );
+        expect(fetchMock).toHaveBeenCalledWith(subscriptionUrl('user-events'), {
+          method: 'POST',
+          headers: MOCK_HEADERS,
+          body: JSON.stringify({
+            event: SubscriptionUserEvent.ShieldEntryModalViewed,
+          }),
+        });
       });
     });
 
     it('should submit user event with cohort successfully', async () => {
-      await withMockSubscriptionService(async ({ service, fetchMock, env }) => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
         fetchMock.mockResolvedValue(createMockResponse({ jsonData: {} }));
 
         await service.submitUserEvent({
@@ -2224,17 +2181,14 @@ describe('SubscriptionService', () => {
           cohort: 'post_tx',
         });
 
-        expect(fetchMock).toHaveBeenCalledWith(
-          SUBSCRIPTION_URL(env, 'user-events'),
-          {
-            method: 'POST',
-            headers: MOCK_HEADERS,
-            body: JSON.stringify({
-              event: SubscriptionUserEvent.ShieldEntryModalViewed,
-              cohort: 'post_tx',
-            }),
-          },
-        );
+        expect(fetchMock).toHaveBeenCalledWith(subscriptionUrl('user-events'), {
+          method: 'POST',
+          headers: MOCK_HEADERS,
+          body: JSON.stringify({
+            event: SubscriptionUserEvent.ShieldEntryModalViewed,
+            cohort: 'post_tx',
+          }),
+        });
       });
     });
 
@@ -2257,13 +2211,13 @@ describe('SubscriptionService', () => {
   describe('assignUserToCohort', () => {
     it('should assign user to cohort successfully', async () => {
       await withMockSubscriptionService(
-        async ({ service, fetchMock, env, getBearerToken }) => {
+        async ({ service, fetchMock, getBearerToken }) => {
           fetchMock.mockResolvedValue(createMockResponse({ jsonData: {} }));
 
           await service.assignUserToCohort({ cohort: 'post_tx' });
 
           expect(fetchMock).toHaveBeenCalledWith(
-            SUBSCRIPTION_URL(env, 'cohorts/assign'),
+            subscriptionUrl('cohorts/assign'),
             {
               method: 'POST',
               headers: MOCK_HEADERS,
@@ -2290,7 +2244,7 @@ describe('SubscriptionService', () => {
 
   describe('submitSponsorshipIntents', () => {
     it('should submit sponsorship intents successfully', async () => {
-      await withMockSubscriptionService(async ({ service, fetchMock, env }) => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
         fetchMock.mockResolvedValue(createMockResponse({ jsonData: {} }));
 
         await service.submitSponsorshipIntents({
@@ -2303,7 +2257,7 @@ describe('SubscriptionService', () => {
         });
 
         expect(fetchMock).toHaveBeenCalledWith(
-          SUBSCRIPTION_URL(env, 'transaction-sponsorship/intents'),
+          subscriptionUrl('transaction-sponsorship/intents'),
           {
             method: 'POST',
             headers: MOCK_HEADERS,
@@ -2343,7 +2297,7 @@ describe('SubscriptionService', () => {
 
   describe('linkRewards', () => {
     it('should link rewards successfully', async () => {
-      await withMockSubscriptionService(async ({ service, fetchMock, env }) => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
         fetchMock.mockResolvedValue(
           createMockResponse({ jsonData: { success: true } }),
         );
@@ -2354,7 +2308,7 @@ describe('SubscriptionService', () => {
         });
 
         expect(fetchMock).toHaveBeenCalledWith(
-          SUBSCRIPTION_URL(env, 'rewards/link'),
+          subscriptionUrl('rewards/link'),
           {
             method: 'POST',
             headers: MOCK_HEADERS,
@@ -2570,7 +2524,7 @@ describe('SubscriptionService', () => {
         delegationHash: '0xabc',
       };
 
-      await withMockSubscriptionService(async ({ service, fetchMock, env }) => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
         fetchMock.mockResolvedValue(
           createMockResponse({
             jsonData: {
@@ -2599,7 +2553,7 @@ describe('SubscriptionService', () => {
         await service.startSubscriptionWithCrypto(delegationRequest);
 
         expect(fetchMock).toHaveBeenCalledWith(
-          SUBSCRIPTION_URL(env, 'subscriptions/crypto'),
+          subscriptionUrl('subscriptions/crypto'),
           {
             method: 'POST',
             headers: MOCK_HEADERS,

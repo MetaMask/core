@@ -1,20 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Env } from './constants.js';
-import { getEnvUrls, controllerName } from './constants.js';
+import { controllerName } from './constants.js';
 
 describe('constants', () => {
-  describe('getEnvUrls', () => {
-    it('should throw error for invalid environment', () => {
-      // Type assertion to test invalid environment
-      const invalidEnv = 'invalid' as Env;
-
-      expect(() => getEnvUrls(invalidEnv)).toThrow(
-        'invalid environment configuration',
-      );
-    });
-  });
-
   describe('controllerName', () => {
     it('should be defined and equal to expected value', () => {
       expect(controllerName).toBe('SubscriptionController');

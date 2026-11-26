@@ -47,4 +47,3 @@ export type {
   ShieldApiServiceLogSignatureAction,
   ShieldApiServiceLogTransactionAction,
 } from './shield-api-service-method-action-types.js';
-export { Env, SHIELD_API_URL_MAP, getShieldApiBaseUrl } from './constants.js';

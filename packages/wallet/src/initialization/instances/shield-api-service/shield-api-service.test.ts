@@ -1,9 +1,5 @@
 import { Messenger } from '@metamask/messenger';
-import {
-  Env,
-  ShieldApiService,
-  SHIELD_API_URL_MAP,
-} from '@metamask/shield-controller';
+import { ShieldApiService } from '@metamask/shield-controller';
 import { describe, expect, it, vi } from 'vitest';
 
 import { defaultConfigurations } from '../../defaults.js';
@@ -40,7 +36,7 @@ function registerActionHandler(
   ).registerActionHandler(actionType, handler);
 }
 
-const SHIELD_API_SERVICE_OPTIONS = {};
+const SHIELD_API_SERVICE_OPTIONS = { baseUrl: 'https://shield.test' };
 
 describe('shieldApiService', () => {
   it('is registered as a default initialization configuration', () => {
@@ -59,7 +55,7 @@ describe('shieldApiService', () => {
     expect(instance).toBeInstanceOf(ShieldApiService);
   });
 
-  it('defaults env to production', async () => {
+  it('uses the provided Shield API base URL', async () => {
     const rootMessenger = getRootMessenger();
     registerActionHandler(
       rootMessenger,
@@ -90,6 +86,7 @@ describe('shieldApiService', () => {
       state: undefined,
       messenger,
       options: {
+        ...SHIELD_API_SERVICE_OPTIONS,
         fetchFunction,
       },
     });
@@ -112,7 +109,7 @@ describe('shieldApiService', () => {
       RequestInit,
     ];
     const [url, requestInit] = firstCall;
-    expect(url).toContain(SHIELD_API_URL_MAP[Env.PRD]);
+    expect(url).toBe('https://shield.test/v1/transaction/coverage/init');
     const headers = new globalThis.Headers(requestInit.headers);
     expect(headers.get('Authorization')).toBe('Bearer test-bearer-token');
   });
@@ -160,7 +157,7 @@ describe('shieldApiService', () => {
       state: undefined,
       messenger,
       options: {
-        env: Env.PRD,
+        ...SHIELD_API_SERVICE_OPTIONS,
         fetchFunction,
       },
     });

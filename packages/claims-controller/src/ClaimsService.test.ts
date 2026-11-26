@@ -2,12 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createMockClaimsServiceMessenger } from '../tests/mocks/messenger.js';
 import { ClaimsService } from './ClaimsService.js';
-import {
-  CLAIMS_API_URL_MAP,
-  ClaimsServiceErrorMessages,
-  ClaimStatusEnum,
-  Env,
-} from './constants.js';
+import { ClaimsServiceErrorMessages, ClaimStatusEnum } from './constants.js';
 import type {
   Claim,
   ClaimsConfigurationsResponse,
@@ -27,20 +22,21 @@ const MOCK_SESSION_PROFILE = {
   metaMetricsId: 'metametrics-1',
 };
 
+const TEST_BASE_URL = 'https://claims.test';
+
 /**
  * Create a mock claims service.
  *
- * @param env - The environment to use for the mock claims service. Defaults to Env.DEV.
- * @returns A mock claims service and its messenger.
+ * @returns A mock claims service.
  */
-function createMockClaimsService(env: Env = Env.DEV): ClaimsService {
+function createMockClaimsService(): ClaimsService {
   const { messenger } = createMockClaimsServiceMessenger(
     mockAuthenticationControllerGetBearerToken,
     mockAuthenticationControllerGetSessionProfile,
     mockCaptureException,
   );
   return new ClaimsService({
-    env,
+    baseUrl: TEST_BASE_URL,
     messenger,
     fetchFunction: mockFetchFunction,
     captureException: mockCaptureException,
@@ -89,7 +85,7 @@ describe('ClaimsService', () => {
         vi.fn(),
       );
       const service = new ClaimsService({
-        env: Env.DEV,
+        baseUrl: TEST_BASE_URL,
         messenger,
         fetchFunction: vi.fn(),
       });
@@ -114,14 +110,14 @@ describe('ClaimsService', () => {
           vi.fn(),
         );
         const service = new ClaimsService({
-          env: Env.DEV,
+          baseUrl: 'https://claims.test',
           messenger,
         });
 
         await service.fetchClaimsConfigurations();
 
         expect(fetchSpy).toHaveBeenCalledWith(
-          `${CLAIMS_API_URL_MAP[Env.DEV]}/configurations`,
+          'https://claims.test/configurations',
           expect.anything(),
         );
       } finally {
@@ -164,7 +160,7 @@ describe('ClaimsService', () => {
       ).toHaveBeenCalledTimes(1);
       expect(mockFetchFunction).toHaveBeenCalledTimes(1);
       expect(mockFetchFunction).toHaveBeenCalledWith(
-        `${CLAIMS_API_URL_MAP[Env.DEV]}/configurations`,
+        `${TEST_BASE_URL}/configurations`,
         {
           headers: {
             Authorization: 'Bearer test-token',
@@ -244,7 +240,7 @@ describe('ClaimsService', () => {
       ).toHaveBeenCalledTimes(1);
       expect(mockFetchFunction).toHaveBeenCalledTimes(1);
       expect(mockFetchFunction).toHaveBeenCalledWith(
-        `${CLAIMS_API_URL_MAP[Env.DEV]}/claims`,
+        `${TEST_BASE_URL}/claims`,
         {
           headers: {
             Authorization: 'Bearer test-token',
@@ -331,7 +327,7 @@ describe('ClaimsService', () => {
       ).toHaveBeenCalledTimes(1);
       expect(mockFetchFunction).toHaveBeenCalledTimes(1);
       expect(mockFetchFunction).toHaveBeenCalledWith(
-        `${CLAIMS_API_URL_MAP[Env.DEV]}/claims/byId/1`,
+        `${TEST_BASE_URL}/claims/byId/1`,
         {
           headers: {
             Authorization: 'Bearer test-token',
@@ -442,7 +438,7 @@ describe('ClaimsService', () => {
       ).not.toHaveBeenCalled();
       expect(mockFetchFunction).toHaveBeenCalledTimes(1);
       expect(mockFetchFunction).toHaveBeenCalledWith(
-        `${CLAIMS_API_URL_MAP[Env.DEV]}/signature/generateMessage`,
+        `${TEST_BASE_URL}/signature/generateMessage`,
         {
           headers: {
             Authorization: 'Bearer test-token',
@@ -689,7 +685,7 @@ describe('ClaimsService', () => {
       );
       const publishSpy = vi.spyOn(messenger, 'publish');
       const service = new ClaimsService({
-        env: Env.DEV,
+        baseUrl: TEST_BASE_URL,
         messenger,
         fetchFunction: mockFetchFunction,
       });
@@ -808,7 +804,7 @@ describe('ClaimsService', () => {
       );
       const publishSpy = vi.spyOn(messenger, 'publish');
       const service = new ClaimsService({
-        env: Env.DEV,
+        baseUrl: TEST_BASE_URL,
         messenger,
         fetchFunction: mockFetchFunction,
       });
@@ -879,7 +875,7 @@ describe('ClaimsService', () => {
         mockCaptureException,
       );
       const service = new ClaimsService({
-        env: Env.DEV,
+        baseUrl: TEST_BASE_URL,
         messenger,
         fetchFunction: mockFetchFunction,
       });
@@ -912,7 +908,7 @@ describe('ClaimsService', () => {
         vi.fn(),
       );
       const service = new ClaimsService({
-        env: Env.DEV,
+        baseUrl: TEST_BASE_URL,
         messenger,
         fetchFunction: mockFetchFunction,
         captureException: (_error: Error): void => {

@@ -149,7 +149,6 @@ export {
 } from './selectors.js';
 export { SubscriptionServiceError } from './errors.js';
 export {
-  Env,
   SubscriptionControllerErrorMessage,
   SubscriptionServiceErrorMessage,
   SubscriptionDelegationServiceErrorMessage,
@@ -166,7 +165,6 @@ export type {
 export {
   SubscriptionService,
   serviceName as subscriptionServiceName,
-  SUBSCRIPTION_URL,
 } from './SubscriptionService.js';
 export type {
   SubscriptionServiceGetSubscriptionsAction,

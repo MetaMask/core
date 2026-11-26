@@ -56,9 +56,7 @@ export type {
 
 export {
   ClaimStatusEnum,
-  Env,
   ClaimsControllerErrorMessages,
   DEFAULT_CLAIMS_CONFIGURATIONS,
   ClaimsServiceErrorMessages,
-  CLAIMS_API_URL_MAP,
 } from './constants.js';
