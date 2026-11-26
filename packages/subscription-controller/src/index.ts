@@ -21,9 +21,11 @@ export type {
   SubscriptionControllerSubmitSubscriptionCryptoApprovalAction,
   SubscriptionControllerGetCryptoApproveTransactionParamsAction,
   SubscriptionControllerUpdatePaymentMethodAction,
+  SubscriptionControllerRetryCryptoChargeAction,
   SubscriptionControllerGetBillingPortalUrlAction,
   SubscriptionControllerCacheLastSelectedPaymentMethodAction,
   SubscriptionControllerClearLastSelectedPaymentMethodAction,
+  SubscriptionControllerSetChargeRetryInProgressAction,
   SubscriptionControllerSubmitSponsorshipIntentsAction,
   SubscriptionControllerSubmitUserEventAction,
   SubscriptionControllerAssignUserToCohortAction,
@@ -141,6 +143,9 @@ export {
   selectPaymentFailureReason,
   selectIsRenewalNeeded,
   selectIsDelegationExhausted,
+  selectIsChargeRetryPending,
+  selectIsChargeRetryInProgress,
+  isSubscriptionChargeRetryable,
 } from './selectors.js';
 export { SubscriptionServiceError } from './errors.js';
 export {
@@ -170,6 +175,8 @@ export type {
   SubscriptionServiceStartSubscriptionWithCryptoAction,
   SubscriptionServiceUpdatePaymentMethodCardAction,
   SubscriptionServiceUpdatePaymentMethodCryptoAction,
+  SubscriptionServicePayLastInvoiceAction,
+  SubscriptionServiceVerifyPaymentMethodAction,
   SubscriptionServiceGetSubscriptionsEligibilitiesAction,
   SubscriptionServiceSubmitUserEventAction,
   SubscriptionServiceAssignUserToCohortAction,

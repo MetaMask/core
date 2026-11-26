@@ -1980,6 +1980,43 @@ describe('SubscriptionService', () => {
     });
   });
 
+  describe.each([
+    ['payLastInvoice', 'last-invoice/pay'],
+    ['verifyPaymentMethod', 'payment-method/verify'],
+  ] as const)('%s', (methodName, endpoint) => {
+    it(`should POST to ${endpoint} and return the subscription`, async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock, env }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({ jsonData: MOCK_SUBSCRIPTION }),
+        );
+
+        const result = await service[methodName]({
+          subscriptionId: 'sub_123456789',
+        });
+
+        expect(result).toStrictEqual(MOCK_SUBSCRIPTION);
+        expect(fetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(env, `subscriptions/sub_123456789/${endpoint}`),
+          {
+            method: 'POST',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify({}),
+          },
+        );
+      });
+    });
+
+    it('should throw SubscriptionServiceError for network errors', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockRejectedValue(new Error('Network error'));
+
+        await expect(
+          service[methodName]({ subscriptionId: 'sub_123456789' }),
+        ).rejects.toThrow(SubscriptionServiceError);
+      });
+    });
+  });
+
   describe('getBillingPortalUrl', () => {
     it('should get billing portal url successfully', async () => {
       await withMockSubscriptionService(async ({ service, fetchMock }) => {

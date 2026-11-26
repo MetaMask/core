@@ -7,11 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+### Added
 
 - **BREAKING:** `SubscriptionService` now requires `baseUrl` instead of `env` and no longer defaults to production. The `Env` and `SUBSCRIPTION_URL` exports have been removed. ([#11703](https://github.com/MetaMask/core/pull/11703))
   - Pass the API base URL without a trailing slash or `/v1`, for example `https://subscription.api.cx.metamask.io` for production.
+- `SubscriptionDelegationService` now retries a stuck Money Account Plus charge once the Money Account covers it ([#11612](https://github.com/MetaMask/core/pull/11612))
+  - A subscription is stuck when it is `paused`, or `past_due` or `active` (with a crypto payment error) with its last invoice `FAILED` for `insufficient_balance`. A `PROCESSING` invoice, or a `FAILED` invoice with any other error, is not retried, including while `paused`
+  - The service re-checks after a confirmed `moneyAccountDeposit` or `membershipSubscription` transaction (again 90 seconds later, past the balance cache), on `KeyringController:unlock`, when `AuthenticationController` signs in, when the cached Plus subscription changes, and every 5 minutes while the balance stays short or after a failed charge, while the wallet is unlocked
+  - The balance check uses the pricing cached in `SubscriptionController` state, and fetches it only when none is cached
+  - When the balance covers the charge, it calls `SubscriptionController:retryCryptoCharge`, so the Subscription API charges the stored delegation
+  - Add optional `chargeRetryInterval` constructor option to change the 5-minute re-check interval. Keep it above the `MoneyAccountBalanceService` balance stale time
+- Add `SubscriptionService.payLastInvoice` and `SubscriptionService.verifyPaymentMethod`, exposed as messenger actions, which call `POST /subscriptions/:id/last-invoice/pay` and `POST /subscriptions/:id/payment-method/verify` ([#11612](https://github.com/MetaMask/core/pull/11612))
+- Add `SubscriptionController.retryCryptoCharge`, exposed as a messenger action, which retries a failed crypto charge with the stored payment method and refreshes subscriptions ([#11612](https://github.com/MetaMask/core/pull/11612))
+  - It verifies the payment method of a `paused` subscription and pays the last invoice otherwise
+  - The charged subscription from that response replaces the refreshed one in state, since the refresh can return the pre-charge invoice
+  - It then triggers an access token refresh, so token claims match the charged subscription
+- Add `SubscriptionDelegationService.init`, which checks for a stuck charge once ([#11612](https://github.com/MetaMask/core/pull/11612))
+  - `@metamask/wallet` calls it through `Wallet.init()`. Clients that construct the service themselves must call it after all controllers and services exist, so a wallet that is already unlocked is still checked
+- Add `SubscriptionDelegationService.destroy`, which stops the periodic charge re-check ([#11612](https://github.com/MetaMask/core/pull/11612))
+- Add `isSubscriptionChargeRetryable`, which reports whether a crypto subscription is stuck on a charge a funded Money Account can unblock ([#11612](https://github.com/MetaMask/core/pull/11612))
+- Add `selectIsChargeRetryPending` selector, which reports from `SubscriptionController` state whether `SubscriptionDelegationService` will retry a stuck Money Account Plus charge ([#11612](https://github.com/MetaMask/core/pull/11612))
+- Add optional, non-persisted `isChargeRetryInProgress` to `SubscriptionControllerState`, set through the new `SubscriptionController:setChargeRetryInProgress` action ([#11612](https://github.com/MetaMask/core/pull/11612))
+  - `SubscriptionDelegationService` sets it to `true` while it sends a stuck Money Account Plus charge and refreshes subscriptions, then back to `false`
+- Add `selectIsChargeRetryInProgress` selector, which returns `true` while `isChargeRetryInProgress` is set or the Money Account Plus crypto invoice is `PROCESSING` ([#11612](https://github.com/MetaMask/core/pull/11612))
+
+### Changed
+
+- **BREAKING:** `SubscriptionDelegationServiceMessenger` requires new actions and events ([#11612](https://github.com/MetaMask/core/pull/11612))
+  - Delegate the `KeyringController:getState`, `AuthenticationController:isSignedIn`, `SubscriptionController:retryCryptoCharge` and `SubscriptionController:setChargeRetryInProgress` actions
+  - Delegate the `AuthenticationController:stateChanged`, `KeyringController:unlock`, `SubscriptionController:stateChanged` and `TransactionController:transactionConfirmed` events
+- **BREAKING:** `SubscriptionControllerMessenger` requires the `SubscriptionService:payLastInvoice` and `SubscriptionService:verifyPaymentMethod` actions ([#11612](https://github.com/MetaMask/core/pull/11612))
+- Add dependency on `@metamask/keyring-controller` `^28.2.2` ([#11612](https://github.com/MetaMask/core/pull/11612))
 - Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.4.1` ([#11732](https://github.com/MetaMask/core/pull/11732), [#11761](https://github.com/MetaMask/core/pull/11761))
+
+### Deprecated
+
+- Retrying a crypto charge by calling `updatePaymentMethod` / `updatePaymentMethodCrypto` without `rawTransaction` is deprecated, because the Subscription API deprecated `PATCH /subscriptions/:id/payment-method/crypto`. Use `SubscriptionController.retryCryptoCharge` instead ([#11612](https://github.com/MetaMask/core/pull/11612))
 
 ## [15.4.0]
 

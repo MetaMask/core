@@ -120,6 +120,8 @@ describe('subscriptionController', () => {
         'SubscriptionService:startSubscriptionWithCrypto',
         'SubscriptionService:updatePaymentMethodCard',
         'SubscriptionService:updatePaymentMethodCrypto',
+        'SubscriptionService:payLastInvoice',
+        'SubscriptionService:verifyPaymentMethod',
         'SubscriptionService:getSubscriptionsEligibilities',
         'SubscriptionService:submitUserEvent',
         'SubscriptionService:assignUserToCohort',

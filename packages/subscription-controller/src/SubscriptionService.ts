@@ -69,6 +69,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'startSubscriptionWithCrypto',
   'updatePaymentMethodCard',
   'updatePaymentMethodCrypto',
+  'payLastInvoice',
+  'verifyPaymentMethod',
   'getSubscriptionsEligibilities',
   'submitUserEvent',
   'assignUserToCohort',
@@ -401,6 +403,58 @@ export class SubscriptionService extends BaseDataService<
       errorMessage:
         SubscriptionServiceErrorMessage.FailedToUpdatePaymentMethodCrypto,
     });
+  }
+
+  /**
+   * Pays a running subscription's last invoice with its stored crypto payment
+   * method.
+   *
+   * @param params - The pay last invoice request.
+   * @param params.subscriptionId - The subscription ID.
+   * @returns The updated subscription.
+   */
+  async payLastInvoice(params: {
+    subscriptionId: string;
+  }): Promise<Subscription> {
+    const { profileKey, bearerToken } = await this.#getAuthenticatedContext();
+    const jsonResponse = await this.#fetchJson({
+      profileKey,
+      bearerToken,
+      methodName: 'payLastInvoice',
+      requestParams: params,
+      path: `subscriptions/${params.subscriptionId}/last-invoice/pay`,
+      method: 'POST',
+      body: {},
+      errorMessage: SubscriptionServiceErrorMessage.FailedToPayLastInvoice,
+    });
+
+    return create(jsonResponse, SubscriptionStruct);
+  }
+
+  /**
+   * Verifies a paused subscription's stored crypto payment method, which
+   * charges it and resumes the subscription.
+   *
+   * @param params - The verify payment method request.
+   * @param params.subscriptionId - The subscription ID.
+   * @returns The updated subscription.
+   */
+  async verifyPaymentMethod(params: {
+    subscriptionId: string;
+  }): Promise<Subscription> {
+    const { profileKey, bearerToken } = await this.#getAuthenticatedContext();
+    const jsonResponse = await this.#fetchJson({
+      profileKey,
+      bearerToken,
+      methodName: 'verifyPaymentMethod',
+      requestParams: params,
+      path: `subscriptions/${params.subscriptionId}/payment-method/verify`,
+      method: 'POST',
+      body: {},
+      errorMessage: SubscriptionServiceErrorMessage.FailedToVerifyPaymentMethod,
+    });
+
+    return create(jsonResponse, SubscriptionStruct);
   }
 
   /**
