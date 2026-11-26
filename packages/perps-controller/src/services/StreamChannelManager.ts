@@ -113,8 +113,11 @@ export type StreamConnectionWatcher = (
 export type StreamChannelManagerOptions = {
   /** Connection state source; a drop triggers each channel's `read`. */
   subscribeToConnectionState?: StreamConnectionWatcher;
-  /** Receives subscriber callback failures, which never reach the venue. */
-  onError?: (error: unknown) => void;
+  /**
+   * Receives subscriber callback failures, which never reach the venue, with
+   * the key of the channel they came from when there is one.
+   */
+  onError?: (error: unknown, key?: StreamChannelKey) => void;
 };
 
 type Reader = {
@@ -196,7 +199,7 @@ export class StreamChannelManager {
 
   readonly #subscribeToConnectionState: StreamConnectionWatcher | undefined;
 
-  readonly #onError: (error: unknown) => void;
+  readonly #onError: (error: unknown, key?: StreamChannelKey) => void;
 
   #stopConnectionWatch: (() => void) | undefined;
 
@@ -354,7 +357,7 @@ export class StreamChannelManager {
           reader.subscriber.onReset?.();
         }
       } catch (error) {
-        this.#onError(error);
+        this.#onError(error, channel.key);
       }
     }
     if (channel.closed) {
@@ -570,7 +573,7 @@ export class StreamChannelManager {
         channel.stop = stop;
       } else {
         // Closed, moved or failed while opening.
-        this.#runStop(stop);
+        this.#runStop(stop, channel.key);
       }
     } catch (error) {
       queueMicrotask(() => fail(toError(error), []));
@@ -595,14 +598,14 @@ export class StreamChannelManager {
     channel.generation += 1;
     clearTimeout(channel.retryTimer);
     channel.retryTimer = undefined;
-    this.#runStop(stop);
+    this.#runStop(stop, channel.key);
   }
 
-  #runStop(stop: () => void): void {
+  #runStop(stop: () => void, key: StreamChannelKey): void {
     try {
       stop();
     } catch (error) {
-      this.#onError(error);
+      this.#onError(error, key);
     }
   }
 
@@ -690,7 +693,7 @@ export class StreamChannelManager {
       try {
         reader.subscriber.onError?.(error, ...detail);
       } catch (callbackError) {
-        this.#onError(callbackError);
+        this.#onError(callbackError, channel.key);
       }
     }
   }
@@ -742,7 +745,7 @@ export class StreamChannelManager {
     try {
       reader.subscriber.callback(...args);
     } catch (error) {
-      this.#onError(error);
+      this.#onError(error, reader.channel.key);
     }
   }
 

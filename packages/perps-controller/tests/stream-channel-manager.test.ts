@@ -635,7 +635,9 @@ describe('StreamChannelManager', () => {
     source.emit(1);
 
     expect(healthy).toHaveBeenCalledWith(1);
-    expect(onError).toHaveBeenCalledWith(new Error('render failed'));
+    expect(onError).toHaveBeenCalledWith(new Error('render failed'), {
+      stream: 'prices',
+    });
   });
 
   it('stops every channel on clear', () => {

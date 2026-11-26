@@ -766,6 +766,37 @@ describe('SubscriptionMultiplexer', () => {
       expect(vi.getTimerCount()).toBe(0);
     });
 
+    it("tags a reader's failure with its own stream, not the venue's first one", () => {
+      const provider = createMockProvider('hyperliquid');
+      const providers: [PerpsProviderType, PerpsProvider][] = [
+        ['hyperliquid', provider as unknown as PerpsProvider],
+      ];
+      muxWithLogger.subscribeToPrices({
+        symbols: ['BTC'],
+        providers,
+        callback: vi.fn(),
+      });
+      muxWithLogger.subscribeToPositions({
+        providers,
+        callback: () => {
+          throw new Error('reader failed');
+        },
+      });
+
+      provider._emitPositions([]);
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'reader failed' }),
+        expect.objectContaining({
+          tags: {
+            feature: 'perps',
+            provider: 'hyperliquid',
+            method: 'subscribeToPositions',
+          },
+        }),
+      );
+    });
+
     it('works without a logger or an error handler', async () => {
       const stop = vi.fn();
       successfulProvider.subscribeToPrices = vi.fn(() => stop);

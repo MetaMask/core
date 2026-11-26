@@ -216,7 +216,13 @@ export class SubscriptionMultiplexer {
         subscribeToConnectionState: (listener): (() => void) =>
           provider.subscribeToConnectionState?.(listener) ??
           ((): void => undefined),
-        onError: (error): void => this.#logError(error, method, providerId),
+        // Tagged with the stream that failed; one manager serves them all.
+        onError: (error, key): void =>
+          this.#logError(
+            error,
+            key?.stream ?? 'subscribeToConnectionState',
+            providerId,
+          ),
       });
       this.#venues.set(provider, venue);
     }
