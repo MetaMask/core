@@ -36,12 +36,12 @@ const LIGHTER_ASSET_PREFIX = 'lighter:';
 const LIGHTER_USDC_DECIMALS = 6;
 
 /**
- * Lighter transfers already sent, by server quote ID.
+ * Lighter transfers already sent, by server quote ID and then step index.
  *
  * Kept outside the quote because quotes come from the frozen controller state.
  * An entry is dropped once the quote is confirmed.
  */
-const submittedTransfers = new Map<string, string>();
+const submittedTransfers = new Map<string, Map<number, string>>();
 
 /**
  * Placeholder chain ID for the Lighter perps balance. Only used within the
@@ -223,8 +223,8 @@ export async function submitLighterTransfer(
  * Send the Lighter transfer steps of a quote.
  *
  * The transfers debit the Lighter account the quote was requested for, which
- * is the quote's sender. They are skipped if this quote's transfers were
- * already sent, so a retry does not debit the account twice.
+ * is the quote's sender. A transfer already sent for this quote is skipped, so
+ * a retry does not debit the account twice and still sends the remaining ones.
  *
  * @param request - Request object.
  * @param request.eoa - Address that owns the Lighter account to debit.
@@ -247,16 +247,20 @@ export async function submitLighterSteps({
     return;
   }
 
-  const submittedTxHash = submittedTransfers.get(quote.id);
+  const submitted =
+    submittedTransfers.get(quote.id) ?? new Map<number, string>();
+  submittedTransfers.set(quote.id, submitted);
 
-  if (submittedTxHash) {
-    log('Lighter transfer already submitted, skipping', {
-      txHash: submittedTxHash,
-    });
-    return;
-  }
+  for (const [index, { type: _type, ...transfer }] of steps.entries()) {
+    const submittedTxHash = submitted.get(index);
 
-  for (const { type: _type, ...transfer } of steps) {
+    if (submittedTxHash) {
+      log('Lighter transfer already submitted, skipping', {
+        txHash: submittedTxHash,
+      });
+      continue;
+    }
+
     const result = await submitLighterTransfer(messenger, {
       ...transfer,
       accountIndex: Number(quote.sender),
@@ -267,7 +271,7 @@ export async function submitLighterSteps({
       throw new Error(result.error ?? 'Lighter transfer failed');
     }
 
-    submittedTransfers.set(quote.id, result.txHash ?? 'submitted');
+    submitted.set(index, result.txHash ?? 'submitted');
   }
 }
 

@@ -1868,6 +1868,38 @@ describe('submitServerQuotes', () => {
       expect(lighterSubmitTransferMock).toHaveBeenCalledTimes(1);
     });
 
+    it('sends only the transfers not yet sent when the quote is retried', async () => {
+      const lighterRequest = buildLighterRequest();
+      const secondMemo = `0x${'cd'.repeat(32)}` as const;
+      const [{ original }] = lighterRequest.quotes;
+      original.id = 'partially-sent-lighter-quote';
+      getServerStatusMock.mockResolvedValueOnce({
+        status: ServerStatus.Failed,
+      });
+
+      await expect(submitServerQuotes(lighterRequest)).rejects.toThrow(
+        'Server intent failed',
+      );
+
+      original.steps = [
+        LIGHTER_STEP_MOCK,
+        { ...LIGHTER_STEP_MOCK, memo: secondMemo },
+      ];
+      mockTransferResult({ success: false, error: 'nonce too low' });
+
+      await expect(submitServerQuotes(lighterRequest)).rejects.toThrow(
+        'nonce too low',
+      );
+
+      mockTransferResult({ success: true, txHash: '0x2' });
+      await submitServerQuotes(lighterRequest);
+
+      expect(lighterSubmitTransferMock).toHaveBeenCalledTimes(3);
+      expect(lighterSubmitTransferMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ memo: secondMemo }),
+      );
+    });
+
     it('does not submit on-chain transactions for a Lighter-only quote', async () => {
       await submitServerQuotes(buildLighterRequest());
 
