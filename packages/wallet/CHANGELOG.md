@@ -20,7 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Actions: `KeyringController:getState`, `AuthenticationController:isSignedIn`, `SubscriptionController:retryCryptoCharge` and `SubscriptionController:setChargeRetryInProgress`
   - Events: `TransactionController:transactionConfirmed`, `KeyringController:unlock`, `AuthenticationController:stateChanged` and `SubscriptionController:stateChanged`
 - `SubscriptionController` messenger now delegates `SubscriptionService:payLastInvoice` and `SubscriptionService:verifyPaymentMethod` ([#11612](https://github.com/MetaMask/core/pull/11612))
-- Bump `@metamask/transaction-controller` from `^74.4.0` to `^74.4.1` ([#11761](https://github.com/MetaMask/core/pull/11761))
+- Bump `@metamask/transaction-controller` from `^74.4.0` to `^74.5.0` ([#11761](https://github.com/MetaMask/core/pull/11761), [#11780](https://github.com/MetaMask/core/pull/11780))
+- Bump `@metamask/core-backend` from `^14.1.0` to `^15.0.0` ([#11780](https://github.com/MetaMask/core/pull/11780))
 
 ## [22.0.0]
 

@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add support for passing `undefined` as `multiplier` to `estimateGasBuffered`, which then uses the value from `confirmations_gas_buffer`. The buffer is applied even when estimation fails ([#11756](https://github.com/MetaMask/core/pull/11756))
 
+### Changed
+
+- Bump `@metamask/core-backend` from `^14.1.0` to `^15.0.0` ([#11780](https://github.com/MetaMask/core/pull/11780))
+
 ## [74.4.1]
 
 ### Fixed

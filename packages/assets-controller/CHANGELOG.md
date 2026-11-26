@@ -19,10 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `PriceDataSource` requires `messenger` ([#11193](https://github.com/MetaMask/core/pull/11193))
 - The price stream subscribes as the `assets-controller` caller and sends the assets it wants on each reconcile. `MarketStatsService` keeps the callers on each channel, so a screen watching the same asset stays subscribed when the price set changes ([#11193](https://github.com/MetaMask/core/pull/11193))
 - Bump `@ethersproject/abi` from `^5.7.0` to `^5.8.0` ([#11645](https://github.com/MetaMask/core/pull/11645))
-- Bump `@metamask/assets-controllers` from `^113.3.2` to `^113.3.3` ([#11669](https://github.com/MetaMask/core/pull/11669))
+- Bump `@metamask/assets-controllers` from `^113.3.2` to `^113.3.4` ([#11669](https://github.com/MetaMask/core/pull/11669), [#11780](https://github.com/MetaMask/core/pull/11780))
 - Bump `@metamask/network-enablement-controller` from `^7.1.3` to `^7.1.4` ([#11669](https://github.com/MetaMask/core/pull/11669))
 - Bump `@metamask/phishing-controller` from `^18.3.1` to `^18.3.2` ([#11669](https://github.com/MetaMask/core/pull/11669))
-- Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.4.1` ([#11669](https://github.com/MetaMask/core/pull/11669), [#11732](https://github.com/MetaMask/core/pull/11732), [#11761](https://github.com/MetaMask/core/pull/11761))
+- Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.5.0` ([#11669](https://github.com/MetaMask/core/pull/11669), [#11732](https://github.com/MetaMask/core/pull/11732), [#11761](https://github.com/MetaMask/core/pull/11761), [#11780](https://github.com/MetaMask/core/pull/11780))
+- Bump `@metamask/core-backend` from `^14.1.0` to `^15.0.0` ([#11780](https://github.com/MetaMask/core/pull/11780))
+- Bump `@metamask/multichain-transactions-controller` from `^8.0.0` to `^8.0.1` ([#11780](https://github.com/MetaMask/core/pull/11780))
 
 ### Removed
 
