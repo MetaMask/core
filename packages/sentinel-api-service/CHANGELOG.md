@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `getVaultWhitelistSignature` and the `SentinelApiService:getVaultWhitelistSignature` messenger action to request a vault deposit signature or report subscriber ineligibility ([PR pending](https://github.com/MetaMask/core/pulls)).
+- Add `getVaultWhitelistSignature` and the `SentinelApiService:getVaultWhitelistSignature` messenger action to request a vault deposit signature or report subscriber ineligibility ([#11788](https://github.com/MetaMask/core/pull/11788)).
 
 ### Changed
 
