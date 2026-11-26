@@ -9,13 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `isTrueExactOutput` to `TransactionConfig` and `TransactionData`, so the recipient of a token transfer receives exactly the required amount, with any swap surplus kept by the provider ([#11775](https://github.com/MetaMask/core/pull/11775))
-  - Quotes are priced as `EXACT_OUTPUT` on the required amount.
-  - `ServerStrategy` sends `useTrueExactOutput: true`. The transaction type must still be in `payStrategies.server.enabledTransactionTypes`.
-  - `RelayStrategy` sends `enableTrueExactOutput: true` and reports no dust.
-  - `AcrossStrategy` declines these requests.
-  - Submission fails if the settlement hash is unknown. Same-chain Relay execute submissions poll Relay for it.
-  - Not supported with `isMaxAmount` or `atomic: false`, and ignored for post-quote transactions.
+- Add `isTrueExactOutput` to `TransactionConfig` so token transfers deliver exactly the required amount to the recipient, supported by `ServerStrategy` and `RelayStrategy` ([#11775](https://github.com/MetaMask/core/pull/11775))
 
 ## [33.1.1]
 
