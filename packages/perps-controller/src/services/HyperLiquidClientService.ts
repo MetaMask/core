@@ -336,6 +336,7 @@ export class HyperLiquidClientService {
       );
     });
 
+    this.#lastLatencyMs = undefined;
     this.#measureKeepalive(owningTransport);
 
     // Listen for WebSocket termination (fired when SDK exhausts all reconnection attempts)
@@ -381,6 +382,10 @@ export class HyperLiquidClientService {
     };
     socket.addEventListener('close', () => {
       pingSentAt = undefined;
+      // A closed connection's round trip says nothing of the next one.
+      if (this.#wsTransport === transport) {
+        this.#lastLatencyMs = undefined;
+      }
     });
     socket.addEventListener('message', (event: MessageEvent) => {
       if (

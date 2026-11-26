@@ -1885,6 +1885,27 @@ describe('HyperLiquidClientService', () => {
         expect(listener.mock.calls).toStrictEqual([[42]]);
       });
 
+      it('replays no measurement of a connection that closed or was replaced', async () => {
+        service.initialize(mockWallet);
+        const measure = (): void => {
+          mockWsTransport.socket.send('{"method":"ping"}');
+          socketListener('message')({ data: '{"channel":"pong"}' });
+        };
+        measure();
+        socketListener('close')({});
+        const afterClose = vi.fn();
+        service.subscribeToLatency(afterClose);
+
+        measure();
+        await service.disconnect();
+        service.initialize(mockWallet);
+        const afterReplace = vi.fn();
+        service.subscribeToLatency(afterReplace);
+
+        expect(afterClose.mock.calls).toStrictEqual([[0]]);
+        expect(afterReplace).not.toHaveBeenCalled();
+      });
+
       it('replays the last measurement to a new listener and stops after unsubscribe', () => {
         service.initialize(mockWallet);
         mockWsTransport.socket.send('{"method":"ping"}');
