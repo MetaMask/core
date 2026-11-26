@@ -5,7 +5,11 @@ import {
   CAPABILITY_AUTHORIZATION_STATUSES,
   KYC_CURRENT_STEPS,
   KYC_STATUSES,
+  KYC_STEP_STATUSES,
+  KYC_STEPS,
   needsCapabilityAuthorizationRefresh,
+  toKycStep,
+  toKycStepStatus,
 } from './types.js';
 import type { KycCurrentStep, KycSessionStatus } from './types.js';
 
@@ -145,5 +149,39 @@ describe('patchKycSessionStatus', () => {
     delete session.currentStep;
 
     expect(patchKycSessionStatus(session)).toBe(session);
+  });
+});
+
+describe('toKycStep', () => {
+  it.each(KYC_STEPS)('keeps the known step %s', (step) => {
+    expect(toKycStep(step)).toBe(step);
+  });
+
+  it('turns a step this version does not know into error', () => {
+    expect(toKycStep('brand_new_step')).toBe('error');
+  });
+
+  it.each([
+    'vendor_terms',
+    'confirm_identity',
+    'account_link',
+    'phone_link',
+    'identity_provider',
+    'identity_email_code',
+    'identity_phone',
+    'done',
+    'verify_email',
+  ])('does not accept the old step name %s', (step) => {
+    expect(toKycStep(step)).toBe('error');
+  });
+});
+
+describe('toKycStepStatus', () => {
+  it.each(KYC_STEP_STATUSES)('keeps the known status %s', (knownStatus) => {
+    expect(toKycStepStatus(knownStatus)).toBe(knownStatus);
+  });
+
+  it('turns a status this version does not know into none', () => {
+    expect(toKycStepStatus('brand_new_status')).toBe('none');
   });
 });

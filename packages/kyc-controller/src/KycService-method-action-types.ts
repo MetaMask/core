@@ -295,6 +295,101 @@ export type KycServiceGetSessionStatusForVendorAction = {
 };
 
 /**
+ * Fetches the vendor's current onboarding step
+ * (`GET /vendors/{vendor}/step`). kyc-api works it out from what it knows
+ * about the user, so the answer is the same on every device.
+ *
+ * @param vendor - The vendor to get the step for.
+ * @param client - What only this device knows, sent so kyc-api can use it
+ * for this answer. kyc-api stores none of it.
+ * @returns The step, how verification is going, and the vendor's relay
+ * session id (`null` when there is none).
+ */
+export type KycServiceGetStepAction = {
+  type: `KycService:getStep`;
+  handler: KycService['getStep'];
+};
+
+/**
+ * Records the user's acceptance of a vendor's terms
+ * (`POST /vendors/{vendor}/disclaimers`). Needs no session. kyc-api stores
+ * the acceptance, so the next step moves on.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - The vendor whose terms were accepted.
+ * @param params.disclaimerIds - Accepted terms ids from the vendor catalog.
+ * @param params.country - ISO 3166-1 alpha-3 country the terms were fetched
+ * for.
+ */
+export type KycServiceAcceptVendorTermsAction = {
+  type: `KycService:acceptVendorTerms`;
+  handler: KycService['acceptVendorTerms'];
+};
+
+/**
+ * Sends the vendor's email code again
+ * (`POST /sessions/{id}/onboarding/email/resend-otp`).
+ *
+ * Kalshi sends the phone-signed `users/link` as `signedRequest`. Other
+ * vendors send an empty body.
+ *
+ * @param params - The parameters.
+ * @param params.sessionId - UKYC session id.
+ * @param params.signedRequest - Phone-signed `users/link` for Kalshi.
+ * @returns The session status after the code is sent.
+ */
+export type KycServiceSendEmailOtpAction = {
+  type: `KycService:sendEmailOtp`;
+  handler: KycService['sendEmailOtp'];
+};
+
+/**
+ * Verifies the vendor's email code
+ * (`POST /sessions/{id}/onboarding/email/verify-otp`).
+ *
+ * Kalshi sends the phone-signed `users/link/verify` as `signedRequest` and
+ * no `otp`: the code is inside the signed body. Other vendors send `otp`.
+ *
+ * @param params - The parameters.
+ * @param params.sessionId - UKYC session id.
+ * @param params.otp - The code from the user. Omitted for Kalshi.
+ * @param params.signedRequest - Phone-signed `users/link/verify` for Kalshi.
+ * @returns The session status after the code is verified.
+ */
+export type KycServiceVerifyEmailOtpAction = {
+  type: `KycService:verifyEmailOtp`;
+  handler: KycService['verifyEmailOtp'];
+};
+
+/**
+ * Sends the vendor's SMS code
+ * (`POST /sessions/{id}/onboarding/phone/send-otp`).
+ *
+ * @param params - The parameters.
+ * @param params.sessionId - UKYC session id.
+ * @param params.phoneNumber - The phone number in E.164 format.
+ * @returns The session status after the code is sent.
+ */
+export type KycServiceSendPhoneOtpAction = {
+  type: `KycService:sendPhoneOtp`;
+  handler: KycService['sendPhoneOtp'];
+};
+
+/**
+ * Verifies the vendor's SMS code
+ * (`POST /sessions/{id}/onboarding/phone/verify-otp`).
+ *
+ * @param params - The parameters.
+ * @param params.sessionId - UKYC session id.
+ * @param params.otp - The code from the user.
+ * @returns The session status after the code is verified.
+ */
+export type KycServiceVerifyPhoneOtpAction = {
+  type: `KycService:verifyPhoneOtp`;
+  handler: KycService['verifyPhoneOtp'];
+};
+
+/**
  * Fetches the vendors the customer's verified identity data has been shared
  * with (`GET /api/kyc/external-user-id/{externalUserId}/shares` on the idOS
  * relay), newest first.
@@ -333,4 +428,10 @@ export type KycServiceMethodActions =
   | KycServiceCreateJourneyAction
   | KycServiceGetSessionStatusAction
   | KycServiceGetSessionStatusForVendorAction
+  | KycServiceGetStepAction
+  | KycServiceAcceptVendorTermsAction
+  | KycServiceSendEmailOtpAction
+  | KycServiceVerifyEmailOtpAction
+  | KycServiceSendPhoneOtpAction
+  | KycServiceVerifyPhoneOtpAction
   | KycServiceGetDataSharesAction;

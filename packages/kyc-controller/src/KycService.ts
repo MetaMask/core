@@ -14,6 +14,7 @@ import {
   array,
   assert,
   boolean,
+  nullable,
   optional,
   string,
   StructError,
@@ -24,15 +25,20 @@ import { Duration, inMilliseconds } from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
 import { alpha2ToAlpha3 } from './countryCodes.js';
+import { KycApiError } from './KycApiError.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
-import { patchKycSessionStatus } from './types.js';
+import { patchKycSessionStatus, toKycStep, toKycStepStatus } from './types.js';
 import type {
   KycConsentRecord,
   KycDataShare,
   KycDisclaimer,
   KycDisclaimersCatalog,
+  OnboardingVendor,
   KycSessionDisclaimers,
   KycSessionStatus,
+  KycClientContext,
+  KycSignedRequest,
+  KycStepInfo,
   KycVendor,
   KycVendorSigning,
 } from './types.js';
@@ -67,6 +73,12 @@ const MESSENGER_EXPOSED_METHODS = [
   'getSessionStatus',
   'getSessionStatusForVendor',
   'getDataShares',
+  'getStep',
+  'acceptVendorTerms',
+  'sendEmailOtp',
+  'verifyEmailOtp',
+  'sendPhoneOtp',
+  'verifyPhoneOtp',
 ] as const;
 
 /**
@@ -173,6 +185,14 @@ const VendorSigningStruct = type({
   content_id: optional(string()),
 });
 const VendorSigningsResponseStruct = array(VendorSigningStruct);
+
+/** `GET /vendors/{vendor}/step`, the only route that reports the step. */
+const StepResponseStruct = type({
+  vendor: string(),
+  step: string(),
+  status: string(),
+  sessionId: optional(nullable(string())),
+});
 
 const CreateSessionResponseStruct = type({ sessionToken: string() });
 
@@ -353,7 +373,7 @@ export type CreateUkycSessionParams = {
    * existing Check/Auth flow. Pass a non-MoonPay vendor (e.g. `iron`) for
    * the consents path (no MoonPay metadata required).
    */
-  vendor?: KycVendor;
+  vendor?: KycVendor | OnboardingVendor;
   /**
    * Vendor-specific metadata. Required for MoonPay (`moonPayAccessToken` /
    * `moonPayUserId`); optional / omitted for other vendors.
@@ -367,10 +387,19 @@ export type CreateUkycSessionParams = {
   aal2Token: string;
   /**
    * Partner identity token minted by
-   * `AuthenticationController:getPartnerIdentityToken` for the session's
-   * vendor audience. Omitted from the request body when not provided.
+   * `AuthenticationController:getPartnerIdentityToken`. kyc-api verifies it
+   * and takes the MetaMask user's email from its `ext.email` claim.
+   * Omitted from the request body when not provided.
    */
   partnerIdentityToken?: string;
+  /**
+   * Kalshi calls the phone signed: `[enrollment/intents, users/link]`, or
+   * `[users/link]` when an intent is already open. kyc-api forwards them to
+   * the relay, which checks the signatures and sends them to Kalshi. A
+   * signature lasts 60 seconds, so sign right before this call. Omitted for
+   * vendors that do not link an account this way.
+   */
+  signedRequests?: readonly KycSignedRequest[];
 };
 
 /**
@@ -574,7 +603,7 @@ export class KycService extends BaseDataService<
     vendor = 'moonpay',
     country,
   }: {
-    vendor?: KycVendor;
+    vendor?: KycVendor | OnboardingVendor;
     country: string;
   }): Promise<KycDisclaimer[]> {
     const url = new URL(`/vendors/${vendor}/disclaimers`, this.#baseUrl);
@@ -877,6 +906,9 @@ export class KycService extends BaseDataService<
           ...(params.partnerIdentityToken && {
             partnerIdentityToken: params.partnerIdentityToken,
           }),
+          ...(params.signedRequests && {
+            signedRequests: params.signedRequests,
+          }),
         }),
       },
       { bearerToken: params.aal2Token },
@@ -1082,7 +1114,7 @@ export class KycService extends BaseDataService<
    * @returns The session status, or `null` when no latest session exists.
    */
   async getSessionStatusForVendor(
-    vendor: KycVendor,
+    vendor: KycVendor | OnboardingVendor,
   ): Promise<KycSessionStatus | null> {
     const url = new URL(
       `/sessions/latest/status/${encodeURIComponent(vendor)}`,
@@ -1100,6 +1132,166 @@ export class KycService extends BaseDataService<
       }
       throw error;
     }
+  }
+
+  /**
+   * Fetches the vendor's current onboarding step
+   * (`GET /vendors/{vendor}/step`). kyc-api works it out from what it knows
+   * about the user, so the answer is the same on every device.
+   *
+   * @param vendor - The vendor to get the step for.
+   * @param client - What only this device knows, sent so kyc-api can use it
+   * for this answer. kyc-api stores none of it.
+   * @returns The step, how verification is going, and the vendor's relay
+   * session id (`null` when there is none).
+   */
+  async getStep(
+    vendor: OnboardingVendor,
+    client: KycClientContext = {},
+  ): Promise<KycStepInfo> {
+    const url = new URL(
+      `/vendors/${encodeURIComponent(vendor)}/step`,
+      this.#baseUrl,
+    );
+    // What only this device knows. kyc-api reads it for one answer and
+    // stores none of it.
+    if (client.vendorTermsAcceptedLocally) {
+      url.searchParams.set('vendorTermsAcceptedLocally', 'true');
+    }
+    if (client.acceptedDisclaimerIds?.length) {
+      url.searchParams.set(
+        'acceptedDisclaimerIds',
+        client.acceptedDisclaimerIds.join(','),
+      );
+    }
+    if (client.mfaCompleted) {
+      url.searchParams.set('mfaCompleted', 'true');
+    }
+    const data = await this.#requestJson(url, { method: 'GET' });
+    const { step, status, sessionId } = this.#validateResponse(
+      data,
+      StepResponseStruct,
+      'vendor step',
+    );
+    return {
+      step: toKycStep(step),
+      status: toKycStepStatus(status),
+      sessionId: sessionId ?? null,
+    };
+  }
+
+  /**
+   * Records the user's acceptance of a vendor's terms
+   * (`POST /vendors/{vendor}/disclaimers`). Needs no session. kyc-api stores
+   * the acceptance, so the next step moves on.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The vendor whose terms were accepted.
+   * @param params.disclaimerIds - Accepted terms ids from the vendor catalog.
+   * @param params.country - ISO 3166-1 alpha-3 country the terms were fetched
+   * for.
+   */
+  async acceptVendorTerms(params: {
+    vendor: OnboardingVendor;
+    disclaimerIds: string[];
+    country?: string;
+  }): Promise<void> {
+    const url = new URL(
+      `/vendors/${encodeURIComponent(params.vendor)}/disclaimers`,
+      this.#baseUrl,
+    );
+    await this.#requestJson(url, {
+      method: 'POST',
+      body: JSON.stringify({
+        disclaimerIds: params.disclaimerIds,
+        ...(params.country ? { country: params.country } : {}),
+      }),
+    });
+  }
+
+  /**
+   * Sends the vendor's email code again
+   * (`POST /sessions/{id}/onboarding/email/resend-otp`).
+   *
+   * Kalshi sends the phone-signed `users/link` as `signedRequest`. Other
+   * vendors send an empty body.
+   *
+   * @param params - The parameters.
+   * @param params.sessionId - UKYC session id.
+   * @param params.signedRequest - Phone-signed `users/link` for Kalshi.
+   * @returns The session status after the code is sent.
+   */
+  async sendEmailOtp(params: {
+    sessionId: string;
+    signedRequest?: KycSignedRequest;
+  }): Promise<KycSessionStatus> {
+    return this.#postOnboarding(
+      params.sessionId,
+      'email/resend-otp',
+      params.signedRequest ? { signedRequest: params.signedRequest } : {},
+    );
+  }
+
+  /**
+   * Verifies the vendor's email code
+   * (`POST /sessions/{id}/onboarding/email/verify-otp`).
+   *
+   * Kalshi sends the phone-signed `users/link/verify` as `signedRequest` and
+   * no `otp`: the code is inside the signed body. Other vendors send `otp`.
+   *
+   * @param params - The parameters.
+   * @param params.sessionId - UKYC session id.
+   * @param params.otp - The code from the user. Omitted for Kalshi.
+   * @param params.signedRequest - Phone-signed `users/link/verify` for Kalshi.
+   * @returns The session status after the code is verified.
+   */
+  async verifyEmailOtp(params: {
+    sessionId: string;
+    otp?: string;
+    signedRequest?: KycSignedRequest;
+  }): Promise<KycSessionStatus> {
+    return this.#postOnboarding(params.sessionId, 'email/verify-otp', {
+      ...(params.otp === undefined ? {} : { otp: params.otp }),
+      ...(params.signedRequest === undefined
+        ? {}
+        : { signedRequest: params.signedRequest }),
+    });
+  }
+
+  /**
+   * Sends the vendor's SMS code
+   * (`POST /sessions/{id}/onboarding/phone/send-otp`).
+   *
+   * @param params - The parameters.
+   * @param params.sessionId - UKYC session id.
+   * @param params.phoneNumber - The phone number in E.164 format.
+   * @returns The session status after the code is sent.
+   */
+  async sendPhoneOtp(params: {
+    sessionId: string;
+    phoneNumber: string;
+  }): Promise<KycSessionStatus> {
+    return this.#postOnboarding(params.sessionId, 'phone/send-otp', {
+      phoneNumber: params.phoneNumber,
+    });
+  }
+
+  /**
+   * Verifies the vendor's SMS code
+   * (`POST /sessions/{id}/onboarding/phone/verify-otp`).
+   *
+   * @param params - The parameters.
+   * @param params.sessionId - UKYC session id.
+   * @param params.otp - The code from the user.
+   * @returns The session status after the code is verified.
+   */
+  async verifyPhoneOtp(params: {
+    sessionId: string;
+    otp: string;
+  }): Promise<KycSessionStatus> {
+    return this.#postOnboarding(params.sessionId, 'phone/verify-otp', {
+      otp: params.otp,
+    });
   }
 
   /**
@@ -1144,6 +1336,31 @@ export class KycService extends BaseDataService<
    * @param apiName - A human-readable name of the API, used in the error message.
    * @returns The session status consumers should store and act on.
    */
+  /**
+   * Posts one onboarding call and returns the session status kyc-api answers
+   * with. The step itself is read separately.
+   *
+   * @param sessionId - UKYC session id.
+   * @param path - Path under `/sessions/{id}/onboarding/`.
+   * @param body - The request body.
+   * @returns The session status.
+   */
+  async #postOnboarding(
+    sessionId: string,
+    path: string,
+    body: Record<string, unknown>,
+  ): Promise<KycSessionStatus> {
+    const url = new URL(
+      `/sessions/${encodeURIComponent(sessionId)}/onboarding/${path}`,
+      this.#baseUrl,
+    );
+    const data = await this.#requestJson(url, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+    return this.#validateAndPatchSessionStatus(data, 'onboarding step');
+  }
+
   #validateAndPatchSessionStatus(
     data: unknown,
     apiName: string,
@@ -1240,6 +1457,7 @@ export class KycService extends BaseDataService<
     });
     if (!response.ok) {
       let detail = '';
+      let code: string | undefined;
       try {
         const errorBody: unknown = await response.json();
         if (errorBody && typeof errorBody === 'object') {
@@ -1249,16 +1467,26 @@ export class KycService extends BaseDataService<
           } else if (typeof record.error === 'string') {
             detail = record.error;
           }
+          if (typeof record.code === 'string') {
+            code = record.code;
+          } else if (typeof record.error === 'string') {
+            code = record.error;
+          }
         }
       } catch {
         // Ignore body parse failures; status alone is still useful.
       }
-      throw new HttpError(
-        response.status,
-        `Fetching '${url.toString()}' failed with status '${response.status}'${
-          detail ? `: ${detail}` : ''
-        }`,
-      );
+      // The code rides in the message too. A wrapped failure keeps only the
+      // message, and the body's message can be human text that does not name
+      // the code.
+      let text = `Fetching '${url.toString()}' failed with status '${response.status}'`;
+      if (detail) {
+        text += `: ${detail}`;
+      }
+      if (code !== undefined && !detail.includes(code)) {
+        text += `: ${code}`;
+      }
+      throw new KycApiError(response.status, text, code);
     }
 
     // DELETE (and similar) endpoints return 204 No Content.

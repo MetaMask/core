@@ -166,6 +166,66 @@ Memoized `reselect` selectors over `KycControllerState`:
 `selectKycPhase`, `selectKycSumSub`, and the parametric
 `selectIsKycRequiredForProduct(product)`.
 
+#### 2.5 `VendorOnboardingController`
+
+A second controller for vendors whose onboarding kyc-api drives (Kalshi, and
+later Iron). It sits next to `KycController`, shares `KycService`, and never
+touches `KycController` state.
+
+- **kyc-api decides the step.** Each action sends its change to kyc-api, then
+  reads `GET /vendors/{vendor}/step` and saves the answer. The client maps each
+  `KycStep` to a screen; it never works out where the user is.
+- **State is a cache.** `vendors[vendor] = { step, status, sessionId, mfaCompleted, acceptedDisclaimerIds, pendingConsents }`. Every step read saves `step`, `status` and `sessionId`, and `sessionId` is the vendor's session id from the relay (`null` when there is none), so session calls never look the session up themselves. The phone holds what kyc-api cannot see: MFA done before a session exists, the Kalshi terms accepted, and the idOS and identity provider consents until a session exists. The MFA flag and the terms ids are sent with each step read. The consents are posted where a session and consents meet: when the session is created or picked up, and when they are accepted while a session already exists. They are forgotten only after kyc-api has them, so a failed post is tried again at the next of those. A post kyc-api rejects with `400` or `422` forgets them and the terms, so the terms are asked for again. The terms ids stay on the phone, because they are the only record of which Kalshi terms were accepted, so a reinstall or a second device accepts the Kalshi terms again. Consents and account link state stay on the server.
+- **Step reads are ordered.** A plain `refreshStep` joins a read already in
+  flight; an action always starts its own. An answer that arrives after a newer
+  read started (or after `reset`) is dropped.
+- **Session authorization** lives in `src/ukyc/sessionAuthorization.ts`:
+  `startSession` opens or resumes the UKYC session, then wraps the
+  `data_encryption_key` and a `ukyc_capability_token` for idOS after verifying
+  both encryption schemas' `jwtChain`. A session that already exists (the id
+  saved in state, or the `sessionId` the step reports when state has none)
+  gets fresh authorizations every time, because the step does not say whether
+  its capability authorization is still valid. It does not create a vendor
+  customer.
+- **Injected adapters.** `kalshiRequestSigner` signs Kalshi calls
+  (`enrollment/intents`, `users/link`, `users/link/verify`) with the device
+  key into `{ path, headers, body }` objects, where `body` is the exact signed
+  string. The controller sends them as `signedRequests` on session creation
+  (`[intents, link]`, or `[link]` when `intentOpen` says the intent is
+  already open), and as `signedRequest` on the email calls on
+  `kalshi_email_link` (`sendEmailOtp` signs a fresh `users/link`,
+  `verifyEmailOtp` signs `users/link/verify` with the code in its body and
+  sends no `otp`). It signs right before each call, because a signature lasts
+  60 seconds, and it checks each answer against the route and kyc-api's
+  limits (16 string headers, 4 KB body). A Kalshi session also sends a
+  partner identity token minted for the `kalshi` audience; kyc-api registers
+  that token's verified `ext.email`, and every signed `users/link` must carry
+  that address: any other is refused with `kalshi_signed_request_email_mismatch`
+  before it is signed. `kalshi_phone_link` is the phone and its code, and it is
+  not signed here. kyc-api forwards the signed calls to the relay, which is
+  the only Kalshi client. Relay errors reach the client as a `KycApiError`
+  whose `code` `getKycKalshiErrorCode` reads. Iron uses `terms`, `mfa`,
+  `sumsub`, and `decision`. `sumsubLauncher` presents SumSub.
+
+Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
+
+`refreshStep`, `recordMfaCompleted`, `submitTerms`, `startSession`,
+`getPartnerEmail`, `fetchSessionDisclaimers`, `recordSessionDisclaimers`,
+`launchProviderFlow`, `sendPhoneOtp`, `verifyPhoneOtp`, `verifyEmailOtp`,
+`sendEmailOtp`, `reset`.
+
+It uses these `KycService` endpoints on top of the ones above:
+
+| Method                     | HTTP   | Endpoint                                     | Purpose                                    |
+| -------------------------- | ------ | -------------------------------------------- | ------------------------------------------ |
+| `getStep`                  | `GET`  | `/vendors/{vendor}/step`                     | The vendor's step, status and session id   |
+| `acceptVendorTerms`        | `POST` | `/vendors/{vendor}/disclaimers`              | Iron terms acceptance (no session)         |
+| `submitSessionDisclaimers` | `POST` | `/sessions/{id}/disclaimers`                 | Record idOS and identity provider consents |
+| `sendEmailOtp`             | `POST` | `/sessions/{id}/onboarding/email/resend-otp` | Send the vendor's email code again         |
+| `verifyEmailOtp`           | `POST` | `/sessions/{id}/onboarding/email/verify-otp` | Verify the vendor's email code             |
+| `sendPhoneOtp`             | `POST` | `/sessions/{id}/onboarding/phone/send-otp`   | Send the vendor's SMS code                 |
+| `verifyPhoneOtp`           | `POST` | `/sessions/{id}/onboarding/phone/verify-otp` | Verify the vendor's SMS code               |
+
 ---
 
 ### 3. State shape
@@ -690,15 +750,17 @@ graph LR
 
 ### Appendix — key source files
 
-| File                   | Responsibility                                       |
-| ---------------------- | ---------------------------------------------------- |
-| `src/KycController.ts` | Stateful orchestrator, phase machine.                |
-| `src/KycService.ts`    | Stateless UKYC HTTP client + superstruct validation. |
-| `src/crypto.ts`        | X25519 ECDH + AES-256-GCM credential decryption.     |
-| `src/selectors.ts`     | Memoized selectors over controller state.            |
-| `src/types.ts`         | `KycPhase`, `KycProduct`, `KycSumSubLauncher`, etc.  |
-| `src/countryCodes.ts`  | ISO alpha-2 → alpha-3 mapping.                       |
-| `src/index.ts`         | Public exports (no barrel wildcards).                |
+| File                                | Responsibility                                       |
+| ----------------------------------- | ---------------------------------------------------- |
+| `src/KycController.ts`              | Stateful orchestrator, phase machine.                |
+| `src/VendorOnboardingController.ts` | Follows the step kyc-api decides per vendor.         |
+| `src/ukyc/sessionAuthorization.ts`  | Opens a UKYC session and wraps its authorizations.   |
+| `src/KycService.ts`                 | Stateless UKYC HTTP client + superstruct validation. |
+| `src/crypto.ts`                     | X25519 ECDH + AES-256-GCM credential decryption.     |
+| `src/selectors.ts`                  | Memoized selectors over controller state.            |
+| `src/types.ts`                      | `KycPhase`, `KycProduct`, `KycSumSubLauncher`, etc.  |
+| `src/countryCodes.ts`               | ISO alpha-2 → alpha-3 mapping.                       |
+| `src/index.ts`                      | Public exports (no barrel wildcards).                |
 
 Reference client (metamask-mobile):
 
