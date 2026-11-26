@@ -328,6 +328,9 @@ describe('PerpsController stream subscriptions', () => {
           expect.objectContaining({ symbol: 'NEW' }),
         ],
       ]);
+      // That read was fresh: no second one follows.
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(provider.getMarkets).toHaveBeenCalledTimes(1);
     });
 
     it('does not read when the market data preload refreshes', async () => {

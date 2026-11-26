@@ -4133,7 +4133,13 @@ export class PerpsController extends BaseController<
     }
     // After subscribing: the provider may report there, at once, a change
     // no one heard, which the session cache predates.
-    read(skipCache || stale.has(venue));
+    const fresh = skipCache || stale.has(venue);
+    if (fresh) {
+      // This read covers what was reported so far.
+      clearTimeout(settleTimer);
+      settleTimer = undefined;
+    }
+    read(fresh);
     return () => {
       closed = true;
       clearTimeout(settleTimer);
