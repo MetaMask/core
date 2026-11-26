@@ -791,12 +791,16 @@ export class StreamChannelManager {
     if (this.#stopConnectionWatch || !this.#subscribeToConnectionState) {
       return;
     }
+    // Held while subscribing, so a watcher that answers at once does not
+    // subscribe again.
     this.#stopConnectionWatch = (): void => undefined;
     try {
       this.#stopConnectionWatch = this.#subscribeToConnectionState((state) =>
         this.#onConnectionState(state),
       );
     } catch (error) {
+      // No watch: the next channel to open tries again.
+      this.#stopConnectionWatch = undefined;
       this.#onError(error);
     }
   }

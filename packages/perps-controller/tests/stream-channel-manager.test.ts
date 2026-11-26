@@ -373,6 +373,46 @@ describe('StreamChannelManager', () => {
       expect(source.opens).toBe(4);
     });
 
+    it('watches the connection again after a failed watch, and reopens a spent channel on reconnect', () => {
+      vi.useFakeTimers();
+      let listener: (state: WebSocketConnectionState) => void = () => undefined;
+      const onError = vi.fn();
+      const subscribeToConnectionState = vi
+        .fn<(next: (state: WebSocketConnectionState) => void) => () => void>()
+        .mockImplementationOnce(() => {
+          throw new Error('no transport yet');
+        })
+        .mockImplementation((next) => {
+          listener = next;
+          // A watcher may answer at once, while it is registered.
+          next(WebSocketConnectionState.Connected);
+          return () => undefined;
+        });
+      const manager = new StreamChannelManager({
+        subscribeToConnectionState,
+        onError,
+      });
+      const book = createSource();
+      manager.subscribe({ stream: 'book' }, book, { callback: vi.fn() });
+      expect(onError).toHaveBeenCalledWith(new Error('no transport yet'));
+
+      manager.subscribe({ stream: 'trades' }, createSource(), {
+        callback: vi.fn(),
+      });
+      expect(subscribeToConnectionState).toHaveBeenCalledTimes(2);
+
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        book.fail(new Error('closed'));
+        vi.advanceTimersByTime(30_000);
+      }
+      expect(book.opens).toBe(6);
+      listener(WebSocketConnectionState.Disconnected);
+      listener(WebSocketConnectionState.Connected);
+      expect(book.opens).toBe(7);
+      // One watch: the answer during registration did not subscribe again.
+      expect(subscribeToConnectionState).toHaveBeenCalledTimes(2);
+    });
+
     it('moves with a rebind', () => {
       vi.useFakeTimers();
       const { manager } = setup();
