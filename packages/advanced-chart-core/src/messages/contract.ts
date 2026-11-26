@@ -27,6 +27,7 @@ import type {
   ChartType,
   OHLCVBar,
   OHLCVPaginationConfig,
+  TVResolution,
 } from '../core/types.js';
 
 /** Inbound — React Native → WebView IIFE. */
@@ -129,6 +130,15 @@ export type SetOHLCVDataPayload = {
    * is never affected.
    */
   boundedIntervalWindow?: boolean;
+  /**
+   * TradingView resolution the bars are sampled at, e.g. `'5'`, `'60'`,
+   * `'240'`, `'1D'`, `'1W'` (minutes as numbers; `D`/`W`/`M` shorthand is
+   * accepted). When supported it is used instead of inferring the resolution
+   * from bar spacing, which misfires on low-liquidity tokens with irregular
+   * candles (e.g. 5m detected as `'30'`). Absent or unsupported values fall
+   * back to inference, so existing consumers are unaffected.
+   */
+  resolution?: TVResolution;
 };
 
 export type RealtimeUpdateMessage = {
