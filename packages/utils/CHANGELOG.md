@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add XRPL CAIP namespace ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Add XRPL CAIP namespace ([#11786](https://github.com/MetaMask/core/pull/11786))
 
 ### Changed
 
