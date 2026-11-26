@@ -48,10 +48,7 @@ export function isSubscriptionChargeRetryable(
   paymentMethod: SubscriptionCryptoPaymentMethod;
 } {
   const { paymentMethod, lastInvoice, status } = subscription;
-  if (
-    paymentMethod.type !== PAYMENT_TYPES.byCrypto ||
-    subscription.cancelAtPeriodEnd
-  ) {
+  if (paymentMethod.type !== PAYMENT_TYPES.byCrypto) {
     return false;
   }
   const isBalanceFailure =

@@ -1917,13 +1917,16 @@ describe('isSubscriptionChargeRetryable', () => {
     ).toBe(false);
   });
 
-  it('returns false when cancelAtPeriodEnd is set', () => {
+  it('returns true for past_due with a balance-failed invoice when cancelAtPeriodEnd is set', () => {
     expect(
       isSubscriptionChargeRetryable({
-        ...buildStuckSubscription(),
+        ...buildStuckSubscription({
+          status: SUBSCRIPTION_STATUSES.pastDue,
+          lastInvoice: BALANCE_FAILED_INVOICE,
+        }),
         cancelAtPeriodEnd: true,
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it('returns false for a card payment method', () => {
