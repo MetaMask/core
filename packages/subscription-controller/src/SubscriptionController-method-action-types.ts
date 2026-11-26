@@ -177,7 +177,8 @@ export type SubscriptionControllerUpdatePaymentMethodAction = {
 /**
  * Retries a failed crypto charge with the stored payment method: verifies
  * the payment method of a paused subscription, otherwise pays the last
- * invoice.
+ * invoice. The charged subscription from the response replaces the one in
+ * the refreshed subscriptions.
  *
  * @param request - The retry request.
  * @param request.subscriptionId - The subscription to retry.
