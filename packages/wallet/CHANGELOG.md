@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Wallet.init()` now checks once for a stuck Money Account Plus charge, through `SubscriptionDelegationService.init` ([#11612](https://github.com/MetaMask/core/pull/11612))
 - `SubscriptionController` messenger now delegates `SubscriptionService:payLastInvoice` and `SubscriptionService:verifyPaymentMethod` ([#11612](https://github.com/MetaMask/core/pull/11612))
 - Bump `@metamask/transaction-controller` from `^74.4.0` to `^74.5.0` ([#11761](https://github.com/MetaMask/core/pull/11761), [#11784](https://github.com/MetaMask/core/pull/11784))
-- Add `@metamask/core-backend` at `^15.0.0` ([#11193](https://github.com/MetaMask/core/pull/11193), [#11193](https://github.com/MetaMask/core/pull/11193))
+- Add `@metamask/core-backend` at `^15.0.0` ([#11193](https://github.com/MetaMask/core/pull/11193))
 - Bump `@metamask/subscription-controller` from `^15.4.0` to `^16.0.0` ([#11784](https://github.com/MetaMask/core/pull/11784))
 
 ## [22.0.0]
