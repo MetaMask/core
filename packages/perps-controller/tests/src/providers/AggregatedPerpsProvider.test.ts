@@ -1151,6 +1151,33 @@ describe('AggregatedPerpsProvider', () => {
       stops.forEach((stop) => expect(stop).toHaveBeenCalledTimes(1));
     });
 
+    it('stops the venues it opened when a later one throws, so a retry leaves one listener each', () => {
+      const listeners = new Set<() => void>();
+      mockHLProvider.subscribeToChaseOrderChanges = vi.fn(({ callback }) => {
+        listeners.add(callback);
+        return () => listeners.delete(callback);
+      });
+      mockLighterProvider.subscribeToChaseOrderChanges = vi
+        .fn<NonNullable<PerpsProvider['subscribeToChaseOrderChanges']>>()
+        .mockImplementationOnce(() => {
+          throw new Error('Lighter refused');
+        })
+        .mockImplementation(() => vi.fn());
+      const params = { callback: vi.fn() };
+
+      expect(() =>
+        aggregatedProvider.subscribeToChaseOrderChanges(params),
+      ).toThrow('Lighter refused');
+      expect(listeners.size).toBe(0);
+
+      const unsubscribe =
+        aggregatedProvider.subscribeToChaseOrderChanges(params);
+      expect(listeners.size).toBe(1);
+      unsubscribe();
+      unsubscribe();
+      expect(listeners.size).toBe(0);
+    });
+
     it('aggregates Chase snapshots with their provider IDs', async () => {
       mockHLProvider.getChaseOrders?.mockResolvedValue([chaseOrder]);
 

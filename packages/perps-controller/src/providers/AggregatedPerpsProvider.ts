@@ -2368,12 +2368,22 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   subscribeToChaseOrderChanges(
     params: SubscribeChaseOrderChangesParams,
   ): () => void {
-    const stops = this.#getActiveProviders().flatMap(([, provider]) =>
-      provider.subscribeToChaseOrderChanges
-        ? [provider.subscribeToChaseOrderChanges(params)]
-        : [],
-    );
-    return () => stops.forEach((stop) => stop());
+    const stops: (() => void)[] = [];
+    const stopAll = (): void => {
+      stops.splice(0).forEach((stop) => stop());
+    };
+    try {
+      for (const [, provider] of this.#getActiveProviders()) {
+        if (provider.subscribeToChaseOrderChanges) {
+          stops.push(provider.subscribeToChaseOrderChanges(params));
+        }
+      }
+    } catch (error) {
+      // A retry opens every venue again: keep none of this attempt's.
+      stopAll();
+      throw error;
+    }
+    return stopAll;
   }
 
   /**
