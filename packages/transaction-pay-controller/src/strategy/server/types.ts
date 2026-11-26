@@ -79,6 +79,13 @@ export type ServerQuoteRequest = {
   supportsGasless?: boolean;
 
   /**
+   * Whether the recipient must receive exactly `amount`, with no swap surplus.
+   * Requires an exact output trade type. Providers that cannot guarantee this
+   * decline the request.
+   */
+  exactOutput?: boolean;
+
+  /**
    * Whether the quote is funded with a plain token transfer to a provider
    * deposit address, rather than by calling the provider contracts. The
    * transfer must not include any additional calldata, such as an appended

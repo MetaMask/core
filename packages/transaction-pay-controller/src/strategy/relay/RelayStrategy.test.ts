@@ -114,6 +114,17 @@ describe('RelayStrategy', () => {
     expect(getRelayQuotesMock).toHaveBeenCalledWith(request);
   });
 
+  it('returns false when a request requires an exact output', () => {
+    const strategy = new RelayStrategy();
+
+    expect(
+      strategy.supports({
+        ...request,
+        requests: [{ ...request.requests[0], isExactOutput: true }],
+      }),
+    ).toBe(false);
+  });
+
   it('returns false when a request has a non-EVM source asset', () => {
     const strategy = new RelayStrategy();
 

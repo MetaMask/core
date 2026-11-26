@@ -87,6 +87,54 @@ describe('ServerStrategy', () => {
       expect(new ServerStrategy().supports(SUPPORTS_REQUEST_MOCK)).toBe(false);
     });
 
+    it('returns true for an exact output request when the flow is not allowlisted', () => {
+      getPayStrategiesConfigMock.mockReturnValue({
+        server: {
+          enabled: true,
+          enabledTransactionTypes: [] as TransactionType[],
+        },
+        relay: { enabled: false },
+      } as ReturnType<typeof getPayStrategiesConfig>);
+
+      expect(
+        new ServerStrategy().supports({
+          ...SUPPORTS_REQUEST_MOCK,
+          requests: [{ ...QUOTE_REQUEST_MOCK, isExactOutput: true }],
+          transaction: {
+            type: TransactionType.tokenMethodTransfer,
+          } as TransactionMeta,
+        }),
+      ).toBe(true);
+    });
+
+    it('returns false for an exact output request when server strategy is disabled', () => {
+      getPayStrategiesConfigMock.mockReturnValue({
+        server: {
+          enabled: false,
+          enabledTransactionTypes: [] as TransactionType[],
+        },
+        relay: { enabled: true },
+      } as ReturnType<typeof getPayStrategiesConfig>);
+
+      expect(
+        new ServerStrategy().supports({
+          ...SUPPORTS_REQUEST_MOCK,
+          requests: [{ ...QUOTE_REQUEST_MOCK, isExactOutput: true }],
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false for an exact output request with the maximum amount', () => {
+      expect(
+        new ServerStrategy().supports({
+          ...SUPPORTS_REQUEST_MOCK,
+          requests: [
+            { ...QUOTE_REQUEST_MOCK, isExactOutput: true, isMaxAmount: true },
+          ],
+        }),
+      ).toBe(false);
+    });
+
     it('returns false when a request has a non-EVM source asset', () => {
       expect(
         new ServerStrategy().supports({

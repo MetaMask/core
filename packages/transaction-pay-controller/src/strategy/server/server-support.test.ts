@@ -2,6 +2,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import { describe, expect, it } from 'vitest';
 
+import type { QuoteRequest } from '../../types.js';
 import {
   DEFAULT_SERVER_ENABLED_TRANSACTION_TYPES,
   getServerUnsupportedReason,
@@ -12,23 +13,39 @@ const TRANSACTION_MOCK = {
   type: TransactionType.perpsDeposit,
 } as TransactionMeta;
 
+const EXACT_OUTPUT_REQUEST_MOCK = {
+  from: '0x1234567890123456789012345678901234567890',
+  isExactOutput: true,
+  sourceAccountId: 'eip155:1:0x1234567890123456789012345678901234567890',
+  sourceAssetId: 'eip155:1/erc20:0x0000000000000000000000000000000000000001',
+  sourceBalanceRaw: '1000000',
+  sourceTokenAmount: '1000',
+  targetAmountMinimum: '900',
+  targetChainId: '0x2105',
+  targetTokenAddress: '0x0000000000000000000000000000000000000002',
+} as QuoteRequest;
+
 /**
  * Invoke the util with sensible defaults for a supported perps deposit.
  *
  * @param overrides - Values to override on the default arguments.
  * @param overrides.enabledTransactionTypes - Allowlisted transaction types.
+ * @param overrides.requests - Quote requests for the transaction.
  * @param overrides.transaction - Parent transaction.
  * @returns The unsupported reason, if any.
  */
 function getReason({
   enabledTransactionTypes = [TransactionType.perpsDeposit],
+  requests,
   transaction = TRANSACTION_MOCK,
 }: {
   enabledTransactionTypes?: TransactionType[];
+  requests?: QuoteRequest[];
   transaction?: TransactionMeta;
 } = {}): ServerUnsupportedReason | undefined {
   return getServerUnsupportedReason({
     enabledTransactionTypes,
+    requests,
     transaction,
   });
 }
@@ -78,6 +95,35 @@ describe('server-support', () => {
           } as TransactionMeta,
         }),
       ).toBeUndefined();
+    });
+
+    it('returns undefined for an exact output request whose flow is not allowlisted', () => {
+      expect(
+        getReason({
+          enabledTransactionTypes: [],
+          requests: [EXACT_OUTPUT_REQUEST_MOCK],
+          transaction: {
+            type: TransactionType.tokenMethodTransfer,
+          } as TransactionMeta,
+        }),
+      ).toBeUndefined();
+    });
+
+    it('returns exact output max amount when an exact output request is a maximum amount', () => {
+      expect(
+        getReason({
+          requests: [{ ...EXACT_OUTPUT_REQUEST_MOCK, isMaxAmount: true }],
+        }),
+      ).toBe(ServerUnsupportedReason.ExactOutputMaxAmount);
+    });
+
+    it('checks the allowlist when no request requires an exact output', () => {
+      expect(
+        getReason({
+          enabledTransactionTypes: [],
+          requests: [{ ...EXACT_OUTPUT_REQUEST_MOCK, isExactOutput: false }],
+        }),
+      ).toBe(ServerUnsupportedReason.DisabledTransactionType);
     });
 
     it.each([

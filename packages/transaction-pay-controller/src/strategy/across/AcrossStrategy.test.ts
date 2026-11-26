@@ -122,6 +122,17 @@ describe('AcrossStrategy', () => {
     ).toBe(false);
   });
 
+  it('returns false when a request requires an exact output', () => {
+    const strategy = new AcrossStrategy();
+
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        requests: [{ ...baseRequest.requests[0], isExactOutput: true }],
+      }),
+    ).toBe(false);
+  });
+
   it('returns false when across is disabled', () => {
     getPayStrategiesConfigMock.mockReturnValue({
       across: {

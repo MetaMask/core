@@ -178,6 +178,7 @@ export class TransactionPayController extends BaseController<
       const config: TransactionConfig = {
         accountOverride: transactionData.accountOverride,
         atomic: transactionData.atomic,
+        isExactOutput: transactionData.isExactOutput,
         isHyperliquidSource: transactionData.isHyperliquidSource,
         isMaxAmount: transactionData.isMaxAmount,
         isPolymarketDepositWallet: transactionData.isPolymarketDepositWallet,
@@ -368,6 +369,7 @@ export class TransactionPayController extends BaseController<
       const originalTokens = current?.tokens;
       const originalIsMaxAmount = current?.isMaxAmount;
       const originalIsPostQuote = current?.isPostQuote;
+      const originalIsExactOutput = current?.isExactOutput;
       const originalAccountOverride = current?.accountOverride;
       const originalFiatPaymentAmount = current?.fiatPayment?.amountFiat;
       const originalFiatPaymentMethodId =
@@ -439,7 +441,15 @@ export class TransactionPayController extends BaseController<
         );
       }
 
-      if (isFiatAmountUpdated || isFiatPaymentMethodUpdated) {
+      // The source amounts do not depend on the pricing basis, but the quotes do.
+      const isExactOutputUpdated =
+        current.isExactOutput !== originalIsExactOutput;
+
+      if (
+        isFiatAmountUpdated ||
+        isFiatPaymentMethodUpdated ||
+        isExactOutputUpdated
+      ) {
         shouldUpdateQuotes = true;
       }
     });
@@ -459,6 +469,12 @@ export class TransactionPayController extends BaseController<
     transaction: TransactionMeta,
   ): TransactionPayStrategy[] {
     const transactionData = this.state.transactionData[transaction.id];
+
+    // Only the server strategy can deliver an exact output, so it overrides
+    // client callbacks and the remote strategy order rather than falling back.
+    if (transactionData?.isExactOutput && !transactionData.isPostQuote) {
+      return [TransactionPayStrategy.Server];
+    }
 
     const strategyCandidates: unknown[] =
       this.#getStrategies?.(transaction) ??

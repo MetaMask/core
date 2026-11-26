@@ -44,6 +44,8 @@ export enum TradeType {
  * @param options - Options bag.
  * @param options.hasCalls - Whether the request bundles calls that consume a
  * specific amount of the target token.
+ * @param options.isExactOutput - Whether the recipient must receive exactly
+ * the target amount.
  * @param options.sourceTokenAmount - Amount of the source token being spent.
  * @param options.targetAmountMinimum - Minimum amount of the target token the
  * transaction needs to receive.
@@ -52,17 +54,21 @@ export enum TradeType {
  */
 export function getQuotePricing({
   hasCalls,
+  isExactOutput,
   sourceTokenAmount,
   targetAmountMinimum,
   transaction,
 }: {
   hasCalls: boolean;
+  isExactOutput?: boolean;
   sourceTokenAmount: string;
   targetAmountMinimum: string;
   transaction?: TransactionMeta;
 }): { amount: string; tradeType: TradeType } {
   const requiresExactOutput =
-    hasCalls || hasTransactionType(transaction, EXACT_OUTPUT_TRANSACTION_TYPES);
+    hasCalls ||
+    Boolean(isExactOutput) ||
+    hasTransactionType(transaction, EXACT_OUTPUT_TRANSACTION_TYPES);
 
   return requiresExactOutput
     ? { amount: targetAmountMinimum, tradeType: TradeType.ExactOutput }

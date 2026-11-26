@@ -296,6 +296,36 @@ describe('TransactionPayController', () => {
       ).toBe(true);
     });
 
+    it('updates isExactOutput in state', () => {
+      const controller = createController();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.isExactOutput = true;
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].isExactOutput,
+      ).toBe(true);
+    });
+
+    it('triggers a quotes update without a source amounts update when only isExactOutput changes', () => {
+      const controller = createController();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, () => {
+        // no-op, just initializes
+      });
+
+      updateSourceAmountsMock.mockClear();
+      updateQuotesMock.mockClear();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.isExactOutput = true;
+      });
+
+      expect(updateSourceAmountsMock).not.toHaveBeenCalled();
+      expect(updateQuotesMock).toHaveBeenCalledTimes(1);
+    });
+
     it('updates paymentOverride in state', () => {
       const controller = createController();
 
@@ -951,6 +981,53 @@ describe('TransactionPayController', () => {
         undefined,
         undefined,
       );
+    });
+
+    it('returns only the server strategy when isExactOutput is set', async () => {
+      getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Relay]);
+
+      const controller = new TransactionPayController({
+        getDelegationTransaction: vi.fn(),
+        getStrategies: (): TransactionPayStrategy[] => [
+          TransactionPayStrategy.Relay,
+        ],
+        messenger,
+      });
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.isExactOutput = true;
+      });
+
+      expect(
+        messenger.call(
+          'TransactionPayController:getStrategy',
+          TRANSACTION_META_MOCK,
+        ),
+      ).toBe(TransactionPayStrategy.Server);
+
+      const { getStrategies } = updateQuotesMock.mock.calls[0][0];
+
+      expect(getStrategies(TRANSACTION_META_MOCK)).toStrictEqual([
+        TransactionPayStrategy.Server,
+      ]);
+    });
+
+    it('ignores isExactOutput for post-quote transactions', async () => {
+      getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Relay]);
+
+      const controller = createController();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.isExactOutput = true;
+        config.isPostQuote = true;
+      });
+
+      expect(
+        messenger.call(
+          'TransactionPayController:getStrategy',
+          TRANSACTION_META_MOCK,
+        ),
+      ).toBe(TransactionPayStrategy.Relay);
     });
 
     it('passes fiat payment method ID into getStrategyOrder', async () => {

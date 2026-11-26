@@ -14,13 +14,18 @@ import type { RelayQuote } from './types.js';
 
 /**
  * Pay strategy that quotes and submits through Relay. Only supports requests
- * with an EVM source asset.
+ * with an EVM source asset. Exact output requests are only quoted by the
+ * server strategy.
  */
 export class RelayStrategy implements PayStrategy<RelayQuote> {
   supports(request: PayStrategyGetQuotesRequest): boolean {
     const config = getPayStrategiesConfig(request.messenger);
 
-    return config.relay.enabled && request.requests.every(isEvmQuoteRequest);
+    return (
+      config.relay.enabled &&
+      request.requests.every(isEvmQuoteRequest) &&
+      !request.requests.some((singleRequest) => singleRequest.isExactOutput)
+    );
   }
 
   async getQuotes(

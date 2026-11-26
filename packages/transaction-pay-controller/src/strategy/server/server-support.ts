@@ -4,6 +4,8 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 
+import type { QuoteRequest } from '../../types.js';
+
 /**
  * Parent transaction types enabled for the server strategy by default.
  *
@@ -19,6 +21,9 @@ export const DEFAULT_SERVER_ENABLED_TRANSACTION_TYPES: TransactionType[] = [];
 export enum ServerUnsupportedReason {
   /** The parent transaction type is not in the remote-flag allowlist. */
   DisabledTransactionType = 'disabledTransactionType',
+
+  /** An exact output was requested together with the maximum amount. */
+  ExactOutputMaxAmount = 'exactOutputMaxAmount',
 }
 
 /**
@@ -29,20 +34,40 @@ export enum ServerUnsupportedReason {
  * types across its nested transactions, so the allowlist is matched against the
  * transaction and its nested transactions.
  *
+ * Exact output requests are opted in per transaction by the client and are
+ * only quoted by the server strategy, so they skip the allowlist. A maximum
+ * amount spends the whole balance and cannot also fix the output amount, so
+ * that combination is declined.
+ *
  * @param options - Options bag.
  * @param options.enabledTransactionTypes - Transaction types opted in via
  * remote feature flag.
+ * @param options.requests - Quote requests for the transaction.
  * @param options.transaction - Metadata of the original target transaction.
  * @returns The reason the transaction is unsupported, or `undefined` if it is
  * supported.
  */
 export function getServerUnsupportedReason({
   enabledTransactionTypes,
+  requests = [],
   transaction,
 }: {
   enabledTransactionTypes: TransactionType[];
+  requests?: QuoteRequest[];
   transaction?: TransactionMeta;
 }): ServerUnsupportedReason | undefined {
+  const exactOutputRequests = requests.filter(
+    (request) => request.isExactOutput,
+  );
+
+  if (exactOutputRequests.some((request) => request.isMaxAmount)) {
+    return ServerUnsupportedReason.ExactOutputMaxAmount;
+  }
+
+  if (exactOutputRequests.length) {
+    return undefined;
+  }
+
   if (!hasTransactionType(transaction, enabledTransactionTypes)) {
     return ServerUnsupportedReason.DisabledTransactionType;
   }

@@ -419,6 +419,45 @@ describe('server-quotes', () => {
     );
   });
 
+  it('requests an exact output on the target amount to the transfer recipient when isExactOutput is set', async () => {
+    const result = await getServerQuotes({
+      accountSupports7702: true,
+      from: FROM_MOCK,
+      messenger,
+      requests: [{ ...QUOTE_REQUEST_MOCK, isExactOutput: true }],
+      transaction: {
+        txParams: { data: TOKEN_TRANSFER_DATA_MOCK, from: FROM_MOCK },
+      } as TransactionMeta,
+    });
+
+    const body = fetchServerQuoteMock.mock.calls[0][1];
+
+    expect(body).toStrictEqual(
+      expect.objectContaining({
+        amount: QUOTE_REQUEST_MOCK.targetAmountMinimum,
+        exactOutput: true,
+        recipient: TOKEN_TRANSFER_RECIPIENT_MOCK,
+        tradeType: TradeType.ExactOutput,
+      }),
+    );
+    expect(body.calls).toBeUndefined();
+    expect(result[0].isInputBased).toBe(false);
+  });
+
+  it('omits exactOutput from the request when isExactOutput is not set', async () => {
+    await getServerQuotes({
+      accountSupports7702: true,
+      from: FROM_MOCK,
+      messenger,
+      requests: [QUOTE_REQUEST_MOCK],
+      transaction: TRANSACTION_META_MOCK,
+    });
+
+    expect(fetchServerQuoteMock.mock.calls[0][1]).not.toHaveProperty(
+      'exactOutput',
+    );
+  });
+
   it('decodes ERC-20 transfer calldata and uses the transfer recipient', async () => {
     await getServerQuotes({
       accountSupports7702: true,

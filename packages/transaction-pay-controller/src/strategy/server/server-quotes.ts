@@ -287,6 +287,7 @@ async function buildServerQuoteRequest(
   const {
     atomic,
     from,
+    isExactOutput,
     isMaxAmount,
     isPolymarketDepositWallet,
     isPostQuote,
@@ -459,10 +460,15 @@ async function buildServerQuoteRequest(
 
   const pricing = getQuotePricing({
     hasCalls: Boolean(body.calls?.length),
+    isExactOutput,
     sourceTokenAmount,
     targetAmountMinimum,
     transaction,
   });
+
+  if (isExactOutput) {
+    body.exactOutput = true;
+  }
 
   return {
     ...body,

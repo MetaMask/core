@@ -146,6 +146,15 @@ export type TransactionConfig = {
   /** Whether the source of funds is a Polymarket deposit wallet. */
   isPolymarketDepositWallet?: boolean;
 
+  /**
+   * Whether the recipient must receive exactly the required amount, with no
+   * swap surplus. Quotes are priced as an exact output and only fetched
+   * through the server strategy, ignoring the strategy order and the server
+   * transaction type allowlist. Submission fails if the settlement hash is
+   * unknown. Ignored for post-quote transactions.
+   */
+  isExactOutput?: boolean;
+
   /** Whether the user has selected the maximum amount. */
   isMaxAmount?: boolean;
 
@@ -362,6 +371,12 @@ export type TransactionData = {
 
   /** Fiat payment method state. */
   fiatPayment?: TransactionFiatPayment;
+
+  /**
+   * Whether the recipient must receive exactly the required amount.
+   * See {@link TransactionConfig.isExactOutput}.
+   */
+  isExactOutput?: boolean;
 
   /** Whether quotes are currently being retrieved. */
   isLoading: boolean;
@@ -621,6 +636,12 @@ export type QuoteRequest = {
 
   /** Address of the user's account. */
   from: Hex;
+
+  /**
+   * Whether the recipient must receive exactly the target amount.
+   * See {@link TransactionConfig.isExactOutput}.
+   */
+  isExactOutput?: boolean;
 
   /** Whether the transaction is a maximum amount transaction. */
   isMaxAmount?: boolean;
