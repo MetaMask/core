@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - A failed transfer stops the withdrawal before status polling.
   - `RelayStrategy` and `AcrossStrategy` do not support a request with a declared source asset, so they never quote the EVM token that stands in for the Lighter balance.
   - Return the flat Lighter transfer fee as `fees.lighter` on quotes and totals, and include it in the total.
-- Deposit into and withdraw from Lighter in flows that also use a payment override, such as a Money Account ([PR_NUMBER_PLACEHOLDER](https://github.com/MetaMask/core/pull/PR_NUMBER_PLACEHOLDER))
+- Deposit into and withdraw from Lighter in flows that also use a payment override, such as a Money Account ([#11779](https://github.com/MetaMask/core/pull/11779))
   - A Lighter `assetId` on a required asset of a flow that is not post-quote is the deposit target, like the `perpsLighter` payment override, which leaves `paymentOverride` free for `moneyAccount`. A quote is always requested for it.
   - A Lighter `assetId` on the payment token of a flow that is not post-quote is the source of funds. `updatePaymentToken` accepts it without `AssetsController` data and prices it as the mainnet USDC that stands in for it. Pay does not know its balance, so it is zero and clients supply it through `getBalance`.
   - Expose the declared target as `QuoteRequest.targetAssetIdOverride`.
@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `@metamask/perps-controller` as a dependency ([#11730](https://github.com/MetaMask/core/pull/11730))
 - Bump `@metamask/transaction-controller` from `^74.5.0` to `^74.5.1` ([#11789](https://github.com/MetaMask/core/pull/11789))
-- Send the Lighter transfer for the account that owns the Lighter balance, which is the payer of the quote, instead of the sender of the transaction ([PR_NUMBER_PLACEHOLDER](https://github.com/MetaMask/core/pull/PR_NUMBER_PLACEHOLDER))
+- Send the Lighter transfer for the account that owns the Lighter balance, which is the payer of the quote, instead of the sender of the transaction ([#11779](https://github.com/MetaMask/core/pull/11779))
   - They are the same account for a withdrawal.
 
 ## [33.2.0]
