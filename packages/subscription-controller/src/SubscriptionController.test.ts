@@ -53,6 +53,8 @@ import type {
 import {
   CANCEL_TYPES,
   CRYPTO_AUTH_METHODS,
+  CRYPTO_PAYMENT_ERRORS,
+  INVOICE_PAYMENT_STATUSES,
   MODAL_TYPE,
   PAYMENT_TYPES,
   PRODUCT_TYPES,
@@ -5226,6 +5228,46 @@ describe('SubscriptionController', () => {
         );
       },
     );
+
+    it('keeps the charged subscription when the refresh returns stale state', async () => {
+      const failed: Subscription = {
+        ...MOCK_CRYPTO_SUBSCRIPTION,
+        status: SUBSCRIPTION_STATUSES.pastDue,
+        lastInvoice: {
+          id: 'in_1',
+          status: INVOICE_PAYMENT_STATUSES.FAILED,
+          errorCode: CRYPTO_PAYMENT_ERRORS.INSUFFICIENT_BALANCE,
+        },
+      };
+      const charged: Subscription = {
+        ...failed,
+        lastInvoice: {
+          id: 'in_1',
+          status: INVOICE_PAYMENT_STATUSES.PROCESSING,
+        },
+      };
+      await withController(
+        { state: { subscriptions: [failed] } },
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.payLastInvoice.mockResolvedValue(charged);
+          mockService.getSubscriptions.mockResolvedValue({
+            ...MOCK_GET_SUBSCRIPTIONS_RESPONSE,
+            subscriptions: [failed, MOCK_SUBSCRIPTION],
+          });
+
+          const result = await rootMessenger.call(
+            'SubscriptionController:retryCryptoCharge',
+            { subscriptionId: failed.id },
+          );
+
+          expect(controller.state.subscriptions).toStrictEqual([
+            charged,
+            MOCK_SUBSCRIPTION,
+          ]);
+          expect(result).toStrictEqual(controller.state.subscriptions);
+        },
+      );
+    });
 
     it('throws when the user has no such subscription', async () => {
       await withController(async ({ rootMessenger, mockService }) => {

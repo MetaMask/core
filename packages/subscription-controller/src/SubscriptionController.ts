@@ -918,7 +918,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   /**
    * Retries a failed crypto charge with the stored payment method: verifies
    * the payment method of a paused subscription, otherwise pays the last
-   * invoice.
+   * invoice. The charged subscription from the response replaces the one in
+   * the refreshed subscriptions.
    *
    * @param request - The retry request.
    * @param request.subscriptionId - The subscription to retry.
@@ -933,16 +934,23 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     if (!subscription) {
       throw new Error(SubscriptionControllerErrorMessage.UserNotSubscribed);
     }
-    if (subscription.status === SUBSCRIPTION_STATUSES.paused) {
-      await this.messenger.call('SubscriptionService:verifyPaymentMethod', {
-        subscriptionId: request.subscriptionId,
-      });
-    } else {
-      await this.messenger.call('SubscriptionService:payLastInvoice', {
-        subscriptionId: request.subscriptionId,
-      });
-    }
-    return await this.getSubscriptions();
+    const chargedSubscription =
+      subscription.status === SUBSCRIPTION_STATUSES.paused
+        ? await this.messenger.call('SubscriptionService:verifyPaymentMethod', {
+            subscriptionId: request.subscriptionId,
+          })
+        : await this.messenger.call('SubscriptionService:payLastInvoice', {
+            subscriptionId: request.subscriptionId,
+          });
+    await this.#getSubscriptions();
+    // Applied after the refresh: the GET can be served from cache before the
+    // charge lands.
+    this.update((state) => {
+      state.subscriptions = state.subscriptions.map((sub) =>
+        sub.id === request.subscriptionId ? chargedSubscription : sub,
+      );
+    });
+    return this.state.subscriptions;
   }
 
   /**

@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `SubscriptionService.payLastInvoice` and `SubscriptionService.verifyPaymentMethod`, exposed as messenger actions, which call `POST /subscriptions/:id/last-invoice/pay` and `POST /subscriptions/:id/payment-method/verify` ([#11612](https://github.com/MetaMask/core/pull/11612))
 - Add `SubscriptionController.retryCryptoCharge`, exposed as a messenger action, which retries a failed crypto charge with the stored payment method and refreshes subscriptions ([#11612](https://github.com/MetaMask/core/pull/11612))
   - It verifies the payment method of a `paused` subscription and pays the last invoice otherwise
+  - The charged subscription from that response replaces the refreshed one in state, since the refresh can return the pre-charge invoice
 - Add `SubscriptionDelegationService.init`, which checks for a stuck charge once ([#11612](https://github.com/MetaMask/core/pull/11612))
   - `@metamask/wallet` calls it through `Wallet.init()`. Clients that construct the service themselves must call it after all controllers and services exist, so a wallet that is already unlocked is still checked
 - Add `SubscriptionDelegationService.destroy`, which stops the periodic charge re-check ([#11612](https://github.com/MetaMask/core/pull/11612))
