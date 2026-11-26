@@ -23,6 +23,7 @@ describe('MoneyAccountLifecycleController', () => {
         expect(controller.state).toStrictEqual({
           moneyAccounts: {},
           addressRegistrations: {},
+          bindingMigrations: null,
         });
       });
     });
@@ -38,6 +39,7 @@ describe('MoneyAccountLifecycleController', () => {
         addressRegistrations: {
           [MONEY_ACCOUNT_KEY]: { isRegistered: true },
         },
+        bindingMigrations: null,
       };
 
       await withController({ options: { state } }, ({ controller }) => {
@@ -502,6 +504,7 @@ describe('MoneyAccountLifecycleController', () => {
         expect(controller.state).toStrictEqual({
           moneyAccounts: {},
           addressRegistrations: {},
+          bindingMigrations: null,
         });
       });
     });
@@ -706,6 +709,7 @@ describe('MoneyAccountLifecycleController', () => {
         ).toMatchInlineSnapshot(`
           {
             "addressRegistrations": {},
+            "bindingMigrations": null,
             "moneyAccounts": {},
           }
         `);
@@ -739,6 +743,7 @@ describe('MoneyAccountLifecycleController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "bindingMigrations": null,
             "moneyAccounts": {},
           }
         `);

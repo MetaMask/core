@@ -35,6 +35,12 @@ import type { Hex } from '@metamask/utils';
 import { vi } from 'vitest';
 import type { Mock } from 'vitest';
 
+import type {
+  BindingMigrationContext,
+  BindingMigrationResult,
+  BindingMigrator,
+  BindingMigratorStatus,
+} from '../src/binding-migration.js';
 import type { MoneyAccountLifecycle } from '../src/get-money-account-lifecycle.js';
 import { MoneyAccountLifecycleController } from '../src/money-account-lifecycle-controller.js';
 import type { MoneyAccountLifecycleControllerMessenger } from '../src/money-account-lifecycle-controller.js';
@@ -108,6 +114,31 @@ export function buildLinkedIdentityResponse(
       role: 'CURRENT',
       predecessor: null,
       successor: to,
+    },
+  };
+}
+
+export const MIGRATED_IDENTITY: DerivedIdentity = {
+  currentAddress: MFA_ACCOUNT_ADDRESS.toLowerCase() as Hex,
+  previousAddresses: [MONEY_ACCOUNT_KEY as Hex],
+  status: 'DONE',
+  migration: null,
+};
+
+/**
+ * Builds the CHOMP identity response of the money account once it has
+ * migrated to the MPC Money Account.
+ *
+ * @returns The identity response.
+ */
+export function buildMigratedIdentityResponse(): AddressIdentityResponse {
+  return {
+    identity: MIGRATED_IDENTITY,
+    address: {
+      address: MONEY_ACCOUNT_KEY as Hex,
+      role: 'PREVIOUS',
+      predecessor: null,
+      successor: MIGRATED_IDENTITY.currentAddress,
     },
   };
 }
@@ -257,6 +288,35 @@ type WithControllerOptions = {
     ConstructorParameters<typeof MoneyAccountLifecycleController>[0]
   >;
 } & Partial<Gates>;
+
+export type MockBindingMigrator = BindingMigrator & {
+  reconcile: Mock<
+    (context: BindingMigrationContext) => Promise<BindingMigrationResult>
+  >;
+  getStatus: Mock<(context: BindingMigrationContext) => BindingMigratorStatus>;
+};
+
+export function buildBindingMigrator({
+  id = 'test-migrator',
+  phase = 'afterLink',
+  timeoutMs,
+}: Partial<
+  Pick<BindingMigrator, 'id' | 'phase' | 'timeoutMs'>
+> = {}): MockBindingMigrator {
+  return {
+    id,
+    phase,
+    ...(timeoutMs === undefined ? {} : { timeoutMs }),
+    reconcile: vi
+      .fn<
+        (context: BindingMigrationContext) => Promise<BindingMigrationResult>
+      >()
+      .mockResolvedValue({ status: 'completed' }),
+    getStatus: vi
+      .fn<(context: BindingMigrationContext) => BindingMigratorStatus>()
+      .mockReturnValue({ status: 'unknown' }),
+  };
+}
 
 export function getLifecycle(
   controller: MoneyAccountLifecycleController,

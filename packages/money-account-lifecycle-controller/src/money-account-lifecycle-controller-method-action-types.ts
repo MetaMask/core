@@ -84,7 +84,10 @@ export type MoneyAccountLifecycleControllerUpgradeMoneyAccountAction = {
 
 /**
  * Starts migrating the primary Money Account from its SFA address to a new
- * MFA address, or resumes its migration if one is already in flight.
+ * MFA address, or resumes its migration if one is already in flight. Once
+ * it has migrated, only runs the `afterDone` binding migrators, which
+ * requires the MPC Money Account of this wallet to be the identity's
+ * current address.
  *
  * Reads the profile's identities fresh from CHOMP and records them, then
  * only proceeds when the wallet is still ready and the Money Account is in
@@ -127,10 +130,30 @@ export type MoneyAccountLifecycleControllerUpgradeMoneyAccountAction = {
  * Identities are then refetched, so the recorded lifecycle becomes
  * `migrating`, even when any of these steps fails.
  *
- * @throws If a migration or Money Account upgrade is already in flight, the
- * checks fail, the wallet stops being ready part way, or linking the
- * successor, moving the subscription, registering the intents or starting
- * the funds transfer fails.
+ * Registered binding migrators run once the successor is linked
+ * (`afterLink`) and before the funds transfer starts
+ * (`beforeFundsTransfer`), until CHOMP has started the funds transfer:
+ * from then on those phases have passed, and their migrators are never run
+ * again, even when the migration resumes. When `afterDone` migrators are
+ * registered, this then waits up to a minute for CHOMP to finish moving the
+ * funds and runs them. If the funds have not moved by then, or their
+ * transfer failed, this resolves without running them; calling this again
+ * once the migration has finished runs them.
+ *
+ * Only one migration runs at a time. A call made while one is in flight
+ * joins it instead of starting another: it gets the same promise, so it
+ * resolves or rejects with that migration's outcome. A call made after it
+ * settles starts a new run. After `clearState`, a call waits for the
+ * migration that was in flight to stop, without taking on its outcome, and
+ * then starts a new run.
+ *
+ * @returns A promise that resolves once the migration run, started by this
+ * call or joined by it, completes.
+ * @throws If a Money Account upgrade is in flight, the checks fail, the
+ * wallet stops being ready part way, or linking the successor, moving the
+ * subscription, registering the intents or starting the funds transfer
+ * fails. A `BindingMigrationIncompleteError` once every binding migrator of
+ * a phase has run, if any of them is pending or blocked.
  */
 export type MoneyAccountLifecycleControllerStartMigrationAction = {
   type: `MoneyAccountLifecycleController:startMigration`;
@@ -151,6 +174,30 @@ export type MoneyAccountLifecycleControllerClearStateAction = {
 };
 
 /**
+ * Registers a migrator that moves an integration bound to the Money Account
+ * address, such as a deposit destination, to the MPC Money Account when the
+ * Money Account migrates. `startMigration` runs it in its phase, in
+ * registration order. A migrator is never run once its phase has passed,
+ * including when it is registered after that: owners must roll out a
+ * migrator before the migrations it has to cover reach its phase.
+ *
+ * While the Money Account is migrating or migrated, and this wallet can
+ * drive that migration, its status from `getStatus` is recorded in
+ * `bindingMigrations`, now, after each identity fetch, and after each of
+ * its runs. Register migrators when the client starts, before it can call
+ * `startMigration`.
+ *
+ * @param migrator - The binding migrator. It holds functions, so it can
+ * only be passed within the same process.
+ * @throws If the migrator is invalid, or one with the same id is already
+ * registered.
+ */
+export type MoneyAccountLifecycleControllerRegisterBindingMigratorAction = {
+  type: `MoneyAccountLifecycleController:registerBindingMigrator`;
+  handler: MoneyAccountLifecycleController['registerBindingMigrator'];
+};
+
+/**
  * Union of all MoneyAccountLifecycleController action types.
  */
 export type MoneyAccountLifecycleControllerMethodActions =
@@ -159,4 +206,5 @@ export type MoneyAccountLifecycleControllerMethodActions =
   | MoneyAccountLifecycleControllerRefreshAction
   | MoneyAccountLifecycleControllerUpgradeMoneyAccountAction
   | MoneyAccountLifecycleControllerStartMigrationAction
-  | MoneyAccountLifecycleControllerClearStateAction;
+  | MoneyAccountLifecycleControllerClearStateAction
+  | MoneyAccountLifecycleControllerRegisterBindingMigratorAction;
