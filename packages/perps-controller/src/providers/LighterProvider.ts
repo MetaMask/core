@@ -2034,6 +2034,9 @@ export class LighterProvider implements PerpsProvider {
    */
   #marketDetector: MarketChangeDetector | null = null;
 
+  /** Markets the last `getMarkets` read listed, by ID, and whether each is inactive. */
+  #listedMarkets: Map<string, boolean> | null = null;
+
   /** A market changed while no market change listener was there. */
   #hasUnseenMarketChange = false;
 
@@ -10327,6 +10330,12 @@ export class LighterProvider implements PerpsProvider {
       }
       const markets = await this.#clientService.getOrderBooks(
         params?.skipCache,
+      );
+      this.#listedMarkets = new Map(
+        markets.map((market) => [
+          String(market.marketId),
+          market.status === 'inactive',
+        ]),
       );
       await this.#ensureMarketMargins();
       return markets
@@ -20322,11 +20331,24 @@ export class LighterProvider implements PerpsProvider {
         !(Number(midPrice) > 0 || Number(openInterest) > 0),
       ],
     );
+    let changed: boolean;
     if (this.#marketDetector === null) {
       this.#marketDetector = new MarketChangeDetector(frame);
-      return;
+      // The market list read before the feed opened may predate this frame.
+      // A market that is only idle differs too, so this is told apart by one
+      // read, at once and not again.
+      const listed = this.#listedMarkets;
+      changed =
+        listed !== null &&
+        ((isSnapshot && frame.length !== listed.size) ||
+          frame.some(
+            ([marketId, isRetired]) =>
+              listed.get(marketId) === undefined ||
+              (isRetired && !listed.get(marketId)),
+          ));
+    } else {
+      changed = this.#marketDetector.update(frame, isSnapshot);
     }
-    const changed = this.#marketDetector.update(frame, isSnapshot);
     if (changed) {
       this.#hasUnseenMarketChange = this.#marketChangeListeners.size === 0;
       this.#notifyListeners('marketChanges', this.#marketChangeListeners);

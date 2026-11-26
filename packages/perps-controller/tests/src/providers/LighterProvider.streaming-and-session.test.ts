@@ -202,6 +202,46 @@ describe('LighterProvider', () => {
       await provider.disconnect();
     });
 
+    it.each([
+      ['matches it', { '1': wsStat('BTC', 1, '63000.5') }, 0],
+      [
+        'lists a market it did not',
+        { '1': wsStat('BTC', 1, '63000.5'), '2': wsStat('SOL', 2, '75.1') },
+        1,
+      ],
+      [
+        'shows one of its markets retired',
+        {
+          '1': {
+            ...wsStat('BTC', 1, '1'),
+            mid_price: '',
+            open_interest: '0.0',
+          },
+        },
+        1,
+      ],
+      ['drops one of its markets', {}, 1],
+    ])(
+      'compares the first price push with the market list read before it: %s',
+      async (_case, marketStats, calls) => {
+        const { provider } = buildProvider({ webSocketCtor: fakeCtor });
+        await provider.getMarkets();
+        const callback = vi.fn();
+        provider.subscribeToMarketChanges({ callback });
+        const socket = FakeWebSocket.instances[0];
+        socket.open();
+
+        socket.receive({
+          type: 'subscribed/market_stats',
+          channel: 'market_stats:all',
+          market_stats: marketStats,
+        });
+
+        expect(callback).toHaveBeenCalledTimes(calls);
+        await provider.disconnect();
+      },
+    );
+
     it('does not log every price-stream frame', async () => {
       const infra = createMockInfrastructure();
       const { provider } = buildProvider({
