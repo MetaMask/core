@@ -792,15 +792,31 @@ export class StreamChannelManager {
       return;
     }
     // Held while subscribing, so a watcher that answers at once does not
-    // subscribe again.
-    this.#stopConnectionWatch = (): void => undefined;
+    // subscribe again. What it answers may stop this watch and start another
+    // (a rebind), so the slot is only written while it still holds this one.
+    const placeholder = (): void => undefined;
+    this.#stopConnectionWatch = placeholder;
+    let stop: () => void;
     try {
-      this.#stopConnectionWatch = this.#subscribeToConnectionState((state) =>
+      stop = this.#subscribeToConnectionState((state) =>
         this.#onConnectionState(state),
       );
     } catch (error) {
       // No watch: the next channel to open tries again.
-      this.#stopConnectionWatch = undefined;
+      if (this.#stopConnectionWatch === placeholder) {
+        this.#stopConnectionWatch = undefined;
+      }
+      this.#onError(error);
+      return;
+    }
+    if (this.#stopConnectionWatch === placeholder) {
+      this.#stopConnectionWatch = stop;
+      return;
+    }
+    // Superseded while it registered.
+    try {
+      stop();
+    } catch (error) {
       this.#onError(error);
     }
   }

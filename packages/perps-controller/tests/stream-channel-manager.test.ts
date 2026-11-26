@@ -413,6 +413,74 @@ describe('StreamChannelManager', () => {
       expect(subscribeToConnectionState).toHaveBeenCalledTimes(2);
     });
 
+    it('keeps the watch a rebind installs while the outer one registers, and leaves none when the channels close', () => {
+      let registrations = 0;
+      let stops = 0;
+      let rebinder: StreamChannelManager | undefined;
+      const manager = new StreamChannelManager({
+        subscribeToConnectionState: (next): (() => void) => {
+          registrations += 1;
+          if (registrations === 1) {
+            // Delivery during registration moves the channel to a new
+            // provider, which watches the connection again.
+            next(WebSocketConnectionState.Connected);
+            rebinder?.rebind(
+              (key) => key.providerId === 'b',
+              (key) => ({ ...key, providerId: 'b' }),
+            );
+          }
+          return () => {
+            stops += 1;
+          };
+        },
+      });
+      rebinder = manager;
+
+      const leave = manager.subscribe(
+        { stream: 'book', providerId: 'a' },
+        createSource(),
+        { callback: vi.fn() },
+      );
+      expect(registrations).toBe(2);
+      expect(stops).toBe(1);
+
+      leave();
+      expect(stops).toBe(2);
+    });
+
+    it('keeps the watch a rebind installs when the outer registration then throws', () => {
+      let registrations = 0;
+      let stops = 0;
+      let rebinder: StreamChannelManager | undefined;
+      const manager = new StreamChannelManager({
+        onError: vi.fn(),
+        subscribeToConnectionState: (): (() => void) => {
+          registrations += 1;
+          if (registrations === 1) {
+            rebinder?.rebind(
+              (key) => key.providerId === 'b',
+              (key) => ({ ...key, providerId: 'b' }),
+            );
+            throw new Error('registration failed');
+          }
+          return () => {
+            stops += 1;
+          };
+        },
+      });
+      rebinder = manager;
+
+      const leave = manager.subscribe(
+        { stream: 'book', providerId: 'a' },
+        createSource(),
+        { callback: vi.fn() },
+      );
+      leave();
+
+      expect(registrations).toBe(2);
+      expect(stops).toBe(1);
+    });
+
     it('moves with a rebind', () => {
       vi.useFakeTimers();
       const { manager } = setup();
