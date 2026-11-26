@@ -87,7 +87,7 @@ describe('ServerStrategy', () => {
       expect(new ServerStrategy().supports(SUPPORTS_REQUEST_MOCK)).toBe(false);
     });
 
-    it('returns true for a true exact output request when the flow is not allowlisted', () => {
+    it('returns false for a true exact output request when the flow is not allowlisted', () => {
       getPayStrategiesConfigMock.mockReturnValue({
         server: {
           enabled: true,
@@ -100,9 +100,15 @@ describe('ServerStrategy', () => {
         new ServerStrategy().supports({
           ...SUPPORTS_REQUEST_MOCK,
           requests: [{ ...QUOTE_REQUEST_MOCK, isTrueExactOutput: true }],
-          transaction: {
-            type: TransactionType.tokenMethodTransfer,
-          } as TransactionMeta,
+        }),
+      ).toBe(false);
+    });
+
+    it('returns true for a true exact output request when the flow is allowlisted', () => {
+      expect(
+        new ServerStrategy().supports({
+          ...SUPPORTS_REQUEST_MOCK,
+          requests: [{ ...QUOTE_REQUEST_MOCK, isTrueExactOutput: true }],
         }),
       ).toBe(true);
     });

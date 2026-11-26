@@ -38,8 +38,7 @@ export enum ServerUnsupportedReason {
  * types across its nested transactions, so the allowlist is matched against the
  * transaction and its nested transactions.
  *
- * True exact output requests are opted in per transaction by the client, so
- * they skip the allowlist. They are declined with a maximum amount or a
+ * True exact output requests are also declined with a maximum amount or a
  * non-atomic execution, see {@link isTrueExactOutputSupported}.
  *
  * @param options - Options bag.
@@ -61,10 +60,6 @@ export function getServerUnsupportedReason({
 }): ServerUnsupportedReason | undefined {
   if (!isTrueExactOutputSupported(requests)) {
     return ServerUnsupportedReason.UnsupportedTrueExactOutput;
-  }
-
-  if (requests.some((request) => request.isTrueExactOutput)) {
-    return undefined;
   }
 
   if (!hasTransactionType(transaction, enabledTransactionTypes)) {

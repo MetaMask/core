@@ -97,15 +97,18 @@ describe('server-support', () => {
       ).toBeUndefined();
     });
 
-    it('returns undefined for a true exact output request whose flow is not allowlisted', () => {
+    it('returns disabled transaction type for a true exact output request whose flow is not allowlisted', () => {
       expect(
         getReason({
           enabledTransactionTypes: [],
           requests: [TRUE_EXACT_OUTPUT_REQUEST_MOCK],
-          transaction: {
-            type: TransactionType.tokenMethodTransfer,
-          } as TransactionMeta,
         }),
+      ).toBe(ServerUnsupportedReason.DisabledTransactionType);
+    });
+
+    it('returns undefined for a true exact output request whose flow is allowlisted', () => {
+      expect(
+        getReason({ requests: [TRUE_EXACT_OUTPUT_REQUEST_MOCK] }),
       ).toBeUndefined();
     });
 
@@ -122,17 +125,6 @@ describe('server-support', () => {
         ).toBe(ServerUnsupportedReason.UnsupportedTrueExactOutput);
       },
     );
-
-    it('checks the allowlist when no request requires a true exact output', () => {
-      expect(
-        getReason({
-          enabledTransactionTypes: [],
-          requests: [
-            { ...TRUE_EXACT_OUTPUT_REQUEST_MOCK, isTrueExactOutput: false },
-          ],
-        }),
-      ).toBe(ServerUnsupportedReason.DisabledTransactionType);
-    });
 
     it.each([
       TransactionType.perpsDepositAndOrder,

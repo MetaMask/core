@@ -151,8 +151,7 @@ export type TransactionConfig = {
    * swap surplus kept by the provider rather than sent to the recipient.
    * Distinct from an `EXACT_OUTPUT` trade type, which only guarantees a
    * minimum. Quotes are priced as an exact output, and only the server and
-   * relay strategies support it; the server strategy skips its transaction
-   * type allowlist for it. Not supported with `isMaxAmount` or
+   * relay strategies support it. Not supported with `isMaxAmount` or
    * `atomic: false`. Submission fails if the settlement hash is unknown.
    * Ignored for post-quote transactions.
    */
