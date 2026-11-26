@@ -4358,9 +4358,14 @@ export class HyperLiquidSubscriptionService {
     // the whole set would evict the very TWAP the user is monitoring in
     // favour of newer dead ones.
     const activeOrders = allOrders.filter((order) => order.status === 'active');
-    const terminalOrders = allOrders
-      .filter((order) => order.status !== 'active')
-      .slice(0, MAX_RETAINED_TWAP_ORDERS);
+    const allTerminalOrders = allOrders.filter(
+      (order) => order.status !== 'active',
+    );
+    const terminalOrders = allTerminalOrders.slice(0, MAX_RETAINED_TWAP_ORDERS);
+    // An evicted schedule's slice fills go with it.
+    for (const order of allTerminalOrders.slice(MAX_RETAINED_TWAP_ORDERS)) {
+      sliceFills?.delete(order.orderId);
+    }
     const twapOrders = [...activeOrders, ...terminalOrders].sort(
       (left, right) => right.startedAt - left.startedAt,
     );
