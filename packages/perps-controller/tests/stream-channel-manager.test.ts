@@ -382,7 +382,7 @@ describe('StreamChannelManager', () => {
         .mockImplementationOnce(() => {
           throw new Error('no transport yet');
         })
-        .mockImplementation((next) => {
+        .mockImplementation((next): (() => void) => {
           listener = next;
           // A watcher may answer at once, while it is registered.
           next(WebSocketConnectionState.Connected);
