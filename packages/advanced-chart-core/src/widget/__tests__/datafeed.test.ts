@@ -300,18 +300,8 @@ describe('forwardRealtimeTick', () => {
     setCurrentResolution('60');
     const stale = vi.fn();
     const current = vi.fn();
-    customDatafeed.subscribeBars(
-      stubSymbolInfo,
-      '1',
-      stale,
-      'g1',
-    );
-    customDatafeed.subscribeBars(
-      stubSymbolInfo,
-      '60',
-      current,
-      'g2',
-    );
+    customDatafeed.subscribeBars(stubSymbolInfo, '1', stale, 'g1');
+    customDatafeed.subscribeBars(stubSymbolInfo, '60', current, 'g2');
     forwardRealtimeTick({ time: 1, open: 1, high: 1, low: 1, close: 1 });
     expect(stale).not.toHaveBeenCalled();
     expect(current).toHaveBeenCalled();
@@ -320,12 +310,7 @@ describe('forwardRealtimeTick', () => {
   it('treats shorthand resolutions as equal to their canonical form', () => {
     setCurrentResolution('1D');
     const listener = vi.fn();
-    customDatafeed.subscribeBars(
-      stubSymbolInfo,
-      'D',
-      listener,
-      'g1',
-    );
+    customDatafeed.subscribeBars(stubSymbolInfo, 'D', listener, 'g1');
     forwardRealtimeTick({ time: 1, open: 1, high: 1, low: 1, close: 1 });
     expect(listener).toHaveBeenCalled();
   });
@@ -339,12 +324,7 @@ describe('forwardRealtimeTick', () => {
   });
 
   it('forgets the listener resolution on unsubscribe', () => {
-    customDatafeed.subscribeBars(
-      stubSymbolInfo,
-      '1',
-      vi.fn(),
-      'g1',
-    );
+    customDatafeed.subscribeBars(stubSymbolInfo, '1', vi.fn(), 'g1');
     customDatafeed.unsubscribeBars('g1');
     expect(getRealtimeCallbackResolution('g1')).toBeUndefined();
   });
