@@ -5269,6 +5269,43 @@ describe('SubscriptionController', () => {
       );
     });
 
+    it('refreshes the access token when the refresh returns unchanged state', async () => {
+      const failed: Subscription = {
+        ...MOCK_CRYPTO_SUBSCRIPTION,
+        status: SUBSCRIPTION_STATUSES.paused,
+      };
+      await withController(
+        {
+          state: {
+            customerId: 'cus_1',
+            subscriptions: [failed],
+            trialedProducts: [],
+          },
+        },
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.verifyPaymentMethod.mockResolvedValue({
+            ...failed,
+            status: SUBSCRIPTION_STATUSES.provisional,
+          });
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [failed],
+            trialedProducts: [],
+          });
+          const triggerAccessTokenRefreshSpy = vi.spyOn(
+            controller,
+            'triggerAccessTokenRefresh',
+          );
+
+          await rootMessenger.call('SubscriptionController:retryCryptoCharge', {
+            subscriptionId: failed.id,
+          });
+
+          expect(triggerAccessTokenRefreshSpy).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
     it('throws when the user has no such subscription', async () => {
       await withController(async ({ rootMessenger, mockService }) => {
         await expect(

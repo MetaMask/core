@@ -463,7 +463,10 @@ export class SubscriptionDelegationService {
           ),
         );
       // An unchanged FAILED invoice publishes no stateChanged to re-trigger on.
-      this.#scheduleChargeRetry(this.#chargeRetryInterval);
+      // Keeps the re-check a deposit armed during the charge.
+      if (!this.#chargeRetryTimer) {
+        this.#scheduleChargeRetry(this.#chargeRetryInterval);
+      }
     } finally {
       this.#messenger.call(
         'SubscriptionController:setChargeRetryInProgress',

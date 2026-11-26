@@ -950,6 +950,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
         sub.id === request.subscriptionId ? chargedSubscription : sub,
       );
     });
+    this.triggerAccessTokenRefresh();
     return this.state.subscriptions;
   }
 

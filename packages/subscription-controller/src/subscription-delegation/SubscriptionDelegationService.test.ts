@@ -2558,6 +2558,23 @@ describe('SubscriptionDelegationService charge retry', () => {
       expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(2);
     });
 
+    it('keeps the post-deposit re-check when the charge in flight fails', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+      });
+      mocks.retryCryptoCharge.mockImplementationOnce(async () => {
+        publishConfirmed(rootMessenger);
+        throw new Error('400');
+      });
+      rootMessenger.publish('KeyringController:unlock');
+      await flush();
+      expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(DEPOSIT_RECHECK_DELAY);
+
+      expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(2);
+    });
+
     it.each([SUBSCRIPTION_STATUSES.pastDue, SUBSCRIPTION_STATUSES.paused])(
       'does not charge again when a state change follows the charge (%s)',
       async (status) => {
