@@ -121,6 +121,25 @@ export const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControl
       includeInDebugSnapshot: false,
       usedInUi: false,
     },
+    recoverySession: {
+      includeInStateLogs: false,
+      persist: false,
+      includeInDebugSnapshot: false,
+      usedInUi: false,
+    },
+    envelope: {
+      // Public keys only, but they fingerprint the account across logs.
+      includeInStateLogs: false,
+      persist: true,
+      includeInDebugSnapshot: false,
+      usedInUi: false,
+    },
+    isLocalPassword: {
+      includeInStateLogs: true,
+      persist: true,
+      includeInDebugSnapshot: true,
+      usedInUi: false,
+    },
     encryptedSeedlessEncryptionKey: {
       includeInStateLogs: false,
       persist: true,
@@ -145,7 +164,43 @@ export const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControl
       includeInDebugSnapshot: true,
       usedInUi: false,
     },
+    seedlessOperationLifecycle: {
+      // Safe coordination data only: operation and checkpoint. No secrets.
+      includeInStateLogs: true,
+      persist: true,
+      includeInDebugSnapshot: true,
+      usedInUi: false,
+    },
   };
+
+/**
+ * The envelope-related flags derived from the controller state.
+ */
+export type SeedlessOnboardingEnvelopeStatus = {
+  /** Whether the vault is envelope-managed (`envelope` state is set). */
+  isEnvelopeManaged: boolean;
+  /** Whether the vault password is local to this device. */
+  isLocalPassword: boolean;
+};
+
+/**
+ * Derive the envelope-related flags from the controller state.
+ *
+ * Reads only the existing state fields and persists nothing. The flags are
+ * independent: an envelope-managed vault may also have a local password, so
+ * each flag is derived from its own state field.
+ *
+ * @param state - The controller state.
+ * @returns The envelope-related flags.
+ */
+export function getEnvelopeStatus(
+  state: SeedlessOnboardingControllerState,
+): SeedlessOnboardingEnvelopeStatus {
+  return {
+    isEnvelopeManaged: Boolean(state.envelope),
+    isLocalPassword: state.isLocalPassword === true,
+  };
+}
 
 /**
  * Get the initial state for the Seedless Onboarding Controller with defaults.

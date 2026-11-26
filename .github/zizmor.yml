@@ -8,6 +8,10 @@ rules:
       # the PR is from a fork before running, and write access is gated behind
       # the `default-branch` environment.
       - update-changelogs.yml:3:1
+      # `workflow_run` is used safely here: The workflow only runs for pushes
+      # to `main` in this repository, and doesn't check out or run any code from
+      # the triggering run.
+      - notify.yml:3:1
 
   dependabot-cooldown:
     config:

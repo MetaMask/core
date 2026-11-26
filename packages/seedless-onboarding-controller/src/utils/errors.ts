@@ -1,13 +1,13 @@
 import { TOPRFError, TOPRFErrorCode } from '@metamask/toprf-secure-backup';
 import type { RateLimitErrorData } from '@metamask/toprf-secure-backup';
 
-import { SeedlessOnboardingControllerErrorMessage } from './constants.js';
-import type { SecretMetadata } from './SecretMetadata.js';
+import { SeedlessOnboardingControllerErrorMessage } from '../constants.js';
+import type { SecretMetadata } from '../SecretMetadata.js';
 import type {
   InvalidPrimarySecretDataTypeErrorData,
   RecoveryErrorData,
-} from './types.js';
-import { getInvalidPrimarySecretDataTypeErrorData } from './utils/index.js';
+} from '../types.js';
+import { getInvalidPrimarySecretDataTypeErrorData } from './utils.js';
 
 /**
  * Get the error message from the TOPRF error code.

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.2.0]
+
+### Added
+
+- Add `PerpsController.submitLighterTransfer` and `LighterProvider.submitTransfer` to sign and send the Lighter L2 transfer that Relay returns for a Lighter withdrawal, with the new `LighterTransferParams` and `LighterTransferResult` types, and expose it as the `PerpsController:submitLighterTransfer` messenger action ([#11754](https://github.com/MetaMask/core/pull/11754))
+  - `LighterTransferParams.eoa` and `accountIndex` name the wallet and Lighter account the transfer was quoted for, and `submitTransfer` refuses it when the selected wallet or the Lighter account it would sign for is another one.
+
 ## [26.1.0]
 
 ### Added
@@ -1920,7 +1927,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@26.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@26.2.0...HEAD
+[26.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@26.1.0...@metamask/perps-controller@26.2.0
 [26.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@26.0.0...@metamask/perps-controller@26.1.0
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@25.0.0...@metamask/perps-controller@26.0.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@24.1.0...@metamask/perps-controller@25.0.0

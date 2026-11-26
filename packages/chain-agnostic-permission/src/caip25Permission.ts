@@ -1,6 +1,5 @@
 import type {
   PermissionSpecificationBuilder,
-  EndowmentGetterParams,
   ValidPermissionSpecification,
   PermissionValidatorConstraint,
   PermissionConstraint,
@@ -311,7 +310,6 @@ export const caip25CaveatBuilder = ({
 type Caip25EndowmentSpecification = ValidPermissionSpecification<{
   permissionType: PermissionType.Endowment;
   targetName: typeof Caip25EndowmentPermissionName;
-  endowmentGetter: (_options?: EndowmentGetterParams) => null;
   validator: PermissionValidatorConstraint;
   allowedCaveats: Readonly<NonEmptyArray<string>> | null;
 }>;
@@ -331,7 +329,6 @@ const specificationBuilder: PermissionSpecificationBuilder<
     permissionType: PermissionType.Endowment,
     targetName: Caip25EndowmentPermissionName,
     allowedCaveats: [Caip25CaveatType],
-    endowmentGetter: (_getterOptions?: EndowmentGetterParams) => null,
     validator: (permission: PermissionConstraint) => {
       if (
         permission.caveats?.length !== 1 ||

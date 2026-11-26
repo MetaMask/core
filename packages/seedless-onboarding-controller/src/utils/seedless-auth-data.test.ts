@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { AuthConnection } from './constants.js';
+import { AuthConnection } from '../constants.js';
+import type { SeedlessAuthData } from '../types.js';
 import { parseSeedlessAuthData } from './seedless-auth-data.js';
-import type { SeedlessAuthData } from './types.js';
 
 const VALID: SeedlessAuthData = {
   idTokens: ['id-token'],

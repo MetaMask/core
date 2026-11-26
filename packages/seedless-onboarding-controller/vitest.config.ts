@@ -1,4 +1,4 @@
-import { basename } from 'node:path';
+import { basename, join } from 'node:path';
 import { defineConfig, mergeConfig } from 'vitest/config';
 
 import baseConfig from '../../vitest.config.packages.js';
@@ -8,6 +8,8 @@ export default mergeConfig(
   defineConfig({
     test: {
       name: basename(import.meta.dirname),
+
+      setupFiles: [join(import.meta.dirname, 'tests/setup.ts')],
 
       coverage: {
         thresholds: {
