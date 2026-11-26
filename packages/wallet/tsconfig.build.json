@@ -88,6 +88,9 @@
     },
     {
       "path": "../signature-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../core-backend/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

@@ -88,6 +88,9 @@
     },
     {
       "path": "../signature-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../core-backend/tsconfig.lint.json"
     }
   ]
 }

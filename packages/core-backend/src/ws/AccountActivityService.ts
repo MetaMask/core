@@ -115,7 +115,6 @@ export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
   'BackendWebSocketService:subscribe',
   'BackendWebSocketService:getConnectionInfo',
   'BackendWebSocketService:channelHasSubscription',
-  'BackendWebSocketService:getSubscriptionsByChannel',
   'BackendWebSocketService:findSubscriptionsByChannelPrefix',
   'BackendWebSocketService:addChannelCallback',
   'BackendWebSocketService:removeChannelCallback',
@@ -335,16 +334,35 @@ export class AccountActivityService {
       }
 
       // Create subscription using the proper subscribe method (this will be stored in WebSocketService's internal tracking)
-      await this.#messenger.call('BackendWebSocketService:subscribe', {
-        channels,
-        channelType: this.#options.subscriptionNamespace, // e.g., 'account-activity.v1'
-        callback: (notification: ServerNotificationMessage) => {
-          this.#handleAccountActivityUpdate(
-            notification.data as AccountActivityMessage,
-          );
+      const subscription = await this.#messenger.call(
+        'BackendWebSocketService:subscribe',
+        {
+          channels,
+          channelType: this.#options.subscriptionNamespace, // e.g., 'account-activity.v1'
+          callback: (notification: ServerNotificationMessage) => {
+            this.#handleAccountActivityUpdate(
+              notification.data as AccountActivityMessage,
+            );
+          },
         },
-      });
+      );
+
+      // A refusal sticks: an unsupported account, or the session channel cap
+      // shared with other subscribers. Reconnecting resends it and bounces
+      // the socket. Accepted channels stay open.
+      const failed = subscription.failed ?? [];
+      if (failed.length > 0) {
+        log('Gateway refused some account channels', { failed });
+      }
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      // `subscribe` throws this only when the gateway accepted nothing.
+      // The socket itself is fine, so reconnecting cannot succeed.
+      if (message.includes('Request failed')) {
+        log('Gateway refused account channels', { error });
+        return;
+      }
+
       log('Subscription failed, forcing reconnection', { error });
       await this.#forceReconnection();
     }

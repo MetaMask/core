@@ -1,10 +1,10 @@
 import { API_URLS } from '@metamask/core-backend';
 import { KnownCaipNamespace, parseCaipAssetType } from '@metamask/utils';
-import { writeFileSync } from '@metamask/utils/node';
+import { writeFile } from '@metamask/utils/node';
 
 import { SCAM_WALLET_ASSETS_INFO } from './scamWalletState.js';
 
-const OUT_DIR = new URL('./api-responses/', import.meta.url);
+const OUT_DIR = `${import.meta.dirname}/api-responses`;
 const BATCH_SIZE = 50;
 const V3_ASSETS_QUERY = {
   includeIconUrl: 'true',
@@ -63,12 +63,12 @@ async function main(): Promise<void> {
     }
   }
 
-  writeFileSync(
-    new URL('token-api/suggestedOccurrenceFloors.ts', OUT_DIR),
+  await writeFile(
+    `${OUT_DIR}/token-api/suggestedOccurrenceFloors.ts`,
     `const suggestedOccurrenceFloors = ${JSON.stringify(floors, null, 2)} as const;\n\nexport default suggestedOccurrenceFloors;\n`,
   );
-  writeFileSync(
-    new URL('tokens-api/v3-assets.ts', OUT_DIR),
+  await writeFile(
+    `${OUT_DIR}/tokens-api/v3-assets.ts`,
     `const v3Assets = ${JSON.stringify(assets, null, 2)} as const;\n\nexport default v3Assets;\n`,
   );
 

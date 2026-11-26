@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `isTrueExactOutput` to `TransactionConfig` so token transfers deliver exactly the required amount to the recipient, supported by `ServerStrategy` and `RelayStrategy` ([#11775](https://github.com/MetaMask/core/pull/11775))
 
+### Changed
+
+- Send the quote `signature` when submitting gasless server quotes, and poll status with the `id` returned by the submit ([#11714](https://github.com/MetaMask/core/pull/11714))
+  - Build the delegation for subsidized server quotes with the subsidized caveats, from the quote's source calls, so the server can set the real order ID after signing.
+
 ## [33.1.1]
 
 ### Changed

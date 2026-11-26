@@ -1,5 +1,8 @@
 import { successfulFetch } from '@metamask/controller-utils';
-import { TransactionStatus } from '@metamask/transaction-controller';
+import {
+  generateEIP7702BatchTransaction,
+  TransactionStatus,
+} from '@metamask/transaction-controller';
 import type {
   TransactionMeta,
   TransactionType,
@@ -44,11 +47,19 @@ import {
 import { getServerQuotes } from './server-quotes.js';
 import { getServerSubmitParams, submitServerQuotes } from './server-submit.js';
 import { ServerStatus } from './types.js';
-import type { ServerQuote, ServerSignatureStep } from './types.js';
+import type {
+  ServerQuote,
+  ServerSignatureStep,
+  ServerTransactionStep,
+} from './types.js';
 
 vi.mock(import('@metamask/controller-utils'), async (importOriginal) => ({
   ...(await importOriginal()),
   successfulFetch: vi.fn(),
+}));
+vi.mock(import('@metamask/transaction-controller'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  generateEIP7702BatchTransaction: vi.fn(),
 }));
 vi.mock(import('../../utils/feature-flags.js'));
 vi.mock(import('../../utils/polymarket/withdraw.js'));
@@ -134,6 +145,13 @@ const ORIGINAL_QUOTE_MOCK: ServerQuote = {
   ],
 };
 
+const SOURCE_STEP_MOCK = ORIGINAL_QUOTE_MOCK.steps[0] as ServerTransactionStep;
+
+const BATCH_PARAMS_MOCK = {
+  data: '0xbatchdata' as Hex,
+  to: QUOTE_FROM_MOCK,
+};
+
 const QUOTE_MOCK = {
   dust: { fiat: '0', usd: '0' },
   estimatedDuration: 30,
@@ -184,6 +202,9 @@ describe('submitServerQuotes', () => {
   const getServerPollingTimeoutMock = vi.mocked(getServerPollingTimeout);
   const getServerStatusMock = vi.mocked(getServerStatus);
   const submitServerIntentMock = vi.mocked(submitServerIntent);
+  const generateEIP7702BatchTransactionMock = vi.mocked(
+    generateEIP7702BatchTransaction,
+  );
 
   const {
     addTransactionMock: addTxMock,
@@ -225,6 +246,7 @@ describe('submitServerQuotes', () => {
     });
 
     findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
+    generateEIP7702BatchTransactionMock.mockReturnValue(BATCH_PARAMS_MOCK);
     getDelegationTransactionMock.mockResolvedValue(DELEGATION_MOCK);
     getLiveTokenBalanceMock.mockResolvedValue('999999999999999999');
     getServerPollingIntervalMock.mockReturnValue(0);
@@ -265,6 +287,49 @@ describe('submitServerQuotes', () => {
     });
   });
 
+  it('includes the quote signature in the submit request', async () => {
+    request.quotes[0].original.signature = 'signature-mock';
+
+    await submitServerQuotes(request);
+
+    expect(submitServerIntentMock).toHaveBeenCalledWith(
+      messenger,
+      expect.objectContaining({ signature: 'signature-mock' }),
+    );
+  });
+
+  it('omits signature when the quote has no signature', async () => {
+    await submitServerQuotes(request);
+
+    expect(submitServerIntentMock).toHaveBeenCalledWith(
+      messenger,
+      expect.not.objectContaining({ signature: expect.anything() }),
+    );
+  });
+
+  it('polls status with the ID returned by submit', async () => {
+    submitServerIntentMock.mockResolvedValue({
+      id: 'submitted-id-mock',
+      success: true,
+    });
+
+    await submitServerQuotes(request);
+
+    expect(getServerStatusMock).toHaveBeenCalledWith(
+      messenger,
+      expect.objectContaining({ id: 'submitted-id-mock' }),
+    );
+  });
+
+  it('polls status with the quote ID when submit returns no ID', async () => {
+    await submitServerQuotes(request);
+
+    expect(getServerStatusMock).toHaveBeenCalledWith(
+      messenger,
+      expect.objectContaining({ id: ORIGINAL_QUOTE_MOCK.id }),
+    );
+  });
+
   it('omits authorizationList when delegation has no authorization entries', async () => {
     getDelegationTransactionMock.mockResolvedValue({
       ...DELEGATION_MOCK,
@@ -283,6 +348,7 @@ describe('submitServerQuotes', () => {
     await submitServerQuotes(request);
 
     expect(getDelegationTransactionMock).toHaveBeenCalledWith({
+      isSubsidized: false,
       transaction: expect.objectContaining({
         chainId: SOURCE_CHAIN_ID_MOCK,
         nestedTransactions: [
@@ -296,6 +362,74 @@ describe('submitServerQuotes', () => {
         txParams: expect.objectContaining({ from: QUOTE_FROM_MOCK }),
       }),
     });
+  });
+
+  it('builds subsidized delegation caveats for subsidized quotes', async () => {
+    request.quotes[0].original.fees.subsidized = true;
+
+    await submitServerQuotes(request);
+
+    expect(getDelegationTransactionMock).toHaveBeenCalledWith(
+      expect.objectContaining({ isSubsidized: true }),
+    );
+  });
+
+  it('uses the single source call as the delegation transaction params', async () => {
+    await submitServerQuotes(request);
+
+    expect(getDelegationTransactionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        transaction: expect.objectContaining({
+          txParams: expect.objectContaining({
+            data: SOURCE_STEP_MOCK.data,
+            from: QUOTE_FROM_MOCK,
+            to: SOURCE_STEP_MOCK.to,
+            value: SOURCE_STEP_MOCK.value,
+          }),
+        }),
+      }),
+    );
+  });
+
+  it('wraps multiple source calls into a batch for the delegation transaction params', async () => {
+    const secondStep: ServerTransactionStep = {
+      chainId: 137,
+      data: '0xseconddata',
+      to: '0x7777777777777777777777777777777777777777',
+      type: 'transaction',
+      value: '0x0',
+    };
+
+    request.quotes[0].original.steps = [
+      ...ORIGINAL_QUOTE_MOCK.steps,
+      secondStep,
+    ];
+
+    await submitServerQuotes(request);
+
+    expect(generateEIP7702BatchTransactionMock).toHaveBeenCalledWith(
+      QUOTE_FROM_MOCK,
+      [
+        {
+          data: SOURCE_STEP_MOCK.data,
+          to: SOURCE_STEP_MOCK.to,
+          value: SOURCE_STEP_MOCK.value,
+        },
+        { data: secondStep.data, to: secondStep.to, value: secondStep.value },
+      ],
+    );
+    expect(getDelegationTransactionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        transaction: expect.objectContaining({
+          txParams: expect.objectContaining({
+            data: BATCH_PARAMS_MOCK.data,
+            from: QUOTE_FROM_MOCK,
+            to: BATCH_PARAMS_MOCK.to,
+            value: '0x0',
+          }),
+        }),
+      }),
+    );
   });
 
   it('throws when the submit response is unsuccessful', async () => {

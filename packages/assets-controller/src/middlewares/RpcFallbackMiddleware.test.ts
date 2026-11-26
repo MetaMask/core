@@ -147,7 +147,7 @@ describe('RpcFallbackMiddleware', () => {
     await mw.assetsMiddleware(ctx, next);
 
     const finalCtx = next.mock.calls[0][0];
-    expect(finalCtx.response.assetsBalance[MOCK_ACCOUNT_ID]).toStrictEqual({
+    expect(finalCtx.response.assetsBalance?.[MOCK_ACCOUNT_ID]).toStrictEqual({
       [MOCK_ASSET_MAINNET]: { amount: '1' },
       [MOCK_ASSET_POLYGON]: { amount: '5' },
     });
@@ -324,7 +324,7 @@ describe('RpcFallbackMiddleware', () => {
 
       expect(rpcMw).toHaveBeenCalledTimes(1);
       const finalCtx = next.mock.calls[0][0];
-      expect(finalCtx.response.assetsBalance[MOCK_ACCOUNT_ID]).toStrictEqual({
+      expect(finalCtx.response.assetsBalance?.[MOCK_ACCOUNT_ID]).toStrictEqual({
         [MOCK_ASSET_MAINNET]: { amount: '1' },
         [MOCK_ERC20_POLYGON]: { amount: '3' },
       });
@@ -375,7 +375,7 @@ describe('RpcFallbackMiddleware', () => {
       await mw.assetsMiddleware(ctx, next);
 
       const finalCtx = next.mock.calls[0][0];
-      expect(finalCtx.response.assetsBalance[MOCK_ACCOUNT_ID]).toStrictEqual({
+      expect(finalCtx.response.assetsBalance?.[MOCK_ACCOUNT_ID]).toStrictEqual({
         [MOCK_ASSET_POLYGON]: { amount: '5' },
       });
       expect(finalCtx.response.errors).toStrictEqual({

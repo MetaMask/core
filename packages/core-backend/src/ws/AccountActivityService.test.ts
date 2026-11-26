@@ -34,7 +34,6 @@ type TestMocks = {
   connect: Mock;
   subscribe: Mock;
   channelHasSubscription: Mock;
-  getSubscriptionsByChannel: Mock;
   findSubscriptionsByChannelPrefix: Mock;
   forceReconnection: Mock;
   addChannelCallback: Mock;
@@ -135,7 +134,6 @@ const getMessenger = (): {
       'BackendWebSocketService:subscribe',
       'BackendWebSocketService:getConnectionInfo',
       'BackendWebSocketService:channelHasSubscription',
-      'BackendWebSocketService:getSubscriptionsByChannel',
       'BackendWebSocketService:findSubscriptionsByChannelPrefix',
       'BackendWebSocketService:addChannelCallback',
       'BackendWebSocketService:removeChannelCallback',
@@ -156,7 +154,6 @@ const getMessenger = (): {
   const mockForceReconnection = vi.fn();
   const mockSubscribe = vi.fn();
   const mockChannelHasSubscription = vi.fn();
-  const mockGetSubscriptionsByChannel = vi.fn();
   const mockFindSubscriptionsByChannelPrefix = vi.fn().mockReturnValue([]);
   const mockAddChannelCallback = vi.fn();
   const mockRemoveChannelCallback = vi.fn();
@@ -193,10 +190,6 @@ const getMessenger = (): {
     mockChannelHasSubscription,
   );
   rootMessenger.registerActionHandler(
-    'BackendWebSocketService:getSubscriptionsByChannel',
-    mockGetSubscriptionsByChannel,
-  );
-  rootMessenger.registerActionHandler(
     'BackendWebSocketService:findSubscriptionsByChannelPrefix',
     mockFindSubscriptionsByChannelPrefix,
   );
@@ -227,7 +220,6 @@ const getMessenger = (): {
       forceReconnection: mockForceReconnection,
       subscribe: mockSubscribe,
       channelHasSubscription: mockChannelHasSubscription,
-      getSubscriptionsByChannel: mockGetSubscriptionsByChannel,
       findSubscriptionsByChannelPrefix: mockFindSubscriptionsByChannelPrefix,
       addChannelCallback: mockAddChannelCallback,
       removeChannelCallback: mockRemoveChannelCallback,
@@ -1026,6 +1018,61 @@ describe('AccountActivityService', () => {
           await completeAsyncOperations();
 
           expect(mocks.forceReconnection).toHaveBeenCalled();
+        });
+      });
+
+      it('keeps the connection when subscribe accepts some channels and refuses others', async () => {
+        await withService(async ({ mocks, rootMessenger }) => {
+          const account1 = createMockInternalAccount({
+            address: '0xaccount1',
+          });
+          const account2 = createMockInternalAccount({
+            address: '0xaccount2',
+          });
+          mocks.getAccountsFromSelectedAccountGroup.mockReturnValue([
+            account1,
+            account2,
+          ]);
+          mocks.subscribe.mockResolvedValue({
+            subscriptionId: 'sub-partial',
+            channels: ['account-activity.v1.eip155:0:0xaccount1'],
+            failed: ['account-activity.v1.eip155:0:0xaccount2'],
+            unsubscribe: vi.fn(),
+          });
+
+          rootMessenger.publish(
+            'AccountTreeController:selectedAccountGroupChange',
+            '',
+            '',
+          );
+          await completeAsyncOperations();
+
+          expect(mocks.subscribe).toHaveBeenCalledTimes(1);
+          expect(mocks.forceReconnection).not.toHaveBeenCalled();
+        });
+      });
+
+      it('does not reconnect when the gateway refuses every account channel', async () => {
+        await withService(async ({ mocks, rootMessenger }) => {
+          mocks.subscribe.mockRejectedValue(
+            new Error(
+              'Request failed: account-activity.v1.eip155:0:0xaccount1',
+            ),
+          );
+          mocks.getAccountsFromSelectedAccountGroup.mockReturnValue([
+            createMockInternalAccount({
+              address: '0xaccount1',
+            }),
+          ]);
+
+          rootMessenger.publish(
+            'AccountTreeController:selectedAccountGroupChange',
+            '',
+            '',
+          );
+          await completeAsyncOperations();
+
+          expect(mocks.forceReconnection).not.toHaveBeenCalled();
         });
       });
 
