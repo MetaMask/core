@@ -539,6 +539,7 @@ export type QuoteErrorReason =
    * unknown rather than insufficient, so it no longer blocks the quote. Kept
    * so existing consumers and historical analytics still type-check.
    */
+  | 'amount-too-low'
   | 'balance-unavailable'
   | 'insufficient-source-balance'
   | 'insufficient-transfer-balance'

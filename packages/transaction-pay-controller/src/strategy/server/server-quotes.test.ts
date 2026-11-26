@@ -924,6 +924,55 @@ describe('server-quotes', () => {
     expect(result).toStrictEqual([]);
   });
 
+  it('throws an amount too low quote error when a provider rejects the amount as below its minimum', async () => {
+    fetchServerQuoteMock.mockResolvedValue({
+      results: [
+        {
+          error: {
+            code: 'AMOUNT_TOO_LOW',
+            message: 'Lighter USDC (Perp) transfer amount is too small',
+          },
+          provider: 'relay',
+        },
+      ],
+    });
+
+    await expect(
+      getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      }),
+    ).rejects.toMatchObject({
+      info: {
+        message: 'Lighter USDC (Perp) transfer amount is too small',
+        reason: 'amount-too-low',
+      },
+    });
+  });
+
+  it('returns the quote when another provider quotes an amount one provider rejects as too low', async () => {
+    fetchServerQuoteMock.mockResolvedValue({
+      results: [
+        {
+          error: { code: 'AMOUNT_TOO_LOW', message: 'too small' },
+          provider: 'across',
+        },
+        FULFILLED_RESULT_MOCK,
+      ],
+    });
+
+    const result = await getServerQuotes({
+      accountSupports7702: true,
+      messenger,
+      requests: [QUOTE_REQUEST_MOCK],
+      transaction: TRANSACTION_META_MOCK,
+    });
+
+    expect(result).toHaveLength(1);
+  });
+
   it('passes gasless through to the normalized quote', async () => {
     fetchServerQuoteMock.mockResolvedValue({
       results: [

@@ -51,6 +51,7 @@ import {
   getTokenFiatRate,
 } from '../../utils/token.js';
 import { getQuotePricing, TradeType } from '../../utils/trade-type.js';
+import { isQuoteError, QuoteError } from '../../utils/validation.js';
 import {
   SERVER_HYPERLIQUID_PERPS_USDC_ASSET,
   SERVER_LIGHTER_PERPS_USDC_ASSET,
@@ -71,6 +72,7 @@ import type {
   ServerQuote,
   ServerQuotePayload,
   ServerQuoteRequest,
+  ServerQuoteResponse,
   ServerQuoteResult,
   ServerTransactionStep,
 } from './types.js';
@@ -82,6 +84,9 @@ const TRANSFER_INTERFACE = new Interface([
 ]);
 const ZERO_AMOUNT = { fiat: '0', human: '0', raw: '0', usd: '0' };
 const ZERO_FIAT_VALUE = { fiat: '0', usd: '0' };
+
+/** Provider error code for an amount below the provider minimum. */
+const SERVER_AMOUNT_TOO_LOW_CODE = 'AMOUNT_TOO_LOW';
 
 type FulfilledServerQuoteResult = ServerQuoteResult & {
   quote: NonNullable<ServerQuoteResult['quote']>;
@@ -190,6 +195,11 @@ async function getQuotesForRequest(
     );
   } catch (error) {
     log('Error fetching quotes', { error });
+
+    if (isQuoteError(error)) {
+      throw error;
+    }
+
     return [];
   }
 }
@@ -251,6 +261,8 @@ async function fetchQuotes(
       (!provider || result.provider === provider) &&
       isUsableDepositAddressQuote(body, result),
   );
+
+  throwIfAmountTooLow(response, fulfilledResults);
 
   const executionAccount = transaction.txParams.from as Hex;
   const normalized = await Promise.all(
@@ -1024,6 +1036,33 @@ function getSingleTransactionData(
   }
 
   return transaction.txParams?.data as Hex | undefined;
+}
+
+/**
+ * Throws a quote error when no provider returned a quote because the amount is
+ * below a provider minimum, so clients can tell the user why there is no quote.
+ *
+ * @param response - Response from the server quote API.
+ * @param fulfilledResults - Provider results that returned a usable quote.
+ */
+function throwIfAmountTooLow(
+  response: ServerQuoteResponse,
+  fulfilledResults: FulfilledServerQuoteResult[],
+): void {
+  if (fulfilledResults.length) {
+    return;
+  }
+
+  const amountTooLowError = response.results.find(
+    (result) => result.error?.code === SERVER_AMOUNT_TOO_LOW_CODE,
+  )?.error;
+
+  if (amountTooLowError) {
+    throw new QuoteError({
+      message: amountTooLowError.message,
+      reason: 'amount-too-low',
+    });
+  }
 }
 
 function isFulfilledResult(

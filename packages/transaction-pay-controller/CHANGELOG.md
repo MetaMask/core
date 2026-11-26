@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - A Lighter `assetId` on a required asset of a flow that is not post-quote is the deposit target, like the `perpsLighter` payment override, which leaves `paymentOverride` free for `moneyAccount`. A quote is always requested for it.
   - A Lighter `assetId` on the payment token of a flow that is not post-quote is the source of funds. `updatePaymentToken` accepts it without `AssetsController` data and prices it as the mainnet USDC that stands in for it. Pay does not know its balance, so it is zero and clients supply it through `getBalance`.
   - Expose the declared target as `QuoteRequest.targetAssetIdOverride`.
+- Return a quote error with the new `amount-too-low` reason when the server strategy gets no quote because a provider rejects the amount as below its minimum ([#11779](https://github.com/MetaMask/core/pull/11779))
 
 ### Changed
 
