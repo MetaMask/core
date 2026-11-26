@@ -13,6 +13,28 @@ import {
  * @param overrides - Price fields; must include price.
  * @returns AssetPrice suitable for formatExchangeRatesForBridge input.
  */
+/**
+ * Read the currency field the formatter still writes onto conversion rates.
+ *
+ * @param entry - One conversion-rate entry.
+ * @returns The entry, including `currency`.
+ */
+function asConversion<Entry>(entry: Entry): Entry & { currency: string } {
+  return entry as Entry & { currency: string };
+}
+
+/**
+ * Read market-data fields the formatter writes beyond `MarketDataDetails`.
+ *
+ * @param entry - One market-data entry.
+ * @returns The entry, including asset id, chain id, and CoinGecko id.
+ */
+function asMarketEntry<Entry>(
+  entry: Entry,
+): Entry & { assetId: string; chainId: string; id: string } {
+  return entry as Entry & { assetId: string; chainId: string; id: string };
+}
+
 function price(
   overrides: Partial<FungibleAssetPrice> & { price: number },
 ): FungibleAssetPrice {
@@ -69,7 +91,7 @@ describe('formatExchangeRatesForBridge', () => {
     });
 
     expect(result.conversionRates[bitcoinAssetId]).toBeDefined();
-    const entry = result.conversionRates[bitcoinAssetId];
+    const entry = asConversion(result.conversionRates[bitcoinAssetId]);
     expect(entry.rate).toBe('50000');
     expect(entry.currency).toBe('swift:0/iso4217:USD');
     expect(entry.conversionTime).toBe(1000000);
@@ -89,7 +111,7 @@ describe('formatExchangeRatesForBridge', () => {
     });
 
     expect(result.conversionRates[solanaAssetId]).toBeDefined();
-    expect(result.conversionRates[solanaAssetId].currency).toBe(
+    expect(asConversion(result.conversionRates[solanaAssetId]).currency).toBe(
       'swift:0/iso4217:EUR',
     );
     expect(result.currentCurrency).toBe('eur');
@@ -180,7 +202,7 @@ describe('formatExchangeRatesForBridge', () => {
     const chainData = result.marketData['0x1'];
     expect(chainData).toBeDefined();
     const nativeAddress = '0x0000000000000000000000000000000000000000';
-    const nativeEntry = chainData[nativeAddress];
+    const nativeEntry = asMarketEntry(chainData[nativeAddress]);
     expect(nativeEntry).toBeDefined();
     expect(nativeEntry.price).toBe(1);
     expect(nativeEntry.currency).toBe('ETH');
@@ -225,7 +247,7 @@ describe('formatExchangeRatesForBridge', () => {
 
     const chainData = result.marketData['0x1'];
     expect(chainData).toBeDefined();
-    const usdcEntry = chainData[usdcAddress];
+    const usdcEntry = asMarketEntry(chainData[usdcAddress]);
     expect(usdcEntry).toBeDefined();
     expect(usdcEntry.price).toBe(1 / 2000);
     expect(usdcEntry.currency).toBe('ETH');
@@ -351,7 +373,7 @@ describe('formatExchangeRatesForBridge', () => {
       nativeAssetIdentifiers: {},
     });
 
-    expect(result.conversionRates[assetId].currency).toBe(
+    expect(asConversion(result.conversionRates[assetId]).currency).toBe(
       'swift:0/iso4217:USD',
     );
   });
@@ -391,7 +413,7 @@ describe('formatExchangeRatesForBridge', () => {
     });
 
     expect(result.conversionRates[bitcoinAssetId].rate).toBe(String(46000));
-    expect(result.conversionRates[bitcoinAssetId].currency).toBe(
+    expect(asConversion(result.conversionRates[bitcoinAssetId]).currency).toBe(
       'swift:0/iso4217:EUR',
     );
   });
