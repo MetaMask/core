@@ -224,7 +224,19 @@ describe('LighterProvider', () => {
     ])(
       'compares the first price push with the market list read before it: %s',
       async (_case, marketStats, calls) => {
-        const { provider } = buildProvider({ webSocketCtor: fakeCtor });
+        const { provider, clientInstance } = buildProvider({
+          webSocketCtor: fakeCtor,
+        });
+        // The price push carries perps only.
+        clientInstance.getOrderBooks.mockResolvedValue([
+          BTC_MARKET,
+          {
+            ...BTC_MARKET,
+            symbol: 'ETH/USDC',
+            marketId: 2048,
+            marketType: 'spot',
+          },
+        ]);
         await provider.getMarkets();
         const callback = vi.fn();
         provider.subscribeToMarketChanges({ callback });

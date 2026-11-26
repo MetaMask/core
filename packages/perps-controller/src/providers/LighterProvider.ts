@@ -10331,11 +10331,14 @@ export class LighterProvider implements PerpsProvider {
       const markets = await this.#clientService.getOrderBooks(
         params?.skipCache,
       );
+      // The perps the price push carries, to compare its first frame with.
       this.#listedMarkets = new Map(
-        markets.map((market) => [
-          String(market.marketId),
-          market.status === 'inactive',
-        ]),
+        markets
+          .filter((market) => market.marketType === 'perp')
+          .map((market) => [
+            String(market.marketId),
+            market.status === 'inactive',
+          ]),
       );
       await this.#ensureMarketMargins();
       return markets
