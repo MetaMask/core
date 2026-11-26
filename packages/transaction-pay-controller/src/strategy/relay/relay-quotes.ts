@@ -349,8 +349,8 @@ async function getSingleQuote(
       // A step that bundled its own calls has already pinned the amount those
       // calls consume, so it wins over the derived amount.
       amount: body.amount ?? pricing.amount,
-      ...(request.isTrueExactOutput ? { enableTrueExactOutput: true } : {}),
       tradeType: pricing.tradeType,
+      ...(request.isTrueExactOutput ? { enableTrueExactOutput: true } : {}),
     };
 
     log('Request body', finalBody);
@@ -553,7 +553,6 @@ async function normalizeQuote(
 
   const { usdToFiatRate } = getFiatRates(messenger, request);
 
-  // A true exact output sends any surplus to the solver, not the recipient.
   const dust = getFiatValueFromUsd(
     request.isTrueExactOutput
       ? new BigNumber(0)

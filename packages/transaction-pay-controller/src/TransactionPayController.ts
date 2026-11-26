@@ -178,12 +178,12 @@ export class TransactionPayController extends BaseController<
       const config: TransactionConfig = {
         accountOverride: transactionData.accountOverride,
         atomic: transactionData.atomic,
-        isTrueExactOutput: transactionData.isTrueExactOutput,
         isHyperliquidSource: transactionData.isHyperliquidSource,
         isMaxAmount: transactionData.isMaxAmount,
         isPolymarketDepositWallet: transactionData.isPolymarketDepositWallet,
         isPostQuote: transactionData.isPostQuote,
         isQuoteRequired: transactionData.isQuoteRequired,
+        isTrueExactOutput: transactionData.isTrueExactOutput,
         paymentOverride: transactionData.paymentOverride,
         refundTo: transactionData.refundTo,
       };

@@ -35,7 +35,6 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
       return false;
     }
 
-    // Across always sends any swap surplus to the recipient.
     if (
       request.requests.some((singleRequest) => singleRequest.isTrueExactOutput)
     ) {
