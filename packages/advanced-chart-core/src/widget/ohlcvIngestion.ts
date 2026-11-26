@@ -18,12 +18,14 @@ import { notifyDataLifecycle } from '../core/dataLifecycle.js';
 import { detectResolution } from '../core/resolution.js';
 import {
   appendOrReplaceLastBar,
+  bumpHotReloadSeq,
   bumpOhlcvGeneration,
   clearOhlcvPagination,
   doesLegendOwnLayoutSettle,
   getActiveStudies,
-  getAtomicIntervalWindow,
+  getBoundedIntervalWindow,
   getCurrentResolution,
+  getHotReloadSeq,
   getMaStudies,
   getOhlcvData,
   getOhlcvGeneration,
@@ -31,7 +33,7 @@ import {
   getVisibleFromMs,
   getWidget,
   isChartReady,
-  setAtomicIntervalWindow,
+  setBoundedIntervalWindow,
   setCurrentResolution,
   setLegendOwnsLayoutSettle,
   setOhlcvData,
@@ -43,11 +45,7 @@ import {
   setVisibleToMs,
 } from '../core/state.js';
 import { getApproxBarDurationSec } from '../core/timeUtils.js';
-import type {
-  TVActiveChart,
-  TVChartingLibraryWidget,
-  TVResolution,
-} from '../core/types.js';
+import type { TVActiveChart, TVChartingLibraryWidget } from '../core/types.js';
 import type {
   RealtimeUpdateMessage,
   SetOHLCVDataPayload,
@@ -103,9 +101,9 @@ export function handleSetOHLCVData(payload: SetOHLCVDataPayload): void {
     setSlbCenteringPending(true);
   }
 
-  // Opt-in: default OFF so non-opt-in consumers keep today's plain
-  // `setResolution` interval-switch behavior.
-  setAtomicIntervalWindow(Boolean(payload.atomicIntervalWindow));
+  // Opt-in: default OFF so non-opt-in consumers keep today's constructor
+  // `timeframe` and unclamped framing.
+  setBoundedIntervalWindow(Boolean(payload.boundedIntervalWindow));
 
   if (payload.pagination) {
     setOhlcvPagination({
@@ -139,8 +137,26 @@ export function handleSetOHLCVData(payload: SetOHLCVDataPayload): void {
         applyVisibleRange(chart);
         emitLayoutSettled();
       } else {
-        // Different resolution — switch in place (no widget rebuild).
-        switchResolutionInPlace(widget, newResolution);
+        // Different resolution — let setResolution handle the transition
+        // naturally. TV calls getBars internally, the datafeed returns the
+        // new bars (already stored via setOhlcvData above), and TV renders
+        // them smoothly without a blank frame. No resetData needed.
+        claimLegendSettleOwnership();
+        const seq = bumpHotReloadSeq();
+        chart.setResolution(newResolution, () => {
+          if (getHotReloadSeq() !== seq) {
+            return;
+          }
+          resetMainPriceScaleAutoScale(chart);
+          // Opt-in: the new data is already loaded here, so `onDataLoaded`
+          // would not re-fire; apply the clamped window synchronously.
+          if (isBoundedIntervalWindowActive()) {
+            applyVisibleRangeImmediate(chart);
+          } else {
+            applyVisibleRange(chart, { dataAlreadyLoaded: true });
+          }
+          emitLayoutSettled();
+        });
       }
     } catch (error) {
       reportErrorToRN(error);
@@ -242,10 +258,10 @@ function applyVisibleRange(
   // bar + 2-bar padding. This one-sided framing works because Token Details and
   // Perps always want the right edge near the latest candle.
   //
-  // Opt-in: when `atomicIntervalWindow` is set, the start is clamped to the
+  // Opt-in: when `boundedIntervalWindow` is set, the start is clamped to the
   // oldest loaded bar so the pin never frames an interval older than the bars
   // in memory. Non-opt-in consumers keep the unclamped start.
-  const clampToOldest = getAtomicIntervalWindow();
+  const clampToOldest = getBoundedIntervalWindow();
   const capturedGeneration = getOhlcvGeneration();
   const subscription = chart.onDataLoaded();
   const onLoaded = (): void => {
@@ -315,19 +331,71 @@ function resetDatafeedCacheBeforeHotReload(
 }
 
 /**
+ * Whether the opt-in bounded interval window applies: the host set
+ * `boundedIntervalWindow`, is not in SLB mode, and sent a `visibleFromMs`.
+ *
+ * When true, the per-interval window is applied after the widget is ready
+ * (see {@link applyInitialVisibleRange}) instead of being passed to the widget
+ * constructor as `timeframe`, and is applied synchronously after every
+ * interval switch. TradingView keeps a constructor `timeframe` and
+ * sizes the first `getBars` of every later interval from it, so a 1D first
+ * load (~1 month) would make a later 1m switch request ~46k bars and page
+ * backwards until rate-limited.
+ *
+ * @returns True when the bounded interval window applies.
+ */
+export function isBoundedIntervalWindowActive(): boolean {
+  return (
+    getBoundedIntervalWindow() && !getSlbMode() && getVisibleFromMs() !== null
+  );
+}
+
+/**
+ * Applies the initial per-interval visible window once the widget is ready.
+ * Counterpart of {@link isBoundedIntervalWindowActive}; no-ops otherwise.
+ *
+ * The window is applied immediately (data is usually loaded by `onChartReady`)
+ * and again once via `dataReady` in case TradingView is still loading. Both
+ * are clamped to the oldest loaded bar, so neither triggers backward
+ * pagination.
+ *
+ * `dataReady` is used instead of `onDataLoaded` because it fires exactly once
+ * (immediately if data is already loaded). An `onDataLoaded` listener would
+ * stay armed when data loaded before ready, and re-apply the initial window
+ * on the next history load (e.g. scroll-back), snapping the chart back.
+ *
+ * @param chart - The active TradingView chart.
+ */
+export function applyInitialVisibleRange(chart: TVActiveChart): void {
+  if (!isBoundedIntervalWindowActive()) {
+    return;
+  }
+  applyVisibleRangeImmediate(chart);
+  if (typeof chart.dataReady !== 'function') {
+    return;
+  }
+  const capturedGeneration = getOhlcvGeneration();
+  chart.dataReady(() => {
+    // Newer data (interval switch / refetch) applies its own window.
+    if (capturedGeneration !== getOhlcvGeneration()) {
+      return;
+    }
+    applyVisibleRangeImmediate(chart);
+  });
+}
+
+/**
  * Applies the clamped per-interval visible range synchronously, for the opt-in
- * in-place resolution switch only.
+ * bounded interval window only.
  *
  * Unlike {@link applyVisibleRange} (which subscribes to `onDataLoaded`), this is
- * called from the `setResolution` callback where TradingView has already
- * finished loading the new resolution's data — so there is no further
- * `onDataLoaded` to wait for. The range is clamped to the oldest loaded bar
- * (`atomicIntervalWindow` is on whenever this runs), keeping the pin inside bars
- * already in memory so it cannot re-trigger backward pagination.
+ * used where TradingView has already loaded the data (the `setResolution`
+ * callback and `onChartReady`), so there may be no further `onDataLoaded` to
+ * wait for. The range is clamped to the oldest loaded bar, keeping the pin
+ * inside bars already in memory so it cannot re-trigger backward pagination.
  *
- * Callers must gate on `getAtomicIntervalWindow() && !getSlbMode() &&
- * getVisibleFromMs() !== null`, so this never runs for existing (SLB /
- * non-opt-in) branches.
+ * Callers must gate on {@link isBoundedIntervalWindowActive}, so this
+ * never runs for existing (SLB / non-opt-in) branches.
  *
  * @param chart - The active TradingView chart.
  */
@@ -339,79 +407,6 @@ function applyVisibleRangeImmediate(chart: TVActiveChart): void {
   try {
     const range = computeVisibleRangeSec(fromMs, { clampToOldest: true });
     chart.setVisibleRange(range, { percentRightMargin: 0 });
-  } catch (error) {
-    reportErrorToRN(error);
-  }
-}
-
-/**
- * Switches the live widget to a new resolution in place, without tearing it
- * down and rebuilding it.
- *
- * A bare `setResolution` makes TradingView preserve the previous interval's
- * wide visible TIME span and size the new series' first `getBars` `countBack`
- * from that span ÷ the new bar duration — a coarse→fine switch (e.g. 1W→1m)
- * then asks for hundreds of thousands of bars (the pagination storm; on
- * deep-history tokens it can hang). We avoid that by releasing the absolute
- * visible-range pin first: re-anchoring the time scale with a bar-index right
- * offset returns TradingView to count-preservation, so the switch reframes to
- * ~the visible bar count of the new resolution (bounded to ~hundreds of bars)
- * instead of the inherited span. Once the new series loads we re-apply the
- * per-interval visible range.
- *
- * Because the widget persists, studies / MA / volume / chart-type all survive
- * the switch with no re-application — and there is no blank/loading flash.
- *
- * @param widget - The live widget (kept, not rebuilt).
- * @param newResolution - The resolution detected from the incoming bars.
- */
-function switchResolutionInPlace(
-  widget: TVChartingLibraryWidget,
-  newResolution: TVResolution,
-): void {
-  const chart = widget.activeChart();
-
-  // Release the absolute visible-range pin so the switch preserves the visible
-  // bar count (bounded) rather than the inherited wide time span (the storm).
-  try {
-    chart.getTimeScale().setRightOffset(2);
-  } catch (error) {
-    reportErrorToRN(error);
-  }
-
-  // With active studies, the legend owns CHART_LAYOUT_SETTLED so the host is
-  // only told the layout settled once the legend has rendered values for the
-  // new resolution (emitLayoutSettled below then no-ops).
-  claimLegendSettleOwnership();
-
-  try {
-    chart.setResolution(newResolution, () => {
-      try {
-        resetMainPriceScaleAutoScale(chart);
-        notifyDataLifecycle('ohlcvReset');
-        // Opt-in only (Token Details / Perps): the new resolution's data is
-        // already loaded by the time this callback fires, so the shared
-        // `applyVisibleRange` — which waits on `onDataLoaded` — would never
-        // re-fire and the per-interval window would not land. Apply it
-        // synchronously instead (mirroring how SLB uses `immediate`). The range
-        // is clamped to the oldest loaded bar, so it stays within bars already
-        // in memory and cannot re-trigger pagination. Existing branches (SLB,
-        // non-opt-in consumers) are untouched: they keep the `applyVisibleRange`
-        // path below.
-        if (
-          getAtomicIntervalWindow() &&
-          !getSlbMode() &&
-          getVisibleFromMs() !== null
-        ) {
-          applyVisibleRangeImmediate(chart);
-        } else {
-          applyVisibleRange(chart, { dataAlreadyLoaded: true });
-        }
-        emitLayoutSettled();
-      } catch (error) {
-        reportErrorToRN(error);
-      }
-    });
   } catch (error) {
     reportErrorToRN(error);
   }

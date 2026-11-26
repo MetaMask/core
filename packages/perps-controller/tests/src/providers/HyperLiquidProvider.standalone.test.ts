@@ -2010,6 +2010,36 @@ describe('HyperLiquidProvider', () => {
         (mockClientService.isTestnetMode as Mock).mockReturnValue(false);
       });
 
+      it('keeps the permissioned ignp dex on testnet', async () => {
+        (mockClientService.isTestnetMode as Mock).mockReturnValue(true);
+        const testnetProvider = createTestProvider({
+          hip3Enabled: true,
+          isTestnet: true,
+        });
+        mockStandaloneInfoClient.perpDexs.mockResolvedValue([
+          null,
+          { name: 'otherdex' },
+          { name: 'ignp' },
+        ]);
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [],
+          marginSummary: { totalMarginUsed: '0', accountValue: '0' },
+        });
+
+        await testnetProvider.getPositions({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+
+        expect(
+          mockStandaloneInfoClient.clearinghouseState,
+        ).toHaveBeenCalledTimes(2);
+        expect(
+          mockStandaloneInfoClient.clearinghouseState,
+        ).toHaveBeenCalledWith({ user: mockUserAddress, dex: 'ignp' });
+        (mockClientService.isTestnetMode as Mock).mockReturnValue(false);
+      });
+
       it('updates unified state atomically when standalone perpDexs succeeds', async () => {
         // Arrange
         mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({

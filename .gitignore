@@ -61,3 +61,6 @@ packages/wallet-framework-docs/site/build
 
 # Vitest cache
 .vitest/
+
+# Local task output from mm-harness and agent skills, ignored as in the Mobile and Extension repositories
+/temp/

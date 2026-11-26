@@ -1,8 +1,10 @@
 export { BridgeController } from './bridge-controller.js';
 
 export {
+  AdvancedOrderMetricsEventName,
   BatchSellMetricsEventName,
   UnifiedSwapBridgeEventName,
+  ADVANCED_ORDER_EVENT_CATEGORY,
   BATCH_SELL_EVENT_CATEGORY,
   UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY,
   BatchSellMetricsLocation,
@@ -16,6 +18,7 @@ export {
 
 export type { BridgeControllerMetricsEventName } from './utils/metrics/constants.js';
 export type { BridgeControllerMetricsLocation } from './utils/metrics/constants.js';
+export type { BridgeControllerPublishedEventName } from './utils/metrics/constants.js';
 
 export type {
   AccountHardwareType,
