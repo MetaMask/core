@@ -69,3 +69,29 @@ export function detectResolution(data: { time: number }[]): TVResolution {
   }
   return best;
 }
+
+/**
+ * Resolves the resolution to plot a series at. A host-provided resolution is
+ * used when it is one the chart supports (shorthand like `D` is accepted as
+ * `1D`); otherwise it falls back to {@link detectResolution}, which misfires
+ * on low-liquidity series with irregular bar spacing (e.g. 5m detected as `30`).
+ *
+ * @param explicit - Resolution sent by the host, if any.
+ * @param data - The OHLCV bar series, used for the detection fallback.
+ * @returns The resolution to plot the series at.
+ */
+export function resolveResolution(
+  explicit: TVResolution | undefined,
+  data: { time: number }[],
+): TVResolution {
+  const canonical =
+    explicit === undefined ? undefined : canonicalResolution(explicit);
+  // Same set the datafeed advertises as `supported_resolutions`.
+  if (
+    canonical !== undefined &&
+    Object.values(INTERVAL_MS_TO_TV).includes(canonical)
+  ) {
+    return canonical;
+  }
+  return detectResolution(data);
+}

@@ -15,7 +15,7 @@
 
 import { postToRN, reportErrorToRN } from '../core/bridge.js';
 import { notifyDataLifecycle } from '../core/dataLifecycle.js';
-import { detectResolution } from '../core/resolution.js';
+import { resolveResolution } from '../core/resolution.js';
 import {
   appendOrReplaceLastBar,
   bumpHotReloadSeq,
@@ -119,7 +119,7 @@ export function handleSetOHLCVData(payload: SetOHLCVDataPayload): void {
   setVisibleFromMs(payload.visibleFromMs ?? null);
   setVisibleToMs(payload.visibleToMs ?? null);
 
-  const newResolution = detectResolution(payload.data);
+  const newResolution = resolveResolution(payload.resolution, payload.data);
   const previousResolution = getCurrentResolution();
   setCurrentResolution(newResolution);
 

@@ -39,6 +39,9 @@ const bar = (time: number, close = 1): OHLCVBar => ({
 const oneMinuteApart = (count: number, start = 0): OHLCVBar[] =>
   Array.from({ length: count }, (_, i) => bar(start + i * 60_000));
 
+/** Shape of the bridge messages these tests inspect. */
+type PostedMessage = { type: string; payload: { message: string } };
+
 describe('handleSetOHLCVData', () => {
   beforeEach(() => {
     _resetStateForTests();
@@ -122,9 +125,11 @@ describe('handleSetOHLCVData', () => {
   it('calls setResolution when the detected resolution changes', () => {
     const resetData = vi.fn();
     let setResCb: () => void = () => undefined;
-    const setResolution = vi.fn().mockImplementation((_res, callback) => {
-      setResCb = callback;
-    });
+    const setResolution = vi.fn<TVActiveChart['setResolution']>(
+      (_res, callback) => {
+        setResCb = callback;
+      },
+    );
     const onDataLoaded = vi
       .fn()
       .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() });
@@ -259,6 +264,51 @@ describe('handleSetOHLCVData', () => {
       setResolution.mock.invocationCallOrder[0],
     );
   });
+
+  describe('explicit resolution', () => {
+    // Low-liquidity 5m series: missing candles make the median gap 3m.
+    const irregularFiveMinute = [0, 180_000, 360_000, 540_000, 840_000].map(
+      (time) => bar(time),
+    );
+
+    it('uses the explicit resolution over irregular bar spacing', () => {
+      handleSetOHLCVData({ data: irregularFiveMinute, resolution: '5' });
+      expect(getCurrentResolution()).toBe('5');
+    });
+
+    it('uses the explicit resolution for the first load (widget interval)', () => {
+      const callback = vi.fn(() => {
+        // initChart reads getCurrentResolution() as the widget `interval`.
+        expect(getCurrentResolution()).toBe('5');
+      });
+      onFirstOhlcvData(callback);
+      handleSetOHLCVData({ data: irregularFiveMinute, resolution: '5' });
+      expect(callback).toHaveBeenCalledTimes(1);
+    });
+
+    it('switches resolution in place to the explicit resolution', () => {
+      const resetData = vi.fn();
+      const setResolution = vi.fn();
+      const chart = {
+        resetData,
+        setResolution,
+        onDataLoaded: vi
+          .fn()
+          .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() }),
+        getTimeScale: vi.fn().mockReturnValue({ setRightOffset: vi.fn() }),
+      } as unknown as TVActiveChart;
+
+      handleSetOHLCVData({ data: oneMinuteApart(3), resolution: '1' });
+      setWidget({
+        activeChart: () => chart,
+      } as unknown as TVChartingLibraryWidget);
+      setChartReady(true);
+      handleSetOHLCVData({ data: irregularFiveMinute, resolution: '5' });
+
+      expect(setResolution).toHaveBeenCalledWith('5', expect.any(Function));
+      expect(resetData).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe('handleRealtimeUpdate', () => {
@@ -319,7 +369,7 @@ describe('applyVisibleRange', () => {
       }),
       unsubscribe,
     });
-    const setVisibleRange = vi.fn();
+    const setVisibleRange = vi.fn<TVActiveChart['setVisibleRange']>();
     const setRightOffset = vi.fn();
     const getTimeScale = vi.fn().mockReturnValue({ setRightOffset });
     const chart = {
@@ -490,7 +540,7 @@ describe('applyVisibleRange', () => {
     const errorCalls = (
       window.ReactNativeWebView?.postMessage as Mock
     ).mock.calls.filter((call: string[]) => {
-      const parsed = JSON.parse(call[0]);
+      const parsed = JSON.parse(call[0]) as PostedMessage;
       return (
         parsed.type === 'ERROR' &&
         parsed.payload.message.includes('setRightOffset boom')
@@ -700,7 +750,7 @@ describe('emitLayoutSettled (via handleSetOHLCVData)', () => {
     rafCallbacks[1](0);
 
     const settledCalls = postMessage.mock.calls.filter((call: string[]) => {
-      const parsed = JSON.parse(call[0]);
+      const parsed = JSON.parse(call[0]) as PostedMessage;
       return parsed.type === 'CHART_LAYOUT_SETTLED';
     });
     expect(settledCalls.length).toBeGreaterThanOrEqual(1);
@@ -738,7 +788,7 @@ describe('emitLayoutSettled (via handleSetOHLCVData)', () => {
     vi.advanceTimersByTime(100);
 
     const settledCalls = postMessage.mock.calls.filter((call: string[]) => {
-      const parsed = JSON.parse(call[0]);
+      const parsed = JSON.parse(call[0]) as PostedMessage;
       return parsed.type === 'CHART_LAYOUT_SETTLED';
     });
     expect(settledCalls.length).toBeGreaterThanOrEqual(1);
@@ -782,7 +832,7 @@ describe('emitLayoutSettled (via handleSetOHLCVData)', () => {
     rafCallbacks[1](0);
 
     const settledCalls = postMessage.mock.calls.filter((call: string[]) => {
-      const parsed = JSON.parse(call[0]);
+      const parsed = JSON.parse(call[0]) as PostedMessage;
       return parsed.type === 'CHART_LAYOUT_SETTLED';
     });
     expect(settledCalls).toHaveLength(0);
@@ -861,7 +911,7 @@ describe('error paths', () => {
     const errorCalls = (
       window.ReactNativeWebView?.postMessage as Mock
     ).mock.calls.filter((call: string[]) => {
-      const parsed = JSON.parse(call[0]);
+      const parsed = JSON.parse(call[0]) as PostedMessage;
       return (
         parsed.type === 'ERROR' &&
         parsed.payload.message.includes('resetData kaboom')
@@ -885,7 +935,7 @@ describe('error paths', () => {
     const errorCalls = (
       window.ReactNativeWebView?.postMessage as Mock
     ).mock.calls.filter((call: string[]) => {
-      const parsed = JSON.parse(call[0]);
+      const parsed = JSON.parse(call[0]) as PostedMessage;
       return (
         parsed.type === 'ERROR' &&
         parsed.payload.message.includes('firstDataCallback boom')
@@ -940,7 +990,7 @@ describe('error paths', () => {
     const errorCalls = (
       window.ReactNativeWebView?.postMessage as Mock
     ).mock.calls.filter((call: string[]) => {
-      const parsed = JSON.parse(call[0]);
+      const parsed = JSON.parse(call[0]) as PostedMessage;
       return (
         parsed.type === 'ERROR' &&
         parsed.payload.message.includes('setRightOffset inside setResolution')
