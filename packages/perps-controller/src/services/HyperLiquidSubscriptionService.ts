@@ -5955,6 +5955,13 @@ export class HyperLiquidSubscriptionService {
       return;
     }
     const dexs = this.#hip3Enabled ? ['', ...this.#enabledDexs] : [''];
+    // A DEX the configuration dropped is no longer held.
+    for (const dex of [...this.#marketChangeDexs]) {
+      if (!dexs.includes(dex)) {
+        this.#marketChangeDexs.delete(dex);
+        this.#cleanupAssetCtxsSubscription(dex);
+      }
+    }
     for (const dex of dexs) {
       if (this.#marketChangeDexs.has(dex)) {
         continue;

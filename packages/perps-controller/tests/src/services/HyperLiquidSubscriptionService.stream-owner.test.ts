@@ -1112,6 +1112,21 @@ describe('shared streams over the HyperLiquid subscription service', () => {
       expect(callback).toHaveBeenCalledTimes(1);
     });
 
+    it('lets go of the market feed of a DEX the configuration no longer has', async () => {
+      service.subscribeToMarketChanges({ callback: vi.fn() });
+      await service.updateFeatureFlags(true, ['xyz'], [], []);
+      await settle();
+      const dexs = (): unknown[] =>
+        open('assetCtxs').map(({ params }) => (params as { dex?: string }).dex);
+      expect(dexs()).toContain('xyz');
+
+      await service.updateFeatureFlags(true, [], [], []);
+      await settle();
+
+      expect(dexs()).not.toContain('xyz');
+      expect(open('assetCtxs')).toHaveLength(1);
+    });
+
     it('reports markets listed before the feed opened', async () => {
       const callback = vi.fn();
       service.subscribeToMarketChanges({ callback });
