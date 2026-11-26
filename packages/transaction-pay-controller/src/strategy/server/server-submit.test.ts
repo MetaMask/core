@@ -1758,15 +1758,6 @@ describe('submitServerQuotes', () => {
     });
   });
 
-  function deepFreeze<Value>(value: Value): Value {
-    if (typeof value === 'object' && value !== null) {
-      Object.values(value).forEach(deepFreeze);
-      Object.freeze(value);
-    }
-
-    return value;
-  }
-
   describe('Lighter transfer steps', () => {
     const getTransactionMock = vi.mocked(getTransaction);
 
@@ -1860,82 +1851,20 @@ describe('submitServerQuotes', () => {
       );
     });
 
-    it('records the transfer even when the quote is frozen, like controller state', async () => {
-      const lighterRequest = buildLighterRequest();
-      lighterRequest.quotes[0].original.id = 'frozen-lighter-quote';
-      deepFreeze(lighterRequest.quotes);
-
-      await submitServerQuotes(lighterRequest);
-
-      expect(lighterSubmitTransferMock).toHaveBeenCalledTimes(1);
-      expect(getServerStatusMock).toHaveBeenCalled();
-    });
-
-    it('does not send the transfer again when the same quote is retried', async () => {
-      const lighterRequest = buildLighterRequest();
-      lighterRequest.quotes[0].original.id = 'retried-lighter-quote';
-      getServerStatusMock.mockResolvedValueOnce({
-        status: ServerStatus.Failed,
-      });
-
-      await expect(submitServerQuotes(lighterRequest)).rejects.toThrow(
-        'Server intent failed',
-      );
-      await submitServerQuotes(lighterRequest);
-
-      expect(lighterSubmitTransferMock).toHaveBeenCalledTimes(1);
-    });
-
-    it('sends only the transfers not yet sent when the quote is retried', async () => {
+    it('sends each transfer step in order', async () => {
       const lighterRequest = buildLighterRequest();
       const secondMemo = `0x${'cd'.repeat(32)}` as const;
-      const [{ original }] = lighterRequest.quotes;
-      original.id = 'partially-sent-lighter-quote';
-      getServerStatusMock.mockResolvedValueOnce({
-        status: ServerStatus.Failed,
-      });
-
-      await expect(submitServerQuotes(lighterRequest)).rejects.toThrow(
-        'Server intent failed',
-      );
-
-      original.steps = [
+      lighterRequest.quotes[0].original.steps = [
         LIGHTER_STEP_MOCK,
         { ...LIGHTER_STEP_MOCK, memo: secondMemo },
       ];
-      mockTransferResult({ success: false, error: 'nonce too low' });
 
-      await expect(submitServerQuotes(lighterRequest)).rejects.toThrow(
-        'nonce too low',
-      );
-
-      mockTransferResult({ success: true, txHash: '0x2' });
       await submitServerQuotes(lighterRequest);
 
-      expect(lighterSubmitTransferMock).toHaveBeenCalledTimes(3);
+      expect(lighterSubmitTransferMock).toHaveBeenCalledTimes(2);
       expect(lighterSubmitTransferMock).toHaveBeenLastCalledWith(
         expect.objectContaining({ memo: secondMemo }),
       );
-    });
-
-    it('does not send the transfer again when the quote is retried after a failed second leg', async () => {
-      const lighterRequest = buildLighterRequest();
-      lighterRequest.quotes[0].original.id = 'second-leg-lighter-quote';
-      lighterRequest.quotes[0].requiresSecondLeg = true;
-      vi.mocked(submitSecondLeg).mockRejectedValue(
-        new Error('Second leg failed'),
-      );
-
-      await expect(submitServerQuotes(lighterRequest)).rejects.toThrow(
-        'Second leg failed',
-      );
-
-      vi.mocked(submitSecondLeg).mockResolvedValue({
-        transactionHash: undefined,
-      });
-      await submitServerQuotes(lighterRequest);
-
-      expect(lighterSubmitTransferMock).toHaveBeenCalledTimes(1);
     });
 
     it('does not submit on-chain transactions for a Lighter-only quote', async () => {

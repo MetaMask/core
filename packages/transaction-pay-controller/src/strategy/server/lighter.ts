@@ -1,9 +1,5 @@
 import { successfulFetch } from '@metamask/controller-utils';
-import type {
-  LighterTransferParams,
-  LighterTransferResult,
-} from '@metamask/perps-controller';
-import type { Hex } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
@@ -20,7 +16,7 @@ import type {
   ServerStep,
 } from './types.js';
 
-const log = createModuleLogger(projectLogger, 'server-strategy');
+const log = createModuleLogger(projectLogger, 'lighter');
 
 /**
  * Lighter API that lists the accounts owned by an L1 address.
@@ -39,14 +35,6 @@ const LIGHTER_ASSET_PREFIX = 'lighter:';
 
 /** Decimals of USDC on Lighter, in which transfer amounts and fees are set. */
 const LIGHTER_USDC_DECIMALS = 6;
-
-/**
- * Lighter transfers already sent, by server quote ID and then step index.
- *
- * Kept outside the quote because quotes come from the frozen controller state.
- * An entry is dropped once the quote is confirmed.
- */
-const submittedTransfers = new Map<string, Map<number, string>>();
 
 /**
  * Placeholder chain ID for the Lighter perps balance. Only used within the
@@ -162,6 +150,48 @@ export function isLighterSourceRequest(
   return isLighterAsset(request.sourceAssetIdOverride);
 }
 
+/** Changes a Lighter request makes to the server quote request. */
+type LighterRequestOverrides = {
+  /** Index of the Lighter account receiving a deposit. */
+  recipient?: string;
+
+  /**
+   * Lighter balance a withdrawal debits and the index of the account that owns
+   * it, which replace the source asset and sender of the quote request.
+   */
+  source?: { asset: CaipAssetType; sender: string };
+};
+
+/**
+ * Get the changes a Lighter deposit or withdrawal makes to the server quote
+ * request, since Lighter identifies accounts by index rather than address.
+ *
+ * @param request - Normalized quote request.
+ * @param executionAccount - EVM address that owns the Lighter account.
+ * @returns The overrides, or undefined if the request does not involve Lighter.
+ */
+export async function processLighterRequest(
+  request: QuoteRequest,
+  executionAccount: Hex,
+): Promise<LighterRequestOverrides | undefined> {
+  const isDeposit = LighterNormalizer.isLighterRequest(request);
+  const { sourceAssetIdOverride } = request;
+  const asset = isLighterSourceRequest(request)
+    ? sourceAssetIdOverride
+    : undefined;
+
+  if (!isDeposit && !asset) {
+    return undefined;
+  }
+
+  const accountIndex = await getLighterAccountIndex(executionAccount);
+
+  return {
+    ...(isDeposit ? { recipient: accountIndex } : {}),
+    ...(asset ? { source: { asset, sender: accountIndex } } : {}),
+  };
+}
+
 /**
  * Check if a server quote step is a Lighter transfer.
  *
@@ -215,25 +245,10 @@ export function subtractLighterTransferFee(
 }
 
 /**
- * Sign a Lighter transfer and send it to Lighter, via the Perps controller.
- *
- * @param messenger - Controller messenger.
- * @param params - The transfer to send.
- * @returns Whether Lighter accepted the transfer.
- */
-export async function submitLighterTransfer(
-  messenger: TransactionPayControllerMessenger,
-  params: LighterTransferParams,
-): Promise<LighterTransferResult> {
-  return await messenger.call('PerpsController:submitLighterTransfer', params);
-}
-
-/**
- * Send the Lighter transfer steps of a quote.
+ * Send the Lighter transfer steps of a quote, via the Perps controller.
  *
  * The transfers debit the Lighter account the quote was requested for, which
- * is the quote's sender. A transfer already sent for this quote is skipped, so
- * a retry does not debit the account twice and still sends the remaining ones.
+ * is the quote's sender.
  *
  * @param request - Request object.
  * @param request.eoa - Address that owns the Lighter account to debit.
@@ -250,45 +265,22 @@ export async function submitLighterSteps({
   messenger: TransactionPayControllerMessenger;
   quote: ServerQuote;
 }): Promise<void> {
-  const steps = quote.steps.filter(isLighterTransferStep);
-
-  if (steps.length === 0) {
-    return;
-  }
-
-  const submitted =
-    submittedTransfers.get(quote.id) ?? new Map<number, string>();
-  submittedTransfers.set(quote.id, submitted);
-
-  for (const [index, { type: _type, ...transfer }] of steps.entries()) {
-    const submittedTxHash = submitted.get(index);
-
-    if (submittedTxHash) {
-      log('Lighter transfer already submitted, skipping', {
-        txHash: submittedTxHash,
-      });
-      continue;
-    }
-
-    const result = await submitLighterTransfer(messenger, {
-      ...transfer,
-      accountIndex: Number(quote.sender),
-      eoa,
-    });
+  for (const { type: _type, ...transfer } of quote.steps.filter(
+    isLighterTransferStep,
+  )) {
+    const result = await messenger.call(
+      'PerpsController:submitLighterTransfer',
+      {
+        ...transfer,
+        accountIndex: Number(quote.sender),
+        eoa,
+      },
+    );
 
     if (!result.success) {
       throw new Error(result.error ?? 'Lighter transfer failed');
     }
 
-    submitted.set(index, result.txHash ?? 'submitted');
+    log('Lighter transfer submitted', { txHash: result.txHash });
   }
-}
-
-/**
- * Forget the Lighter transfers sent for a quote, once it is confirmed.
- *
- * @param quoteId - ID of the server quote.
- */
-export function clearSubmittedLighterTransfers(quoteId: string): void {
-  submittedTransfers.delete(quoteId);
 }

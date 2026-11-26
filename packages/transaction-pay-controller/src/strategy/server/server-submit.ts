@@ -54,11 +54,7 @@ import {
 } from '../../utils/transaction.js';
 import { RELAY_DEPOSIT_TYPES } from '../relay/constants.js';
 import { getServerDepositData } from './deposit-step.js';
-import {
-  clearSubmittedLighterTransfers,
-  isLighterTransferStep,
-  submitLighterSteps,
-} from './lighter.js';
+import { isLighterTransferStep, submitLighterSteps } from './lighter.js';
 import {
   getServerStatus,
   ServerApiError,
@@ -356,10 +352,6 @@ async function executeSingleServerQuote(
       tx.isIntentComplete = true;
     },
   );
-
-  // Keep the record until every leg has landed, so a retry after a later
-  // failure does not send the Lighter transfer again.
-  clearSubmittedLighterTransfers(quote.original.id);
 
   return { transactionHash: secondLegHash ?? targetHash };
 }

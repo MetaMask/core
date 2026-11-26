@@ -57,11 +57,11 @@ import {
 } from './constants.js';
 import { hasServerDepositStep } from './deposit-step.js';
 import {
-  getLighterAccountIndex,
   getLighterTransferFee,
   isLighterAsset,
   isLighterSourceRequest,
   LighterNormalizer,
+  processLighterRequest,
   SERVER_LIGHTER_CHAIN_ID,
   SERVER_LIGHTER_PERPS_USDC_ADDRESS,
   subtractLighterTransferFee,
@@ -295,7 +295,6 @@ async function buildServerQuoteRequest(
     isPolymarketDepositWallet,
     isPostQuote,
     refundTo,
-    sourceAssetIdOverride,
     sourceTokenAmount,
     targetAmountMinimum,
     targetChainId,
@@ -329,17 +328,22 @@ async function buildServerQuoteRequest(
     transaction,
   });
 
+  const lighter = await processLighterRequest(
+    normalizedRequest,
+    executionAccount,
+  );
+
   // Lighter takes the account index as the recipient, not an address.
-  const recipient = LighterNormalizer.isLighterRequest(normalizedRequest)
-    ? await getLighterAccountIndex(executionAccount)
-    : await resolveQuoteRecipient({
-        messenger,
-        request: {
-          ...normalizedRequest,
-          recipient: override?.recipient ?? tokenTransferRecipient,
-        },
-        transaction,
-      });
+  const recipient =
+    lighter?.recipient ??
+    (await resolveQuoteRecipient({
+      messenger,
+      request: {
+        ...normalizedRequest,
+        recipient: override?.recipient ?? tokenTransferRecipient,
+      },
+      transaction,
+    }));
 
   const isHypercoreSource = sourceChainId === CHAIN_ID_HYPERCORE;
 
@@ -348,7 +352,7 @@ async function buildServerQuoteRequest(
   const supportsGasless =
     isServerGaslessEnabled(messenger) &&
     !isHypercoreSource &&
-    !isLighterSourceRequest(normalizedRequest) &&
+    !lighter?.source &&
     !isPolymarketDepositWallet &&
     accountSupports7702 &&
     isEIP7702Chain(messenger, sourceChainId);
@@ -382,23 +386,18 @@ async function buildServerQuoteRequest(
     );
   }
 
-  if (sourceAssetIdOverride && isLighterSourceRequest(normalizedRequest)) {
-    // Lighter debits the account by index, so the source is the Lighter
-    // balance the client declared and the sender is the index of the account
-    // that owns it.
-    body.sourceAsset = sourceAssetIdOverride;
-    body.sender = await getLighterAccountIndex(executionAccount);
+  if (lighter?.source) {
+    body.sourceAsset = lighter.source.asset;
+    body.sender = lighter.source.sender;
   }
 
   const hasNoData = singleData === undefined || singleData === '0x';
-  const isLighter = LighterNormalizer.isLighterRequest(normalizedRequest);
   const skipDelegation =
     hasNoData ||
     isTokenTransfer ||
     isHypercore ||
     isHypercoreSource ||
-    isLighter ||
-    isLighterSourceRequest(normalizedRequest) ||
+    Boolean(lighter) ||
     // Explicitly non-atomic requests want the calls run after settlement, so
     // they must not be embedded in the quote.
     atomic === false ||
