@@ -55,6 +55,15 @@ describe('caip25EndowmentBuilder', () => {
         targetName: Caip25EndowmentPermissionName,
         allowedCaveats: [Caip25CaveatType],
         validator: expect.any(Function),
+        rpcMethods: [
+          'eth_sendTransaction',
+          'eth_signTransaction',
+          'eth_signTypedData',
+          'eth_signTypedData_v3',
+          'eth_signTypedData_v4',
+          'personal_sign',
+          'wallet_sendCalls',
+        ],
       });
     });
   });
