@@ -241,9 +241,12 @@ describe('TokenApiClient', () => {
         query: 'test',
       });
 
-      const calledUrl = new URL(mockFetch.mock.calls[0]?.[0] as string);
-      expect(calledUrl.origin).toBe(customTokenUrl);
-      expect(calledUrl.pathname).toBe('/tokens/search');
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringMatching(
+          /^https:\/\/custom\.token\.api\.test\/tokens\/search/u,
+        ),
+        expect.any(Object),
+      );
     });
 
     it('sends x-mm-service-profile header when serviceProfile is provided', async () => {
@@ -263,14 +266,13 @@ describe('TokenApiClient', () => {
         serviceProfile: 'assets--trending-search',
       });
 
-      const calledOptions = mockFetch.mock.calls[0]?.[1] as
-        | RequestInit
-        | undefined;
-      const calledHeaders = calledOptions?.headers as
-        | Record<string, string>
-        | undefined;
-      expect(calledHeaders?.['x-mm-service-profile']).toBe(
-        'assets--trending-search',
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'x-mm-service-profile': 'assets--trending-search',
+          }),
+        }),
       );
     });
 
@@ -290,13 +292,14 @@ describe('TokenApiClient', () => {
         query: 'usdc',
       });
 
-      const calledOptions = mockFetch.mock.calls[0]?.[1] as
-        | RequestInit
-        | undefined;
-      const calledHeaders = calledOptions?.headers as
-        | Record<string, string>
-        | undefined;
-      expect(calledHeaders?.['x-mm-service-profile']).toBeUndefined();
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.not.objectContaining({
+          headers: expect.objectContaining({
+            'x-mm-service-profile': expect.anything(),
+          }),
+        }),
+      );
     });
 
     it('includes serviceProfile in query key', () => {
