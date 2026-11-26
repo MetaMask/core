@@ -672,36 +672,67 @@ describe('History Utils', () => {
   });
 
   describe('resolveHistoryKeyForTxMeta', () => {
+    const makeHistoryItem = (
+      overrides: Partial<BridgeHistoryItem> = {},
+    ): BridgeHistoryItem => ({
+      quote: { srcChainId: 1, destChainId: 10 } as never,
+      status: {
+        status: StatusTypes.PENDING,
+        srcChain: { chainId: 1 },
+      },
+      account: '0xaccount',
+      estimatedProcessingTimeInSeconds: 1,
+      slippagePercentage: 0,
+      hasApprovalTx: false,
+      startTime: 1,
+      ...overrides,
+    });
+
+    const makeTxMeta = (
+      overrides: Partial<TransactionMeta> = {},
+    ): TransactionMeta =>
+      ({
+        status: TransactionStatus.unapproved,
+        chainId: '0xa',
+        time: 1,
+        networkClientId: 'n',
+        txParams: { from: '0xfrom' },
+        ...overrides,
+      }) as TransactionMeta;
+
     it('matches a withdraw tx by withdrawTxMeta batchId', () => {
       const withdrawBatchId = '0xwithdrawBatch';
-      const historyItem = {
-        quote: { srcChainId: 1, destChainId: 10 } as never,
-        status: {
-          status: StatusTypes.PENDING,
-          srcChain: { chainId: 1 },
-        },
-        account: '0xaccount',
-        estimatedProcessingTimeInSeconds: 1,
-        slippagePercentage: 0,
-        hasApprovalTx: false,
-        startTime: 1,
-        withdrawTxMeta: { batchId: withdrawBatchId },
-      } as BridgeHistoryItem;
 
       expect(
         resolveHistoryKeyForTxMeta(
+          makeTxMeta({ id: 'withdraw-tx', batchId: withdrawBatchId }),
           {
-            id: 'withdraw-tx',
-            batchId: withdrawBatchId,
-            status: TransactionStatus.unapproved,
-            chainId: '0xa',
-            time: 1,
-            networkClientId: 'n',
-            txParams: { from: '0xfrom' },
+            'swap-tx': makeHistoryItem({
+              withdrawTxMeta: { batchId: withdrawBatchId },
+            }),
           },
-          { 'swap-tx': historyItem },
         ).historyKey,
       ).toBe('swap-tx');
+    });
+
+    it('returns the correct history item when a deposit txMeta is input', () => {
+      const depositBatchId = '0xdepositBatch';
+
+      expect(
+        resolveHistoryKeyForTxMeta(
+          makeTxMeta({
+            id: 'deposit-tx',
+            batchId: depositBatchId,
+            type: TransactionType.moneyAccountDeposit,
+          }),
+          {
+            'swap-tx': makeHistoryItem({ batchId: depositBatchId }),
+            'deposit-flow': makeHistoryItem({
+              depositTxMeta: { batchId: depositBatchId },
+            }),
+          },
+        ).historyKey,
+      ).toBe('deposit-flow');
     });
   });
 });

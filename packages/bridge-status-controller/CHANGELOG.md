@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Prioritize deposit tx when matching txMeta to txHistory items to unblock publishing post-deposit Completed event
+- Prioritize deposit tx when matching txMeta to txHistory items to unblock publishing post-deposit Completed event ([#11772](https://github.com/MetaMask/core/pull/11772))
 
 ## [79.0.2]
 
