@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add XRPL CAIP namespace ([#11786](https://github.com/MetaMask/core/pull/11786))
+
+### Changed
+
+- Bump `semver` from `^7.8.5` to `^7.8.6` ([#11645](https://github.com/MetaMask/core/pull/11645))
+
 ## [12.0.2]
 
 ### Fixed

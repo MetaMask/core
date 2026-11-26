@@ -51,6 +51,9 @@
     },
     {
       "path": "../utils"
+    },
+    {
+      "path": "../keyring-controller"
     }
   ],
   "include": ["../../types", "./src", "./tests"]

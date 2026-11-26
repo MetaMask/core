@@ -841,7 +841,9 @@ export function validateOrderParams(
     };
   }
 
-  if (params.price && parseFloat(params.price) <= 0) {
+  // NaN and Infinity slip past a bare `<= 0` check.
+  const price = params.price ? parseFloat(params.price) : undefined;
+  if (price !== undefined && !(Number.isFinite(price) && price > 0)) {
     return {
       isValid: false,
       error: PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE,
@@ -857,7 +859,7 @@ export function validateOrderParams(
     }
 
     const triggerPrice = parseFloat(params.triggerPrice);
-    if (isNaN(triggerPrice) || triggerPrice <= 0) {
+    if (!(Number.isFinite(triggerPrice) && triggerPrice > 0)) {
       return {
         isValid: false,
         error: PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_POSITIVE,

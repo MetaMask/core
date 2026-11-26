@@ -9,6 +9,7 @@ import type {
   Position,
 } from '../../../src/types/index.js';
 import type { LighterWasmCall } from '../../../src/types/lighter-types.js';
+import { calculateOrderBookSpread } from '../../../src/utils/orderBookGrouping.js';
 import {
   ACCOUNT,
   BTC_MARKET,
@@ -36,6 +37,24 @@ vi.mock(
   }),
 );
 vi.mock('../../../src/services/LighterWalletService');
+
+const writeBytes =
+  (bytes: readonly number[]) =>
+  <TView extends ArrayBufferView | null>(array: TView): TView => {
+    (array as Uint8Array).set(bytes);
+    return array;
+  };
+
+const tagOf = (
+  clientOrderIndex: number,
+): 'stopLoss' | 'takeProfit' | 'untagged' => {
+  if (Math.floor(clientOrderIndex / 2 ** 32) !== 0xa5c3) {
+    return 'untagged';
+  }
+  return Math.floor(clientOrderIndex / 2 ** 31) % 2 === 0
+    ? 'stopLoss'
+    : 'takeProfit';
+};
 
 describe('LighterProvider', () => {
   finishPendingTimersAfterEach();
@@ -559,6 +578,70 @@ describe('LighterProvider', () => {
       } finally {
         randomSpy.mockRestore();
       }
+    });
+  });
+
+  describe('market order market status', () => {
+    const marketOrder = {
+      symbol: 'BTC',
+      isBuy: true,
+      orderType: 'market' as const,
+      size: '0.001',
+    };
+
+    it('refreshes metadata and refuses a market order once the market is no longer active', async () => {
+      const { provider, clientInstance, calls } = buildProvider();
+      await provider.getMarkets();
+      clientInstance.getOrderBooks.mockResolvedValue([
+        { ...BTC_MARKET, status: 'inactive' },
+      ]);
+
+      expect(await provider.validateOrder(marketOrder)).toStrictEqual({
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_UNKNOWN_COIN,
+      });
+      expect(await provider.placeOrder(marketOrder)).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_UNKNOWN_COIN,
+      });
+      expect(calls).toHaveLength(0);
+    });
+
+    it('keeps a reduce-only market close available on an inactive market', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getOrderBooks.mockResolvedValue([
+        { ...BTC_MARKET, status: 'inactive' },
+      ]);
+
+      const validation = await provider.validateOrder({
+        ...marketOrder,
+        reduceOnly: true,
+      });
+
+      expect(validation.error).not.toBe(PERPS_ERROR_CODES.ORDER_UNKNOWN_COIN);
+    });
+  });
+
+  describe('validateOrder leverage and price bounds', () => {
+    it.each([
+      [{ leverage: 0 }, 'Invalid leverage'],
+      [{ leverage: -2 }, 'Invalid leverage'],
+      [{ price: 'Infinity' }, 'Invalid limit price'],
+    ])('rejects %o', async (overrides, error) => {
+      const { provider, calls } = buildProvider();
+
+      const validation = await provider.validateOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        orderType: 'limit',
+        price: '90000',
+        size: '0.001',
+        ...overrides,
+      });
+
+      expect(validation.isValid).toBe(false);
+      expect(validation.error).toContain(error);
+      expect(calls).toHaveLength(0);
     });
   });
 
@@ -1718,6 +1801,62 @@ describe('LighterProvider', () => {
       }
     });
 
+    it('redraws an untagged id that would carry the MetaMask tag prefix', async () => {
+      const { provider, calls } = buildProvider();
+      const randomSpy = vi
+        .spyOn(ensureWebCrypto(), 'getRandomValues')
+        .mockImplementationOnce(
+          writeBytes([0xa5, 0xc3, 0x12, 0x34, 0x56, 0x78]),
+        )
+        .mockImplementationOnce(writeBytes(Array(6).fill(0x40)));
+      try {
+        const result = await provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.001',
+          orderType: 'limit',
+          price: '90000',
+        });
+        expect(result.success).toBe(true);
+        const ids = calls
+          .filter((call) => call.function === '_signCreateOrder')
+          .map((call) => call.params[2]);
+        expect(ids).toStrictEqual([0x4040_4040_4040]);
+        expect(randomSpy).toHaveBeenCalledTimes(2);
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
+    it('redraws a tagged stop loss id that collides with one already issued', async () => {
+      const { provider, calls } = buildProvider();
+      const randomSpy = vi
+        .spyOn(ensureWebCrypto(), 'getRandomValues')
+        .mockImplementationOnce(writeBytes(Array(6).fill(0x80)))
+        .mockImplementationOnce(writeBytes(Array(6).fill(0x80)))
+        .mockImplementationOnce(writeBytes(Array(6).fill(0x40)));
+      const stopLimit = {
+        symbol: 'BTC',
+        isBuy: false,
+        size: '0.001',
+        orderType: 'stop_limit',
+        triggerPrice: '80000',
+        price: '79900',
+      } as const;
+      try {
+        expect((await provider.placeOrder(stopLimit)).success).toBe(true);
+        expect((await provider.placeOrder(stopLimit)).success).toBe(true);
+        const ids = calls
+          .filter((call) => call.function === '_signCreateOrder')
+          .map((call) => call.params[2]);
+        // Tag 0xa5c3, bit 31 clear, then the low 31 bits of each draw.
+        expect(ids).toStrictEqual([0xa5c3_0080_8080, 0xa5c3_4040_4040]);
+        expect(randomSpy).toHaveBeenCalledTimes(3);
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
     it('grouped TP/SL ids are unique against each other and prior placements', async () => {
       const { provider, calls } = buildProvider();
       await provider.placeOrder({
@@ -1750,7 +1889,74 @@ describe('LighterProvider', () => {
         expect(id).toBeLessThan(2 ** 48);
       }
       expect(new Set(allIds).size).toBe(3);
+      expect(tagOf(orderId)).toBe('untagged');
+      expect(tagOf(takeProfitId)).toBe('takeProfit');
+      expect(tagOf(stopLossId)).toBe('stopLoss');
     });
+
+    it('tags a single position stop loss placed as an ordinary trigger order', async () => {
+      const { provider, calls, clientInstance, bridge } = buildProvider();
+      setupTriggerVenue(clientInstance, bridge);
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '80000',
+      });
+
+      expect(result.error).toBeUndefined();
+      expect(result.success).toBe(true);
+      const ids = calls
+        .filter((call) => call.function === '_signCreateOrder')
+        .map((call) => call.params[2]);
+      expect(ids).toHaveLength(1);
+      expect(tagOf(ids[0])).toBe('stopLoss');
+    });
+
+    it('tags attached take profit and stop loss children but not their parent', async () => {
+      const { provider, calls } = buildProvider();
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90000',
+        takeProfitPrice: '110000',
+        stopLossPrice: '80000',
+      });
+
+      expect(result.success).toBe(true);
+      const groupedParams = calls.find(
+        (call) => call.function === '_signCreateGroupedOrders',
+      )?.params as (string | number)[];
+      // Orders are 10 elements from offset 3, client id at offset 1:
+      // parent, take profit, stop loss.
+      expect(tagOf(groupedParams[4] as number)).toBe('untagged');
+      expect(tagOf(groupedParams[14] as number)).toBe('takeProfit');
+      expect(tagOf(groupedParams[24] as number)).toBe('stopLoss');
+    });
+
+    it.each([
+      ['stop_limit', 'stopLoss', { triggerPrice: '80000', price: '79900' }],
+      ['take_profit_market', 'takeProfit', { triggerPrice: '110000' }],
+    ] as const)(
+      'tags a standalone %s order as %s',
+      async (orderType, expectedTag, prices) => {
+        const { provider, calls } = buildProvider();
+        const result = await provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: false,
+          size: '0.001',
+          orderType,
+          ...prices,
+        });
+
+        expect(result.success).toBe(true);
+        const ids = calls
+          .filter((call) => call.function === '_signCreateOrder')
+          .map((call) => call.params[2]);
+        expect(ids).toHaveLength(1);
+        expect(tagOf(ids[0])).toBe(expectedTag);
+      },
+    );
   });
 
   describe('full-close precision and validate/execute parity', () => {
@@ -2084,6 +2290,55 @@ describe('LighterProvider', () => {
       expect(marketPlacement.success).toBe(true);
     });
 
+    it('resolves the canonical symbol on a cold strict open-orders snapshot', async () => {
+      const { provider, clientInstance, bridge } = buildProvider();
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      const orderIndex = venue.seedTrigger('stop-loss', '80000');
+      expect(clientInstance.getOrderBooks).not.toHaveBeenCalled();
+
+      const orders = await provider.getOpenOrders({
+        throwOnUnavailable: true,
+      });
+
+      expect(orders).toMatchObject([
+        { symbol: 'BTC', orderId: String(orderIndex) },
+      ]);
+      expect(clientInstance.getOrderBooks).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects a strict open-orders snapshot with an unknown market ID', async () => {
+      const { provider, clientInstance, bridge } = buildProvider();
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      venue.seedTrigger('stop-loss', '80000');
+      venue.rawTriggers[0].marketIndex = 999;
+
+      await expect(
+        provider.getOpenOrders({ throwOnUnavailable: true }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      expect(clientInstance.getOrderBooks).toHaveBeenCalledTimes(1);
+    });
+
+    it('reads a confirmed missing account as empty without swallowing outages', async () => {
+      const { provider, clientInstance } = buildProvider({
+        configuredAccountIndex: null,
+      });
+      clientInstance.getAccountsByL1Address.mockResolvedValueOnce({
+        code: 200,
+        l1Address: ACCOUNT.l1Address,
+        subAccounts: [],
+      });
+      const options = { throwOnUnavailable: true } as const;
+
+      expect(await provider.getOpenOrders(options)).toStrictEqual([]);
+      clientInstance.getAccountsByL1Address.mockRejectedValueOnce(
+        new Error('lookup offline'),
+      );
+      await expect(provider.getOpenOrders(options)).rejects.toThrow(
+        'lookup offline',
+      );
+      expect(clientInstance.getActiveOrders).not.toHaveBeenCalled();
+    });
+
     it('preserves subscriber state when channel setup hits a capability gate', async () => {
       const { provider, clientInstance, getUserAddressMock } = buildProvider({
         webSocketCtor: fakeStreamCtor,
@@ -2164,6 +2419,17 @@ describe('LighterProvider', () => {
       expect(parseFloat(book.bids[1].totalNotional)).toBeCloseTo(
         45000 + 89990 * 1.5,
       );
+      // Spread fields come from the shared helper.
+      const top = calculateOrderBookSpread({
+        bestBid: '90000',
+        bestAsk: '90010',
+      });
+      expect(book).toMatchObject({
+        spread: String(top?.spread),
+        spreadPercentage: String(top?.spreadPercentage),
+        midPrice: String(top?.midPrice),
+      });
+      expect(book.spread).toBe('10');
       // Book-level scaling fields the UI depends on.
       expect(parseFloat(book.maxTotal)).toBeCloseTo(2.4);
       expect(typeof book.lastUpdated).toBe('number');
@@ -3494,6 +3760,15 @@ describe('LighterProvider', () => {
       ).rejects.toMatchObject({
         errorCode: PERPS_ERROR_CODES.LIQUIDATION_PRICE_UNAVAILABLE,
       });
+      expect(
+        await provider.estimateCrossLiquidation({
+          symbol: 'BTC',
+          direction: 'long',
+          size: '1',
+          entryPrice: '100',
+          leverage: 10,
+        }),
+      ).toStrictEqual({ status: 'unavailable', reason: 'provider' });
       expect(await provider.getMaxLeverage('BTC')).toBeGreaterThan(0);
       await expect(provider.getMaxLeverage('UNKNOWN')).rejects.toThrow(
         'margin metadata unavailable',

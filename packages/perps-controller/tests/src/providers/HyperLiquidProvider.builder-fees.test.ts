@@ -823,7 +823,7 @@ describe('HyperLiquidProvider', () => {
       expect(mockClientService.getInfoClient).toHaveBeenCalled();
     });
 
-    it('keeps subscription approval reads scoped to the initiating account', async () => {
+    it('refuses to sign a subscription approval after the selected account changes', async () => {
       const accountA = '0x1234567890123456789012345678901234567890';
       const accountB = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
       const subscriptionBuilder = '0x2222222222222222222222222222222222222222';
@@ -845,6 +845,10 @@ describe('HyperLiquidProvider', () => {
       mockClientService.getInfoClient = vi
         .fn()
         .mockReturnValue(createMockInfoClient({ maxBuilderFee }));
+      const exchangeClient = createMockExchangeClient();
+      mockClientService.getExchangeClient = vi
+        .fn()
+        .mockReturnValue(exchangeClient);
       mockWalletService.getUserAddressWithDefault.mockResolvedValue(accountA);
       provider = createTestProvider({
         subscriptionBuilderAddressMainnet: subscriptionBuilder,
@@ -855,15 +859,13 @@ describe('HyperLiquidProvider', () => {
       mockWalletService.getUserAddressWithDefault.mockResolvedValue(accountB);
       releaseInitialRead(0);
 
-      await expect(approval).resolves.toBe(true);
-      expect(maxBuilderFee).toHaveBeenNthCalledWith(1, {
+      await expect(approval).resolves.toBe(false);
+      expect(maxBuilderFee).toHaveBeenCalledTimes(1);
+      expect(maxBuilderFee).toHaveBeenCalledWith({
         user: accountA,
         builder: subscriptionBuilder,
       });
-      expect(maxBuilderFee).toHaveBeenNthCalledWith(2, {
-        user: accountA,
-        builder: subscriptionBuilder,
-      });
+      expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
     });
 
     it('fences subscription approval across disconnect and preserves reconnect dedupe', async () => {

@@ -12,6 +12,7 @@ import type { CHASE_ORDER_STATUS } from '../constants/perpsConfig.js';
 import type { PerpsErrorDetails } from '../errors.js';
 import type { PerpsErrorCode } from '../perpsErrorCodes.js';
 import type { LighterProvider } from '../providers/LighterProvider.js';
+import type { HyperLiquidMarginTier } from '../utils/hyperLiquidPositionPreview.js';
 import type { LighterSignerBridge } from './lighter-types.js';
 import type {
   CandleData,
@@ -214,8 +215,8 @@ export type TradeAction =
 // Note: Numeric values are already parsed by hooks (usePerpsOrderFees, etc.) from API responses
 export type TrackingData = {
   // Common to all operations
-  totalFee: number; // Total fee for the operation (parsed by hooks)
-  marketPrice: number; // Market price at operation time (parsed by hooks)
+  totalFee?: number; // Total fee for the operation (parsed by hooks); omit when unknown
+  marketPrice?: number; // Market price at operation time (parsed by hooks); omit when unknown
   metamaskFee?: number; // MetaMask fee amount (parsed by hooks)
   metamaskFeeRate?: number; // MetaMask fee rate (parsed by hooks)
   feeDiscountPercentage?: number; // Fee discount percentage (parsed by hooks)
@@ -1035,15 +1036,23 @@ export type CrossMarginSummary = {
 
 // Using 'type' instead of 'interface' for BaseController Json compatibility
 export type AccountState = {
+  /** Registration of this wallet on this venue, when reported. */
+  exchangeAccountStatus?: ExchangeAccountStatus;
+  /**
+   * Venue account mode when confirmed by the current account stream or read
+   * (Hyperliquid `userAbstraction`). Pass it to `calculateAccountSummary`.
+   */
+  accountMode?: string;
   /**
    * Total USD equity on this venue — collateral + unrealized PnL. Live MTM.
-   * HL: marginSummary.accountValue + spot(USDC) − spot.hold
+   * HL Unified / Portfolio Margin: spot USDC total
+   * HL Standard: marginSummary.accountValue + spot(USDC) − spot.hold
    */
   totalBalance: string;
   /**
    * Max USD that can immediately collateralize a new position on this venue,
    * with no internal transfer required.
-   * HL Unified: withdrawable + freeSpotUSDC
+   * HL Unified / Portfolio Margin: spot USDC total − hold
    * HL Standard: withdrawable
    */
   spendableBalance: string;
@@ -1053,7 +1062,7 @@ export type AccountState = {
    * contract guarantees HL's own abstraction (Unified) or the direct
    * perps-clearinghouse (Standard) is what actually settles the
    * withdraw — no client-side spot→perps sweep is performed.
-   * HL Unified: withdrawable + freeSpotUSDC (USDC only; `freeSpotUSDC = spot.total - spot.hold`, and HL withdraw3 draws from the unified ledger server-side)
+   * HL Unified / Portfolio Margin: spot USDC total − hold (HL withdraw3 draws from the unified ledger server-side)
    * HL Standard: withdrawable (perps-clearinghouse only; spot is a separate ledger)
    */
   withdrawableBalance: string;
@@ -1351,8 +1360,20 @@ export type MarketInfo = {
   marginMode?: 'strictIsolated' | 'noCross'; // HyperLiquid market capability
   onlyIsolated?: true; // HyperLiquid: isolated margin only (optional, only when true)
   isDelisted?: true; // HyperLiquid: delisted status (optional, only when true)
+  /**
+   * HyperLiquid margin tiers for `marginTableId`, lowest notional first, as
+   * `resolveHyperLiquidMarginTiers` resolves them from the venue's `meta`.
+   * Omitted when the table cannot be resolved, and on lists served from the
+   * Terminal market snapshot; `getOrderCapabilities` always reads them from
+   * the venue.
+   */
+  marginTiers?: HyperLiquidMarginTier[];
   minimumOrderSize?: number; // Minimum order size in USD (protocol-specific)
   providerId?: PerpsProviderType; // Multi-provider: which provider this market comes from (injected by aggregator)
+  /** Cross-venue identity from the Terminal snapshot. */
+  marketKey?: string;
+  /** Venue price divided by canonical market price. */
+  priceScale?: number;
 };
 
 /**
@@ -1498,6 +1519,39 @@ export type PerpsMarketData = {
    * Clients can use this to surface recently added markets (e.g. markets listed within the last 30 days).
    */
   listedAt?: number;
+  /** Asset icon URL from the Terminal global snapshot. */
+  iconUrl?: string;
+  /**
+   * Cross-venue market identity from the Terminal global snapshot. Rows from
+   * different providers with the same `marketKey` are the same market.
+   */
+  marketKey?: string;
+  /** Venue price divided by canonical market price. */
+  priceScale?: number;
+  /**
+   * Unformatted numbers behind the display strings, which `sortMarkets` sorts
+   * on. A value is absent when the venue did not report it.
+   */
+  numericValues?: PerpsMarketNumericValues;
+};
+
+/**
+ * Unformatted values of a {@link PerpsMarketData} row: `price` and USD
+ * `volume` and `openInterest`, and `change24hPercent` in percent (`2.5` for
+ * 2.5%).
+ */
+export type PerpsMarketNumericValues = {
+  price?: number;
+  change24hPercent?: number;
+  volume?: number;
+  openInterest?: number;
+};
+
+/** One display row with its original venue rows, preferred venue first. */
+export type GroupedPerpsMarket = PerpsMarketData & {
+  /** Stable display identity, distinct for a backend group and a venue row. */
+  rowId: string;
+  venues: PerpsMarketData[];
 };
 
 export type ToggleTestnetResult = {
@@ -1939,7 +1993,17 @@ export type PriceUpdate = {
   bestBid?: string; // Best bid price (highest price buyers are willing to pay)
   bestAsk?: string; // Best ask price (lowest price sellers are willing to accept)
   spread?: string; // Ask - Bid spread
-  markPrice?: string; // Mark price from oracle (used for liquidations)
+  /**
+   * The venue's mark price (HyperLiquid `markPx`, Lighter `mark_price`): the
+   * price unrealized PnL, margin and liquidation use. Not the oracle price.
+   */
+  markPrice?: string;
+  /**
+   * The venue's oracle price (HyperLiquid `oraclePx`, Lighter
+   * `index_price`): the reference for the limit-price deviation check
+   * (`isPriceOutsideDeviationBand`) and `isTradable`.
+   */
+  oraclePrice?: string;
   // Market data (only available when includeMarketData is true)
   funding?: number; // Current funding rate
   openInterest?: number; // Open interest in USD
@@ -2140,6 +2204,12 @@ export type SortField =
   | 'fundingRate'
   | 'openInterest';
 
+/**
+ * Field `sortMarkets` sorts on: a {@link SortField}, the current price, or the
+ * market name.
+ */
+export type MarketSortField = SortField | 'price' | 'name';
+
 /** Direction for market sorting. */
 export type SortDirection = 'asc' | 'desc';
 
@@ -2160,7 +2230,7 @@ export type GetMarketDataWithPricesParams = {
   standalone?: boolean; // Lightweight mode: see GetMarketsParams.standalone
   categories?: MarketTypeFilter[]; // Filter to markets matching any of these categories; omit for all markets
   excludeSymbols?: string[]; // Symbols to exclude from results (e.g. the currently viewed market)
-  sortBy?: SortField; // Sort results by this field
+  sortBy?: MarketSortField; // Sort results by this field (see sortMarkets)
   direction?: SortDirection; // Sort direction (default: desc)
   limit?: number; // Maximum number of results to return
   useTerminalApi?: boolean; // When true, enrich provider data from the legacy Terminal market endpoint.
@@ -2175,7 +2245,10 @@ export type SubscribePricesParams = {
 };
 
 export type SubscribePositionsParams = {
-  callback: (positions: Position[]) => void;
+  /** The completeness flag is true for deliveries from the opt-in Hyperliquid stream. */
+  callback: (positions: Position[], completeSnapshot?: boolean) => void;
+  /** Direct Hyperliquid only. Wait for all configured DEXs to publish positions for this wallet and connection. */
+  includeSnapshotStatus?: boolean;
   accountId?: CaipAccountId; // Optional: defaults to selected account
   includeHistory?: boolean; // Future: include historical data
 };
@@ -2198,12 +2271,19 @@ export type SubscribeOrderFillsParams = {
 
 export type SubscribeOrdersParams = {
   /**
-   * Reports detectable setup failures without asserting an empty account.
-   * Lighter currently produces these errors; other providers may not report
-   * setup failures through this optional callback.
+   * Reports an unavailable orders stream without asserting an empty account.
+   * Lighter reports setup failures and loss of signer authentication. Keep the
+   * subscription for the next authenticated snapshot.
    */
   onError?: (error: Error, sourceProviderId?: PerpsProviderType) => void;
-  callback: (orders: Order[], sourceProviderId?: PerpsProviderType) => void;
+  /** The completeness flag is true for deliveries from the opt-in Hyperliquid stream. */
+  callback: (
+    orders: Order[],
+    sourceProviderId?: PerpsProviderType,
+    completeSnapshot?: boolean,
+  ) => void;
+  /** Direct Hyperliquid only. Wait for all configured DEXs to publish orders for this wallet and connection. */
+  includeSnapshotStatus?: boolean;
   accountId?: CaipAccountId; // Optional: defaults to selected account
   includeHistory?: boolean; // Optional: include filled/canceled orders
 };
@@ -2460,6 +2540,38 @@ export type SubscribeOrderBookParams = {
   onError?: (error: Error) => void;
 };
 
+/** A Cross order to estimate with `estimateCrossLiquidation`. */
+export type EstimateCrossLiquidationParams = {
+  /** Venue market symbol. */
+  symbol: string;
+  /** Order direction. */
+  direction: 'long' | 'short';
+  /** Order size in base units, positive. */
+  size: string;
+  /** Expected fill or limit price, positive. */
+  entryPrice: string;
+  /** Cross leverage the order sets on the market. */
+  leverage: number;
+  /** Provider that would place the order when calculations are aggregated. */
+  providerId?: PerpsProviderType;
+};
+
+/**
+ * Liquidation price of the Cross position an order would leave. Never a
+ * rejection: `none` means no price liquidates it at the account's collateral;
+ * `unavailable` says why there is no estimate (`missing_inputs`: an order or
+ * market input is invalid or unknown, or the order closes the position;
+ * `account_unknown`: the account could not be read or changed during the
+ * read; `provider`: the provider or account mode has no Cross estimate).
+ */
+export type CrossLiquidationEstimate =
+  | { status: 'price'; price: string }
+  | { status: 'none'; reason: 'covered_by_account' }
+  | {
+      status: 'unavailable';
+      reason: 'missing_inputs' | 'account_unknown' | 'provider';
+    };
+
 export type LiquidationPriceParams = {
   entryPrice: number;
   leverage: number;
@@ -2493,7 +2605,10 @@ export type PositionModifyPreviewSource = Pick<
  *
  * Isolated-margin previews model `updateLeverage` before placement: the venue
  * keeps the existing margin and the order margins its own size at
- * `leverage`. Cross-margin positions are not projected.
+ * `leverage`. Hyperliquid Cross previews margin the whole resulting position
+ * at `leverage` and price liquidation against the account's Cross collateral
+ * and the maintenance of every Cross position, starting from the position the
+ * account holds when it can be read.
  */
 export type PositionModifyPreviewParams = {
   position: PositionModifyPreviewSource;
@@ -2509,16 +2624,17 @@ export type PositionModifyPreviewParams = {
    */
   price: string;
   /**
-   * Isolated leverage the provider will set on the asset before placing. The
-   * order is margined at this leverage and the existing margin is kept. Below
-   * the leverage the existing margin can cover, the venue rejects the change
-   * and the resulting margin and liquidation price are unavailable.
+   * Leverage the provider will set on the asset before placing. Isolated:
+   * the order is margined at this leverage and the existing margin is kept.
+   * Below the leverage the existing margin can cover, the venue rejects the
+   * change and the resulting margin and liquidation price are unavailable.
+   * Cross: the whole resulting position is margined at this leverage.
    */
   leverage: number;
   reduceOnly?: boolean;
   /**
-   * Estimated trading fees in USD. Deducted from isolated margin on
-   * increases and flips. Omit when unknown: the resulting margin and
+   * Estimated trading fees in USD. Deducted from isolated margin, or from
+   * Cross collateral, on increases and flips. Omit when unknown: the resulting margin and
    * liquidation price of an increase or flip are then unavailable. Pass 0
    * only for a known zero fee.
    */
@@ -2531,12 +2647,22 @@ export type PositionModifyPreviewParams = {
 };
 
 /**
+ * Why a projected value is unavailable. `covered_by_account`: no price
+ * liquidates the position at the account's collateral. `missing_inputs`: an
+ * input the estimate needs is unknown.
+ */
+export type PositionPreviewUnavailableReason =
+  | 'covered_by_account'
+  | 'missing_inputs';
+
+/**
  * Independently available numeric projection. Margin can be known when
  * liquidation cannot (missing maintenance-tier data, or no liquidation risk).
+ * Hyperliquid Cross liquidation previews set `reason`; other previews omit it.
  */
 export type PositionPreviewValue =
   | { available: true; value: number }
-  | { available: false };
+  | { available: false; reason?: PositionPreviewUnavailableReason };
 
 export type PositionModifyPreviewKind = 'increase' | 'decrease' | 'flip';
 
@@ -2558,7 +2684,7 @@ export type PositionModifyPreviewOpen = {
      * Effective isolated leverage, mark notional / resulting margin. Below the
      * selected leverage when margin kept from before a leverage rise exceeds
      * the new initial margin; the selected leverage when margin is
-     * unavailable.
+     * unavailable, and always for a Cross position.
      */
     leverage: number;
     margin: PositionPreviewValue;
@@ -2575,6 +2701,11 @@ export type PositionModifyPreviewFullClose = {
 
 export type PositionModifyPreviewUnsupported = {
   status: 'unsupported';
+  /**
+   * `cross_margin` comes only from `previewHyperLiquidIsolatedPositionModify`
+   * given a Cross position; `previewPositionModify` projects Cross on
+   * Hyperliquid.
+   */
   reason: 'cross_margin' | 'provider';
 };
 
@@ -2649,6 +2780,50 @@ export type PerpsMarginModeLock =
       providerId?: PerpsProviderType;
       reason: MarginModeLockUnavailableReason;
     }>;
+
+/** Isolated position whose margin adjustment limits are requested. */
+export type GetMarginAdjustmentLimitsParams = {
+  /** Provider-specific market identifier, including any routing prefix. */
+  symbol: string;
+  providerId?: PerpsProviderType;
+};
+
+/**
+ * Why margin adjustment limits cannot be reported: no isolated position on
+ * the market, an account that changed or could not be read consistently, or
+ * a provider (or account mode) that cannot answer.
+ */
+export type MarginAdjustmentLimitsUnavailableReason =
+  | 'no_isolated_position'
+  | 'account_unknown'
+  | 'provider';
+
+/**
+ * Margin the venue lets an isolated position take in (`maxAdd`) and release
+ * (`maxRemove`), in USD as decimal strings.
+ */
+export type MarginAdjustmentLimits =
+  | { status: 'available'; maxAdd: string; maxRemove: string }
+  | { status: 'unavailable'; reason: MarginAdjustmentLimitsUnavailableReason };
+
+/** Market (or every market, when `symbol` is omitted) whose metadata is requested. */
+export type GetMarketMetaParams = {
+  /** Provider-specific market identifier, including any routing prefix. */
+  symbol?: string;
+  providerId?: PerpsProviderType;
+};
+
+/** Venue metadata for one market, from the provider's session cache. */
+export type PerpsMarketMeta = {
+  /** Market identifier, including any routing prefix. */
+  symbol: string;
+  /** Hyperliquid margin tiers, ascending; null when the venue has none. */
+  marginTiers: HyperLiquidMarginTier[] | null;
+  isDelisted: boolean;
+  maxLeverage: number;
+  /** Whether the market rejects Cross margin. */
+  onlyIsolated: boolean;
+};
 
 /** Inputs for a provider-normalized Scale price ladder preview. */
 export type GetScalePriceLadderParams = {
@@ -2741,6 +2916,14 @@ export type PerpsOrderLimits = Readonly<{
     /** Minimum total TWAP value in USD. */
     minNotionalUsd: number;
   }>;
+  /**
+   * Furthest a limit price may sit from the oracle price, as a fraction
+   * (0.95 = 95%): a price `p` is rejected when
+   * `|p - oracle| / oracle > maxOraclePriceDeviation`, the rule
+   * `isMarketTradable` also applies. Check it with
+   * `isPriceOutsideDeviationBand`.
+   */
+  maxOraclePriceDeviation?: number;
 }>;
 
 /**
@@ -2826,6 +3009,22 @@ type ReadyPerpsOrderCapabilities = Readonly<{
   supportedMarginModes?: readonly MarginMode[];
   /** Why a market that reports margin modes prohibits Cross. */
   crossMarginUnavailableReason?: 'noCross' | 'strictIsolated' | 'isolatedOnly';
+  /**
+   * HyperLiquid margin tiers for the market, lowest notional first, read from
+   * the venue's `meta` (`marginTableId` resolved against `marginTables`). Pass
+   * them to the liquidation and margin estimates. Omitted when the venue does
+   * not use tiers (Lighter) or the table cannot be resolved.
+   */
+  marginTiers?: HyperLiquidMarginTier[];
+  /**
+   * Most take-profit and most stop-loss legs one order can attach
+   * (`OrderParams.takeProfitPrice` / `stopLossPrice`). Omitted means not
+   * reported; clients must not assume another venue's limit.
+   */
+  attachedTpslGroupLimit?: Readonly<{
+    takeProfit: number;
+    stopLoss: number;
+  }>;
   attachedTpsl?: Readonly<{
     submission: 'native-oto-otoco';
     childCoverage: 'venue-native-zero-size';
@@ -3137,6 +3336,11 @@ export type UpdatePositionTPSLParams = {
   stopLossSize?: string;
   /** Pair-only opt-in for partial position coverage; omission keeps the provider default. */
   partialPairLinkage?: 'equal-quantity-oco' | 'independent';
+  /**
+   * HyperLiquid: max slippage in basis points for a whole-position market leg. Omit
+   * to use the saved `maxSlippageBps` preference, else the 10% TP/SL default.
+   */
+  maxSlippageBps?: number;
   // Optional tracking data for MetaMetrics events
   trackingData?: TPSLTrackingData;
   providerId?: PerpsProviderType; // Multi-provider: optional provider override for routing
@@ -3246,6 +3450,33 @@ export type GetAccountSupportParams = {
   providerId?: PerpsProviderType;
 };
 
+/** Selects the venue whose registration should be checked. */
+export type GetExchangeAccountStatusParams = { providerId: PerpsProviderType };
+
+/** The selected wallet's venue registration and, when applicable, master index. */
+export type ExchangeAccountStatus =
+  | { registered: true; accountIndex?: number }
+  | { registered: false };
+
+/**
+ * Selects the provider route whose withdrawal destination should be resolved.
+ * Accepts the same optional route `withdraw` accepts.
+ */
+export type ResolveWithdrawalRouteParams = {
+  providerId?: PerpsProviderType;
+};
+
+/**
+ * The venue a withdrawal will sign on, or the same refusal `withdraw` returns
+ * when several venues are registered and no route is named.
+ */
+export type WithdrawalRoute =
+  | { status: 'resolved'; providerId: PerpsProviderType }
+  | {
+      status: 'route_required';
+      error: Extract<PerpsErrorCode, 'PROVIDER_ROUTE_REQUIRED'>;
+    };
+
 export type PerpsProvider = {
   /** Local durable Scale inventory; unsupported providers omit the methods. */
   getScaleOrderGroups?(): Promise<ScaleOrderGroup[]>;
@@ -3268,6 +3499,14 @@ export type PerpsProvider = {
   ): Promise<PerpsAccountSupport>;
 
   /**
+   * Check the selected wallet’s venue registration once, without signing.
+   * Omit this hook for venues with no registration step.
+   */
+  getExchangeAccountStatus?(
+    params: GetExchangeAccountStatusParams,
+  ): Promise<ExchangeAccountStatus>;
+
+  /**
    * Return order capabilities for the provider/market route. Providers may
    * omit this hook; the controller then reports capabilities as unavailable.
    */
@@ -3286,6 +3525,18 @@ export type PerpsProvider = {
   getMarginModeLock?(
     params: GetMarginModeLockParams,
   ): Promise<PerpsMarginModeLock>;
+
+  /**
+   * Return how much margin an isolated position can take in and release.
+   * Providers may omit this hook; the controller then reports the limits as
+   * unavailable.
+   *
+   * @param params - Market and optional provider route.
+   * @returns The limits, or a typed unavailable result.
+   */
+  getMarginAdjustmentLimits?(
+    params: GetMarginAdjustmentLimitsParams,
+  ): Promise<MarginAdjustmentLimits>;
 
   /**
    * Normalize a Scale ladder using the selected provider's venue rules.
@@ -3308,6 +3559,12 @@ export type PerpsProvider = {
   cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult>;
   cancelOrders?(params: BatchCancelOrdersParams): Promise<CancelOrdersResult>; // Optional: batch cancel for protocols that support it
   getTwapOrders?(): Promise<TwapOrder[]>;
+  /**
+   * Resolve the venue account index the client enrolls for notifications.
+   * Optional: only providers whose notification events are keyed by account
+   * index (Lighter) implement it.
+   */
+  getNotificationAccountIndex?(): Promise<number>;
   /**
    * Stream TWAP lifecycle updates. Optional: providers without a native TWAP
    * push channel omit it, and clients fall back to polling `getTwapOrders`.
@@ -3488,11 +3745,20 @@ export type PerpsProvider = {
    * Read-only projection of the position that would remain after the proposed
    * order. Isolated-margin venues apply selected leverage to the whole
    * resulting position and use the maintenance tier at liquidation notional.
-   * Cross-margin returns `{ status: 'unsupported', reason: 'cross_margin' }`.
+   * Hyperliquid projects Cross positions too; `reason: 'cross_margin'` is no
+   * longer returned by it.
    */
   previewPositionModify(
     params: PositionModifyPreviewParams,
   ): Promise<PositionModifyPreviewResult>;
+  /**
+   * Liquidation price of the Cross position an order would leave, as a typed
+   * result that never rejects. Optional: a provider without it is treated as
+   * `{ status: 'unavailable', reason: 'provider' }`.
+   */
+  estimateCrossLiquidation?(
+    params: EstimateCrossLiquidationParams,
+  ): Promise<CrossLiquidationEstimate>;
 
   // Live data subscriptions → Direct UI (NO Redux, maximum speed)
   subscribeToPrices(params: SubscribePricesParams): () => void;
@@ -4186,9 +4452,12 @@ export type PerpsTerminalMarketService = {
   ): Promise<PerpsGlobalSnapshotResult>;
 };
 
-/** Exact identity a client expects from an atomic global Perps snapshot. */
+/**
+ * Exact identity a client expects from an atomic global Perps snapshot.
+ * Lighter has a single DEX, so its `enabledDexes` is `['main']`.
+ */
 export type PerpsGlobalSnapshotRequest = {
-  provider: 'hyperliquid';
+  provider: 'hyperliquid' | 'lighter';
   network: 'mainnet' | 'testnet';
   enabledDexes: string[];
 };
@@ -4264,6 +4533,17 @@ export type PerpsPlatformDependencies = {
      * (`GET /v4/perpetuals`).
      */
     globalSnapshotUrl?: string;
+  };
+
+  // === notify-perps API (Lighter account enrollment) ===
+  notifyPerpsApi?: {
+    /**
+     * Base URL of the notify-perps API for the current environment (for
+     * example `https://perps.api.cx.metamask.io`). Lighter accounts are
+     * enrolled at `${baseUrl}/api/v1/lighter/accounts`. When omitted,
+     * enrollment is skipped.
+     */
+    baseUrl?: string;
   };
 
   /** @deprecated Use `terminalApi.marketDataUrl`. */

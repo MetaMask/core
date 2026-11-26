@@ -355,6 +355,7 @@ const config = {
     },
     'signature-controller': {
       teams: ['@MetaMask/confirmations'],
+      initializationPath: 'signature-controller',
     },
     'smart-transactions-controller': {
       teams: ['@MetaMask/transactions'],
@@ -409,9 +410,6 @@ const config = {
     },
     'type-utils': {
       teams: ['@MetaMask/core-platform'],
-    },
-    'user-operation-controller': {
-      teams: ['@MetaMask/confirmations'],
     },
     utils: {
       teams: ['@MetaMask/core-platform'],

@@ -16,6 +16,7 @@ import {
   getFiatOrderPollIntervalMs,
   getFiatOrderPollTimeoutMs,
 } from '../../utils/feature-flags.js';
+import { waitForKeyringUnlock } from '../../utils/keyring.js';
 import { updateTransaction } from '../../utils/transaction.js';
 import {
   isDirectMusdMoneyAccountQuote,
@@ -80,6 +81,8 @@ export async function submitFiatQuotes(
     throw new Error('Missing provider code');
   }
 
+  const isDirectMusd = isDirectMusdMoneyAccountQuote(request.quotes[0]);
+
   updateTransaction(
     {
       transactionId,
@@ -88,7 +91,11 @@ export async function submitFiatQuotes(
     },
     (tx) => {
       tx.metamaskPay ??= {};
-      tx.metamaskPay.fiat = { orderId, provider: providerCode };
+      tx.metamaskPay.fiat = {
+        isDirectMusd,
+        orderId,
+        provider: providerCode,
+      };
     },
   );
 
@@ -128,7 +135,7 @@ export async function submitFiatQuotes(
   });
 
   try {
-    await waitForKeyringUnlock(messenger, transactionId);
+    await waitForKeyringUnlock(messenger);
 
     const result = await submitRelayAfterFiatCompletion({
       order,
@@ -157,32 +164,47 @@ function getFiatOptions(
 }
 
 /**
+ * How long to keep retrying a failing order fetch once the poll timeout has
+ * passed, so a resume that starts after the timeout still gets to read the
+ * order at least once.
+ */
+const ORDER_FETCH_GRACE_MS = 30_000;
+
+/**
  * Polls the on-ramp order until it reaches a terminal status.
+ *
+ * The timeout only applies once the order has been fetched successfully, or
+ * once fetches have kept failing for {@link ORDER_FETCH_GRACE_MS}. This matters
+ * when `startTime` is in the past, as on resume after a restart.
  *
  * @param options - The polling options.
  * @param options.messenger - Controller messenger for calling `RampsController:getOrder`.
  * @param options.orderCode - The order identifier within the provider.
  * @param options.providerCode - The on-ramp provider code (e.g. "transak").
+ * @param options.startTime - Optional poll start time, defaults to now.
  * @param options.transactionId - Transaction ID for logging.
  * @param options.walletAddress - Wallet address associated with the order.
  * @returns The completed order data.
  */
-async function waitForOrderCompletion({
+export async function waitForOrderCompletion({
   messenger,
   orderCode,
   providerCode,
+  startTime = Date.now(),
   transactionId,
   walletAddress,
 }: {
   messenger: TransactionPayControllerMessenger;
   orderCode: string;
   providerCode: string;
+  startTime?: number;
   transactionId: string;
   walletAddress: string;
 }): Promise<RampsOrder> {
   const pollIntervalMs = getFiatOrderPollIntervalMs(messenger);
   const pollTimeoutMs = getFiatOrderPollTimeoutMs(messenger);
-  const startTime = Date.now();
+  const callStartTime = Date.now();
+  let hasFetchedOrder = false;
   let lastStatus: string | undefined;
 
   while (true) {
@@ -200,6 +222,7 @@ async function waitForOrderCompletion({
     }
 
     if (order) {
+      hasFetchedOrder = true;
       lastStatus = order.status;
 
       log('Polled fiat order', {
@@ -217,7 +240,10 @@ async function waitForOrderCompletion({
       }
     }
 
-    if (Date.now() - startTime >= pollTimeoutMs) {
+    const isPastTimeout = Date.now() - startTime >= pollTimeoutMs;
+    const isPastFetchGrace = Date.now() - callStartTime >= ORDER_FETCH_GRACE_MS;
+
+    if (isPastTimeout && (hasFetchedOrder || isPastFetchGrace)) {
       throw new Error(
         `Fiat order polling timed out (last status: ${lastStatus})`,
       );
@@ -254,8 +280,9 @@ async function submitRelayAfterFiatCompletion({
 
   if (isDirectMusd) {
     return await submitDirectMusdAfterFiatCompletion({
+      messenger,
       order,
-      request,
+      transaction,
     });
   }
 
@@ -325,36 +352,4 @@ function getWalletAddress({
   }
 
   return address as Hex;
-}
-
-function waitForKeyringUnlock(
-  messenger: TransactionPayControllerMessenger,
-  transactionId: string,
-): Promise<void> {
-  const { isUnlocked } = messenger.call('KeyringController:getState');
-
-  if (isUnlocked) {
-    return Promise.resolve();
-  }
-
-  log(
-    'KeyringController is locked; waiting for unlock before fiat submit second leg',
-    {
-      transactionId,
-    },
-  );
-
-  return new Promise((resolve) => {
-    const handler = (): void => {
-      messenger.unsubscribe('KeyringController:unlock', handler);
-
-      log('KeyringController unlocked; resuming fiat submit second leg', {
-        transactionId,
-      });
-
-      resolve();
-    };
-
-    messenger.subscribe('KeyringController:unlock', handler);
-  });
 }

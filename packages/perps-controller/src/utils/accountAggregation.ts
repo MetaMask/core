@@ -1,5 +1,6 @@
 import { BigNumber } from 'bignumber.js';
 
+import { accountReturnOnEquity } from '../internal/accountReturnOnEquity.js';
 import type {
   AccountAggregateMetadata,
   AccountState,
@@ -78,13 +79,40 @@ export function aggregateAccountTotals(
     unrealizedPnl: sumField(states, 'unrealizedPnl'),
   };
 
-  const totalPnl = new BigNumber(totals.unrealizedPnl);
-  const totalMarginUsed = new BigNumber(totals.marginUsed);
-  const returnOnEquity = totalMarginUsed.isGreaterThan(0)
-    ? totalPnl.multipliedBy(100).dividedBy(totalMarginUsed).toFixed()
-    : '0';
+  // '0' only when no margin is used; a non-finite input stays visible.
+  const returnOnEquity =
+    accountReturnOnEquity(totals.unrealizedPnl, totals.marginUsed)?.toFixed() ??
+    '0';
 
   return { ...totals, returnOnEquity };
+}
+
+/** Inputs to {@link calculateAccountReturnOnEquity}: account totals. */
+export type AccountReturnOnEquityParams = {
+  /** Total unrealized PnL of the account's positions, in USD. */
+  unrealizedPnl: number | string;
+  /** Total margin the account's positions use, in USD. */
+  marginUsed: number | string;
+};
+
+/**
+ * Account return on equity from its totals: `100 x unrealizedPnl /
+ * marginUsed`, the margin-weighted RoE of its positions
+ * (`calculateWeightedReturnOnEquity`) for an account that only reports totals.
+ *
+ * @param params - See {@link AccountReturnOnEquityParams}.
+ * @returns The return in percent (12 / 120 gives 10), or undefined when
+ * `marginUsed` is not positive or an input is not a finite number.
+ */
+export function calculateAccountReturnOnEquity(
+  params: AccountReturnOnEquityParams,
+): number | undefined {
+  const unrealizedPnl = new BigNumber(params.unrealizedPnl);
+  const marginUsed = new BigNumber(params.marginUsed);
+  if (!unrealizedPnl.isFinite() || !marginUsed.isFinite()) {
+    return undefined;
+  }
+  return accountReturnOnEquity(unrealizedPnl, marginUsed)?.toNumber();
 }
 
 /**

@@ -15,16 +15,19 @@ import type {
   PerpsMode,
   ProLayoutPreferences,
 } from './constants/perpsConfig.js';
+import { resolveWatchlistExchangeKey } from './PerpsController.js';
 import type { PerpsControllerState } from './PerpsController.js';
 import { resolveTradeConfigProviderKey } from './routing/resolveTradeConfigProviderKey.js';
 import type {
   MarginMode,
   OrderDirection,
   OrderType,
+  PerpsMarketData,
   PerpsProviderType,
   PerpsSelectedPaymentToken,
   SortDirection,
 } from './types/index.js';
+import { getPerpsWatchlistReferences } from './utils/marketUtils.js';
 
 /**
  * Select whether the user is a first-time perps user
@@ -60,7 +63,8 @@ export const selectHasPlacedFirstOrder = (
  * Select watchlist markets for the current network
  *
  * @param state - PerpsController state
- * @returns Array of watchlist market symbols for current network
+ * @returns Saved watchlist references for the current network (see
+ * `selectIsWatchlistMarket`)
  */
 export const selectWatchlistMarkets = (
   state: PerpsControllerState,
@@ -72,18 +76,42 @@ export const selectWatchlistMarkets = (
 };
 
 /**
- * Check if a specific market is in the watchlist on the current network
+ * Check if a market is in the watchlist on the current network. The
+ * watchlist holds saved references: a bare venue symbol, or a
+ * `market-key:` / `venue:` entry for a grouped or non-legacy-venue row. Pass
+ * the same `marketKey`, `venues` and `legacyProvider` as
+ * `PerpsController.isWatchlistMarket` to match those entries; with only a
+ * symbol this matches the bare symbol.
  *
  * @param state - PerpsController state
  * @param symbol - Market symbol to check (e.g., 'BTC', 'ETH')
+ * @param marketKey - Optional cross-venue key for a grouped market.
+ * @param venues - Original rows from the group, used to match a legacy favorite.
+ * @param legacyProvider - Venue that owned saved symbols before grouping.
  * @returns boolean indicating if market is in watchlist
  */
 export const selectIsWatchlistMarket = (
   state: PerpsControllerState,
   symbol: string,
+  marketKey?: string,
+  venues?: readonly PerpsMarketData[],
+  legacyProvider?: PerpsProviderType,
 ): boolean => {
   const watchlist = selectWatchlistMarkets(state);
-  return watchlist.includes(symbol);
+  const references = getPerpsWatchlistReferences(
+    symbol,
+    marketKey,
+    venues,
+    legacyProvider,
+  );
+  // Same alias as the controller: an AUS-synced watchlist saves the venue
+  // symbol for a grouped favorite.
+  if (marketKey && resolveWatchlistExchangeKey(state.activeProvider)) {
+    references.push(
+      getPerpsWatchlistReferences(symbol, undefined, venues, legacyProvider)[0],
+    );
+  }
+  return references.some((reference) => watchlist.includes(reference));
 };
 
 /**
@@ -94,7 +122,8 @@ export const selectIsWatchlistMarket = (
  * (24 hours). Returns an empty array when no qualifying entries exist.
  *
  * @param state - PerpsController state
- * @returns Ordered array of recently viewed market symbols
+ * @returns Ordered saved references of recently viewed markets; resolve
+ * them to rows with `resolveSavedPerpsMarkets`
  */
 export const selectRecentlyViewedMarkets = (
   state: PerpsControllerState,

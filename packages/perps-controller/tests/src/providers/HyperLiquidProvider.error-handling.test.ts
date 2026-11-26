@@ -1429,7 +1429,8 @@ describe('HyperLiquidProvider', () => {
 
         const accountState = await hip3Provider.getAccountState();
 
-        expect(parseFloat(accountState.totalBalance)).toBe(19500); // perps 10500 + spot.total 10000 - spot.hold 1000
+        // Unified: the spot ledger total already covers every DEX.
+        expect(parseFloat(accountState.totalBalance)).toBe(10000);
         expect(parseFloat(accountState.marginUsed)).toBe(500);
         // The totals exclude xyz, and the state says so.
         expect(accountState.unavailableSubAccounts).toStrictEqual(['xyz']);

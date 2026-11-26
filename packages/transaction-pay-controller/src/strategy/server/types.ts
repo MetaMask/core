@@ -67,7 +67,9 @@ export type ServerQuoteRequest = {
   amount: string;
   tradeType: TradeType;
   sender: Hex;
-  recipient: Hex;
+
+  /** Address of the recipient, or another identifier such as a Lighter account index. */
+  recipient: string;
   refundTo?: Hex;
   slippage?: number;
   providers?: string[];
@@ -101,6 +103,8 @@ export type ServerQuotePayload = {
   steps: ServerStep[];
   gasless: boolean;
   callsDeferred?: boolean;
+  /** Opaque value to send back unchanged when submitting the quote. */
+  signature?: string;
 };
 
 /** Fee breakdown from a quote. */
@@ -145,9 +149,18 @@ export type ServerQuote = {
   client: ServerQuoteClient;
   steps: ServerStep[];
   gasless: boolean;
+  /** Opaque value to send back unchanged when submitting the quote. */
+  signature?: string;
 };
 
-/** Status values returned by GET /status. */
+/** Log from the source transaction receipt sent to POST /status. */
+export type ServerStatusLog = {
+  address: Hex;
+  data: Hex;
+  topics: Hex[];
+};
+
+/** Status values returned by POST /status. */
 export enum ServerStatus {
   Pending = 'PENDING',
   Submitted = 'SUBMITTED',
@@ -157,7 +170,7 @@ export enum ServerStatus {
   Unknown = 'UNKNOWN',
 }
 
-/** Response body from GET /status. */
+/** Response body from POST /status. */
 export type ServerStatusResponse = {
   status: ServerStatus;
   sourceHash?: Hex;
@@ -173,6 +186,7 @@ export type ServerSubmitRequest = {
   to: Hex;
   data: Hex;
   value: string;
+  signature?: string;
   authorizationList?: {
     chainId: number;
     address: Hex;
@@ -186,5 +200,7 @@ export type ServerSubmitRequest = {
 /** Response body from POST /submit. */
 export type ServerSubmitResponse = {
   success: boolean;
+  /** Provider request ID to poll status with, if different to the quote ID. */
+  id?: string;
   error?: string;
 };

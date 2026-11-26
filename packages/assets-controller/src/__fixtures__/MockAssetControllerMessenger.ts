@@ -125,6 +125,11 @@ export function createMockAssetsControllerMessenger(
       'AuthenticatedUserStorageService:setUserAssets',
       'AuthenticatedUserStorageService:importTokens',
       'AuthenticatedUserStorageService:hideTokens',
+      // PriceDataSource market-stats stream
+      'MarketStatsService:subscribe',
+      'MarketStatsService:unsubscribe',
+      'MarketStatsService:getSubscriptions',
+      'MarketStatsService:getChainStatuses',
     ],
 
     events: [

@@ -88,6 +88,10 @@ export const PERPS_ERROR_COPY: Readonly<
     key: 'perps.errors.marketsFailed',
     defaultMessage: 'Failed to get markets',
   },
+  [PERPS_ERROR_CODES.MARKET_NOT_FOUND]: {
+    key: 'perps.errors.marketNotFound',
+    defaultMessage: 'Market not found',
+  },
   [PERPS_ERROR_CODES.UNKNOWN_ERROR]: {
     key: 'perps.errors.unknownError',
     defaultMessage: 'Unknown error occurred',
@@ -418,6 +422,10 @@ export const PERPS_ERROR_COPY: Readonly<
   [PERPS_ERROR_CODES.ORDERS_FAILED]: {
     key: 'perps.errors.ordersFailed',
     defaultMessage: 'Unable to load orders. Please refresh and try again.',
+  },
+  [PERPS_ERROR_CODES.ORDERS_STREAM_PAUSED]: {
+    key: 'perps.errors.ordersStreamPaused',
+    defaultMessage: 'Your open orders will appear once trading is set up.',
   },
   [PERPS_ERROR_CODES.LIQUIDATION_PRICE_UNAVAILABLE]: {
     key: 'perps.errors.liquidationPriceUnavailable',

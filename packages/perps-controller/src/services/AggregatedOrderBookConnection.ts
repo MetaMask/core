@@ -3,6 +3,7 @@ import type { ISubscription } from '@nktkas/hyperliquid';
 
 import { HYPERLIQUID_TRANSPORT_CONFIG } from '../constants/hyperLiquidConfig.js';
 import type { OrderBookData } from '../types/index.js';
+import { calculateOrderBookSpread } from '../utils/orderBookGrouping.js';
 
 /**
  * A single L2 book price level as delivered by Hyperliquid's `l2Book`
@@ -115,22 +116,18 @@ export function processAggregatedOrderBook(
     };
   });
 
-  const bestBid = bids[0];
-  const bestAsk = asks[0];
-  const bidPrice = bestBid ? Number.parseFloat(bestBid.price) : 0;
-  const askPrice = bestAsk ? Number.parseFloat(bestAsk.price) : 0;
-  const spread = askPrice > 0 && bidPrice > 0 ? askPrice - bidPrice : 0;
-  const midPrice = askPrice > 0 && bidPrice > 0 ? (askPrice + bidPrice) / 2 : 0;
-  const spreadPercentage =
-    midPrice > 0 ? ((spread / midPrice) * 100).toFixed(4) : '0';
+  const top = calculateOrderBookSpread({
+    bestBid: bids[0]?.price,
+    bestAsk: asks[0]?.price,
+  });
   const maxTotal = Math.max(bidCumulativeSize, askCumulativeSize).toString();
 
   return {
     bids,
     asks,
-    spread: spread.toFixed(5),
-    spreadPercentage,
-    midPrice: midPrice.toFixed(5),
+    spread: (top?.spread ?? 0).toFixed(5),
+    spreadPercentage: top ? top.spreadPercentage.toFixed(4) : '0',
+    midPrice: (top?.midPrice ?? 0).toFixed(5),
     lastUpdated: Date.now(),
     maxTotal,
   };

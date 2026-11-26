@@ -1,4 +1,9 @@
-import type { KeyPair } from '@metamask/toprf-secure-backup';
+import { SomeError } from '@metamask/auth-network-utils';
+import type {
+  EnvelopeKeys,
+  KeyPair,
+  SEC1EncodedPublicKey,
+} from '@metamask/toprf-secure-backup';
 import {
   EncAccountDataType,
   TOPRFError,
@@ -16,15 +21,79 @@ import {
   SeedlessOnboardingControllerErrorMessage,
   SecretType,
 } from '../constants.js';
+import type {
+  Envelope,
+  PackedEnvelope,
+  VaultKeySet,
+} from '../envelope/envelope-keys.js';
+import { packEnvelope } from '../envelope/envelope-keys.js';
 import type { SecretMetadata } from '../SecretMetadata.js';
 import type {
   DecodedBaseJWTToken,
   DecodedNodeAuthToken,
   DeserializedVaultData,
+  EnvelopeState,
   InvalidPrimarySecretDataTypeErrorData,
   VaultData,
 } from '../types.js';
 import { assertIsValidVaultData } from './assertions.js';
+import { decodeIdToken } from './token.js';
+
+/**
+ * The JSON-RPC error data the TOPRF nodes return when they hold no key for
+ * the verifier ID.
+ */
+const NO_PUB_KEY_NODE_ERROR_MESSAGE = 'Error getting pub key';
+
+/**
+ * @param vaultData - The decrypted vault data.
+ * @returns The vault's key set, as the envelope vault key set `K_v`.
+ */
+export function toVaultKeySet(vaultData: DeserializedVaultData): VaultKeySet {
+  return {
+    authKeyPair: vaultData.toprfAuthKeyPair,
+    encKey: vaultData.toprfEncryptionKey,
+    localWrapKey: vaultData.toprfPwEncryptionKey,
+  };
+}
+
+/**
+ * Build the persisted envelope state for an envelope-managed vault.
+ *
+ * @param vaultKeySet - The vault key set `K_v`.
+ * @param passwordAuthPubKey - The password OPRF auth public key the local
+ * password is synced with.
+ * @returns The persisted envelope state.
+ */
+export function createEnvelopeState(
+  vaultKeySet: VaultKeySet,
+  passwordAuthPubKey: SEC1EncodedPublicKey,
+): EnvelopeState {
+  return {
+    v: 1,
+    vaultAuthPubKey: bytesToBase64(vaultKeySet.authKeyPair.pk),
+    passwordAuthPubKey: bytesToBase64(passwordAuthPubKey),
+  };
+}
+
+/**
+ * Pack the vault key set for an envelope partition.
+ *
+ * @param keys - The envelope keys of the partition.
+ * @param path - The path the keys were derived on.
+ * @param vaultKeySet - The vault key set.
+ * @returns The envelope and its partition keys.
+ */
+export function packFor(
+  keys: EnvelopeKeys,
+  path: Envelope['path'],
+  vaultKeySet: VaultKeySet,
+): PackedEnvelope {
+  return {
+    keys,
+    envelope: packEnvelope(path, vaultKeySet),
+  };
+}
 
 /**
  * Decode the node auth token from base64 to json object.
@@ -39,7 +108,10 @@ export function decodeNodeAuthToken(token: string): DecodedNodeAuthToken {
 }
 
 /**
- * Decode JWT token
+ * Decode JWT token.
+ *
+ * The payload is decoded with the OAuth idToken helpers in {@link decodeIdToken},
+ * which accept base64url (`-` and `_`) and standard base64.
  *
  * @param token - The JWT token to decode.
  * @returns The decoded JWT token.
@@ -51,13 +123,7 @@ export function decodeJWTToken(token: string): DecodedBaseJWTToken {
     throw new Error('Invalid JWT token format');
   }
 
-  // Decode the payload (second part)
-  const payload = parts[1];
-  // Add padding if needed for base64 decoding
-  const paddedPayload = payload + '='.repeat((4 - (payload.length % 4)) % 4);
-  return JSON.parse(
-    bytesToString(base64ToBytes(paddedPayload)),
-  ) as DecodedBaseJWTToken;
+  return JSON.parse(decodeIdToken(token)) as DecodedBaseJWTToken;
 }
 
 /**
@@ -190,6 +256,28 @@ export function compareAndGetLatestToken(
 }
 
 /**
+ * Pick the latest access token when reconciling state with a decrypted vault.
+ *
+ * @param tokenBeforeUnlock - The access token from state before unlocking.
+ * @param tokenAfterUnlock - The access token from the decrypted vault.
+ * @returns The token that should remain active.
+ */
+export function getLatestAccessToken(
+  tokenBeforeUnlock: string | undefined,
+  tokenAfterUnlock: string,
+): string {
+  if (
+    !tokenBeforeUnlock ||
+    !tokenAfterUnlock ||
+    tokenBeforeUnlock === tokenAfterUnlock
+  ) {
+    return tokenAfterUnlock;
+  }
+
+  return compareAndGetLatestToken(tokenBeforeUnlock, tokenAfterUnlock);
+}
+
+/**
  * Determine whether a token should be proactively refreshed.
  *
  * When `iat` is provided: returns `true` when less than 10% of the token's
@@ -220,6 +308,18 @@ export function isTokenNearExpiry(
 }
 
 /**
+ * Unwrap a `TOPRFError`, including one carried on `SomeError.predicate` (e.g.
+ * from `fetchAuthPubKey`, which surfaces `Some` errors directly).
+ *
+ * @param error - The error to inspect.
+ * @returns The underlying `TOPRFError`, or `undefined` if none.
+ */
+function unwrapToprfError(error: unknown): TOPRFError | undefined {
+  const candidate = error instanceof SomeError ? error.predicate : error;
+  return candidate instanceof TOPRFError ? candidate : undefined;
+}
+
+/**
  * Check whether an error indicates that a TOPRF auth token is invalid or
  * expired.
  *
@@ -227,14 +327,11 @@ export function isTokenNearExpiry(
  * @returns Whether the error is an auth token error.
  */
 export function isAuthTokenError(error: unknown): boolean {
-  if (error instanceof TOPRFError) {
-    return (
-      error.code === TOPRFErrorCode.AuthTokenExpired ||
-      error.code === TOPRFErrorCode.InvalidAuthToken
-    );
-  }
-
-  return false;
+  const toprfError = unwrapToprfError(error);
+  return (
+    toprfError?.code === TOPRFErrorCode.AuthTokenExpired ||
+    toprfError?.code === TOPRFErrorCode.InvalidAuthToken
+  );
 }
 
 /**
@@ -249,6 +346,56 @@ export function isMaxKeyChainLengthError(error: unknown): boolean {
   }
 
   return false;
+}
+
+/**
+ * Check whether an error indicates that the TOPRF evaluation didn't match the
+ * stored key, i.e. the input was wrong for the share.
+ *
+ * @param error - The error to check.
+ * @returns Whether the error is a could not derive encryption key error.
+ */
+export function isCouldNotDeriveEncryptionKeyError(error: unknown): boolean {
+  return (
+    error instanceof TOPRFError &&
+    error.code === TOPRFErrorCode.CouldNotDeriveEncryptionKey
+  );
+}
+
+/**
+ * Check whether an error indicates that the TOPRF nodes hold no key to derive
+ * a threshold auth public key from, i.e. no OPRF key is registered.
+ *
+ * @param error - The error to check.
+ * @returns Whether the error is a could not derive threshold auth public key
+ * error.
+ */
+export function isCouldNotDeriveThresholdAuthPubKeyError(
+  error: unknown,
+): boolean {
+  if (isAuthTokenError(error)) {
+    return false;
+  }
+
+  if (
+    unwrapToprfError(error)?.code ===
+    TOPRFErrorCode.CouldNotDeriveThresholdAuthPubKey
+  ) {
+    return true;
+  }
+
+  // Nodes without a key for the verifier ID answer with a JSON-RPC error whose
+  // data is `NO_PUB_KEY_NODE_ERROR_MESSAGE`. The `Some` helper wraps those
+  // responses in a `SomeError` instead of a `TOPRFError`. Require every node
+  // response to report `NO_PUB_KEY_NODE_ERROR_MESSAGE` so a single node error
+  // mixed with transient failures is not mistaken for "no key registered".
+  return (
+    error instanceof SomeError &&
+    error.errors.length > 0 &&
+    error.errors.every(
+      (innerError) => innerError?.message === NO_PUB_KEY_NODE_ERROR_MESSAGE,
+    )
+  );
 }
 
 /**

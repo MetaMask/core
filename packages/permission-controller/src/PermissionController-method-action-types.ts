@@ -345,20 +345,37 @@ export type PermissionControllerRejectPermissionsRequestAction = {
 };
 
 /**
- * Gets the subject's endowments per the specified endowment permission.
- * Throws if the subject does not have the required permission or if the
- * permission is not an endowment permission.
+ * Gets the JavaScript globals tied to the endowment permissions for a
+ * subject.
  *
- * @param origin - The origin of the subject whose endowments to retrieve.
- * @param targetName - The name of the endowment permission. This must be a
- * valid permission target name.
- * @param requestData - Additional data associated with the request, if any.
- * Forwarded to the endowment getter function for the permission.
- * @returns The endowments, if any.
+ * @param origin - The origin of the subject whose globals to retrieve.
+ * @returns The names of the globals, if any.
  */
-export type PermissionControllerGetEndowmentsAction = {
-  type: `PermissionController:getEndowments`;
-  handler: PermissionController['getEndowments'];
+export type PermissionControllerGetEndowmentsGlobalsAction = {
+  type: `PermissionController:getEndowmentsGlobals`;
+  handler: PermissionController['getEndowmentsGlobals'];
+};
+
+/**
+ * Gets the RPC methods tied to the endowment permissions for a subject.
+ *
+ * @param origin - The origin of the subject whose RPC methods to retrieve.
+ * @returns The RPC method names, if any.
+ */
+export type PermissionControllerGetEndowmentsRpcMethodsAction = {
+  type: `PermissionController:getEndowmentsRpcMethods`;
+  handler: PermissionController['getEndowmentsRpcMethods'];
+};
+
+/**
+ * Checks whether an RPC method is tied to an endowment.
+ *
+ * @param method - The name of the RPC method.
+ * @returns True if the RPC method is tied to an endowment, otherwise false.
+ */
+export type PermissionControllerIsEndowmentRpcMethodAction = {
+  type: `PermissionController:isEndowmentRpcMethod`;
+  handler: PermissionController['isEndowmentRpcMethod'];
 };
 
 /**
@@ -415,5 +432,7 @@ export type PermissionControllerMethodActions =
   | PermissionControllerRequestPermissionsIncrementalAction
   | PermissionControllerAcceptPermissionsRequestAction
   | PermissionControllerRejectPermissionsRequestAction
-  | PermissionControllerGetEndowmentsAction
+  | PermissionControllerGetEndowmentsGlobalsAction
+  | PermissionControllerGetEndowmentsRpcMethodsAction
+  | PermissionControllerIsEndowmentRpcMethodAction
   | PermissionControllerExecuteRestrictedMethodAction;

@@ -7,10 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [74.5.1]
+
+### Fixed
+
+- Fix type-4 gas estimation without the Simulation API on networks without EIP-2780, where removing or replacing an existing delegation was estimated below the intrinsic gas ([#11783](https://github.com/MetaMask/core/pull/11783))
+  - Keep unsigned authorizations in the selected network request with placeholder signatures, so the network charges the intrinsic gas of each authorization under its active rules, instead of adding a fixed EIP-2780 value.
+  - In the `estimateGasBatch` fallback, add 25,000 instead of 7,816 when replacing an existing delegation, as the active rules are not known.
+
+## [74.5.0]
+
+### Added
+
+- Add support for passing `undefined` as `multiplier` to `estimateGasBuffered`, which then uses the value from `confirmations_gas_buffer`. The buffer is applied even when estimation fails ([#11756](https://github.com/MetaMask/core/pull/11756))
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^14.1.0` to `^15.0.0` ([#11784](https://github.com/MetaMask/core/pull/11784))
+
+## [74.4.1]
+
+### Fixed
+
+- Treat transactions as not sponsored when the simulation `sponsorship` response contains a non-empty `error` ([#11752](https://github.com/MetaMask/core/pull/11752))
+
+## [74.4.0]
+
+### Added
+
+- Add optional `isDirectMusd` property to `MetamaskPayMetadata.fiat` to record whether a fiat order on-ramps mUSD directly into the Money Account ([#11451](https://github.com/MetaMask/core/pull/11451))
+
+### Changed
+
+- Document `MetamaskPayMetadata.resumeAttemptedAt` as the start of the pay controller's resume window rather than a once-only guard ([#11450](https://github.com/MetaMask/core/pull/11450))
+
+## [74.3.0]
+
 ### Added
 
 - Add `isResumable` option and `finalizeResumedTransaction` method to allow incomplete transactions to be resumed after restart ([#11449](https://github.com/MetaMask/core/pull/11449))
 - Add optional `accountOverride` property to `MetamaskPayMetadata` to persist the `InternalAccount` ID overriding the default account (output recipient when `isPostQuote` is true, funding payer when false) ([#11588](https://github.com/MetaMask/core/pull/11588))
+
+### Changed
+
+- Bump `@ethersproject/abi` from `^5.7.0` to `^5.8.0` ([#11645](https://github.com/MetaMask/core/pull/11645))
+- Bump `@ethersproject/contracts` from `^5.7.0` to `^5.8.0` ([#11645](https://github.com/MetaMask/core/pull/11645))
+- Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11645](https://github.com/MetaMask/core/pull/11645))
 
 ## [74.2.0]
 
@@ -2936,7 +2978,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.5.1...HEAD
+[74.5.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.5.0...@metamask/transaction-controller@74.5.1
+[74.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.4.1...@metamask/transaction-controller@74.5.0
+[74.4.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.4.0...@metamask/transaction-controller@74.4.1
+[74.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.3.0...@metamask/transaction-controller@74.4.0
+[74.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.2.0...@metamask/transaction-controller@74.3.0
 [74.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.1.0...@metamask/transaction-controller@74.2.0
 [74.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.0.0...@metamask/transaction-controller@74.1.0
 [74.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.2...@metamask/transaction-controller@74.0.0

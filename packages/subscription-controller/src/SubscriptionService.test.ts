@@ -74,6 +74,9 @@ const MOCK_SUBSCRIPTION: Subscription = {
 
 const MOCK_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
   eligible: true,
+  benefitPeriodId: 'bp_2026_08_15',
+  benefitPeriodStart: '2026-08-15T00:00:00.000Z',
+  benefitPeriodEnd: '2026-09-15T00:00:00.000Z',
   billingPeriodId: 'bp_2026_08_15',
   products: {
     swaps: {
@@ -102,6 +105,9 @@ const MOCK_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
 
 const MOCK_INELIGIBLE_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
   eligible: false,
+  benefitPeriodId: null,
+  benefitPeriodStart: null,
+  benefitPeriodEnd: null,
   billingPeriodId: null,
   products: {
     swaps: {
@@ -2011,6 +2017,43 @@ describe('SubscriptionService', () => {
           expect(captureExceptionMock).toHaveBeenCalledTimes(1);
         },
       );
+    });
+  });
+
+  describe.each([
+    ['payLastInvoice', 'last-invoice/pay'],
+    ['verifyPaymentMethod', 'payment-method/verify'],
+  ] as const)('%s', (methodName, endpoint) => {
+    it(`should POST to ${endpoint} and return the subscription`, async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock, env }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({ jsonData: MOCK_SUBSCRIPTION }),
+        );
+
+        const result = await service[methodName]({
+          subscriptionId: 'sub_123456789',
+        });
+
+        expect(result).toStrictEqual(MOCK_SUBSCRIPTION);
+        expect(fetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(env, `subscriptions/sub_123456789/${endpoint}`),
+          {
+            method: 'POST',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify({}),
+          },
+        );
+      });
+    });
+
+    it('should throw SubscriptionServiceError for network errors', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockRejectedValue(new Error('Network error'));
+
+        await expect(
+          service[methodName]({ subscriptionId: 'sub_123456789' }),
+        ).rejects.toThrow(SubscriptionServiceError);
+      });
     });
   });
 

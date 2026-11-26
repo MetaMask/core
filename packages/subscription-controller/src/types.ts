@@ -299,6 +299,11 @@ type SubscriptionBenefitsProducts = {
 
 export type SubscriptionBenefitsResponse = {
   eligible: boolean;
+  benefitPeriodId?: string | null;
+  benefitPeriodStart?: string | null;
+  /** Exclusive end of the monthly benefit window (ISO 8601). */
+  benefitPeriodEnd?: string | null;
+  /** @deprecated Use `benefitPeriodId`. */
   billingPeriodId: string | null;
   products: SubscriptionBenefitsProducts;
 };
@@ -308,6 +313,10 @@ export type SubscriptionBenefitsResponse = {
  */
 export type SubscriptionBenefitsState = SubscriptionBenefitsProducts & {
   billingPeriodId: string | null;
+  benefitPeriodId?: string | null;
+  benefitPeriodStart?: string | null;
+  /** Exclusive end of the monthly benefit window (ISO 8601). */
+  benefitPeriodEnd?: string | null;
 };
 
 export type StartSubscriptionRequest = {
@@ -765,6 +774,10 @@ export type ISubscriptionService = {
   updatePaymentMethodCrypto(
     request: UpdatePaymentMethodCryptoRequest,
   ): Promise<void>;
+  payLastInvoice(request: { subscriptionId: string }): Promise<Subscription>;
+  verifyPaymentMethod(request: {
+    subscriptionId: string;
+  }): Promise<Subscription>;
   getSubscriptionsEligibilities(
     request?: GetSubscriptionsEligibilitiesRequest,
   ): Promise<SubscriptionEligibility[]>;
@@ -835,7 +848,9 @@ type UpdatePaymentMethodCryptoRequestBase = {
 /**
  * ERC-20 approval crypto payment-method update request.
  *
- * `rawTransaction` may be omitted when retrying after a balance top-up.
+ * Omitting `rawTransaction` retries the charge after a balance top-up through
+ * a route the Subscription API has deprecated. Use
+ * `SubscriptionController:retryCryptoCharge` to retry instead.
  */
 export type UpdateErc20PaymentMethodCryptoRequest =
   UpdatePaymentMethodCryptoRequestBase & {

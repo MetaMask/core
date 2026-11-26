@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix out-of-order bars after rapid interval switches (e.g. 1m → 5m → 1h → 1m) ([#11790](https://github.com/MetaMask/core/pull/11790))
+  - `REALTIME_UPDATE` bars older than the last stored bar are dropped instead of being appended after newer bars
+  - Realtime ticks are only forwarded to TradingView listeners subscribed for the current resolution
+  - The TradingView datafeed cache is reset before `setResolution`, so switching back to a previously loaded interval uses the bars from the latest `SET_OHLCV_DATA`
+- Fix low-liquidity tokens rendering at the wrong interval (e.g. 5m candles shown as 30m) and the resulting backward pagination storm ([#11790](https://github.com/MetaMask/core/pull/11790))
+  - `SET_OHLCV_DATA` accepts an optional `resolution` (TradingView format, e.g. `'5'`, `'60'`, `'1D'`), used instead of inferring the resolution from irregular bar spacing
+  - Absent or unsupported values fall back to inference, so existing consumers are unaffected
+
+## [2.0.0]
+
+### Changed
+
+- **BREAKING:** Rename the `SET_OHLCV_DATA` payload flag `atomicIntervalWindow` to `boundedIntervalWindow` ([#11762](https://github.com/MetaMask/core/pull/11762))
+  - Hosts that set `atomicIntervalWindow` must send `boundedIntervalWindow` instead; the old name is no longer read
+
+### Removed
+
+- Remove the 5,000-bar cap on RN-backed backward pagination requests ([#11762](https://github.com/MetaMask/core/pull/11762))
+  - It did not stop the coarse→fine interval-switch pagination storm, which is now prevented upstream (see Fixed)
+
+### Fixed
+
+- Fix a backward pagination storm when switching from a coarse to a fine interval (e.g. 1D → 1m) with `boundedIntervalWindow` enabled ([#11762](https://github.com/MetaMask/core/pull/11762))
+  - The initial visible window is now applied once the chart is ready instead of being passed to the TradingView widget as its constructor `timeframe`, which TradingView kept and used to size later interval switches (e.g. ~46k one-minute bars for a one-month 1D window)
+  - Consumers that do not set `boundedIntervalWindow`, and Social Leaderboard, keep the constructor `timeframe`
+  - Interval switches no longer reset the time-scale right offset before `setResolution`, and the stale `setResolution` callback guard is restored
+
+## [1.2.0]
+
+### Added
+
+- Add an opt-in `atomicIntervalWindow` flag to the `SET_OHLCV_DATA` payload that bounds the initial historical-data load when switching chart intervals ([#11625](https://github.com/MetaMask/core/pull/11625))
+  - When enabled, the per-interval visible-range pin is clamped so it never frames an interval older than the bars already loaded, so the first data request is sized to the loaded window instead of inheriting the previous interval's wide range (which otherwise triggered a deep backward pagination request on coarse↔fine switches); scroll-back still loads older bars on demand
+  - Off by default: consumers that do not set the flag keep today's unclamped framing
+- Add a `hidePaneButtons` option to `ChartFeaturesConfig` that hides TradingView's per-pane toolbar (delete / maximize / move) via `widget.paneButtonsVisibility()` ([#11735](https://github.com/MetaMask/core/pull/11735))
+  - On by default, so users can no longer remove indicator panes outside the host UI and leave host indicator state out of sync; set `hidePaneButtons: false` to restore TradingView's default pane buttons
+
 ## [1.1.2]
 
 ### Changed
@@ -37,7 +76,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release: platform-agnostic TradingView Advanced Charts WebView engine copied verbatim from `metamask-mobile`'s `AdvancedChart/webview/src` ([#9762](https://github.com/MetaMask/core/pull/9762), [#10521](https://github.com/MetaMask/core/pull/10521))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@1.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@1.2.0...@metamask/advanced-chart-core@2.0.0
+[1.2.0]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@1.1.2...@metamask/advanced-chart-core@1.2.0
 [1.1.2]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@1.1.1...@metamask/advanced-chart-core@1.1.2
 [1.1.1]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@1.1.0...@metamask/advanced-chart-core@1.1.1
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@1.0.0...@metamask/advanced-chart-core@1.1.0

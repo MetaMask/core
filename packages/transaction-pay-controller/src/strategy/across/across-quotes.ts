@@ -689,7 +689,20 @@ async function calculateSourceNetworkCost(
     ? combinePostQuoteGas(result, transaction, swapTx, messenger)
     : result;
 
-  const firstTransaction = orderedTransactions[0];
+  const originalTransactionTo = transaction.txParams.to as Hex | undefined;
+
+  const gasStationTransactions = [
+    ...(request.isPostQuote && originalTransactionTo
+      ? [
+          {
+            data: (transaction.txParams.data as Hex | undefined) ?? '0x',
+            to: originalTransactionTo,
+            value: transaction.txParams.value,
+          },
+        ]
+      : []),
+    ...orderedTransactions.map(({ data, to, value }) => ({ data, to, value })),
+  ];
 
   // Predict withdraws always consult the gas station: the user's source token
   // lives in the Safe, so a healthy native balance does not mean they can
@@ -697,11 +710,6 @@ async function calculateSourceNetworkCost(
   // withdraw is submitted as a 7702 batch.
   const { amount: gasFeeTokenCost, isAvailable } = await resolveGasStationCost({
     accountSupports7702: isPredictWithdraw ? accountSupports7702 : undefined,
-    firstStepData: {
-      data: firstTransaction.data,
-      to: firstTransaction.to,
-      value: firstTransaction.value,
-    },
     messenger,
     nativeGasCostRaw: isPredictWithdraw
       ? undefined
@@ -712,10 +720,7 @@ async function calculateSourceNetworkCost(
       sourceTokenAddress,
     },
     totalGasEstimate: finalResult.totalGasEstimate,
-    totalItemCount: Math.max(
-      orderedTransactions.length + (request.isPostQuote ? 1 : 0),
-      finalResult.gasLimits.length,
-    ),
+    transactions: gasStationTransactions,
   });
 
   let gasFeeTokenNetwork:

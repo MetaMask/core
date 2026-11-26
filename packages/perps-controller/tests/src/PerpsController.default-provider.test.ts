@@ -840,6 +840,34 @@ describe('PerpsController default provider', () => {
     });
   });
 
+  describe('getExchangeAccountStatus', () => {
+    it('routes an aggregated read to the named venue instead of the default', async () => {
+      const status = { registered: true, accountIndex: 28 };
+      lighterProvider.getExchangeAccountStatus = vi
+        .fn()
+        .mockResolvedValue(status);
+      setupAggregatedMode('hyperliquid');
+
+      await expect(
+        controller.getExchangeAccountStatus({ providerId: 'lighter' }),
+      ).resolves.toStrictEqual(status);
+      expect(
+        lighterProvider.getExchangeAccountStatus,
+      ).toHaveBeenCalledExactlyOnceWith({ providerId: 'lighter' });
+    });
+
+    it('defaults to registered only for the active direct venue', async () => {
+      controller.testMarkInitialized();
+      controller.testSetActiveProvider(mockProvider);
+      await expect(
+        controller.getExchangeAccountStatus({ providerId: 'hyperliquid' }),
+      ).resolves.toStrictEqual({ registered: true });
+      await expect(
+        controller.getExchangeAccountStatus({ providerId: 'lighter' }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    });
+  });
+
   describe('account-state venue guard', () => {
     // The mocked MarketDataService does not write controller state, so this
     // block swaps in the real service for the write path under test.
@@ -2950,6 +2978,54 @@ describe('PerpsController default provider', () => {
         }
       },
     );
+
+    it('refuses a withdrawal route queued across migration only after the venues are known', async () => {
+      // Flag off at construction: the persisted mode stays direct.
+      remoteFeatureFlags.perpsMultiProviderModeEnabled = undefined;
+      createController({ activeProvider: 'hyperliquid' }, true);
+
+      // The flag arrives before initialization settles.
+      remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+        enabled: true,
+        minimumVersion: '1.0.0',
+      };
+      vi.mocked(
+        mockInfrastructure.featureFlags.validateVersionGated,
+      ).mockReturnValue(true);
+
+      const pendingInitialization = createDeferred<void>();
+      vi.mocked(mockWait).mockImplementationOnce(
+        () => pendingInitialization.promise,
+      );
+
+      const initPromise = controller.init();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(controller.state.initializationState).toBe(
+        InitializationState.Initializing,
+      );
+
+      // Issued while the mode is still direct, then resolved against the
+      // aggregated provider the migration produces.
+      const routePromise = controller.resolveWithdrawalRoute();
+
+      pendingInitialization.resolve();
+      await initPromise;
+      expect(controller.state.activeProvider).toBe('aggregated');
+
+      await expect(routePromise).resolves.toStrictEqual({
+        status: 'route_required',
+        error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED,
+      });
+      // The query and withdraw share the refusal policy.
+      await expect(
+        controller.withdraw({ amount: '10' }),
+      ).resolves.toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED,
+      });
+      expect(mockProvider.getAccountSupport).not.toHaveBeenCalled();
+    });
   });
 
   describe('trade configurations are keyed per provider and symbol', () => {

@@ -95,98 +95,7 @@
     }
   },
   "packages/assets-controller/src/AssetsController.test.ts": {
-    "TS2322": {
-      "count": 11
-    },
     "TS2352": {
-      "count": 1
-    },
-    "TS2493": {
-      "count": 1
-    },
-    "TS2532": {
-      "count": 1
-    },
-    "TS2739": {
-      "count": 4
-    },
-    "TS2820": {
-      "count": 1
-    }
-  },
-  "packages/assets-controller/src/__fixtures__/scam-token-cleanup/captureTokenApiResponses.ts": {
-    "TS2724": {
-      "count": 1
-    }
-  },
-  "packages/assets-controller/src/__fixtures__/spamWalletState.ts": {
-    "TS2322": {
-      "count": 1
-    }
-  },
-  "packages/assets-controller/src/data-sources/AccountActivityDataSource.test.ts": {
-    "TS2322": {
-      "count": 1
-    }
-  },
-  "packages/assets-controller/src/data-sources/AccountsApiDataSource.test.ts": {
-    "TS2322": {
-      "count": 2
-    },
-    "TS2339": {
-      "count": 1
-    }
-  },
-  "packages/assets-controller/src/data-sources/RpcDataSource.test.ts": {
-    "TS2353": {
-      "count": 8
-    }
-  },
-  "packages/assets-controller/src/data-sources/SnapDataSource.test.ts": {
-    "TS2353": {
-      "count": 2
-    }
-  },
-  "packages/assets-controller/src/middlewares/ParallelMiddleware.test.ts": {
-    "TS2418": {
-      "count": 3
-    }
-  },
-  "packages/assets-controller/src/middlewares/RpcFallbackMiddleware.test.ts": {
-    "TS18048": {
-      "count": 3
-    }
-  },
-  "packages/assets-controller/src/pipeline/buildWsUpdateSources.price-updates.integration.test.ts": {
-    "TS18048": {
-      "count": 2
-    },
-    "TS2322": {
-      "count": 1
-    }
-  },
-  "packages/assets-controller/src/pipeline/buildWsUpdateSources.test.ts": {
-    "TS2540": {
-      "count": 1
-    }
-  },
-  "packages/assets-controller/src/selectors/balance.test.ts": {
-    "TS2322": {
-      "count": 1
-    }
-  },
-  "packages/assets-controller/src/utils/assetVisibility.test.ts": {
-    "TS2353": {
-      "count": 1
-    }
-  },
-  "packages/assets-controller/src/utils/formatExchangeRatesForBridge.test.ts": {
-    "TS2339": {
-      "count": 10
-    }
-  },
-  "packages/assets-controller/src/utils/native-assets.test.ts": {
-    "TS7053": {
       "count": 1
     }
   },
@@ -336,8 +245,8 @@
       "count": 5
     }
   },
-  "packages/bridge-status-controller/src/bridge-status-controller.intent-manager.test.ts": {
-    "TS2307": {
+  "packages/bridge-status-controller/src/bridge-status-controller.deposit.test.ts": {
+    "TS6305": {
       "count": 1
     }
   },
@@ -351,12 +260,14 @@
       "count": 1
     }
   },
-  "packages/bridge-status-controller/src/utils/metrics.test.ts": {
-    "TS2345": {
+  "packages/bridge-status-controller/src/bridge-status-controller.withdraw.test.ts": {
+    "TS6305": {
       "count": 1
-    },
-    "TS2353": {
-      "count": 2
+    }
+  },
+  "packages/bridge-status-controller/src/utils/with-mm-pay-approval.test.ts": {
+    "TS6305": {
+      "count": 1
     }
   },
   "packages/chain-agnostic-permission/src/operators/caip-permission-operator-session-scopes.test.ts": {
@@ -821,9 +732,6 @@
   "packages/perps-controller/tests/src/services/TradingService.test.ts": {
     "TS2339": {
       "count": 3
-    },
-    "TS2741": {
-      "count": 2
     }
   },
   "packages/perps-controller/tests/src/utils/hyperLiquidOrderBookProcessor.test.ts": {

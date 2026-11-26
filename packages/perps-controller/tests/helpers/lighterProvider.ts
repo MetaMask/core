@@ -328,6 +328,23 @@ export function createMockBridge(): MockBridgeBundle {
               txHash: `abab${String(signSequence).padStart(12, '0')}`,
             } as LighterSignerResult<Operation>;
           }
+          case '_getTransferTransaction':
+            return {
+              success: true,
+              pubKeySuccess: true,
+              body: `Transfer Lighter funds\n\nnonce: ${Number(call.params[1])}`,
+            } as LighterSignerResult<Operation>;
+          case '_signTransfer': {
+            signSequence += 1;
+            return {
+              txInfo: JSON.stringify({
+                transfer: true,
+                Nonce: Number(call.params[2]),
+                ExpiredAt: Date.now() + 599_000,
+              }),
+              txHash: `acac${String(signSequence).padStart(12, '0')}`,
+            } as LighterSignerResult<Operation>;
+          }
           case '_createAuthToken':
             return {
               token: 'auth-token',
@@ -380,6 +397,7 @@ export type BuiltProvider = {
   bridge: LighterSignerBridge;
   calls: LighterWasmCall[];
   getUserAddressMock: Mock;
+  signPersonalMessageMock: Mock;
   fireReset: () => void;
   resetListenerCount: () => number;
   resetUnsubscribe: Mock;
@@ -621,10 +639,13 @@ export function buildProvider(
   const getUserAddressMock = vi
     .fn()
     .mockReturnValue('0x8D7f03FdE1A626223364E592740a233b72395235');
+  const signPersonalMessageMock = vi
+    .fn()
+    .mockResolvedValue(`0x${'cd'.repeat(65)}`);
   MockedWalletService.mockImplementation(function () {
     return {
       getUserAddress: getUserAddressMock,
-      signPersonalMessage: vi.fn().mockResolvedValue(`0x${'cd'.repeat(65)}`),
+      signPersonalMessage: signPersonalMessageMock,
       network: 'testnet',
     } as unknown as LighterWalletService;
   });
@@ -655,6 +676,7 @@ export function buildProvider(
     bridge,
     calls,
     getUserAddressMock,
+    signPersonalMessageMock,
     fireReset,
     resetListenerCount,
     resetUnsubscribe,

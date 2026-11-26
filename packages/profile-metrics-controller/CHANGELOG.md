@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.5.1` ([#11732](https://github.com/MetaMask/core/pull/11732), [#11761](https://github.com/MetaMask/core/pull/11761), [#11784](https://github.com/MetaMask/core/pull/11784), [#11789](https://github.com/MetaMask/core/pull/11789))
+
+## [5.3.0]
+
 ### Added
 
 - Add `ProfileMetricsService.resetCircuitBreakers` method, which closes the nonce and metrics circuit breakers so clients can call it next to `clearState` on wallet reset ([#11632](https://github.com/MetaMask/core/pull/11632))
@@ -14,11 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.2.0` ([#11579](https://github.com/MetaMask/core/pull/11579), [#11605](https://github.com/MetaMask/core/pull/11605))
+- Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.3.0` ([#11579](https://github.com/MetaMask/core/pull/11579), [#11605](https://github.com/MetaMask/core/pull/11605), [#11669](https://github.com/MetaMask/core/pull/11669))
 - Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
 - Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/snaps-sdk` from `^11.0.0` to `^11.2.0` ([#10737](https://github.com/MetaMask/core/pull/10737))
+- Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11645](https://github.com/MetaMask/core/pull/11645))
 
 ### Fixed
 
@@ -341,7 +348,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7194](https://github.com/MetaMask/core/pull/7194), [#7196](https://github.com/MetaMask/core/pull/7196), [#7263](https://github.com/MetaMask/core/pull/7263))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.2.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.3.0...HEAD
+[5.3.0]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.2.2...@metamask/profile-metrics-controller@5.3.0
 [5.2.2]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.2.1...@metamask/profile-metrics-controller@5.2.2
 [5.2.1]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.2.0...@metamask/profile-metrics-controller@5.2.1
 [5.2.0]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.4...@metamask/profile-metrics-controller@5.2.0

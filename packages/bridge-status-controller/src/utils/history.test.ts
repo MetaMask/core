@@ -16,13 +16,16 @@ import type {
   StartPollingForBridgeTxStatusArgs,
   StatusResponse,
 } from '../types.js';
+import { Operation } from '../types.js';
 import {
   getHistoryKey,
   getHistoryOverridesFromTxMeta,
   getInitialHistoryItem,
   getMatchingHistoryEntryForApprovalTxMeta,
   getMatchingHistoryEntryForTxMeta,
+  lockHistoryItem,
   rekeyHistoryItemInState,
+  resolveHistoryKeyForTxMeta,
 } from './history.js';
 
 describe('History Utils', () => {
@@ -177,6 +180,195 @@ describe('History Utils', () => {
       expect(result).toBe(true);
       expect(state.txHistory.tx1.status.status).toBe(StatusTypes.FAILED);
     });
+
+    it('merges next and depositTxMeta overrides', () => {
+      const state = makeState({
+        txHistory: {
+          action1: {
+            txMetaId: undefined,
+            actionId: 'action1',
+            originalTransactionId: undefined,
+            quote: { srcChainId: 1, destChainId: 10 } as Quote,
+            status: {
+              status: StatusTypes.SUBMITTED,
+              srcChain: { chainId: 1, txHash: '0xold' },
+            },
+            account: '0xaccount',
+            estimatedProcessingTimeInSeconds: 1,
+            slippagePercentage: 0,
+            hasApprovalTx: false,
+            depositTxMeta: { batchId: '0xoldBatch' },
+            startTime: 1,
+          },
+        },
+      });
+
+      const result = rekeyHistoryItemInState(state, 'action1', 'tx1', {
+        txMetaId: 'tx1',
+        batchId: '0xnewBatch',
+        orderId: 'order-uid-1',
+        next: [],
+        depositTxMeta: { id: 'deposit-1' },
+      });
+
+      expect(result).toBe(true);
+      expect(state.txHistory.tx1.next).toStrictEqual([]);
+      expect(state.txHistory.tx1.batchId).toBe('0xnewBatch');
+      expect(state.txHistory.tx1.orderId).toBe('order-uid-1');
+      expect(state.txHistory.tx1.depositTxMeta).toStrictEqual({
+        batchId: '0xoldBatch',
+        id: 'deposit-1',
+      });
+    });
+
+    it('merges next and withdrawTxMeta overrides', () => {
+      const state = makeState({
+        txHistory: {
+          action1: {
+            txMetaId: undefined,
+            actionId: 'action1',
+            originalTransactionId: undefined,
+            quote: { srcChainId: 1, destChainId: 10 } as Quote,
+            status: {
+              status: StatusTypes.SUBMITTED,
+              srcChain: { chainId: 1, txHash: '0xold' },
+            },
+            account: '0xaccount',
+            estimatedProcessingTimeInSeconds: 1,
+            slippagePercentage: 0,
+            hasApprovalTx: false,
+            withdrawTxMeta: { batchId: '0xoldBatch' },
+            startTime: 1,
+          },
+        },
+      });
+
+      const result = rekeyHistoryItemInState(state, 'action1', 'tx1', {
+        txMetaId: 'tx1',
+        batchId: '0xnewBatch',
+        next: [],
+        withdrawTxMeta: { id: 'withdraw-1' },
+      });
+
+      expect(result).toBe(true);
+      expect(state.txHistory.tx1.withdrawTxMeta).toStrictEqual({
+        batchId: '0xoldBatch',
+        id: 'withdraw-1',
+      });
+    });
+  });
+
+  describe('lockHistoryItem', () => {
+    const depositAction = {
+      operation: Operation.DEPOSIT,
+      partialQuote: {
+        estimatedProcessingTimeInSeconds: 15,
+        trade: 'depositTrade',
+      },
+    };
+    const swapAction = {
+      operation: Operation.SWAP,
+      partialQuote: { estimatedProcessingTimeInSeconds: 15, trade: 'swap' },
+    };
+    const makeState = (
+      overrides?: Partial<BridgeHistoryItem>,
+    ): BridgeStatusControllerState => ({
+      quoteUpdateStatusStore: {},
+      txHistory: {
+        tx1: {
+          quote: { srcChainId: 1, destChainId: 10 } as Quote,
+          status: {
+            status: StatusTypes.PENDING,
+            srcChain: { chainId: 1 },
+          },
+          account: '0xaccount',
+          estimatedProcessingTimeInSeconds: 1,
+          slippagePercentage: 0,
+          hasApprovalTx: false,
+          startTime: 1,
+          next: [depositAction, swapAction],
+          ...overrides,
+        },
+      },
+    });
+
+    it('throws when dest token is unexpected', () => {
+      expect(() =>
+        lockHistoryItem(
+          makeState({
+            status: {
+              status: StatusTypes.PENDING,
+              srcChain: { chainId: 1 },
+              isExpectedToken: false,
+            },
+          }),
+          'tx1',
+        ),
+      ).toThrow(
+        'Incorrect token received from bridge tx, skipping next action: tx1',
+      );
+    });
+
+    it('throws when deposit already started', () => {
+      expect(() =>
+        lockHistoryItem(
+          makeState({ depositTxMeta: { batchId: '0xbatch' } }),
+          'tx1',
+        ),
+      ).toThrow('Deposit has already started, skipping');
+    });
+
+    it('throws when next is missing', () => {
+      expect(() =>
+        lockHistoryItem(makeState({ next: undefined }), 'tx1'),
+      ).toThrow('Deposit has already started, skipping');
+    });
+
+    it('throws swap already started when next is missing after swap lock', () => {
+      expect(() =>
+        lockHistoryItem(
+          makeState({ next: undefined, batchId: '0xswapBatch' }),
+          'tx1',
+        ),
+      ).toThrow('Swap has already started, skipping');
+    });
+
+    it('throws when swap already started', () => {
+      expect(() =>
+        lockHistoryItem(
+          makeState({ next: [swapAction], batchId: '0xswapBatch' }),
+          'tx1',
+        ),
+      ).toThrow('Swap has already started, skipping');
+    });
+
+    it('locks a deposit, writes batchId, returns remaining next', () => {
+      const state = makeState();
+      const result = lockHistoryItem(state, 'tx1');
+
+      expect(result.operation).toBe(Operation.DEPOSIT);
+      expect(result.next).toStrictEqual([swapAction]);
+      expect(result.quoteResponse).toStrictEqual({
+        quote: state.txHistory.tx1.quote,
+        ...depositAction.partialQuote,
+      });
+      expect(state.txHistory.tx1.depositTxMeta).toStrictEqual({
+        batchId: result.batchId,
+      });
+    });
+
+    it('locks a swap without writing depositTxMeta', () => {
+      const state = makeState({ next: [swapAction] });
+      const result = lockHistoryItem(state, 'tx1');
+
+      expect(result.operation).toBe(Operation.SWAP);
+      expect(result.next).toStrictEqual([]);
+      expect(result.quoteResponse).toStrictEqual({
+        quote: state.txHistory.tx1.quote,
+        ...swapAction.partialQuote,
+      });
+      expect(state.txHistory.tx1.depositTxMeta).toBeUndefined();
+    });
   });
 
   describe('getHistoryOverridesFromTxMeta', () => {
@@ -300,6 +492,14 @@ describe('History Utils', () => {
         inputPrimaryDenomination: 'fiat_value',
       });
       expect(txHistoryItem.inputPrimaryDenomination).toBe('fiat_value');
+    });
+
+    it('persists orderId when provided', () => {
+      const txHistoryItem = getInitialHistoryItem({
+        ...baseArgs,
+        orderId: 'order-uid-1',
+      });
+      expect(txHistoryItem.orderId).toBe('order-uid-1');
     });
 
     it('defaults status to PENDING when txMeta status is unmapped', () => {
@@ -468,6 +668,42 @@ describe('History Utils', () => {
         }),
       );
       expect(match?.[0]).toBe(batchId);
+    });
+  });
+
+  describe('resolveHistoryKeyForTxMeta', () => {
+    it('matches a withdraw tx by withdrawTxMeta batchId', () => {
+      const withdrawBatchId = '0xwithdrawBatch';
+      const historyItem = {
+        quote: { srcChainId: 1, destChainId: 10 } as never,
+        status: {
+          status: StatusTypes.PENDING,
+          srcChain: { chainId: 1 },
+        },
+        account: '0xaccount',
+        estimatedProcessingTimeInSeconds: 1,
+        slippagePercentage: 0,
+        hasApprovalTx: false,
+        startTime: 1,
+        withdrawTxMeta: { batchId: withdrawBatchId },
+      } as BridgeHistoryItem;
+
+      expect(
+        resolveHistoryKeyForTxMeta(
+          {
+            transactionMeta: {
+              id: 'withdraw-tx',
+              batchId: withdrawBatchId,
+              status: TransactionStatus.unapproved,
+              chainId: '0xa',
+              time: 1,
+              networkClientId: 'n',
+              txParams: { from: '0xfrom' },
+            },
+          },
+          { 'swap-tx': historyItem },
+        ).historyKey,
+      ).toBe('swap-tx');
     });
   });
 });

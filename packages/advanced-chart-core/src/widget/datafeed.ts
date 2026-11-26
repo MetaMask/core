@@ -6,9 +6,12 @@
 // pagination/rnBacked.ts when consumers opt into the custom strategy.
 
 import { reportErrorToRN, safeStringify } from '../core/bridge.js';
+import { canonicalResolution } from '../core/resolution.js';
 import {
+  getCurrentResolution,
   getOhlcvData,
   getOhlcvPagination,
+  getRealtimeCallbackResolution,
   getRealtimeCallbacks,
   getRnBackedPagination,
   registerRealtimeCallback,
@@ -240,11 +243,11 @@ export const customDatafeed: TVDatafeed = {
 
   subscribeBars(
     _symbolInfo: SymbolInfo,
-    _resolution: TVResolution,
+    resolution: TVResolution,
     onTick: RealtimeTickCallback,
     listenerGuid: string,
   ) {
-    registerRealtimeCallback(listenerGuid, onTick);
+    registerRealtimeCallback(listenerGuid, onTick, resolution);
   },
 
   unsubscribeBars(listenerGuid: string) {
@@ -253,14 +256,26 @@ export const customDatafeed: TVDatafeed = {
 };
 
 /**
- * Forward a realtime tick to every TradingView subscribeBars listener.
- * Called from widget/ohlcvIngestion.ts on REALTIME_UPDATE.
+ * Forward a realtime tick to the TradingView subscribeBars listeners for the
+ * current resolution. Called from widget/ohlcvIngestion.ts on REALTIME_UPDATE.
+ *
+ * TradingView can keep the previous resolution's listener alive briefly after
+ * an interval switch; a tick for the current resolution must not be fed to it,
+ * or that series would plot a bar at the wrong granularity.
  *
  * @param tick - The realtime bar to forward to listeners.
  */
 export function forwardRealtimeTick(tick: TVBar): void {
   const callbacks = getRealtimeCallbacks();
+  const current = canonicalResolution(getCurrentResolution());
   for (const guid of Object.keys(callbacks)) {
+    const listenerResolution = getRealtimeCallbackResolution(guid);
+    if (
+      listenerResolution !== undefined &&
+      canonicalResolution(listenerResolution) !== current
+    ) {
+      continue;
+    }
     try {
       callbacks[guid](tick);
     } catch (error) {

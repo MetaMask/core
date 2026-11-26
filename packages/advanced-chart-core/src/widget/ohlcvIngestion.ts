@@ -15,7 +15,7 @@
 
 import { postToRN, reportErrorToRN } from '../core/bridge.js';
 import { notifyDataLifecycle } from '../core/dataLifecycle.js';
-import { detectResolution } from '../core/resolution.js';
+import { resolveResolution } from '../core/resolution.js';
 import {
   appendOrReplaceLastBar,
   bumpHotReloadSeq,
@@ -23,6 +23,7 @@ import {
   clearOhlcvPagination,
   doesLegendOwnLayoutSettle,
   getActiveStudies,
+  getBoundedIntervalWindow,
   getCurrentResolution,
   getHotReloadSeq,
   getMaStudies,
@@ -32,6 +33,7 @@ import {
   getVisibleFromMs,
   getWidget,
   isChartReady,
+  setBoundedIntervalWindow,
   setCurrentResolution,
   setLegendOwnsLayoutSettle,
   setOhlcvData,
@@ -99,6 +101,10 @@ export function handleSetOHLCVData(payload: SetOHLCVDataPayload): void {
     setSlbCenteringPending(true);
   }
 
+  // Opt-in: default OFF so non-opt-in consumers keep today's constructor
+  // `timeframe` and unclamped framing.
+  setBoundedIntervalWindow(Boolean(payload.boundedIntervalWindow));
+
   if (payload.pagination) {
     setOhlcvPagination({
       nextCursor: payload.pagination.nextCursor ?? null,
@@ -113,7 +119,7 @@ export function handleSetOHLCVData(payload: SetOHLCVDataPayload): void {
   setVisibleFromMs(payload.visibleFromMs ?? null);
   setVisibleToMs(payload.visibleToMs ?? null);
 
-  const newResolution = detectResolution(payload.data);
+  const newResolution = resolveResolution(payload.resolution, payload.data);
   const previousResolution = getCurrentResolution();
   setCurrentResolution(newResolution);
 
@@ -135,6 +141,12 @@ export function handleSetOHLCVData(payload: SetOHLCVDataPayload): void {
         // naturally. TV calls getBars internally, the datafeed returns the
         // new bars (already stored via setOhlcvData above), and TV renders
         // them smoothly without a blank frame. No resetData needed.
+        //
+        // Reset TV's datafeed cache first: when switching back to a
+        // resolution it already loaded (e.g. 1h → 1m → 1h), TV otherwise
+        // serves its cached bars without calling getBars, so the series shows
+        // stale history instead of the bars the host just sent.
+        resetDatafeedCacheBeforeHotReload(widget);
         claimLegendSettleOwnership();
         const seq = bumpHotReloadSeq();
         chart.setResolution(newResolution, () => {
@@ -142,7 +154,13 @@ export function handleSetOHLCVData(payload: SetOHLCVDataPayload): void {
             return;
           }
           resetMainPriceScaleAutoScale(chart);
-          applyVisibleRange(chart, { dataAlreadyLoaded: true });
+          // Opt-in: the new data is already loaded here, so `onDataLoaded`
+          // would not re-fire; apply the clamped window synchronously.
+          if (isBoundedIntervalWindowActive()) {
+            applyVisibleRangeImmediate(chart);
+          } else {
+            applyVisibleRange(chart, { dataAlreadyLoaded: true });
+          }
           emitLayoutSettled();
         });
       }
@@ -171,6 +189,16 @@ export function handleRealtimeUpdate(
   }
 
   const { bar } = payload;
+
+  // A realtime bar may only update the last bar or open a newer one. An
+  // older bar is out of order (e.g. a late tick for the previous interval
+  // after a switch) and would be appended after newer bars, corrupting the
+  // series that getBars and pagination read from.
+  const lastStoredBar = getOhlcvData().at(-1);
+  if (lastStoredBar !== undefined && bar.time < lastStoredBar.time) {
+    return;
+  }
+
   appendOrReplaceLastBar(bar);
 
   forwardRealtimeTick({
@@ -181,6 +209,43 @@ export function handleRealtimeUpdate(
     close: bar.close,
     volume: bar.volume,
   });
+}
+
+/**
+ * Compute the visible range (in whole seconds) for a requested start time: the
+ * end is the last loaded bar plus a 2-bar right pad, falling back to
+ * `Date.now()` when no bars are loaded.
+ *
+ * When `clampToOldest` is set (opt-in), the start is clamped so it
+ * never predates the oldest loaded bar, keeping the range inside already-loaded
+ * bars so framing never asks TradingView to fill an interval older than what is
+ * in memory (which would trigger network pagination). When unset, the start is
+ * used as-is — today's non-opt-in behavior.
+ *
+ * @param fromMs - Requested visible-range start, in milliseconds.
+ * @param options - Range options.
+ * @param options.clampToOldest - Clamp the start to the oldest loaded bar.
+ * @returns The `{ from, to }` range in whole seconds.
+ */
+function computeVisibleRangeSec(
+  fromMs: number,
+  options: { clampToOldest: boolean },
+): {
+  from: number;
+  to: number;
+} {
+  const data = getOhlcvData();
+  const lastBar = data.at(-1);
+  const oldestBarMs = data[0]?.time;
+  const effectiveFromMs =
+    options.clampToOldest && oldestBarMs !== undefined
+      ? Math.max(fromMs, oldestBarMs)
+      : fromMs;
+  const toSec = lastBar
+    ? Math.ceil(lastBar.time / 1000)
+    : Math.ceil(Date.now() / 1000);
+  const barPadSec = getApproxBarDurationSec(data) * 2;
+  return { from: Math.floor(effectiveFromMs / 1000), to: toSec + barPadSec };
 }
 
 function applyVisibleRange(
@@ -205,9 +270,14 @@ function applyVisibleRange(
     return;
   }
 
-  // Strategy A / B: anchor the visible range from `visibleFromMs` to the
-  // last bar + 2-bar padding. This one-sided framing works because Token
-  // Details and Perps always want the right edge near the latest candle.
+  // Strategy A / B: anchor the visible range from `visibleFromMs` to the last
+  // bar + 2-bar padding. This one-sided framing works because Token Details and
+  // Perps always want the right edge near the latest candle.
+  //
+  // Opt-in: when `boundedIntervalWindow` is set, the start is clamped to the
+  // oldest loaded bar so the pin never frames an interval older than the bars
+  // in memory. Non-opt-in consumers keep the unclamped start.
+  const clampToOldest = getBoundedIntervalWindow();
   const capturedGeneration = getOhlcvGeneration();
   const subscription = chart.onDataLoaded();
   const onLoaded = (): void => {
@@ -215,17 +285,11 @@ function applyVisibleRange(
     if (capturedGeneration !== getOhlcvGeneration()) {
       return;
     }
-    const data = getOhlcvData();
-    const lastBar = data.at(-1);
-    const toSec = lastBar
-      ? Math.ceil(lastBar.time / 1000)
-      : Math.ceil(Date.now() / 1000);
-    const barPadSec = getApproxBarDurationSec(data) * 2;
     try {
-      chart.setVisibleRange(
-        { from: Math.floor(fromMs / 1000), to: toSec + barPadSec },
-        { percentRightMargin: 0 },
-      );
+      const range = computeVisibleRangeSec(fromMs, { clampToOldest });
+      chart.setVisibleRange(range, {
+        percentRightMargin: 0,
+      });
     } catch (error) {
       reportErrorToRN(error);
     }
@@ -279,6 +343,88 @@ function resetDatafeedCacheBeforeHotReload(
     }
   } catch {
     // Best-effort; failures are non-critical
+  }
+}
+
+/**
+ * Whether the opt-in bounded interval window applies: the host set
+ * `boundedIntervalWindow`, is not in SLB mode, and sent a `visibleFromMs`.
+ *
+ * When true, the per-interval window is applied after the widget is ready
+ * (see {@link applyInitialVisibleRange}) instead of being passed to the widget
+ * constructor as `timeframe`, and is applied synchronously after every
+ * interval switch. TradingView keeps a constructor `timeframe` and
+ * sizes the first `getBars` of every later interval from it, so a 1D first
+ * load (~1 month) would make a later 1m switch request ~46k bars and page
+ * backwards until rate-limited.
+ *
+ * @returns True when the bounded interval window applies.
+ */
+export function isBoundedIntervalWindowActive(): boolean {
+  return (
+    getBoundedIntervalWindow() && !getSlbMode() && getVisibleFromMs() !== null
+  );
+}
+
+/**
+ * Applies the initial per-interval visible window once the widget is ready.
+ * Counterpart of {@link isBoundedIntervalWindowActive}; no-ops otherwise.
+ *
+ * The window is applied immediately (data is usually loaded by `onChartReady`)
+ * and again once via `dataReady` in case TradingView is still loading. Both
+ * are clamped to the oldest loaded bar, so neither triggers backward
+ * pagination.
+ *
+ * `dataReady` is used instead of `onDataLoaded` because it fires exactly once
+ * (immediately if data is already loaded). An `onDataLoaded` listener would
+ * stay armed when data loaded before ready, and re-apply the initial window
+ * on the next history load (e.g. scroll-back), snapping the chart back.
+ *
+ * @param chart - The active TradingView chart.
+ */
+export function applyInitialVisibleRange(chart: TVActiveChart): void {
+  if (!isBoundedIntervalWindowActive()) {
+    return;
+  }
+  applyVisibleRangeImmediate(chart);
+  if (typeof chart.dataReady !== 'function') {
+    return;
+  }
+  const capturedGeneration = getOhlcvGeneration();
+  chart.dataReady(() => {
+    // Newer data (interval switch / refetch) applies its own window.
+    if (capturedGeneration !== getOhlcvGeneration()) {
+      return;
+    }
+    applyVisibleRangeImmediate(chart);
+  });
+}
+
+/**
+ * Applies the clamped per-interval visible range synchronously, for the opt-in
+ * bounded interval window only.
+ *
+ * Unlike {@link applyVisibleRange} (which subscribes to `onDataLoaded`), this is
+ * used where TradingView has already loaded the data (the `setResolution`
+ * callback and `onChartReady`), so there may be no further `onDataLoaded` to
+ * wait for. The range is clamped to the oldest loaded bar, keeping the pin
+ * inside bars already in memory so it cannot re-trigger backward pagination.
+ *
+ * Callers must gate on {@link isBoundedIntervalWindowActive}, so this
+ * never runs for existing (SLB / non-opt-in) branches.
+ *
+ * @param chart - The active TradingView chart.
+ */
+function applyVisibleRangeImmediate(chart: TVActiveChart): void {
+  const fromMs = getVisibleFromMs();
+  if (fromMs === null) {
+    return;
+  }
+  try {
+    const range = computeVisibleRangeSec(fromMs, { clampToOldest: true });
+    chart.setVisibleRange(range, { percentRightMargin: 0 });
+  } catch (error) {
+    reportErrorToRN(error);
   }
 }
 

@@ -22,6 +22,7 @@ import type { SeedlessOnboardingControllerInstanceOptions } from './initializati
 import type { SelectedNetworkControllerInstanceOptions } from './initialization/instances/selected-network-controller/types.js';
 import type { ShieldApiServiceInstanceOptions } from './initialization/instances/shield-api-service/types.js';
 import type { ShieldControllerInstanceOptions } from './initialization/instances/shield-controller/types.js';
+import type { SignatureControllerInstanceOptions } from './initialization/instances/signature-controller/types.js';
 import type { StorageServiceInstanceOptions } from './initialization/instances/storage-service/types.js';
 import type { SubscriptionControllerInstanceOptions } from './initialization/instances/subscription-controller/types.js';
 import type { SubscriptionServiceInstanceOptions } from './initialization/instances/subscription-service/types.js';
@@ -47,6 +48,7 @@ export type InstanceSpecificOptions = {
   keyringController?: KeyringControllerInstanceOptions;
   networkController: NetworkControllerInstanceOptions;
   remoteFeatureFlagController: RemoteFeatureFlagControllerInstanceOptions;
+  signatureController?: SignatureControllerInstanceOptions;
   storageService: StorageServiceInstanceOptions;
   subscriptionService?: SubscriptionServiceInstanceOptions;
   subscriptionController?: SubscriptionControllerInstanceOptions;

@@ -139,6 +139,7 @@ async function runPipeline(
 
   const priceDataSource = new PriceDataSource({
     queryApiClient,
+    messenger: assetsControllerMessenger,
     getSelectedCurrency: (): 'usd' => 'usd',
     getAssetsState: (): AssetsControllerState => state,
   });

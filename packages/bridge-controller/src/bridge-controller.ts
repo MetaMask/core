@@ -56,6 +56,7 @@ import { getAccountByAddress } from './utils/controllers/accounts.js';
 import { getNetworkClientByChainId } from './utils/controllers/network.js';
 import {
   getBridgeFeatureFlags,
+  getQuoteRefreshRate,
   hasMinimumRequiredVersion,
 } from './utils/feature-flags.js';
 import {
@@ -65,6 +66,7 @@ import {
   fetchBatchSellTrades,
 } from './utils/fetch.js';
 import {
+  AdvancedOrderMetricsEventName,
   AbortReason,
   BatchSellMetricsEventName,
   FailurePhase,
@@ -76,6 +78,7 @@ import {
 import type {
   BridgeControllerMetricsEventName,
   BridgeControllerMetricsLocation,
+  BridgeControllerPublishedEventName,
 } from './utils/metrics/constants.js';
 import { getQuoteFetchErrorCode } from './utils/metrics/failure-telemetry.js';
 import {
@@ -89,15 +92,17 @@ import {
   toInputChangedPropertyValue,
 } from './utils/metrics/properties.js';
 import type {
+  EventContextFromClient,
   QuoteFetchData,
   RequestMetadata,
   RequiredEventContextFromClient,
+  SourceEventName,
 } from './utils/metrics/types.js';
 import type { CrossChainSwapsEventProperties } from './utils/metrics/types.js';
 import { appendFeesToQuotes } from './utils/quote-fees.js';
 import { getMinimumBalanceForRentExemptionInLamports } from './utils/snaps.js';
 import { sortQuotes } from './utils/sort-quotes.js';
-import type { FeatureId } from './validators/feature-flags.js';
+import { FeatureId } from './validators/feature-flags.js';
 import {
   isValidQuoteRequest,
   isValidBatchSellQuoteRequest,
@@ -211,6 +216,28 @@ type BridgePollingInput = {
     RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesRequested];
 };
 
+const PAYLOAD_EVENT_NAMES: Partial<
+  Record<BridgeControllerPublishedEventName, BridgeControllerMetricsEventName>
+> = {
+  [AdvancedOrderMetricsEventName.QuotesRequested]:
+    UnifiedSwapBridgeEventName.QuotesRequested,
+  [AdvancedOrderMetricsEventName.QuotesReceived]:
+    UnifiedSwapBridgeEventName.QuotesReceived,
+};
+
+const getPayloadEventName = <
+  EventName extends BridgeControllerPublishedEventName,
+>(
+  eventName: EventName,
+): SourceEventName<EventName> => {
+  return (PAYLOAD_EVENT_NAMES[eventName] ??
+    eventName) as SourceEventName<EventName>;
+};
+
+const isAdvancedOrderFeatureId = (featureId: FeatureId): boolean =>
+  featureId === FeatureId.LIMIT_ORDER ||
+  featureId === FeatureId.RECURRING_ORDER;
+
 type QuoteTraceResult = 'success' | 'cancelled' | 'no_quotes' | 'error';
 
 const QUOTE_ABORT_REASONS = new Set<string>(Object.values(AbortReason));
@@ -277,7 +304,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   readonly #fetchFn: FetchFunction;
 
   readonly #trackMetaMetricsFn: <
-    EventName extends BridgeControllerMetricsEventName,
+    EventName extends BridgeControllerPublishedEventName,
   >(
     eventName: EventName,
     properties: CrossChainSwapsEventProperties<EventName>,
@@ -325,7 +352,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     config?: {
       customBridgeApiBaseUrl?: string;
     };
-    trackMetaMetricsFn: <EventName extends BridgeControllerMetricsEventName>(
+    trackMetaMetricsFn: <EventName extends BridgeControllerPublishedEventName>(
       eventName: EventName,
       properties: CrossChainSwapsEventProperties<EventName>,
     ) => void;
@@ -747,7 +774,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     // If polling is stopped before quotes finish loading, track QuotesReceived
     if (this.state.quotesLoadingStatus === RequestStatus.LOADING && context) {
       this.trackUnifiedSwapBridgeEvent(
-        UnifiedSwapBridgeEventName.QuotesReceived,
+        isAdvancedOrderFeatureId(context.feature_id)
+          ? AdvancedOrderMetricsEventName.QuotesReceived
+          : UnifiedSwapBridgeEventName.QuotesReceived,
         context,
       );
     }
@@ -835,13 +864,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     // Assume that BatchSell quote requests all have the same source chain
     // Use the first one to determine refresh rate
     const { srcChainId } = state.quoteRequest[0];
-    const bridgeFeatureFlags = getBridgeFeatureFlags(this.messenger);
 
-    const refreshRateOverride = srcChainId
-      ? bridgeFeatureFlags.chains[formatChainIdToCaip(srcChainId)]?.refreshRate
-      : undefined;
-    const defaultRefreshRate = bridgeFeatureFlags.refreshRate;
-    this.setIntervalLength(refreshRateOverride ?? defaultRefreshRate);
+    this.setIntervalLength(getQuoteRefreshRate(this.messenger, srcChainId));
   };
 
   readonly #fetchBridgeQuotes = async ({
@@ -861,7 +885,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
 
     this.trackUnifiedSwapBridgeEvent(
-      UnifiedSwapBridgeEventName.QuotesRequested,
+      isAdvancedOrderFeatureId(context.feature_id)
+        ? AdvancedOrderMetricsEventName.QuotesRequested
+        : UnifiedSwapBridgeEventName.QuotesRequested,
       context,
     );
 
@@ -1514,18 +1540,16 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    * });
    */
   trackUnifiedSwapBridgeEvent = <
-    EventName extends BridgeControllerMetricsEventName,
+    EventName extends BridgeControllerPublishedEventName,
   >(
     eventName: EventName,
-    propertiesFromClient: Pick<
-      RequiredEventContextFromClient,
-      EventName
-    >[EventName],
+    propertiesFromClient: EventContextFromClient<EventName>,
     quoteRequestIndex: number = 0,
   ) => {
     try {
-      const combinedPropertiesForEvent = this.#getEventProperties<EventName>(
-        eventName,
+      const payloadEventName = getPayloadEventName(eventName);
+      const combinedPropertiesForEvent = this.#getEventProperties(
+        payloadEventName,
         propertiesFromClient,
         quoteRequestIndex,
       );

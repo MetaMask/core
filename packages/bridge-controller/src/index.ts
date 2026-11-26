@@ -1,8 +1,10 @@
 export { BridgeController } from './bridge-controller.js';
 
 export {
+  AdvancedOrderMetricsEventName,
   BatchSellMetricsEventName,
   UnifiedSwapBridgeEventName,
+  ADVANCED_ORDER_EVENT_CATEGORY,
   BATCH_SELL_EVENT_CATEGORY,
   UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY,
   BatchSellMetricsLocation,
@@ -11,10 +13,12 @@ export {
   PollingStatus,
   FailurePhase,
   SwapBridgeErrorCode,
+  MoneyAccountAction,
 } from './utils/metrics/constants.js';
 
 export type { BridgeControllerMetricsEventName } from './utils/metrics/constants.js';
 export type { BridgeControllerMetricsLocation } from './utils/metrics/constants.js';
+export type { BridgeControllerPublishedEventName } from './utils/metrics/constants.js';
 
 export type {
   AccountHardwareType,
@@ -281,7 +285,10 @@ export {
 
 export { DEFAULT_FEATURE_FLAG_CONFIG } from './constants/bridge.js';
 
-export { getBridgeFeatureFlags } from './utils/feature-flags.js';
+export {
+  getBridgeFeatureFlags,
+  getQuoteRefreshRate,
+} from './utils/feature-flags.js';
 
 export { BRIDGE_DEFAULT_SLIPPAGE } from './utils/slippage.js';
 

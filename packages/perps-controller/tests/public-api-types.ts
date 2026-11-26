@@ -1,7 +1,44 @@
 import type {
+  CrossLiquidationEstimate as ImportedCrossLiquidationEstimate,
+  EstimateCrossLiquidationParams as ImportedEstimateCrossLiquidationParams,
+  formatLeverage as importedFormatLeverage,
+  HyperLiquidMarginTier as ImportedHyperLiquidMarginTier,
+  PERPS_DISPLAY_PRECISION as IMPORTED_PERPS_DISPLAY_PRECISION,
+  PerpsController as ImportedPerpsController,
+  PerpsControllerEstimateCrossLiquidationAction as ImportedPerpsControllerEstimateCrossLiquidationAction,
+  PerpsIntlFormatters as ImportedPerpsIntlFormatters,
+  PerpsLeverageFormatOptions as ImportedPerpsLeverageFormatOptions,
+  PerpsProvider as ImportedPerpsProvider,
+  PerpsProviderType as ImportedPerpsProviderType,
+  PositionModifyPreviewKind as ImportedPositionModifyPreviewKind,
+  PositionModifyPreviewParams as ImportedPositionModifyPreviewParams,
+  PositionModifyPreviewResult as ImportedPositionModifyPreviewResult,
+  PositionPreviewUnavailableReason as ImportedPositionPreviewUnavailableReason,
+  PositionPreviewValue as ImportedPositionPreviewValue,
+} from '@metamask/perps-controller';
+import type {
+  CloseSizeParams as ImportedCloseSizeParams,
+  CloseSizeRounding as ImportedCloseSizeRounding,
+  GetMarketDataWithPricesParams as ImportedGetMarketDataWithPricesParams,
+  MarketSortField as ImportedMarketSortField,
+  PERPS_EVENT_PROPERTY as IMPORTED_PERPS_EVENT_PROPERTY,
+  PERPS_EVENT_VALUE as IMPORTED_PERPS_EVENT_VALUE,
+  PerpsMarketData as ImportedPerpsMarketData,
+  PerpsMarketNumericValues as ImportedPerpsMarketNumericValues,
+  OrderBookGroupingLadder as ImportedOrderBookGroupingLadder,
+  OrderBookGroupingOptionsParams as ImportedOrderBookGroupingOptionsParams,
+  AccountReturnOnEquityParams as ImportedAccountReturnOnEquityParams,
+  calculateAccountReturnOnEquity as importedCalculateAccountReturnOnEquity,
+  SortMarketsParams as ImportedSortMarketsParams,
+  calculateOrderBookGroupingOptions as importedCalculateOrderBookGroupingOptions,
+} from '@metamask/perps-controller';
+import type {
   ChaseOrder,
   PerpsController,
   GetAccountSupportParams,
+  ResolveWithdrawalRouteParams,
+  WithdrawalRoute,
+  PerpsControllerResolveWithdrawalRouteAction,
   GetChaseOrderOwnershipParams,
   PerpsAccountSupport,
   PerpsChaseOrderOwner,
@@ -83,7 +120,46 @@ import type {
   CancelOrdersParams,
   SubscribeAccountParams,
   PerpsProviderType,
+  TrackingData,
+  CrossMarginRatioTone,
+  CloseSize,
+  CloseSizeParams,
+  FeeNotionalParams,
+  OrderBookAggregationParams,
+  OrderBookSlippageEstimate,
+  OrderBookSlippageParams,
+  OrderBookSpread,
+  GlobalSnapshotContext,
+  PerpsGlobalSnapshotRequest,
+  getCrossMarginRatioTone,
+  calculateCloseSize,
+  calculateFeeNotionalUsd,
+  calculateOrderBookAggregationParams,
+  estimateOrderBookSlippage,
+  calculateOrderBookSpread,
 } from '@metamask/perps-controller';
+import type {
+  HyperLiquidMarginTier as AccountMetaMarginTier,
+  MarketInfo as AccountMetaMarketInfo,
+  PerpsOrderCapabilities as AccountMetaOrderCapabilities,
+  PriceUpdate as AccountMetaPriceUpdate,
+  adaptMarketFromSDK as accountMetaAdaptMarketFromSDK,
+  GetMarginAdjustmentLimitsParams as AccountMetaLimitsParams,
+  MarginAdjustmentLimits as AccountMetaLimits,
+  MarginAdjustmentLimitsUnavailableReason as AccountMetaLimitsReason,
+  GetMarketMetaParams as AccountMetaMarketMetaParams,
+  PerpsMarketMeta as AccountMetaMarketMeta,
+  PerpsController as AccountMetaController,
+  PerpsControllerGetMarginAdjustmentLimitsAction as AccountMetaLimitsAction,
+  PerpsControllerGetMarketMetaAction as AccountMetaMarketMetaAction,
+  PerpsProviderType as AccountMetaProviderType,
+  PERPS_ERROR_CODES as AccountMetaErrorCodes,
+  AccountState as AccountMetaAccountState,
+  CalculateAccountSummaryParams as AccountMetaSummaryParams,
+  calculateAccountSummary as accountMetaCalculateAccountSummary,
+} from '@metamask/perps-controller';
+import type * as PerpsControllerPackage from '@metamask/perps-controller';
+import type { isCrossMarginSupported as accountMetaIsCrossMarginSupported } from '@metamask/perps-controller/constants/hyperLiquidConfig';
 import type {
   LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT,
   LIGHTER_NATIVE_PROBE_CANCEL_LIMIT,
@@ -98,6 +174,17 @@ import type {
   LIGHTER_CHASE_DEFAULT_DISTANCE_BPS,
 } from '@metamask/perps-controller/constants/lighterConfig';
 import type {
+  isMarginRemovalAllowed as accountMetaIsMarginRemovalAllowed,
+  classifyCrossLiquidationPrice as importedClassifyCrossLiquidationPrice,
+  CrossLiquidationClassification as ImportedCrossLiquidationClassification,
+  CrossLiquidationPriceParams as ImportedCrossLiquidationPriceParams,
+  HyperLiquidCrossAccount as ImportedHyperLiquidCrossAccount,
+  HyperLiquidCrossPositionModifyProjection as ImportedHyperLiquidCrossPositionModifyProjection,
+  previewHyperLiquidCrossPositionModify as importedPreviewHyperLiquidCrossPositionModify,
+  projectHyperLiquidCrossPositionModify as importedProjectHyperLiquidCrossPositionModify,
+  ProjectHyperLiquidCrossPositionModifyParams as ImportedProjectHyperLiquidCrossPositionModifyParams,
+} from '@metamask/perps-controller/utils/hyperLiquidPositionPreview';
+import type {
   readLighterChaseQuote,
   reconcileLighterChaseChild,
   identifyLighterChaseChild,
@@ -107,6 +194,8 @@ import type {
   reconcileLighterTwapObservation,
   identifyLighterTwapParent,
 } from '@metamask/perps-controller/utils/lighterTwapReconciliation';
+import type * as PerpsMarketUtilsModule from '@metamask/perps-controller/utils/marketUtils';
+import type * as PerpsSortMarketsModule from '@metamask/perps-controller/utils/sortMarkets';
 
 // Compile-time consumer contracts. These are not runtime fixture assertions.
 type AssertCompatible<Expected, Actual extends Expected> = Actual;
@@ -140,6 +229,39 @@ export type AccountSupportConsumerContracts = [
     IsExact<
       ReturnType<PerpsController['getAccountSupport']>,
       Promise<PerpsAccountSupport>
+    >
+  >,
+];
+
+export type WithdrawalRouteConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      Parameters<PerpsController['resolveWithdrawalRoute']>,
+      [params?: ResolveWithdrawalRouteParams]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsController['resolveWithdrawalRoute']>,
+      Promise<WithdrawalRoute>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      PerpsControllerResolveWithdrawalRouteAction['type'],
+      'PerpsController:resolveWithdrawalRoute'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      PerpsControllerResolveWithdrawalRouteAction['handler'],
+      PerpsController['resolveWithdrawalRoute']
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Extract<WithdrawalRoute, { status: 'route_required' }>['error'],
+      'PROVIDER_ROUTE_REQUIRED'
     >
   >,
 ];
@@ -1064,5 +1186,628 @@ export type AggregatedAccountConsumerContracts = [
   >,
   AssertTrue<
     IsExact<ClosePositionsParams['targets'], ClosePositionsTarget[] | undefined>
+  >,
+  AssertTrue<IsExact<TrackingData['totalFee'], number | undefined>>,
+  AssertTrue<IsExact<TrackingData['marketPrice'], number | undefined>>,
+];
+
+// Shared client helpers: their parameter and result types are importable
+// from the package entry and are the ones the helpers use.
+export type SharedHelperConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      ReturnType<typeof getCrossMarginRatioTone>,
+      CrossMarginRatioTone | undefined
+    >
+  >,
+  AssertTrue<IsExact<CrossMarginRatioTone, 'safe' | 'warning' | 'danger'>>,
+  AssertTrue<
+    IsExact<Parameters<typeof calculateCloseSize>, [params: CloseSizeParams]>
+  >,
+  AssertTrue<
+    IsExact<ReturnType<typeof calculateCloseSize>, CloseSize | undefined>
+  >,
+  AssertTrue<IsExact<CloseSize, { size: number; usdValue: number }>>,
+  AssertCompatible<
+    CloseSizeParams,
+    { positionSize: '2'; price: 100; sizeDecimals: 3; percent: 50 }
+  >,
+  AssertCompatible<
+    CloseSizeParams,
+    { positionSize: 2; price: '100'; sizeDecimals: 3; usdAmount: '50' }
+  >,
+  AssertTrue<
+    IsExact<
+      Parameters<typeof calculateFeeNotionalUsd>,
+      [params: FeeNotionalParams]
+    >
+  >,
+  AssertCompatible<
+    FeeNotionalParams,
+    { size: '1'; price: readonly ['100', '']; closePercent: 50 }
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<typeof calculateOrderBookAggregationParams>,
+      OrderBookAggregationParams
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Parameters<typeof estimateOrderBookSlippage>,
+      [params: OrderBookSlippageParams]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<typeof estimateOrderBookSlippage>,
+      OrderBookSlippageEstimate
+    >
+  >,
+  AssertTrue<
+    IsExact<OrderBookSlippageEstimate['canFill'], boolean | undefined>
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<typeof calculateOrderBookSpread>,
+      OrderBookSpread | undefined
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      OrderBookSpread,
+      { spread: number; midPrice: number; spreadPercentage: number }
+    >
+  >,
+  AssertTrue<
+    IsExact<GlobalSnapshotContext['request'], PerpsGlobalSnapshotRequest>
+  >,
+  AssertTrue<IsExact<ReturnType<GlobalSnapshotContext['isCurrent']>, boolean>>,
+];
+
+// Client-gap helpers (TAT-4755 follow-up): sort fields, market values, close
+// rounding, tick-based grouping and chart event keys.
+export type ClientGapHelperContracts = [
+  AssertTrue<
+    IsExact<ImportedSortMarketsParams['sortBy'], ImportedMarketSortField>
+  >,
+  AssertTrue<
+    IsExact<
+      ImportedMarketSortField,
+      | 'volume'
+      | 'priceChange'
+      | 'fundingRate'
+      | 'openInterest'
+      | 'price'
+      | 'name'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ImportedPerpsMarketData['numericValues'],
+      ImportedPerpsMarketNumericValues | undefined
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ImportedPerpsMarketNumericValues,
+      {
+        price?: number;
+        change24hPercent?: number;
+        volume?: number;
+        openInterest?: number;
+      }
+    >
+  >,
+  AssertTrue<IsExact<ImportedCloseSizeRounding, 'up' | 'down'>>,
+  AssertTrue<
+    IsExact<
+      ImportedOrderBookGroupingOptionsParams,
+      {
+        midPrice: number;
+        tickSize?: number;
+        ladder?: ImportedOrderBookGroupingLadder;
+      }
+    >
+  >,
+  AssertTrue<IsExact<ImportedOrderBookGroupingLadder, 'decade' | 'tick'>>,
+  AssertTrue<
+    IsExact<
+      Parameters<typeof importedCalculateAccountReturnOnEquity>,
+      [params: ImportedAccountReturnOnEquityParams]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ImportedAccountReturnOnEquityParams,
+      { unrealizedPnl: number | string; marginUsed: number | string }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<typeof importedCalculateAccountReturnOnEquity>,
+      number | undefined
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ImportedCloseSizeParams['rounding'],
+      ImportedCloseSizeRounding | undefined
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Parameters<typeof importedCalculateOrderBookGroupingOptions>,
+      [params: number | ImportedOrderBookGroupingOptionsParams]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<typeof importedCalculateOrderBookGroupingOptions>,
+      number[]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      (typeof IMPORTED_PERPS_EVENT_PROPERTY)['CHART_INTERACTION'],
+      'chart_interaction'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      (typeof IMPORTED_PERPS_EVENT_VALUE)['INTERACTION_TYPE']['CHART_INTERACTED'],
+      'chart_interacted'
+    >
+  >,
+];
+
+// Helper review follow-up: sort options, chart event keys, and helpers kept
+// out of the public surface.
+export type ClientGapReviewContracts = [
+  AssertTrue<IsExact<ImportedSortMarketsParams['missing'], 'last' | undefined>>,
+  AssertTrue<
+    IsExact<
+      ImportedGetMarketDataWithPricesParams['sortBy'],
+      ImportedMarketSortField | undefined
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      (typeof IMPORTED_PERPS_EVENT_PROPERTY)['PREVIOUS_CANDLE_PERIOD'],
+      'previous_candle_period'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      (typeof IMPORTED_PERPS_EVENT_PROPERTY)['PREVIOUS_CHART_TYPE'],
+      'previous_chart_type'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Extract<keyof typeof IMPORTED_PERPS_EVENT_PROPERTY, 'FROM' | 'TO'>,
+      never
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Pick<
+        (typeof IMPORTED_PERPS_EVENT_VALUE)['CHART_INTERACTION'],
+        'FULLSCREEN_ENTERED' | 'FULLSCREEN_EXITED'
+      >,
+      {
+        readonly FULLSCREEN_ENTERED: 'fullscreen_entered';
+        readonly FULLSCREEN_EXITED: 'fullscreen_exited';
+      }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Extract<
+        keyof (typeof IMPORTED_PERPS_EVENT_VALUE)['CHART_INTERACTION'],
+        'FULLSCREEN'
+      >,
+      never
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Pick<
+        (typeof IMPORTED_PERPS_EVENT_VALUE)['STATUS'],
+        'CRAFTED' | 'DRAGGED' | 'DROPPED' | 'CANCELLED' | 'MODIFIED' | 'TAPPED'
+      >,
+      {
+        readonly CRAFTED: 'crafted';
+        readonly DRAGGED: 'dragged';
+        readonly DROPPED: 'dropped';
+        readonly CANCELLED: 'cancelled';
+        readonly MODIFIED: 'modified';
+        readonly TAPPED: 'tapped';
+      }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Pick<
+        (typeof IMPORTED_PERPS_EVENT_VALUE)['ACTION'],
+        'ADD' | 'REMOVE' | 'EDIT' | 'FAVORITE' | 'UNFAVORITE'
+      >,
+      {
+        readonly ADD: 'add';
+        readonly REMOVE: 'remove';
+        readonly EDIT: 'edit';
+        readonly FAVORITE: 'favorite';
+        readonly UNFAVORITE: 'unfavorite';
+      }
+    >
+  >,
+  AssertTrue<
+    IsExact<(typeof IMPORTED_PERPS_EVENT_VALUE)['SOURCE']['CHART'], 'chart'>
+  >,
+  AssertTrue<
+    IsExact<
+      typeof PerpsMarketUtilsModule.getPerpsDisplaySymbol,
+      (symbol: string) => string
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      typeof PerpsControllerPackage.getPerpsDisplaySymbol,
+      typeof PerpsMarketUtilsModule.getPerpsDisplaySymbol
+    >
+  >,
+  // Internal: built into market rows, not exported.
+  AssertTrue<
+    IsExact<
+      Extract<
+        | keyof typeof PerpsControllerPackage
+        | keyof typeof PerpsSortMarketsModule,
+        'buildMarketNumericValues'
+      >,
+      never
+    >
+  >,
+];
+
+// Cross liquidation (TAT-4754 R1, R2): typed estimate and preview reasons.
+export type CrossLiquidationContracts = [
+  AssertTrue<
+    IsExact<
+      ImportedEstimateCrossLiquidationParams,
+      {
+        symbol: string;
+        direction: 'long' | 'short';
+        size: string;
+        entryPrice: string;
+        leverage: number;
+        providerId?: ImportedPerpsProviderType;
+      }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ImportedCrossLiquidationEstimate,
+      | { status: 'price'; price: string }
+      | { status: 'none'; reason: 'covered_by_account' }
+      | {
+          status: 'unavailable';
+          reason: 'missing_inputs' | 'account_unknown' | 'provider';
+        }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Parameters<ImportedPerpsController['estimateCrossLiquidation']>,
+      [params: ImportedEstimateCrossLiquidationParams]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<ImportedPerpsController['estimateCrossLiquidation']>,
+      Promise<ImportedCrossLiquidationEstimate>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ImportedPerpsControllerEstimateCrossLiquidationAction['type'],
+      'PerpsController:estimateCrossLiquidation'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ImportedPerpsControllerEstimateCrossLiquidationAction['handler'],
+      ImportedPerpsController['estimateCrossLiquidation']
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ImportedPerpsProvider['estimateCrossLiquidation'],
+      | ((
+          params: ImportedEstimateCrossLiquidationParams,
+        ) => Promise<ImportedCrossLiquidationEstimate>)
+      | undefined
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ImportedPositionPreviewUnavailableReason,
+      'covered_by_account' | 'missing_inputs'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Extract<ImportedPositionPreviewValue, { available: false }>,
+      { available: false; reason?: ImportedPositionPreviewUnavailableReason }
+    >
+  >,
+];
+
+// Leverage display (TAT-4754 R16).
+export type LeverageFormatContracts = [
+  AssertTrue<
+    IsExact<
+      ImportedPerpsLeverageFormatOptions,
+      Pick<{ formatters?: ImportedPerpsIntlFormatters }, 'formatters'> & {
+        minimumFractionDigits?: number;
+        maximumFractionDigits?: number;
+      }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      typeof importedFormatLeverage,
+      (
+        value: string | number | null | undefined,
+        options?: ImportedPerpsLeverageFormatOptions,
+      ) => string
+    >
+  >,
+  AssertTrue<IsExact<(typeof IMPORTED_PERPS_DISPLAY_PRECISION)['Leverage'], 2>>,
+];
+
+// Cross liquidation and preview helpers on the `./utils` subpaths.
+export type CrossPositionPreviewContracts = [
+  AssertTrue<
+    IsExact<
+      ImportedCrossLiquidationPriceParams,
+      {
+        isLong: boolean;
+        markPrice: number;
+        positionSize: number;
+        accountValue: number;
+        maintenanceMargin: number;
+        marginTiers: ImportedHyperLiquidMarginTier[] | null | undefined;
+      }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ImportedCrossLiquidationClassification,
+      | { status: 'price'; price: number }
+      | { status: 'covered_by_account' }
+      | { status: 'missing_inputs' }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      typeof importedClassifyCrossLiquidationPrice,
+      (
+        params: ImportedCrossLiquidationPriceParams,
+      ) => ImportedCrossLiquidationClassification
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ImportedHyperLiquidCrossAccount,
+      {
+        accountValue: number;
+        maintenanceMargin: number;
+        hip3Funding?: { withdrawable: number; requiredMargin: number };
+      }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ImportedProjectHyperLiquidCrossPositionModifyParams,
+      ImportedPositionModifyPreviewParams & {
+        marginTiers?: ImportedHyperLiquidMarginTier[] | null;
+        crossAccount: ImportedHyperLiquidCrossAccount | null;
+      }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ImportedHyperLiquidCrossPositionModifyProjection,
+      | { status: 'none' }
+      | { status: 'full_close'; resultingDirection: 'long' | 'short' }
+      | {
+          status: 'open';
+          kind: ImportedPositionModifyPreviewKind;
+          direction: 'long' | 'short';
+          size: number;
+          entryPrice: number;
+          margin: number;
+          liquidation: ImportedCrossLiquidationClassification;
+        }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      typeof importedProjectHyperLiquidCrossPositionModify,
+      (
+        params: ImportedProjectHyperLiquidCrossPositionModifyParams,
+      ) => ImportedHyperLiquidCrossPositionModifyProjection
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      typeof importedPreviewHyperLiquidCrossPositionModify,
+      (
+        params: ImportedProjectHyperLiquidCrossPositionModifyParams,
+      ) => ImportedPositionModifyPreviewResult
+    >
+  >,
+];
+
+// Venue meta, mark/oracle prices (TAT-4755 gaps 5 and 8).
+export type AccountMetaContracts = [
+  AssertTrue<
+    IsExact<AccountMetaMarginTier, { lowerBound: number; maxLeverage: number }>
+  >,
+  AssertTrue<
+    IsExact<
+      AccountMetaMarketInfo['marginTiers'],
+      AccountMetaMarginTier[] | undefined
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Extract<AccountMetaOrderCapabilities, { status: 'ready' }>['marginTiers'],
+      AccountMetaMarginTier[] | undefined
+    >
+  >,
+  AssertTrue<IsExact<AccountMetaPriceUpdate['markPrice'], string | undefined>>,
+  AssertTrue<
+    IsExact<AccountMetaPriceUpdate['oraclePrice'], string | undefined>
+  >,
+  AssertTrue<
+    IsExact<
+      Parameters<typeof accountMetaAdaptMarketFromSDK>[1],
+      | [
+          number,
+          {
+            description: string;
+            marginTiers: { lowerBound: string; maxLeverage: number }[];
+          },
+        ][]
+      | undefined
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<typeof accountMetaAdaptMarketFromSDK>,
+      AccountMetaMarketInfo
+    >
+  >,
+];
+
+// Margin adjustment limits (R3) and cached market meta (R11).
+declare const accountMetaController: AccountMetaController;
+const accountMetaOneMarket = accountMetaController.getMarketMeta({
+  symbol: 'BTC',
+});
+const accountMetaAllMarkets = accountMetaController.getMarketMeta();
+export type MarginLimitsAndMarketMetaContracts = [
+  AssertTrue<
+    IsExact<
+      AccountMetaLimitsParams,
+      { symbol: string; providerId?: AccountMetaProviderType }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      AccountMetaLimits,
+      | { status: 'available'; maxAdd: string; maxRemove: string }
+      | { status: 'unavailable'; reason: AccountMetaLimitsReason }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      AccountMetaLimitsReason,
+      'no_isolated_position' | 'account_unknown' | 'provider'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      AccountMetaLimitsAction['handler'],
+      (params: AccountMetaLimitsParams) => Promise<AccountMetaLimits>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      AccountMetaLimitsAction['type'],
+      'PerpsController:getMarginAdjustmentLimits'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      AccountMetaMarketMetaParams,
+      { symbol?: string; providerId?: AccountMetaProviderType }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      AccountMetaMarketMeta,
+      {
+        symbol: string;
+        marginTiers: AccountMetaMarginTier[] | null;
+        isDelisted: boolean;
+        maxLeverage: number;
+        onlyIsolated: boolean;
+      }
+    >
+  >,
+  AssertTrue<
+    IsExact<Awaited<typeof accountMetaOneMarket>, AccountMetaMarketMeta>
+  >,
+  AssertTrue<
+    IsExact<Awaited<typeof accountMetaAllMarkets>, AccountMetaMarketMeta[]>
+  >,
+  // Through the messenger, the last overload: the caller narrows the result.
+  AssertTrue<
+    IsExact<
+      Parameters<AccountMetaMarketMetaAction['handler']>,
+      [params?: AccountMetaMarketMetaParams]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<AccountMetaMarketMetaAction['handler']>,
+      Promise<AccountMetaMarketMeta | AccountMetaMarketMeta[]>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      AccountMetaMarketMetaAction['type'],
+      'PerpsController:getMarketMeta'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      (typeof AccountMetaErrorCodes)['MARKET_NOT_FOUND'],
+      'MARKET_NOT_FOUND'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      typeof accountMetaIsCrossMarginSupported,
+      (market: {
+        onlyIsolated?: boolean;
+        marginMode?: string | null;
+      }) => boolean
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<typeof accountMetaIsMarginRemovalAllowed>,
+      boolean | undefined
+    >
+  >,
+];
+
+// Account leverage by account mode (R17): clients pass the account state's
+// mode straight through.
+export type AccountSummaryModeContracts = [
+  AssertTrue<
+    IsExact<
+      AccountMetaSummaryParams['accountMode'],
+      AccountMetaAccountState['accountMode']
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Parameters<typeof accountMetaCalculateAccountSummary>[0],
+      AccountMetaSummaryParams
+    >
   >,
 ];

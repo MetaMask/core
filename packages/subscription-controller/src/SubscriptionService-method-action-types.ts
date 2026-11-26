@@ -97,6 +97,32 @@ export type SubscriptionServiceUpdatePaymentMethodCryptoAction = {
 };
 
 /**
+ * Pays a running subscription's last invoice with its stored crypto payment
+ * method.
+ *
+ * @param params - The pay last invoice request.
+ * @param params.subscriptionId - The subscription ID.
+ * @returns The updated subscription.
+ */
+export type SubscriptionServicePayLastInvoiceAction = {
+  type: `SubscriptionService:payLastInvoice`;
+  handler: SubscriptionService['payLastInvoice'];
+};
+
+/**
+ * Verifies a paused subscription's stored crypto payment method, which
+ * charges it and resumes the subscription.
+ *
+ * @param params - The verify payment method request.
+ * @param params.subscriptionId - The subscription ID.
+ * @returns The updated subscription.
+ */
+export type SubscriptionServiceVerifyPaymentMethodAction = {
+  type: `SubscriptionService:verifyPaymentMethod`;
+  handler: SubscriptionService['verifyPaymentMethod'];
+};
+
+/**
  * Get the eligibility for a shield subscription.
  *
  * @param request - Optional request object containing user balance category to check cohort eligibility
@@ -187,6 +213,8 @@ export type SubscriptionServiceMethodActions =
   | SubscriptionServiceStartSubscriptionWithCryptoAction
   | SubscriptionServiceUpdatePaymentMethodCardAction
   | SubscriptionServiceUpdatePaymentMethodCryptoAction
+  | SubscriptionServicePayLastInvoiceAction
+  | SubscriptionServiceVerifyPaymentMethodAction
   | SubscriptionServiceGetSubscriptionsEligibilitiesAction
   | SubscriptionServiceSubmitUserEventAction
   | SubscriptionServiceAssignUserToCohortAction

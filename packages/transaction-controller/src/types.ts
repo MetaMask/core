@@ -2232,6 +2232,11 @@ export type MetamaskPayMetadata = {
 
   /** Fiat on-ramp metadata (order ID and provider). */
   fiat?: {
+    /**
+     * Whether the order on-ramps mUSD directly into the Money Account, rather
+     * than an intermediate asset bridged by another strategy.
+     */
+    isDirectMusd?: boolean;
     /** Order ID (normalized format: /providers/{provider}/orders/{id}). */
     orderId: string;
     /** Provider code (e.g. "transak-native"). */
@@ -2248,8 +2253,9 @@ export type MetamaskPayMetadata = {
   networkFeeFiat?: string;
 
   /**
-   * Timestamp (ms since epoch) set by the pay controller when it starts
-   * resuming this transaction after a restart. Used as a once-only guard —
+   * Timestamp (ms since epoch) set by the pay controller when it first starts
+   * resuming this transaction after a restart. Later restarts keep resuming
+   * until the pay controller's resume timeout has passed since this time.
    * TC does not read this field.
    */
   resumeAttemptedAt?: number;

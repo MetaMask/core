@@ -140,7 +140,7 @@ describe('getAssetVisibility', () => {
         account1: ['not-an-asset-id' as Caip19AssetId, STAKING_ASSET],
       },
       assetPreferences: {
-        'also-not-an-asset-id': { hidden: true },
+        ['also-not-an-asset-id' as Caip19AssetId]: { hidden: true },
       },
     });
 

@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^74.5.0` to `^74.5.1` ([#11789](https://github.com/MetaMask/core/pull/11789))
+
+## [23.0.0]
+
+### Added
+
+- Add `MarketStatsService` to the default initialization configurations ([#11193](https://github.com/MetaMask/core/pull/11193))
+
+### Changed
+
+- **BREAKING:** `SubscriptionDelegationService` messenger now delegates what its Money Account Plus charge retry needs ([#11612](https://github.com/MetaMask/core/pull/11612))
+  - Actions: `KeyringController:getState`, `AuthenticationController:isSignedIn`, `SubscriptionController:retryCryptoCharge` and `SubscriptionController:setChargeRetryInProgress`
+  - Events: `TransactionController:transactionConfirmed`, `KeyringController:unlock`, `AuthenticationController:stateChanged` and `SubscriptionController:stateChanged`
+  - `Wallet` does not construct `AuthenticationController`. Hosts must register `AuthenticationController:isSignedIn` and `AuthenticationController:stateChanged` on the wallet root messenger.
+- `Wallet.init()` now checks once for a stuck Money Account Plus charge, through `SubscriptionDelegationService.init` ([#11612](https://github.com/MetaMask/core/pull/11612))
+- `SubscriptionController` messenger now delegates `SubscriptionService:payLastInvoice` and `SubscriptionService:verifyPaymentMethod` ([#11612](https://github.com/MetaMask/core/pull/11612))
+- Bump `@metamask/transaction-controller` from `^74.4.0` to `^74.5.0` ([#11761](https://github.com/MetaMask/core/pull/11761), [#11784](https://github.com/MetaMask/core/pull/11784))
+- Add `@metamask/core-backend` at `^15.0.0` ([#11193](https://github.com/MetaMask/core/pull/11193), [#11193](https://github.com/MetaMask/core/pull/11193))
+- Bump `@metamask/subscription-controller` from `^15.4.0` to `^16.0.0` ([#11784](https://github.com/MetaMask/core/pull/11784))
+
+## [22.0.0]
+
+### Added
+
+- **BREAKING:** Add `SignatureController` to the default initialization configurations ([#11717](https://github.com/MetaMask/core/pull/11717))
+  - Hosts that already register `SignatureController` on the wallet root messenger must remove it before upgrading, or messenger registration will collide.
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.4.0` ([#11732](https://github.com/MetaMask/core/pull/11732))
+
+## [21.0.5]
+
+### Changed
+
+- Bump `@metamask/subscription-controller` from `^15.3.0` to `^15.4.0` ([#11727](https://github.com/MetaMask/core/pull/11727))
+- Bump `@metamask/analytics-controller` from `^4.3.1` to `^4.4.0` ([#11691](https://github.com/MetaMask/core/pull/11691))
+- Bump `@metamask/network-enablement-controller` from `^7.1.3` to `^7.1.4` ([#11669](https://github.com/MetaMask/core/pull/11669))
+- Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.3.0` ([#11669](https://github.com/MetaMask/core/pull/11669))
+
 ## [21.0.4]
 
 ### Changed
@@ -488,7 +530,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@23.0.0...HEAD
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@22.0.0...@metamask/wallet@23.0.0
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.5...@metamask/wallet@22.0.0
+[21.0.5]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.4...@metamask/wallet@21.0.5
 [21.0.4]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.3...@metamask/wallet@21.0.4
 [21.0.3]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.2...@metamask/wallet@21.0.3
 [21.0.2]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.1...@metamask/wallet@21.0.2

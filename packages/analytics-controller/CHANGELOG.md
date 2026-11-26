@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.4.0]
+
 ### Added
 
 - Add `marketingConsentSyncPending` state to `AnalyticsController` to record a marketing consent choice made on this device that has not been saved to the user's account yet ([#11469](https://github.com/MetaMask/core/pull/11469))
@@ -22,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - `optInToMarketing` and `optOutOfMarketing` now set `marketingConsentSyncPending` to `true` in the same state update as the consent change ([#11469](https://github.com/MetaMask/core/pull/11469))
 - `resetMarketingConsentDecision` now sets `marketingConsentSyncPending` to `false` ([#11469](https://github.com/MetaMask/core/pull/11469))
+- Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11645](https://github.com/MetaMask/core/pull/11645))
 
 ## [4.3.1]
 
@@ -171,7 +174,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of @metamask/analytics-controller. ([#7017](https://github.com/MetaMask/core/pull/7017), [#7202](https://github.com/MetaMask/core/pull/7202))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@4.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@4.4.0...HEAD
+[4.4.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@4.3.1...@metamask/analytics-controller@4.4.0
 [4.3.1]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@4.3.0...@metamask/analytics-controller@4.3.1
 [4.3.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@4.2.0...@metamask/analytics-controller@4.3.0
 [4.2.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@4.1.0...@metamask/analytics-controller@4.2.0
