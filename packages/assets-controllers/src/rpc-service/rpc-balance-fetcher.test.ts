@@ -192,7 +192,7 @@ describe('RpcBalanceFetcher', () => {
         try {
           return await operation();
         } catch {
-          return;
+          // Resolve to undefined on failure, like the real helper.
         }
       },
     );

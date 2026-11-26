@@ -547,7 +547,7 @@ describe('TokenBalancesController', () => {
         try {
           return await operation();
         } catch {
-          return;
+          // Resolve to undefined on failure, like the real helper.
         }
       },
     );
@@ -4922,7 +4922,6 @@ describe('TokenBalancesController', () => {
             return await operation();
           } catch (error) {
             console.error(error);
-            return;
           }
         },
       );
@@ -5403,7 +5402,6 @@ describe('TokenBalancesController', () => {
       vi.spyOn(tokenBalancesControllerMessenger, 'call').mockImplementation(
         (action: string, ...args: unknown[]) => {
           updateNativeBalancesSpy(action, ...args);
-          return;
         },
       );
 
