@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** The `endowment:caip25` permission specification no longer includes an `endowmentGetter` function ([#11751](https://github.com/MetaMask/core/pull/11751))
+  - This follows the removal of `endowmentGetter` from endowment specifications in `@metamask/permission-controller`.
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.2` ([#11107](https://github.com/MetaMask/core/pull/11107), [#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/permission-controller` from `^14.0.0` to `^14.1.0` ([#11157](https://github.com/MetaMask/core/pull/11157))
 

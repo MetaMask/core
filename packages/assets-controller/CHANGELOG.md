@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controllers` from `^113.3.2` to `^113.3.3` ([#11669](https://github.com/MetaMask/core/pull/11669))
 - Bump `@metamask/network-enablement-controller` from `^7.1.3` to `^7.1.4` ([#11669](https://github.com/MetaMask/core/pull/11669))
 - Bump `@metamask/phishing-controller` from `^18.3.1` to `^18.3.2` ([#11669](https://github.com/MetaMask/core/pull/11669))
-- Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.4.0` ([#11669](https://github.com/MetaMask/core/pull/11669), [#11732](https://github.com/MetaMask/core/pull/11732))
+- Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.4.1` ([#11669](https://github.com/MetaMask/core/pull/11669), [#11732](https://github.com/MetaMask/core/pull/11732), [#11761](https://github.com/MetaMask/core/pull/11761))
 
 ## [21.0.0]
 

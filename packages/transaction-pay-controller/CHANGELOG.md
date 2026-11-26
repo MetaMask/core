@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [33.1.1]
+
+### Changed
+
+- Bump `@metamask/ramps-controller` from `^30.1.0` to `^31.0.0` ([#11763](https://github.com/MetaMask/core/pull/11763))
+- Bump `@metamask/transaction-controller` from `^74.4.0` to `^74.4.1` ([#11761](https://github.com/MetaMask/core/pull/11761))
+
+## [33.1.0]
+
 ### Added
 
 - `ServerStrategy` quotes into the Lighter perps balance (`lighter:mainnet/perps:usdc`) when `paymentOverride` is `perpsLighter` ([#11705](https://github.com/MetaMask/core/pull/11705))
@@ -1988,7 +1997,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@33.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@33.1.1...HEAD
+[33.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@33.1.0...@metamask/transaction-pay-controller@33.1.1
+[33.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@33.0.0...@metamask/transaction-pay-controller@33.1.0
 [33.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.1.1...@metamask/transaction-pay-controller@33.0.0
 [32.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.1.0...@metamask/transaction-pay-controller@32.1.1
 [32.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.0.0...@metamask/transaction-pay-controller@32.1.0

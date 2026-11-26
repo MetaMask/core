@@ -233,7 +233,14 @@ function parseGasFeeTokens(response: SentinelSimulationResponse): {
   const feeLevel = response.transactions?.[0]
     ?.fees?.[0] as Required<SentinelSimulationResponseTransaction>['fees'][0];
 
-  const isGasFeeSponsored = response.sponsorship?.isSponsored ?? false;
+  const sponsorshipError = response.sponsorship?.error?.trim();
+
+  if (sponsorshipError) {
+    log('Sponsorship error', sponsorshipError);
+  }
+
+  const isGasFeeSponsored =
+    Boolean(response.sponsorship?.isSponsored) && !sponsorshipError;
   const sponsor = isGasFeeSponsored ? response.sponsorship?.sponsor : undefined;
 
   const tokenFees = feeLevel?.tokenFees ?? [];

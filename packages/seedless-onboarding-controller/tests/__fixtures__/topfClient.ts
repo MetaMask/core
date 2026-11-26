@@ -6,14 +6,24 @@ import {
   MOCK_RELEASE_METADATA_LOCK_RESPONSE,
   MOCK_SECRET_DATA_ADD_RESPONSE,
   MOCK_SECRET_DATA_GET_RESPONSE,
+  MOCK_NODE_DETAILS_RESPONSE,
   MOCK_TOPRF_AUTHENTICATION_RESPONSE,
   MOCK_TOPRF_COMMITMENT_RESPONSE,
+  NODE_DETAILS_BASE_URL,
   TOPRF_BASE_URL,
 } from '../mocks/toprf.js';
 
 type MockReply = {
   status: nock.StatusCode;
   body?: nock.Body;
+};
+
+export const handleMockNodeDetails = (): nock.Scope => {
+  return nock(NODE_DETAILS_BASE_URL)
+    .persist()
+    .get('/fnd-service/node-details')
+    .query(true)
+    .reply(200, MOCK_NODE_DETAILS_RESPONSE);
 };
 
 export const handleMockCommitment = (mockReply?: MockReply): nock.Scope => {

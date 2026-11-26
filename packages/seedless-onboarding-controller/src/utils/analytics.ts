@@ -22,17 +22,20 @@ import {
   SeedlessPrimarySrpMissingEventName,
 } from '../constants.js';
 import type { SeedlessIdentityMismatchSource } from '../constants.js';
+import { createModuleLogger, projectLogger } from '../logger.js';
+import { SecretMetadata } from '../SecretMetadata.js';
 import {
   InvalidPrimarySecretDataTypeError,
   isIdentityMismatchError,
-} from '../errors.js';
-import { createModuleLogger, projectLogger } from '../logger.js';
-import { SecretMetadata } from '../SecretMetadata.js';
+} from './errors.js';
 import {
   isPrimarySecretCandidate,
   parseSecretMetadata,
   validateSecretMetadataBackup,
 } from './secret-data-utils.js';
+
+export const SeedlessEnvelopeMigrationCheckpointEventName =
+  'Seedless Onboarding Envelope Migration Checkpoint';
 
 export type IncompleteMetadataBackupEventProperties = {
   metadata_schema_version: 'v1' | 'v2' | 'mixed' | 'none';

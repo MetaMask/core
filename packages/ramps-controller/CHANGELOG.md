@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [31.0.0]
+
 ### Added
 
 - Add `submitMicaConsent` method to `TransakService` (also exposed on the messenger as `TransakService:submitMicaConsent`) for submitting MiCA consent with a caller-provided ISO 8601 timestamp. Returns `SubmitMicaConsentResponse` containing the submission status from Transak's API ([#11672](https://github.com/MetaMask/core/pull/11672))
@@ -18,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `TransakAdditionalRequirementOption` type for structured option lists with `name` and `value` fields ([#11672](https://github.com/MetaMask/core/pull/11672))
 - Add `SubmitMicaConsentRequest`, `SubmitMicaConsentResponse`, `SubmitSourceOfIncomeRequest`, `SubmitSourceOfIncomeResponse`, `SubmitAdditionalDetailsNationalityRequest`, and `SubmitAdditionalDetailsNationalityResponse` types for MiCA/EEA KYC submission payloads and responses ([#11672](https://github.com/MetaMask/core/pull/11672))
 - Add `ADDITIONAL_DETAILS_NATIONALITY` form type to `TransakAdditionalRequirement`, with metadata containing `employmentStatusOptions` and `countryOfCitizenshipOptions` (both arrays of `TransakAdditionalRequirementOption`) ([#11672](https://github.com/MetaMask/core/pull/11672))
+- Add `isTokenUnavailableInJurisdictionError`, which recognizes an autoramp create rejected because the destination token is not available in the customer's jurisdiction. It matches neobank-proxy's `token_unavailable_in_jurisdiction` code and MoonPay's own error text ([#11734](https://github.com/MetaMask/core/pull/11734))
 
 ### Changed
 
@@ -25,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `TransakService.submitSourceOfIncome` signature changed from `(monthlyVolume, sourceOfFundsType, employmentStatus, countryOfCitizenship)` to `(monthlyVolume, sourceOfFundsType)`. Employment status and country of citizenship are now submitted via the new `submitAdditionalDetailsNationality` method. Returns `Promise<SubmitSourceOfIncomeResponse>` instead of `Promise<void>` ([#11672](https://github.com/MetaMask/core/pull/11672))
 - **BREAKING:** `RampsController.transakSubmitSourceOfIncome` signature changed from `(monthlyVolume, sourceOfFundsType, employmentStatus, countryOfCitizenship)` to `(monthlyVolume, sourceOfFundsType)`. Employment status and country of citizenship are now submitted via the new `transakSubmitAdditionalDetailsNationality` method ([#11672](https://github.com/MetaMask/core/pull/11672))
 - **BREAKING:** `TransakAdditionalRequirement.metadata.options` is now typed as `string[] | TransakAdditionalRequirementOption[]` instead of `string[]`. Existing forms (e.g. `id-proof`) still return `string[]`, while the `SOURCE_OF_INCOME` form returns `TransakAdditionalRequirementOption[]`, matching the structure of other MiCA/EEA option fields. Clients that handle `getAdditionalRequirements` responses must handle both shapes. All `metadata` fields are also now optional ([#11672](https://github.com/MetaMask/core/pull/11672))
+- **BREAKING:** `getMusdAutorampDepositRailReadiness` now returns `unavailable` when the customer abilities `currencies` list has no mUSD on Monad with the `Onramp` flow ([#11734](https://github.com/MetaMask/core/pull/11734))
+  - MoonPay leaves mUSD out of `currencies` for customers in a KYC region where MoonPay cannot offer it (for example the EEA) and rejects any create for them with a 400, whatever the source fiat.
+  - The destination is checked only once the deposit rails would return `active`, so `pending` and `blocked` are unchanged and `unavailable` means a create would otherwise be sent. Do not send the create for this state; show a region error instead. It follows the customer's KYC region, so an immediate retry does not help. Nothing is stored, so a later check returns the rail readiness again once MoonPay offers mUSD to the customer.
+  - When `currencies` is missing from the response, the check falls back to the rail check as before.
 - `TransakBuyQuote` now includes an optional `termsIds` field (array of strings) for MiCA/EEA disclaimer identifiers such as `MICA_EEA_BUY` and `MICA_EEA_SELL` ([#11672](https://github.com/MetaMask/core/pull/11672))
 - `SOURCE_OF_INCOME` additional requirement metadata now contains only `options` (array of `TransakAdditionalRequirementOption`); employment status and citizenship options are in the separate `ADDITIONAL_DETAILS_NATIONALITY` form ([#11672](https://github.com/MetaMask/core/pull/11672))
 
@@ -883,7 +890,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@30.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@31.0.0...HEAD
+[31.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@30.1.0...@metamask/ramps-controller@31.0.0
 [30.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@30.0.0...@metamask/ramps-controller@30.1.0
 [30.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@29.0.0...@metamask/ramps-controller@30.0.0
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@28.1.0...@metamask/ramps-controller@29.0.0

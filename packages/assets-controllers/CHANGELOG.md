@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.4.0` ([#11732](https://github.com/MetaMask/core/pull/11732))
+- Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.4.1` ([#11732](https://github.com/MetaMask/core/pull/11732), [#11761](https://github.com/MetaMask/core/pull/11761))
 - **BREAKING:** The constructors of `TokensController`, `TokenBalancesController`, `TokenDetectionController`, `TokenRatesController`, `AccountTrackerController`, `NftController`, `MultichainBalancesController`, `MultichainAssetsRatesController` and `MultichainAssetsController` no longer call other controllers or start background work, so they can be constructed in any order ([#11315](https://github.com/MetaMask/core/pull/11315))
   - Call `init` on each of them once the controllers they read from are registered. Until then:
     - `TokensController` does not enrich persisted tokens from the token list, and reads the selected account on demand.
