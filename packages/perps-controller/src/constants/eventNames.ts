@@ -527,6 +527,9 @@ export const PERPS_EVENT_VALUE = {
     SEARCH_CLICKED: 'search_clicked',
     ORDER_TYPE_VIEWED: 'order_type_viewed',
     ORDER_TYPE_SELECTED: 'order_type_selected',
+    // Lite market page: opening the Trade on sheet and saving a new venue.
+    TRADE_ON_SHEET_OPENED: 'trade_on_sheet_opened',
+    TRADE_ON_VENUE_CHANGED: 'trade_on_venue_changed',
     /** @deprecated Use LEVERAGE_CHANGED instead for clarity */
     SETTING_CHANGED: 'setting_changed',
     /**

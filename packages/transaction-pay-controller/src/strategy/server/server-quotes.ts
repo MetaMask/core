@@ -770,6 +770,7 @@ async function normalizeQuote(
       input: quote.input,
       output: quote.output,
       provider: result.provider,
+      ...(quote.signature ? { signature: quote.signature } : {}),
       steps: quote.steps,
     },
     request: quoteRequest,

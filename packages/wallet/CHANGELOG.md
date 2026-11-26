@@ -7,8 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add `MarketStatsService` to the default initialization configurations ([#11193](https://github.com/MetaMask/core/pull/11193))
+
 ### Changed
 
+- `Wallet.init()` now checks once for a stuck Money Account Plus charge, through `SubscriptionDelegationService.init` ([#11612](https://github.com/MetaMask/core/pull/11612))
+- `SubscriptionDelegationService` messenger now delegates what its Money Account Plus charge retry needs ([#11612](https://github.com/MetaMask/core/pull/11612))
+  - Actions: `KeyringController:getState`, `AuthenticationController:isSignedIn`, `SubscriptionController:retryCryptoCharge` and `SubscriptionController:setChargeRetryInProgress`
+  - Events: `TransactionController:transactionConfirmed`, `KeyringController:unlock`, `AuthenticationController:stateChanged` and `SubscriptionController:stateChanged`
+- `SubscriptionController` messenger now delegates `SubscriptionService:payLastInvoice` and `SubscriptionService:verifyPaymentMethod` ([#11612](https://github.com/MetaMask/core/pull/11612))
 - Bump `@metamask/transaction-controller` from `^74.4.0` to `^74.4.1` ([#11761](https://github.com/MetaMask/core/pull/11761))
 
 ## [22.0.0]
@@ -20,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Add `@metamask/core-backend` at `^14.1.0` ([#11193](https://github.com/MetaMask/core/pull/11193))
 - Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.4.0` ([#11732](https://github.com/MetaMask/core/pull/11732))
 
 ## [21.0.5]
