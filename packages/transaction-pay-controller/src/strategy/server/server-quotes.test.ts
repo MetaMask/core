@@ -1,4 +1,3 @@
-import { successfulFetch } from '@metamask/controller-utils';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
@@ -46,21 +45,22 @@ import {
   SERVER_HYPERLIQUID_PERPS_USDC_ASSET,
   SERVER_LIGHTER_PERPS_USDC_ASSET,
 } from './constants.js';
+import { processLighterRequest } from './lighter.js';
 import { fetchServerQuote } from './server-api.js';
 import { getServerQuotes } from './server-quotes.js';
 import { validateServerQuotes } from './server-validation.js';
 import type { ServerQuote, ServerStep } from './types.js';
 
+vi.mock(import('./lighter.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  processLighterRequest: vi.fn(),
+}));
 vi.mock(import('../../utils/feature-flags.js'), async (importOriginal) => ({
   ...(await importOriginal()),
   getFeatureFlags: vi.fn(),
   getSlippage: vi.fn(),
   isEIP7702Chain: vi.fn(),
   isServerGaslessEnabled: vi.fn(),
-}));
-vi.mock(import('@metamask/controller-utils'), async (importOriginal) => ({
-  ...(await importOriginal()),
-  successfulFetch: vi.fn(),
 }));
 vi.mock(import('./server-api.js'));
 vi.mock(import('./server-validation.js'));
@@ -211,19 +211,6 @@ const DELEGATION_RESULT_MOCK = {
   value: '0x333' as Hex,
 } as Awaited<ReturnType<GetDelegationTransactionCallback>>;
 
-/**
- * Mock the Lighter API response for the account index of an address.
- *
- * @param index - Lighter account index to return.
- */
-function mockLighterAccountIndex(index: string): void {
-  vi.mocked(successfulFetch).mockResolvedValue({
-    json: async () => ({
-      sub_accounts: [{ account_type: 0, index: Number(index) }],
-    }),
-  } as Response);
-}
-
 describe('server-quotes', () => {
   const fetchServerQuoteMock = vi.mocked(fetchServerQuote);
   const getSlippageMock = vi.mocked(getSlippage);
@@ -356,7 +343,9 @@ describe('server-quotes', () => {
   });
 
   it('requests the Lighter perps asset with the account index as recipient when the payment override is PerpsLighter', async () => {
-    mockLighterAccountIndex('770167');
+    vi.mocked(processLighterRequest).mockResolvedValue({
+      recipient: '770167',
+    });
 
     const result = await getServerQuotes({
       accountSupports7702: true,
@@ -380,10 +369,11 @@ describe('server-quotes', () => {
       }),
       undefined,
     );
-    expect(successfulFetch).toHaveBeenCalledWith(
-      expect.stringContaining(
-        `l1_address=${TRANSACTION_META_MOCK.txParams.from}`,
-      ),
+    expect(processLighterRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        paymentOverride: PaymentOverride.PerpsLighter,
+      }),
+      TRANSACTION_META_MOCK.txParams.from,
     );
     // The account index is used in the request body, but the original
     // recipient (FROM_MOCK) is preserved in the quote result.
@@ -391,7 +381,9 @@ describe('server-quotes', () => {
   });
 
   it('requests the Lighter perps asset when the target asset is Lighter, leaving the payment override free', async () => {
-    vi.mocked(getLighterAccountIndex).mockResolvedValue('770167');
+    vi.mocked(processLighterRequest).mockResolvedValue({
+      recipient: '770167',
+    });
 
     await getServerQuotes({
       accountSupports7702: true,
@@ -416,14 +408,23 @@ describe('server-quotes', () => {
       }),
       undefined,
     );
-    expect(getLighterAccountIndex).toHaveBeenCalledWith(
+    expect(processLighterRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        paymentOverride: PaymentOverride.MoneyAccount,
+        targetAssetIdOverride: 'lighter:mainnet/perps:usdc',
+      }),
       TRANSACTION_META_MOCK.txParams.from,
     );
   });
 
   it('requests the Lighter perps asset as the source of a flow that is not post-quote, for the account of the payer', async () => {
     const payer = '0x3333333333333333333333333333333333333333' as Hex;
-    vi.mocked(getLighterAccountIndex).mockResolvedValue('770167');
+    vi.mocked(processLighterRequest).mockResolvedValue({
+      source: {
+        asset: 'lighter:mainnet/perps:usdc',
+        sender: '770167',
+      },
+    });
 
     await getServerQuotes({
       accountSupports7702: true,
@@ -442,18 +443,29 @@ describe('server-quotes', () => {
     expect(fetchServerQuoteMock).toHaveBeenCalledWith(
       messenger,
       expect.objectContaining({
-        sourceAsset: SERVER_LIGHTER_PERPS_USDC_ASSET,
+        sourceAsset: 'lighter:mainnet/perps:usdc',
         sender: '770167',
         supportsGasless: false,
       }),
       undefined,
     );
     expect(fetchServerQuoteMock.mock.calls[0][1].calls).toBeUndefined();
-    expect(getLighterAccountIndex).toHaveBeenCalledWith(payer);
+    expect(processLighterRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        from: payer,
+        sourceAssetIdOverride: 'lighter:mainnet/perps:usdc',
+      }),
+      TRANSACTION_META_MOCK.txParams.from,
+    );
   });
 
   it('requests the Lighter perps asset with the account index as sender when the source is Lighter', async () => {
-    mockLighterAccountIndex('770167');
+    vi.mocked(processLighterRequest).mockResolvedValue({
+      source: {
+        asset: SERVER_LIGHTER_PERPS_USDC_ASSET,
+        sender: '770167',
+      },
+    });
 
     await getServerQuotes({
       accountSupports7702: true,
@@ -480,10 +492,12 @@ describe('server-quotes', () => {
       undefined,
     );
     expect(fetchServerQuoteMock.mock.calls[0][1].calls).toBeUndefined();
-    expect(successfulFetch).toHaveBeenCalledWith(
-      expect.stringContaining(
-        `l1_address=${TRANSACTION_META_MOCK.txParams.from}`,
-      ),
+    expect(processLighterRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isPostQuote: true,
+        sourceAssetIdOverride: 'lighter:mainnet/perps:usdc',
+      }),
+      TRANSACTION_META_MOCK.txParams.from,
     );
   });
 
@@ -502,7 +516,12 @@ describe('server-quotes', () => {
     async function getQuoteFees(
       steps: ServerStep[],
     ): Promise<TransactionPayFees> {
-      mockLighterAccountIndex('770167');
+      vi.mocked(processLighterRequest).mockResolvedValue({
+        source: {
+          asset: SERVER_LIGHTER_PERPS_USDC_ASSET,
+          sender: '770167',
+        },
+      });
       fetchServerQuoteMock.mockResolvedValue({
         results: [
           {
@@ -536,7 +555,12 @@ describe('server-quotes', () => {
     });
 
     it('keeps the sender of the quote request for the transfer', async () => {
-      mockLighterAccountIndex('770167');
+      vi.mocked(processLighterRequest).mockResolvedValue({
+        source: {
+          asset: SERVER_LIGHTER_PERPS_USDC_ASSET,
+          sender: '770167',
+        },
+      });
       fetchServerQuoteMock.mockResolvedValue({
         results: [
           {
