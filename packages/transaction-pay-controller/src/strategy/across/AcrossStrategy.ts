@@ -35,8 +35,10 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
       return false;
     }
 
-    // Exact output requests are only quoted by the server strategy.
-    if (request.requests.some((singleRequest) => singleRequest.isExactOutput)) {
+    // True exact output requests are only quoted by the server strategy.
+    if (
+      request.requests.some((singleRequest) => singleRequest.isTrueExactOutput)
+    ) {
       return false;
     }
 

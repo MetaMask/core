@@ -178,7 +178,7 @@ export class TransactionPayController extends BaseController<
       const config: TransactionConfig = {
         accountOverride: transactionData.accountOverride,
         atomic: transactionData.atomic,
-        isExactOutput: transactionData.isExactOutput,
+        isTrueExactOutput: transactionData.isTrueExactOutput,
         isHyperliquidSource: transactionData.isHyperliquidSource,
         isMaxAmount: transactionData.isMaxAmount,
         isPolymarketDepositWallet: transactionData.isPolymarketDepositWallet,
@@ -369,7 +369,7 @@ export class TransactionPayController extends BaseController<
       const originalTokens = current?.tokens;
       const originalIsMaxAmount = current?.isMaxAmount;
       const originalIsPostQuote = current?.isPostQuote;
-      const originalIsExactOutput = current?.isExactOutput;
+      const originalIsTrueExactOutput = current?.isTrueExactOutput;
       const originalAccountOverride = current?.accountOverride;
       const originalFiatPaymentAmount = current?.fiatPayment?.amountFiat;
       const originalFiatPaymentMethodId =
@@ -442,13 +442,13 @@ export class TransactionPayController extends BaseController<
       }
 
       // The source amounts do not depend on the pricing basis, but the quotes do.
-      const isExactOutputUpdated =
-        current.isExactOutput !== originalIsExactOutput;
+      const isTrueExactOutputUpdated =
+        current.isTrueExactOutput !== originalIsTrueExactOutput;
 
       if (
         isFiatAmountUpdated ||
         isFiatPaymentMethodUpdated ||
-        isExactOutputUpdated
+        isTrueExactOutputUpdated
       ) {
         shouldUpdateQuotes = true;
       }
@@ -470,9 +470,9 @@ export class TransactionPayController extends BaseController<
   ): TransactionPayStrategy[] {
     const transactionData = this.state.transactionData[transaction.id];
 
-    // Only the server strategy can deliver an exact output, so it overrides
+    // Only the server strategy can deliver a true exact output, so it overrides
     // client callbacks and the remote strategy order rather than falling back.
-    if (transactionData?.isExactOutput && !transactionData.isPostQuote) {
+    if (transactionData?.isTrueExactOutput && !transactionData.isPostQuote) {
       return [TransactionPayStrategy.Server];
     }
 

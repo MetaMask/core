@@ -14,7 +14,7 @@ import type { RelayQuote } from './types.js';
 
 /**
  * Pay strategy that quotes and submits through Relay. Only supports requests
- * with an EVM source asset. Exact output requests are only quoted by the
+ * with an EVM source asset. True exact output requests are only quoted by the
  * server strategy.
  */
 export class RelayStrategy implements PayStrategy<RelayQuote> {
@@ -24,7 +24,7 @@ export class RelayStrategy implements PayStrategy<RelayQuote> {
     return (
       config.relay.enabled &&
       request.requests.every(isEvmQuoteRequest) &&
-      !request.requests.some((singleRequest) => singleRequest.isExactOutput)
+      !request.requests.some((singleRequest) => singleRequest.isTrueExactOutput)
     );
   }
 

@@ -9,10 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `isExactOutput` to `TransactionConfig` and `TransactionData`, so the recipient of a token transfer receives exactly the required amount, with no swap surplus ([#11775](https://github.com/MetaMask/core/pull/11775))
+- Add `isTrueExactOutput` to `TransactionConfig` and `TransactionData`, so the recipient of a token transfer receives exactly the required amount, with any swap surplus kept by the provider ([#11775](https://github.com/MetaMask/core/pull/11775))
   - Quotes are only fetched through `ServerStrategy`, ignoring the `getStrategies` callback, the remote strategy order and `payStrategies.server.enabledTransactionTypes`. `payStrategies.server.enabled` must still be `true`.
   - `RelayStrategy` and `AcrossStrategy` decline the request, so there is no fallback.
-  - The server quote request is priced as `EXACT_OUTPUT` on the required amount and sets `exactOutput: true`.
+  - The server quote request is priced as `EXACT_OUTPUT` on the required amount and sets `useTrueExactOutput: true`.
   - Submission fails if the intent confirms without a target hash.
   - Not supported with `isMaxAmount`, and ignored for post-quote transactions.
 

@@ -331,12 +331,12 @@ describe('submitServerQuotes', () => {
     expect(getServerStatusMock).toHaveBeenCalledTimes(2);
   });
 
-  describe('exact output', () => {
+  describe('true exact output', () => {
     beforeEach(() => {
       request.quotes = [
         {
           ...cloneDeep(QUOTE_MOCK),
-          request: { ...QUOTE_MOCK.request, isExactOutput: true },
+          request: { ...QUOTE_MOCK.request, isTrueExactOutput: true },
         },
       ];
     });
@@ -354,7 +354,7 @@ describe('submitServerQuotes', () => {
       });
 
       await expect(submitServerQuotes(request)).rejects.toThrow(
-        'Missing target hash for exact output',
+        'Missing target hash for true exact output',
       );
     });
 
@@ -365,7 +365,7 @@ describe('submitServerQuotes', () => {
       });
 
       await expect(submitServerQuotes(request)).rejects.toThrow(
-        'Missing target hash for exact output',
+        'Missing target hash for true exact output',
       );
 
       expect(currentTransaction.isIntentComplete).toBeUndefined();

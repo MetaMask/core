@@ -122,13 +122,13 @@ describe('AcrossStrategy', () => {
     ).toBe(false);
   });
 
-  it('returns false when a request requires an exact output', () => {
+  it('returns false when a request requires a true exact output', () => {
     const strategy = new AcrossStrategy();
 
     expect(
       strategy.supports({
         ...baseRequest,
-        requests: [{ ...baseRequest.requests[0], isExactOutput: true }],
+        requests: [{ ...baseRequest.requests[0], isTrueExactOutput: true }],
       }),
     ).toBe(false);
   });

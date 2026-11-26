@@ -296,19 +296,19 @@ describe('TransactionPayController', () => {
       ).toBe(true);
     });
 
-    it('updates isExactOutput in state', () => {
+    it('updates isTrueExactOutput in state', () => {
       const controller = createController();
 
       controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
-        config.isExactOutput = true;
+        config.isTrueExactOutput = true;
       });
 
       expect(
-        controller.state.transactionData[TRANSACTION_ID_MOCK].isExactOutput,
+        controller.state.transactionData[TRANSACTION_ID_MOCK].isTrueExactOutput,
       ).toBe(true);
     });
 
-    it('triggers a quotes update without a source amounts update when only isExactOutput changes', () => {
+    it('triggers a quotes update without a source amounts update when only isTrueExactOutput changes', () => {
       const controller = createController();
 
       controller.setTransactionConfig(TRANSACTION_ID_MOCK, () => {
@@ -319,7 +319,7 @@ describe('TransactionPayController', () => {
       updateQuotesMock.mockClear();
 
       controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
-        config.isExactOutput = true;
+        config.isTrueExactOutput = true;
       });
 
       expect(updateSourceAmountsMock).not.toHaveBeenCalled();
@@ -983,7 +983,7 @@ describe('TransactionPayController', () => {
       );
     });
 
-    it('returns only the server strategy when isExactOutput is set', async () => {
+    it('returns only the server strategy when isTrueExactOutput is set', async () => {
       getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Relay]);
 
       const controller = new TransactionPayController({
@@ -995,7 +995,7 @@ describe('TransactionPayController', () => {
       });
 
       controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
-        config.isExactOutput = true;
+        config.isTrueExactOutput = true;
       });
 
       expect(
@@ -1012,13 +1012,13 @@ describe('TransactionPayController', () => {
       ]);
     });
 
-    it('ignores isExactOutput for post-quote transactions', async () => {
+    it('ignores isTrueExactOutput for post-quote transactions', async () => {
       getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Relay]);
 
       const controller = createController();
 
       controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
-        config.isExactOutput = true;
+        config.isTrueExactOutput = true;
         config.isPostQuote = true;
       });
 

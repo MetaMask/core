@@ -419,12 +419,12 @@ describe('server-quotes', () => {
     );
   });
 
-  it('requests an exact output on the target amount to the transfer recipient when isExactOutput is set', async () => {
+  it('requests an exact output on the target amount to the transfer recipient when isTrueExactOutput is set', async () => {
     const result = await getServerQuotes({
       accountSupports7702: true,
       from: FROM_MOCK,
       messenger,
-      requests: [{ ...QUOTE_REQUEST_MOCK, isExactOutput: true }],
+      requests: [{ ...QUOTE_REQUEST_MOCK, isTrueExactOutput: true }],
       transaction: {
         txParams: { data: TOKEN_TRANSFER_DATA_MOCK, from: FROM_MOCK },
       } as TransactionMeta,
@@ -435,7 +435,7 @@ describe('server-quotes', () => {
     expect(body).toStrictEqual(
       expect.objectContaining({
         amount: QUOTE_REQUEST_MOCK.targetAmountMinimum,
-        exactOutput: true,
+        useTrueExactOutput: true,
         recipient: TOKEN_TRANSFER_RECIPIENT_MOCK,
         tradeType: TradeType.ExactOutput,
       }),
@@ -444,7 +444,7 @@ describe('server-quotes', () => {
     expect(result[0].isInputBased).toBe(false);
   });
 
-  it('omits exactOutput from the request when isExactOutput is not set', async () => {
+  it('omits useTrueExactOutput from the request when isTrueExactOutput is not set', async () => {
     await getServerQuotes({
       accountSupports7702: true,
       from: FROM_MOCK,
@@ -454,7 +454,7 @@ describe('server-quotes', () => {
     });
 
     expect(fetchServerQuoteMock.mock.calls[0][1]).not.toHaveProperty(
-      'exactOutput',
+      'useTrueExactOutput',
     );
   });
 

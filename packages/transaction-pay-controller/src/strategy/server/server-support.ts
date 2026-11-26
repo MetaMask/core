@@ -22,8 +22,8 @@ export enum ServerUnsupportedReason {
   /** The parent transaction type is not in the remote-flag allowlist. */
   DisabledTransactionType = 'disabledTransactionType',
 
-  /** An exact output was requested together with the maximum amount. */
-  ExactOutputMaxAmount = 'exactOutputMaxAmount',
+  /** A true exact output was requested together with the maximum amount. */
+  TrueExactOutputMaxAmount = 'trueExactOutputMaxAmount',
 }
 
 /**
@@ -34,7 +34,7 @@ export enum ServerUnsupportedReason {
  * types across its nested transactions, so the allowlist is matched against the
  * transaction and its nested transactions.
  *
- * Exact output requests are opted in per transaction by the client and are
+ * True exact output requests are opted in per transaction by the client and are
  * only quoted by the server strategy, so they skip the allowlist. A maximum
  * amount spends the whole balance and cannot also fix the output amount, so
  * that combination is declined.
@@ -56,15 +56,15 @@ export function getServerUnsupportedReason({
   requests?: QuoteRequest[];
   transaction?: TransactionMeta;
 }): ServerUnsupportedReason | undefined {
-  const exactOutputRequests = requests.filter(
-    (request) => request.isExactOutput,
+  const trueExactOutputRequests = requests.filter(
+    (request) => request.isTrueExactOutput,
   );
 
-  if (exactOutputRequests.some((request) => request.isMaxAmount)) {
-    return ServerUnsupportedReason.ExactOutputMaxAmount;
+  if (trueExactOutputRequests.some((request) => request.isMaxAmount)) {
+    return ServerUnsupportedReason.TrueExactOutputMaxAmount;
   }
 
-  if (exactOutputRequests.length) {
+  if (trueExactOutputRequests.length) {
     return undefined;
   }
 

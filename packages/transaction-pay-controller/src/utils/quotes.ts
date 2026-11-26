@@ -181,7 +181,7 @@ export async function updateQuotes(
     accountOverride,
     atomic: requestedAtomic,
     fiatPayment,
-    isExactOutput,
+    isTrueExactOutput,
     isHyperliquidSource,
     isMaxAmount,
     isPolymarketDepositWallet,
@@ -247,7 +247,7 @@ export async function updateQuotes(
         : undefined,
       atomic: requestedAtomic,
       from,
-      isExactOutput,
+      isTrueExactOutput,
       isHyperliquidSource,
       isMaxAmount: isMaxAmount ?? false,
       isPolymarketDepositWallet,
@@ -589,7 +589,7 @@ function getSourceAmounts(
  * @param request.accountOverride - Optional account receiving post-quote output.
  * @param request.atomic - Whether the target transaction is executed atomically with the Relay quote.
  * @param request.from - Address from which the transaction is sent.
- * @param request.isExactOutput - Whether the recipient must receive exactly the required amount.
+ * @param request.isTrueExactOutput - Whether the recipient must receive exactly the required amount.
  * @param request.isHyperliquidSource - Whether the source of funds is HyperLiquid.
  * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.isPolymarketDepositWallet - Whether the source of funds is a Polymarket deposit wallet.
@@ -607,7 +607,7 @@ function buildQuoteRequests({
   accountOverride,
   atomic,
   from,
-  isExactOutput,
+  isTrueExactOutput,
   isHyperliquidSource,
   isMaxAmount,
   isPolymarketDepositWallet,
@@ -623,7 +623,7 @@ function buildQuoteRequests({
   accountOverride?: Hex;
   atomic?: boolean;
   from: Hex;
-  isExactOutput?: boolean;
+  isTrueExactOutput?: boolean;
   isHyperliquidSource?: boolean;
   isMaxAmount: boolean;
   isPolymarketDepositWallet?: boolean;
@@ -673,7 +673,7 @@ function buildQuoteRequests({
     return {
       atomic,
       from,
-      ...(isExactOutput ? { isExactOutput } : {}),
+      ...(isTrueExactOutput ? { isTrueExactOutput } : {}),
       isMaxAmount,
       paymentOverride,
       refundTo,

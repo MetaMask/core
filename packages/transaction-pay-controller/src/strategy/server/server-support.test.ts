@@ -13,9 +13,9 @@ const TRANSACTION_MOCK = {
   type: TransactionType.perpsDeposit,
 } as TransactionMeta;
 
-const EXACT_OUTPUT_REQUEST_MOCK = {
+const TRUE_EXACT_OUTPUT_REQUEST_MOCK = {
   from: '0x1234567890123456789012345678901234567890',
-  isExactOutput: true,
+  isTrueExactOutput: true,
   sourceAccountId: 'eip155:1:0x1234567890123456789012345678901234567890',
   sourceAssetId: 'eip155:1/erc20:0x0000000000000000000000000000000000000001',
   sourceBalanceRaw: '1000000',
@@ -97,11 +97,11 @@ describe('server-support', () => {
       ).toBeUndefined();
     });
 
-    it('returns undefined for an exact output request whose flow is not allowlisted', () => {
+    it('returns undefined for a true exact output request whose flow is not allowlisted', () => {
       expect(
         getReason({
           enabledTransactionTypes: [],
-          requests: [EXACT_OUTPUT_REQUEST_MOCK],
+          requests: [TRUE_EXACT_OUTPUT_REQUEST_MOCK],
           transaction: {
             type: TransactionType.tokenMethodTransfer,
           } as TransactionMeta,
@@ -109,19 +109,21 @@ describe('server-support', () => {
       ).toBeUndefined();
     });
 
-    it('returns exact output max amount when an exact output request is a maximum amount', () => {
+    it('returns true exact output max amount when a true exact output request is a maximum amount', () => {
       expect(
         getReason({
-          requests: [{ ...EXACT_OUTPUT_REQUEST_MOCK, isMaxAmount: true }],
+          requests: [{ ...TRUE_EXACT_OUTPUT_REQUEST_MOCK, isMaxAmount: true }],
         }),
-      ).toBe(ServerUnsupportedReason.ExactOutputMaxAmount);
+      ).toBe(ServerUnsupportedReason.TrueExactOutputMaxAmount);
     });
 
-    it('checks the allowlist when no request requires an exact output', () => {
+    it('checks the allowlist when no request requires a true exact output', () => {
       expect(
         getReason({
           enabledTransactionTypes: [],
-          requests: [{ ...EXACT_OUTPUT_REQUEST_MOCK, isExactOutput: false }],
+          requests: [
+            { ...TRUE_EXACT_OUTPUT_REQUEST_MOCK, isTrueExactOutput: false },
+          ],
         }),
       ).toBe(ServerUnsupportedReason.DisabledTransactionType);
     });

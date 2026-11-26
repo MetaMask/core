@@ -12,14 +12,14 @@ const TARGET_AMOUNT_MINIMUM_MOCK = '123';
  *
  * @param overrides - Arguments to override.
  * @param overrides.hasCalls - Whether the request bundles calls.
- * @param overrides.isExactOutput - Whether an exact output is required.
+ * @param overrides.isTrueExactOutput - Whether an exact output is required.
  * @param overrides.transaction - Metadata of the original target transaction.
  * @returns The amount to quote and the pricing basis to quote it on.
  */
 function getPricing(
   overrides: {
     hasCalls?: boolean;
-    isExactOutput?: boolean;
+    isTrueExactOutput?: boolean;
     transaction?: TransactionMeta;
   } = {},
 ): { amount: string; tradeType: TradeType } {
@@ -41,7 +41,7 @@ describe('trade-type', () => {
     });
 
     it('prices on the target amount when an exact output is required', () => {
-      expect(getPricing({ isExactOutput: true })).toStrictEqual({
+      expect(getPricing({ isTrueExactOutput: true })).toStrictEqual({
         amount: TARGET_AMOUNT_MINIMUM_MOCK,
         tradeType: TradeType.ExactOutput,
       });

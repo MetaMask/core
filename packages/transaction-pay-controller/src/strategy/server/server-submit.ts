@@ -308,9 +308,9 @@ async function executeSingleServerQuote(
     throw new Error(`Server intent ${completion.status.toLowerCase()}`);
   }
 
-  // Exact output recipients reconcile the settlement by its hash.
-  if (quote.request.isExactOutput && !completion.targetHash) {
-    throw new Error('Missing target hash for exact output');
+  // True exact output recipients reconcile the settlement by its hash.
+  if (quote.request.isTrueExactOutput && !completion.targetHash) {
+    throw new Error('Missing target hash for true exact output');
   }
 
   const targetHash = completion.targetHash ?? MISSING_TARGET_HASH;

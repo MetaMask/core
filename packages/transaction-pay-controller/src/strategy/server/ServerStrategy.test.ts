@@ -87,7 +87,7 @@ describe('ServerStrategy', () => {
       expect(new ServerStrategy().supports(SUPPORTS_REQUEST_MOCK)).toBe(false);
     });
 
-    it('returns true for an exact output request when the flow is not allowlisted', () => {
+    it('returns true for a true exact output request when the flow is not allowlisted', () => {
       getPayStrategiesConfigMock.mockReturnValue({
         server: {
           enabled: true,
@@ -99,7 +99,7 @@ describe('ServerStrategy', () => {
       expect(
         new ServerStrategy().supports({
           ...SUPPORTS_REQUEST_MOCK,
-          requests: [{ ...QUOTE_REQUEST_MOCK, isExactOutput: true }],
+          requests: [{ ...QUOTE_REQUEST_MOCK, isTrueExactOutput: true }],
           transaction: {
             type: TransactionType.tokenMethodTransfer,
           } as TransactionMeta,
@@ -107,7 +107,7 @@ describe('ServerStrategy', () => {
       ).toBe(true);
     });
 
-    it('returns false for an exact output request when server strategy is disabled', () => {
+    it('returns false for a true exact output request when server strategy is disabled', () => {
       getPayStrategiesConfigMock.mockReturnValue({
         server: {
           enabled: false,
@@ -119,17 +119,21 @@ describe('ServerStrategy', () => {
       expect(
         new ServerStrategy().supports({
           ...SUPPORTS_REQUEST_MOCK,
-          requests: [{ ...QUOTE_REQUEST_MOCK, isExactOutput: true }],
+          requests: [{ ...QUOTE_REQUEST_MOCK, isTrueExactOutput: true }],
         }),
       ).toBe(false);
     });
 
-    it('returns false for an exact output request with the maximum amount', () => {
+    it('returns false for a true exact output request with the maximum amount', () => {
       expect(
         new ServerStrategy().supports({
           ...SUPPORTS_REQUEST_MOCK,
           requests: [
-            { ...QUOTE_REQUEST_MOCK, isExactOutput: true, isMaxAmount: true },
+            {
+              ...QUOTE_REQUEST_MOCK,
+              isTrueExactOutput: true,
+              isMaxAmount: true,
+            },
           ],
         }),
       ).toBe(false);

@@ -114,13 +114,13 @@ describe('RelayStrategy', () => {
     expect(getRelayQuotesMock).toHaveBeenCalledWith(request);
   });
 
-  it('returns false when a request requires an exact output', () => {
+  it('returns false when a request requires a true exact output', () => {
     const strategy = new RelayStrategy();
 
     expect(
       strategy.supports({
         ...request,
-        requests: [{ ...request.requests[0], isExactOutput: true }],
+        requests: [{ ...request.requests[0], isTrueExactOutput: true }],
       }),
     ).toBe(false);
   });
