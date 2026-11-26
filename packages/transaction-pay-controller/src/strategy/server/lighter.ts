@@ -12,7 +12,6 @@ import type {
 import type {
   ServerLighterTransferStep,
   ServerQuote,
-  ServerQuoteAmount,
   ServerStep,
 } from './types.js';
 
@@ -218,30 +217,6 @@ export function getLighterTransferFee(steps: ServerStep[]): BigNumber {
     .filter(isLighterTransferStep)
     .reduce((total, step) => total.plus(step.usdcFee), new BigNumber(0))
     .shiftedBy(-LIGHTER_USDC_DECIMALS);
-}
-
-/**
- * Subtract the Lighter transfer fee from the amount a quote takes from the
- * account.
- *
- * For a max withdrawal, the fee is debited separately from the amount sent, so
- * the total (input + fee) would otherwise exceed the account balance.
- *
- * @param input - Input amount of the server quote.
- * @param fee - Lighter transfer fee, in USDC.
- * @returns The input amount without the fee.
- */
-export function subtractLighterTransferFee(
-  input: ServerQuoteAmount,
-  fee: BigNumber,
-): ServerQuoteAmount {
-  return {
-    ...input,
-    raw: new BigNumber(input.raw)
-      .minus(fee.shiftedBy(LIGHTER_USDC_DECIMALS))
-      .toString(10),
-    formatted: new BigNumber(input.formatted).minus(fee).toString(10),
-  };
 }
 
 /**

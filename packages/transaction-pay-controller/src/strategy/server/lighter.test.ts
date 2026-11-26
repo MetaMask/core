@@ -1,6 +1,5 @@
 import { successfulFetch } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
-import { BigNumber } from 'bignumber.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -9,7 +8,6 @@ import {
   isLighterAsset,
   isLighterSourceRequest,
   isLighterTransferStep,
-  subtractLighterTransferFee,
 } from './lighter.js';
 import type { ServerLighterTransferStep, ServerStep } from './types.js';
 
@@ -98,21 +96,6 @@ describe('Lighter transfer steps', () => {
     it('is zero without transfer steps', () => {
       expect(getLighterTransferFee([SIGNATURE_STEP_MOCK]).toString(10)).toBe(
         '0',
-      );
-    });
-  });
-
-  describe('subtractLighterTransferFee', () => {
-    it('subtracts the fee from the raw and formatted input', () => {
-      const input = {
-        asset: 'lighter:mainnet/perps:usdc' as const,
-        decimals: 6,
-        formatted: '10',
-        raw: '10000000',
-      };
-
-      expect(subtractLighterTransferFee(input, new BigNumber(3))).toStrictEqual(
-        { ...input, formatted: '7', raw: '7000000' },
       );
     });
   });

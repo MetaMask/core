@@ -59,12 +59,10 @@ import { hasServerDepositStep } from './deposit-step.js';
 import {
   getLighterTransferFee,
   isLighterAsset,
-  isLighterSourceRequest,
   LighterNormalizer,
   processLighterRequest,
   SERVER_LIGHTER_CHAIN_ID,
   SERVER_LIGHTER_PERPS_USDC_ADDRESS,
-  subtractLighterTransferFee,
 } from './lighter.js';
 import { normalizeServerPerpsRequest } from './perps.js';
 import { fetchServerQuote } from './server-api.js';
@@ -755,15 +753,6 @@ async function normalizeQuote(
 
   const lighterFee = getLighterTransferFee(quote.steps);
 
-  // For max Lighter withdrawals, the fee is debited on top of the amount sent,
-  // so it comes off the input to stay within the account balance.
-  const input =
-    quoteRequest.isMaxAmount &&
-    isLighterSourceRequest(quoteRequest) &&
-    lighterFee.isGreaterThan(0)
-      ? subtractLighterTransferFee(quote.input, lighterFee)
-      : quote.input;
-
   return {
     dust: ZERO_FIAT_VALUE,
     estimatedDuration: quote.duration,
@@ -797,7 +786,7 @@ async function normalizeQuote(
       fees: quote.fees,
       gasless,
       id: quote.id,
-      input,
+      input: quote.input,
       output: quote.output,
       provider: result.provider,
       sender: body.sender,
@@ -808,14 +797,14 @@ async function normalizeQuote(
     requiresSecondLeg,
     sourceAmount: {
       fiat: sourceFiatRate
-        ? new BigNumber(input.formatted)
+        ? new BigNumber(quote.input.formatted)
             .multipliedBy(sourceFiatRate.fiatRate)
             .toString(10)
         : '0',
-      human: input.formatted,
-      raw: input.raw,
+      human: quote.input.formatted,
+      raw: quote.input.raw,
       usd: sourceFiatRate
-        ? new BigNumber(input.formatted)
+        ? new BigNumber(quote.input.formatted)
             .multipliedBy(sourceFiatRate.usdRate)
             .toString(10)
         : '0',
