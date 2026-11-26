@@ -24,9 +24,7 @@ import type {
   TransactionPayQuote,
 } from '../../types.js';
 import { accountSupports7702 } from '../../utils/account.js';
-import {
-  getServerPollingInterval,
-} from '../../utils/feature-flags.js';
+import { getServerPollingInterval } from '../../utils/feature-flags.js';
 import type { GasPayment } from '../../utils/gas-payment.js';
 import {
   GasPaymentMode,
