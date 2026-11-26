@@ -940,6 +940,7 @@ describe('server-quotes', () => {
     await expect(
       getServerQuotes({
         accountSupports7702: true,
+        from: FROM_MOCK,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -965,6 +966,7 @@ describe('server-quotes', () => {
 
     const result = await getServerQuotes({
       accountSupports7702: true,
+      from: FROM_MOCK,
       messenger,
       requests: [QUOTE_REQUEST_MOCK],
       transaction: TRANSACTION_META_MOCK,
