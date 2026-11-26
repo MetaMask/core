@@ -2541,6 +2541,20 @@ describe('SubscriptionDelegationService charge retry', () => {
       expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(2);
     });
 
+    it('re-checks on the interval after a failed charge', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+      });
+      mocks.retryCryptoCharge.mockRejectedValueOnce(new Error('network'));
+      publishConfirmed(rootMessenger);
+      await flush();
+      expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(CHARGE_RETRY_INTERVAL);
+
+      expect(mocks.retryCryptoCharge).toHaveBeenCalledTimes(2);
+    });
+
     it.each([SUBSCRIPTION_STATUSES.pastDue, SUBSCRIPTION_STATUSES.paused])(
       'does not charge again when a state change follows the charge (%s)',
       async (status) => {

@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `SubscriptionDelegationService` now retries a stuck Money Account Plus charge once the Money Account covers it ([#11612](https://github.com/MetaMask/core/pull/11612))
   - A subscription is stuck when it is `paused`, or `past_due` or `active` (with a crypto payment error) with its last invoice `FAILED` for `insufficient_balance`. A `PROCESSING` invoice, or a `FAILED` invoice with any other error, is not retried, including while `paused`
-  - The service re-checks after a confirmed `moneyAccountDeposit` or `membershipSubscription` transaction (again 90 seconds later, past the balance cache), on `KeyringController:unlock`, when `AuthenticationController` signs in, when the cached Plus subscription changes, and every 5 minutes while the balance stays short and the wallet is unlocked
+  - The service re-checks after a confirmed `moneyAccountDeposit` or `membershipSubscription` transaction (again 90 seconds later, past the balance cache), on `KeyringController:unlock`, when `AuthenticationController` signs in, when the cached Plus subscription changes, and every 5 minutes while the balance stays short or after a failed charge, while the wallet is unlocked
   - The balance check uses the pricing cached in `SubscriptionController` state, and fetches it only when none is cached
   - When the balance covers the charge, it calls `SubscriptionController:retryCryptoCharge`, so the Subscription API charges the stored delegation
   - Add optional `chargeRetryInterval` constructor option to change the 5-minute re-check interval. Keep it above the `MoneyAccountBalanceService` balance stale time

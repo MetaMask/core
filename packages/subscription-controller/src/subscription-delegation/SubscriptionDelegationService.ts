@@ -399,7 +399,8 @@ export class SubscriptionDelegationService {
   /**
    * Calls `SubscriptionController:retryCryptoCharge` for a stuck Money Account
    * Plus subscription once the Money Account covers the charge. Re-checks on a
-   * timer while the balance is short; never after a charge was sent.
+   * timer while the balance is short or after a failed charge; never after a
+   * charge was sent.
    */
   async #reconcileSubscriptionCharge(): Promise<void> {
     if (
@@ -461,6 +462,8 @@ export class SubscriptionDelegationService {
             refreshError,
           ),
         );
+      // An unchanged FAILED invoice publishes no stateChanged to re-trigger on.
+      this.#scheduleChargeRetry(this.#chargeRetryInterval);
     } finally {
       this.#messenger.call(
         'SubscriptionController:setChargeRetryInProgress',
