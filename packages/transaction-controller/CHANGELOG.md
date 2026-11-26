@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix type-4 gas estimation without the Simulation API on networks without EIP-2780, where removing or replacing an existing delegation was estimated below the intrinsic gas ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
+  - Keep unsigned authorizations in the selected network request with placeholder signatures, so the network charges the intrinsic gas of each authorization under its active rules, instead of adding a fixed EIP-2780 value.
+  - In the `estimateGasBatch` fallback, add 25,000 instead of 7,816 when replacing an existing delegation, as the active rules are not known.
+
 ## [74.5.0]
 
 ### Added
