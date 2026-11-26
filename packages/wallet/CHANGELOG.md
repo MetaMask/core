@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- Bump `@metamask/transaction-controller` from `^74.4.0` to `^74.4.1` ([#11761](https://github.com/MetaMask/core/pull/11761))
-
-## [22.0.0]
-
 ### Added
 
 - **BREAKING:** Add the `@metamask/assets-controllers` controllers to the default initialization configurations ([#11315](https://github.com/MetaMask/core/pull/11315))
@@ -23,18 +17,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `AccountTrackerController`'s `getStakedBalanceForChain` and `TokenDetectionController`'s `getBalancesInSingleCall` call `AssetsContractController` through the messenger, and `NftDetectionController`'s `addNfts`, `removeNft` and `getNftState` call `NftController`.
   - `CurrencyRateController`, `TokenRatesController` and `TokenSearchDiscoveryDataController` default `tokenPricesService` to a `CodefiTokenPricesServiceV2`. `TokensController` and `TokenDetectionController` default `tokenListService` to a `TokenListService`. `AssetsContractController` and `TokenListController` default `chainId` to Ethereum mainnet. Every option can be overridden through `instanceOptions`.
   - `DeFiPositionsController`, `NftDetectionController` and `TokenDetectionController` take no persisted state.
-- **BREAKING:** Add `SignatureController` to the default initialization configurations ([#11717](https://github.com/MetaMask/core/pull/11717))
-  - Hosts that already register `SignatureController` on the wallet root messenger must remove it before upgrading, or messenger registration will collide.
 
 ### Changed
 
 - Add `@metamask/assets-controllers` `^113.3.3` as a dependency ([#11315](https://github.com/MetaMask/core/pull/11315))
-- Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.4.0` ([#11732](https://github.com/MetaMask/core/pull/11732))
+- Bump `@metamask/transaction-controller` from `^74.4.0` to `^74.4.1` ([#11761](https://github.com/MetaMask/core/pull/11761))
 
 ### Fixed
 
 - `NftDetectionController` no longer ignores a persisted `useNftDetection: false`. Unless `instanceOptions.nftDetectionController.disabled` is set, `init` sets `disabled` to `!PreferencesController:getState().useNftDetection`, and `detectNfts` reads that preference again if `init` could not ([#11315](https://github.com/MetaMask/core/pull/11315))
 - `NftController` and `AssetsContractController` apply persisted IPFS gateway and NFT media preferences during `init`, instead of waiting for `PreferencesController:stateChange` ([#11315](https://github.com/MetaMask/core/pull/11315))
+
+## [22.0.0]
+
+### Added
+
+- **BREAKING:** Add `SignatureController` to the default initialization configurations ([#11717](https://github.com/MetaMask/core/pull/11717))
+  - Hosts that already register `SignatureController` on the wallet root messenger must remove it before upgrading, or messenger registration will collide.
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.4.0` ([#11732](https://github.com/MetaMask/core/pull/11732))
 
 ## [21.0.5]
 
