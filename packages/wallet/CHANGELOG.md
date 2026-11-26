@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.0.0]
+
 ### Added
 
 - **BREAKING:** Add `MarketStatsService` to the default initialization configurations ([#11193](https://github.com/MetaMask/core/pull/11193))
@@ -522,7 +524,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@22.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@23.0.0...HEAD
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@22.0.0...@metamask/wallet@23.0.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.5...@metamask/wallet@22.0.0
 [21.0.5]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.4...@metamask/wallet@21.0.5
 [21.0.4]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.3...@metamask/wallet@21.0.4

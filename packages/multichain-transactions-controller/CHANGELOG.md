@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.1]
+
 ### Uncategorized
 
 - chore: add vite as a devDependency to packages using vitest ([#11661](https://github.com/MetaMask/core/pull/11661))
@@ -373,7 +375,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5133](https://github.com/MetaMask/core/pull/5133), [#5177](https://github.com/MetaMask/core/pull/5177))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@8.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@8.0.1...HEAD
+[8.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@8.0.0...@metamask/multichain-transactions-controller@8.0.1
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@7.1.2...@metamask/multichain-transactions-controller@8.0.0
 [7.1.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@7.1.1...@metamask/multichain-transactions-controller@7.1.2
 [7.1.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@7.1.0...@metamask/multichain-transactions-controller@7.1.1

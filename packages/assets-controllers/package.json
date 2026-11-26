@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controllers",
-  "version": "113.3.3",
+  "version": "113.3.4",
   "description": "Controllers which manage interactions involving ERC-20, ERC-721, and ERC-1155 tokens (including NFTs)",
   "keywords": [
     "Ethereum",
@@ -65,7 +65,7 @@
     "@metamask/base-controller": "^10.1.0",
     "@metamask/contract-metadata": "^2.5.0",
     "@metamask/controller-utils": "^13.0.0",
-    "@metamask/core-backend": "^14.1.0",
+    "@metamask/core-backend": "^15.0.0",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/keyring-api": "^24.3.0",
     "@metamask/keyring-controller": "^28.2.2",
@@ -85,7 +85,7 @@
     "@metamask/snaps-sdk": "^11.2.0",
     "@metamask/snaps-utils": "^12.1.2",
     "@metamask/storage-service": "^2.0.0",
-    "@metamask/transaction-controller": "^74.4.1",
+    "@metamask/transaction-controller": "^74.5.0",
     "@metamask/utils": "^12.0.2",
     "@tanstack/query-core": "^5.107.1",
     "@types/bn.js": "^5.2.0",
