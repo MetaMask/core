@@ -263,8 +263,12 @@ describe('TokenApiClient', () => {
         serviceProfile: 'assets--trending-search',
       });
 
-      const calledHeaders = mockFetch.mock.calls[0]?.[1]
-        ?.headers as Record<string, string>;
+      const calledOptions = mockFetch.mock.calls[0]?.[1] as
+        | RequestInit
+        | undefined;
+      const calledHeaders = calledOptions?.headers as
+        | Record<string, string>
+        | undefined;
       expect(calledHeaders?.['x-mm-service-profile']).toBe(
         'assets--trending-search',
       );
@@ -286,8 +290,12 @@ describe('TokenApiClient', () => {
         query: 'usdc',
       });
 
-      const calledHeaders = mockFetch.mock.calls[0]?.[1]
-        ?.headers as Record<string, string>;
+      const calledOptions = mockFetch.mock.calls[0]?.[1] as
+        | RequestInit
+        | undefined;
+      const calledHeaders = calledOptions?.headers as
+        | Record<string, string>
+        | undefined;
       expect(calledHeaders?.['x-mm-service-profile']).toBeUndefined();
     });
 
