@@ -22,7 +22,12 @@ import type {
 
 const log = createModuleLogger(projectLogger, 'server-strategy');
 
-/** Lighter API that lists the accounts owned by an L1 address. */
+/**
+ * Lighter API that lists the accounts owned by an L1 address.
+ *
+ * TEMPORARY: called directly until a perps-controller method resolves the
+ * Lighter account index. Remove it with `getLighterAccountIndex`.
+ */
 const LIGHTER_ACCOUNTS_BY_L1_ADDRESS_URL =
   'https://mainnet.zklighter.elliot.ai/api/v1/accountsByL1Address';
 
@@ -104,8 +109,12 @@ export class LighterNormalizer {
  *
  * The intents API needs it as the recipient of a Lighter deposit.
  *
- * Temporary: replace with the perps utility for resolving the Lighter account
- * index once it is available.
+ * TEMPORARY: this calls the Lighter API directly. Replace it with a
+ * perps-controller method that returns the Lighter account index, and remove
+ * this function and `LIGHTER_ACCOUNTS_BY_L1_ADDRESS_URL`. Note that this picks
+ * the account with `account_type` 0, while the Perps provider picks the lowest
+ * index and checks it is a standard account owned by the wallet. The quote
+ * sender must match the account `submitTransfer` signs for.
  *
  * @param l1Address - EVM address that owns the Lighter account.
  * @returns The account index, as a string.
