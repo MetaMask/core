@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat(assets-controller): add real time market stats ([#11193](https://github.com/MetaMask/core/pull/11193))
+
 ## [3.24.0]
 
 ### Added
