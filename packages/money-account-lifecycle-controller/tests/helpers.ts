@@ -28,6 +28,7 @@ import type {
   PrepareSubscriptionDelegationRequest,
   PricingResponse,
   Subscription,
+  SubscriptionControllerState,
   UpdatePaymentMethodCardResponse,
   UpdatePaymentMethodOpts,
 } from '@metamask/subscription-controller';
@@ -254,6 +255,7 @@ type Mocks = {
     (predecessorAddress: Hex, successorAddress: Hex) => Promise<void>
   >;
   getSubscriptions: Mock<() => Promise<Subscription[]>>;
+  getSubscriptionControllerState: Mock<() => SubscriptionControllerState>;
   getPricing: Mock<() => Promise<PricingResponse>>;
   prepareDelegation: Mock<
     (
@@ -378,6 +380,7 @@ function getMessenger(
       'MoneyAccountUpgradeController:registerMigrationIntents',
       'RemoteFeatureFlagController:getState',
       'SubscriptionController:getPricing',
+      'SubscriptionController:getState',
       'SubscriptionController:getSubscriptions',
       'SubscriptionController:updatePaymentMethod',
       'SubscriptionDelegationService:prepareDelegation',
@@ -479,6 +482,9 @@ export async function withController<ReturnValue>(
     getSubscriptions: vi
       .fn<() => Promise<Subscription[]>>()
       .mockResolvedValue([]),
+    getSubscriptionControllerState: vi
+      .fn<() => SubscriptionControllerState>()
+      .mockReturnValue({ subscriptions: [], trialedProducts: [] }),
     getPricing: vi
       .fn<() => Promise<PricingResponse>>()
       .mockResolvedValue(MONEY_ACCOUNT_PLUS_PRICING),
@@ -557,6 +563,10 @@ export async function withController<ReturnValue>(
   rootMessenger.registerActionHandler(
     'SubscriptionController:getSubscriptions',
     mocks.getSubscriptions,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionController:getState',
+    mocks.getSubscriptionControllerState,
   );
   rootMessenger.registerActionHandler(
     'SubscriptionController:getPricing',

@@ -109,16 +109,12 @@ export type MoneyAccountLifecycleControllerUpgradeMoneyAccountAction = {
  * registers the intents the Money Account signs for the migration. Both
  * only do the work CHOMP reports missing.
  *
- * Before registering those intents, an active Money Account Plus
- * subscription paid by the Money Account is moved to the MFA address,
- * because CHOMP only accepts the intents of a premium migration once the
- * successor holds the premium eligibility. The MFA address signs a new
- * subscription delegation, which also registers its subscription intent,
- * and becomes the payer of the subscription. If CHOMP still reports the
- * subscription intent of the MFA address missing once the MFA address pays,
- * its subscription delegation is prepared again to register the intent,
- * and if no active Money Account Plus subscription is paid by either
- * address, the migration cannot complete, so this throws.
+ * Before registering those intents, the built-in `money-account-plus-payer`
+ * binding migrator moves an active Money Account Plus subscription paid by
+ * the Money Account to the MFA address, in the `afterLink` phase, because
+ * CHOMP only accepts the intents of a premium migration once the successor
+ * holds the premium eligibility. If no such subscription is paid by either
+ * address for a premium migration, that migrator is blocked.
  *
  * Finally, asks CHOMP to start moving the funds of the Money Account to the
  * MFA address. From then on, the migration can no longer be cancelled.
@@ -150,9 +146,8 @@ export type MoneyAccountLifecycleControllerUpgradeMoneyAccountAction = {
  * @returns A promise that resolves once the migration run, started by this
  * call or joined by it, completes.
  * @throws If a Money Account upgrade is in flight, the checks fail, the
- * wallet stops being ready part way, or linking the successor, moving the
- * subscription, registering the intents or starting the funds transfer
- * fails. A `BindingMigrationIncompleteError` once every binding migrator of
+ * wallet stops being ready part way, or linking the successor,
+ * registering the intents or starting the funds transfer fails. A `BindingMigrationIncompleteError` once every binding migrator of
  * a phase has run, if any of them is pending or blocked.
  */
 export type MoneyAccountLifecycleControllerStartMigrationAction = {

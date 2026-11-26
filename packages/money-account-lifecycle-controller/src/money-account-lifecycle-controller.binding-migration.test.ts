@@ -52,6 +52,14 @@ const MIGRATION_CONTEXT = {
   currentAddress: '0x00000000000000000000000000000000000000bb',
 };
 
+const PAYER_MIGRATOR_STATE = {
+  phase: 'afterLink',
+  status: 'not_required',
+  details: null,
+  lastResult: null,
+  lastError: null,
+};
+
 function getMigrators(
   controller: MoneyAccountLifecycleController,
 ): BindingMigrationsState['migrators'] {
@@ -82,6 +90,7 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
         expect(controller.state.bindingMigrations).toStrictEqual({
           ...MIGRATION_CONTEXT,
           migrators: {
+            'money-account-plus-payer': PAYER_MIGRATOR_STATE,
             vba: {
               phase: 'afterLink',
               status: 'pending',
@@ -208,7 +217,7 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
       );
     });
 
-    it('records no binding migrations while no migrator is registered', async () => {
+    it('records the built-in Money Account Plus payer migrator without any other migrator registered', async () => {
       await withController(async ({ controller, mocks, init }) => {
         mocks.getDerivedIdentities.mockResolvedValue({
           identities: [MIGRATING_IDENTITY],
@@ -216,7 +225,9 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
 
         await init();
 
-        expect(controller.state.bindingMigrations).toBeNull();
+        expect(getMigrators(controller)).toStrictEqual({
+          'money-account-plus-payer': PAYER_MIGRATOR_STATE,
+        });
       });
     });
 
@@ -320,6 +331,7 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
         );
 
         expect(Object.keys(getMigrators(controller))).toStrictEqual([
+          'money-account-plus-payer',
           'second',
           'first',
         ]);
@@ -368,6 +380,7 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
         controller.registerBindingMigrator(migrator);
 
         expect(getMigrators(controller)).toStrictEqual({
+          'money-account-plus-payer': PAYER_MIGRATOR_STATE,
           vba: {
             phase: 'afterLink',
             status: 'unknown',
@@ -481,7 +494,7 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
   });
 
   describe('startMigration', () => {
-    it('runs the afterLink migrators once the successor is linked, before moving the subscription', async () => {
+    it('runs the afterLink migrators once the successor is linked, before registering the migration intents', async () => {
       await withController(async ({ controller, mocks }) => {
         const migrator = buildBindingMigrator({ phase: 'afterLink' });
         controller.registerBindingMigrator(migrator);
@@ -498,7 +511,7 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
           mocks.upgradeSuccessorAccount.mock.invocationCallOrder[0],
         );
         expect(reconcileOrder).toBeLessThan(
-          mocks.getSubscriptions.mock.invocationCallOrder[0],
+          mocks.registerMigrationIntents.mock.invocationCallOrder[0],
         );
       });
     });
@@ -590,6 +603,10 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
         expect(controller.state.bindingMigrations).toStrictEqual({
           ...SUCCESSOR_CONTEXT,
           migrators: {
+            'money-account-plus-payer': {
+              ...PAYER_MIGRATOR_STATE,
+              lastResult: { status: 'not_required' },
+            },
             vba: {
               phase: 'afterLink',
               status: 'completed',
@@ -654,7 +671,6 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
           ]),
         );
         expect(completed.reconcile).toHaveBeenCalledTimes(1);
-        expect(mocks.getSubscriptions).not.toHaveBeenCalled();
         expect(mocks.registerMigrationIntents).not.toHaveBeenCalled();
         expect(getLifecycle(controller)?.type).toBe('migrating');
         expect(getMigrators(controller).blocked?.lastResult).toStrictEqual({
@@ -764,7 +780,7 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
           'Money Account migration is not available',
         );
         expect(second.reconcile).not.toHaveBeenCalled();
-        expect(controller.state.bindingMigrations).toBeNull();
+        expect(getMigrators(controller).first?.lastResult).toBeNull();
       });
     });
 

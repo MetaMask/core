@@ -16,6 +16,12 @@ Turning on MFA moves the Money Account from the SFA (SRP-derived) address to a n
 
 Other integrations are bound to the Money Account address, and that binding is not changed by CHOMP: for example, the VBA deposit destination address, the card allowance, and the rewards destination address. Each integration registers a binding migrator with `MoneyAccountLifecycleController` at runtime, so the controller does not know about each binding. The controller provides the migration context and the phase ordering; each migrator owns its own logic, persists its own state, and guarantees idempotency.
 
+### The Money Account Plus payer migrator
+
+The controller registers one migrator itself, `money-account-plus-payer`, in the `afterLink` phase. It moves an active Money Account Plus subscription paid in crypto by the Money Account to the MPC Money Account: the MPC Money Account signs a new subscription delegation, which also registers its subscription intent with CHOMP, and becomes the payer. CHOMP only accepts the intents of a premium migration once the MPC Money Account holds the premium eligibility, so a premium migration without such a subscription paid by either account is `blocked`.
+
+Its `getStatus` reads `SubscriptionController`'s state and the identity the controller has recorded. `SubscriptionController:updatePaymentMethod` takes no idempotency key, so instead of one, `reconcile` reads the payer fresh first and only moves a subscription the Money Account still pays.
+
 ### Registering a migrator
 
 ```ts
