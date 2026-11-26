@@ -117,6 +117,35 @@ describe('moneyAccountLifecycleControllerSelectors', () => {
       },
     );
 
+    it.each<[string, BindingMigratorStatus['status']]>([
+      ['a later phase', 'unknown'],
+      ['the same phase', 'pending'],
+    ])(
+      'is false when a blocked migrator holds back an unfinished migrator in %s, as startMigration stops at the blocked phase',
+      (_description, status) => {
+        expect(
+          selectHasUnfinishedBindingMigrations(
+            buildState(MIGRATING, [
+              ['afterLink', 'blocked'],
+              ['afterLink', status],
+              ['afterDone', status],
+            ]),
+          ),
+        ).toBe(false);
+      },
+    );
+
+    it('is true when an unfinished migrator comes before a blocked phase', () => {
+      expect(
+        selectHasUnfinishedBindingMigrations(
+          buildState(MIGRATING, [
+            ['beforeFundsTransfer', 'blocked'],
+            ['afterLink', 'unknown'],
+          ]),
+        ),
+      ).toBe(true);
+    });
+
     it.each([
       ['the funds transfer has started', TRANSFERRING],
       ['the money account has migrated', MIGRATED],

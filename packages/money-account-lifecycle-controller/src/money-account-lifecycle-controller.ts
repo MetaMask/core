@@ -740,8 +740,12 @@ export class MoneyAccountLifecycleController extends BaseController<
       ?.address.toLowerCase();
     if (lifecycle.type === 'migrating') {
       const { migration } = lifecycle.identity;
+      const migratingCount =
+        this.#derivedIdentities?.filter(isMigrating).length ?? 0;
       if (
         !migration ||
+        migratingCount > 1 ||
+        migration.from.toLowerCase() !== moneyAccountAddress.toLowerCase() ||
         (mpcAddress !== undefined && mpcAddress !== migration.to.toLowerCase())
       ) {
         return undefined;

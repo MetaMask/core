@@ -151,6 +151,45 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
       },
     );
 
+    it.each<[string, DerivedIdentity[]]>([
+      [
+        'while another identity is also migrating',
+        [
+          MIGRATING_IDENTITY,
+          {
+            ...MIGRATING_IDENTITY,
+            currentAddress: '0x00000000000000000000000000000000000000ee',
+          },
+        ],
+      ],
+      [
+        'whose migration starts from another address',
+        [
+          {
+            ...MIGRATING_IDENTITY,
+            migration: {
+              ...MIGRATING_IDENTITY.migration,
+              from: '0x00000000000000000000000000000000000000ee',
+            },
+          },
+        ],
+      ],
+    ])(
+      'records nothing for a migrating money account %s, as startMigration cannot resume it',
+      async (_description, identities) => {
+        await withController(async ({ controller, mocks, init }) => {
+          mocks.getDerivedIdentities.mockResolvedValue({ identities });
+          await init();
+          const migrator = buildBindingMigrator();
+
+          controller.registerBindingMigrator(migrator);
+
+          expect(migrator.getStatus).not.toHaveBeenCalled();
+          expect(controller.state.bindingMigrations).toBeNull();
+        });
+      },
+    );
+
     it('records the binding migrations of a migrating money account whose MPC Money Account is missing, as resuming restores it', async () => {
       await withController(
         { mpcAccountAddress: undefined },
@@ -223,6 +262,30 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
 
           expect(migrator.getStatus).not.toHaveBeenCalled();
           expect(controller.state.bindingMigrations).toBeNull();
+        },
+      );
+    });
+
+    it('records the binding migrations of a recorded migrating lifecycle before identities are fetched', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              moneyAccounts: {
+                [MONEY_ACCOUNT_KEY]: {
+                  type: 'migrating',
+                  identity: MIGRATING_IDENTITY,
+                },
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          controller.registerBindingMigrator(
+            buildBindingMigrator({ id: 'vba' }),
+          );
+
+          expect(getMigrators(controller)).toHaveProperty('vba');
         },
       );
     });

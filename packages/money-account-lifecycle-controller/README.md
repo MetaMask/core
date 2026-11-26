@@ -93,7 +93,7 @@ Every migrator must follow these rules:
 
 While the Money Account is migrating or migrated, and this wallet can drive that migration, `bindingMigrations` in the controller state records the migration's `migrationId`, `previousAddress` and `currentAddress`, and for each migrator its `phase`, `status`, `details`, `lastResult` and `lastError`. It is `null` otherwise, including when no migrator is registered. It is not persisted: it is refreshed from `getStatus` when a migrator registers, after each identity fetch and after each run, and cleared on lock and by `clearState`.
 
-The controller does not run migrators by itself. Clients call `startMigration` again when `moneyAccountLifecycleControllerSelectors.selectHasUnfinishedBindingMigrations` is true: a migrator that `startMigration` can still run is `pending` or `unknown`. Blocked migrators need investigation rather than another run; `selectBlockedBindingMigrations` lists their ids. A call made while a migration is in flight joins it and gets its outcome.
+The controller does not run migrators by itself. Clients call `startMigration` again when `moneyAccountLifecycleControllerSelectors.selectHasUnfinishedBindingMigrations` is true: a migrator that `startMigration` can still run is `pending` or `unknown`. Blocked migrators need investigation rather than another run, and as `startMigration` stops at a blocked migrator's phase, the selector also ignores migrators from that phase onwards; `selectBlockedBindingMigrations` lists their ids. A call made while a migration is in flight joins it and gets its outcome.
 
 ## Contributing
 
