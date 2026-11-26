@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.1.0]
+
 ### Changed
 
 - `Wallet.init()` now checks once for a stuck Money Account Plus charge, through `SubscriptionDelegationService.init` ([#11612](https://github.com/MetaMask/core/pull/11612))
@@ -517,7 +519,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@22.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@22.1.0...HEAD
+[22.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@22.0.0...@metamask/wallet@22.1.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.5...@metamask/wallet@22.0.0
 [21.0.5]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.4...@metamask/wallet@21.0.5
 [21.0.4]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.3...@metamask/wallet@21.0.4
