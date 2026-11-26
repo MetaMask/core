@@ -1280,5 +1280,60 @@ describe('shared streams over the HyperLiquid subscription service', () => {
       expect(open('userTwapHistory')).toStrictEqual([]);
       expect(open('userTwapSliceFills')).toStrictEqual([]);
     });
+
+    it('drops the slice fills of a schedule it no longer keeps', async () => {
+      // One more ended schedule than are kept; '1' is the oldest.
+      const ended = Array.from({ length: 101 }, (_, index) => ({
+        ...schedule(),
+        orderId: String(index + 1),
+        status: 'finished' as const,
+        startedAt: index + 1,
+        lastUpdated: index + 1,
+      }));
+      let history: TwapOrder[] = ended;
+      const callback = vi.fn<(orders: TwapOrder[]) => void>();
+      service.subscribeToTwapOrders({
+        callback,
+        adapt: {
+          history: () => history,
+          sliceFills: () => [
+            {
+              orderId: '1',
+              fill: {
+                fillId: '1',
+                orderId: '1',
+                side: 'buy',
+                price: '100',
+                size: '0.1',
+                fee: '0',
+                feeToken: 'USDC',
+                timestamp: 1,
+                transactionHash: '0x0',
+              },
+            },
+          ],
+        },
+      });
+      await settle();
+      deliver(main, 'userTwapSliceFills', {
+        user: WALLET_A,
+        isSnapshot: true,
+        twapSliceFills: [{}],
+      });
+      deliver(main, 'userTwapHistory', {
+        user: WALLET_A,
+        isSnapshot: true,
+        history: [{}],
+      });
+      expect(callback.mock.lastCall?.[0]).toHaveLength(100);
+
+      // Listed again, it carries none of the fills held before its eviction.
+      history = [{ ...ended[0], status: 'active', lastUpdated: 200 }];
+      deliver(main, 'userTwapHistory', { user: WALLET_A, history: [{}] });
+
+      expect(
+        callback.mock.lastCall?.[0].find(({ orderId }) => orderId === '1'),
+      ).toMatchObject({ executedSize: '0', fills: [] });
+    });
   });
 });
