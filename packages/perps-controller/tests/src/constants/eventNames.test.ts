@@ -422,6 +422,15 @@ describe('PERPS_EVENT_VALUE.INTERACTION_TYPE extensions', () => {
       'market_list_filter',
     );
   });
+
+  it('exports the Lite Trade on interaction types', () => {
+    expect(PERPS_EVENT_VALUE.INTERACTION_TYPE.TRADE_ON_SHEET_OPENED).toBe(
+      'trade_on_sheet_opened',
+    );
+    expect(PERPS_EVENT_VALUE.INTERACTION_TYPE.TRADE_ON_VENUE_CHANGED).toBe(
+      'trade_on_venue_changed',
+    );
+  });
 });
 
 describe('Scale analytics constants', () => {
