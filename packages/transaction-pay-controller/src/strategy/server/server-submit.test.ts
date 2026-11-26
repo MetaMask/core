@@ -1825,6 +1825,22 @@ describe('submitServerQuotes', () => {
       });
     });
 
+    it('polls the status without a source hash', async () => {
+      getTransactionMock.mockReturnValue({
+        ...TRANSACTION_META_MOCK,
+        metamaskPay: { sourceHash: 'a'.repeat(80) as Hex },
+      });
+
+      await submitServerQuotes(buildLighterRequest());
+
+      expect(getServerStatusMock).toHaveBeenCalledWith(messenger, {
+        hash: undefined,
+        id: ORIGINAL_QUOTE_MOCK.id,
+        logs: undefined,
+        provider: 'relay',
+      });
+    });
+
     it('throws with the Lighter error and does not poll status when the transfer fails', async () => {
       mockTransferResult({ success: false, error: 'nonce too low' });
 

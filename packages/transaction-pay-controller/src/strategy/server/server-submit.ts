@@ -1388,7 +1388,12 @@ async function waitForServerCompletion(
 
     try {
       const tx = getTransaction(transactionId, messenger);
-      const hash = tx?.metamaskPay?.sourceHash ?? tx?.hash;
+      // A Lighter withdrawal has no on-chain source transaction. The hash the
+      // status endpoint reports for it is the Lighter transfer hash, which the
+      // endpoint rejects as a `hash` input, so the quote ID alone tracks it.
+      const hash = quote.steps.some(isLighterTransferStep)
+        ? undefined
+        : (tx?.metamaskPay?.sourceHash ?? tx?.hash);
 
       sourceLogs ??= await getSourceLogs(hash, messenger);
 
