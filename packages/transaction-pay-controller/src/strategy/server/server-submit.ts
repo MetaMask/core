@@ -321,10 +321,6 @@ async function executeSingleServerQuote(
 
   log('Server request completed', completion);
 
-  if (completion.status === ServerStatus.Confirmed) {
-    clearSubmittedLighterTransfers(quote.original.id);
-  }
-
   // A deposit wallet sweeps leftover USDC.e back into pUSD whatever the
   // outcome, so a refund is restored before the failure is reported.
   if (preSubmitUsdceBalance !== undefined) {
@@ -360,6 +356,10 @@ async function executeSingleServerQuote(
       tx.isIntentComplete = true;
     },
   );
+
+  // Keep the record until every leg has landed, so a retry after a later
+  // failure does not send the Lighter transfer again.
+  clearSubmittedLighterTransfers(quote.original.id);
 
   return { transactionHash: secondLegHash ?? targetHash };
 }

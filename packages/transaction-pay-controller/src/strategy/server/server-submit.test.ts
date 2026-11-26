@@ -1900,6 +1900,26 @@ describe('submitServerQuotes', () => {
       );
     });
 
+    it('does not send the transfer again when the quote is retried after a failed second leg', async () => {
+      const lighterRequest = buildLighterRequest();
+      lighterRequest.quotes[0].original.id = 'second-leg-lighter-quote';
+      lighterRequest.quotes[0].requiresSecondLeg = true;
+      vi.mocked(submitSecondLeg).mockRejectedValue(
+        new Error('Second leg failed'),
+      );
+
+      await expect(submitServerQuotes(lighterRequest)).rejects.toThrow(
+        'Second leg failed',
+      );
+
+      vi.mocked(submitSecondLeg).mockResolvedValue({
+        transactionHash: undefined,
+      });
+      await submitServerQuotes(lighterRequest);
+
+      expect(lighterSubmitTransferMock).toHaveBeenCalledTimes(1);
+    });
+
     it('does not submit on-chain transactions for a Lighter-only quote', async () => {
       await submitServerQuotes(buildLighterRequest());
 
