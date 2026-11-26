@@ -4,6 +4,8 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 
+import type { QuoteRequest } from '../types.js';
+
 /**
  * Transaction types whose quote must be priced as an exact output.
  *
@@ -73,4 +75,23 @@ export function getQuotePricing({
   return requiresExactOutput
     ? { amount: targetAmountMinimum, tradeType: TradeType.ExactOutput }
     : { amount: sourceTokenAmount, tradeType: TradeType.ExactInput };
+}
+
+/**
+ * Whether every true exact output request can be quoted as one.
+ *
+ * A maximum amount fixes the input, so it cannot also fix the output. A
+ * non-atomic request delivers the funds to the execution account and relies
+ * on a second leg to run the transaction, which a plain transfer does not
+ * have, so the recipient would not be paid.
+ *
+ * @param requests - Quote requests for the transaction.
+ * @returns Whether the requests can be quoted.
+ */
+export function isTrueExactOutputSupported(requests: QuoteRequest[]): boolean {
+  return !requests.some(
+    (request) =>
+      request.isTrueExactOutput &&
+      (request.isMaxAmount === true || request.atomic === false),
+  );
 }

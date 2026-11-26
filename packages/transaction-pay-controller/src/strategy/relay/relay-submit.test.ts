@@ -891,6 +891,87 @@ describe('Relay Submit Utils', () => {
       );
     });
 
+    describe('true exact output', () => {
+      beforeEach(() => {
+        request.quotes[0].request.isTrueExactOutput = true;
+        request.quotes[0].request.targetChainId = CHAIN_ID_MOCK;
+      });
+
+      it('returns the fill hash for a cross-chain quote', async () => {
+        request.quotes[0].request.targetChainId = '0x2';
+
+        const result = await submitRelayQuotes(request);
+
+        expect(result.transactionHash).toBe(TRANSACTION_HASH_MOCK);
+      });
+
+      it('returns the submitted source hash for a same-chain quote without polling', async () => {
+        request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+
+        const result = await submitRelayQuotes(request);
+
+        expect(result.transactionHash).toBe(TRANSACTION_HASH_MOCK);
+        expect(successfulFetchMock).not.toHaveBeenCalled();
+      });
+
+      it('polls a same-chain execute submission and returns the origin hash', async () => {
+        request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+        request.quotes[0].original.metamask.isExecute = true;
+        submitViaRelayExecuteMock.mockResolvedValue(FALLBACK_HASH);
+
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            ...STATUS_RESPONSE_MOCK,
+            txHashes: [],
+          }),
+        });
+
+        const result = await submitRelayQuotes(request);
+
+        expect(successfulFetchMock).toHaveBeenCalledWith(
+          `${RELAY_STATUS_URL}?requestId=${REQUEST_ID_MOCK}`,
+          { method: 'GET' },
+        );
+        expect(result.transactionHash).toBe(SOURCE_HASH_MOCK);
+      });
+
+      it('throws when a same-chain execute submission reports no hash', async () => {
+        request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+        request.quotes[0].original.metamask.isExecute = true;
+        submitViaRelayExecuteMock.mockResolvedValue(FALLBACK_HASH);
+
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            ...STATUS_RESPONSE_MOCK,
+            inTxHashes: [],
+            txHashes: [],
+          }),
+        });
+
+        await expect(submitRelayQuotes(request)).rejects.toThrow(
+          'Missing target hash for true exact output',
+        );
+      });
+
+      it('throws when a cross-chain quote reports no fill hash', async () => {
+        request.quotes[0].request.targetChainId = '0x2';
+
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            ...STATUS_RESPONSE_MOCK,
+            txHashes: [],
+          }),
+        });
+
+        await expect(submitRelayQuotes(request)).rejects.toThrow(
+          'Missing target hash for true exact output',
+        );
+      });
+    });
+
     it('rethrows confirmation failures bare (the Relay submit prefix is applied at RelayStrategy.execute)', async () => {
       waitForTransactionConfirmedMock.mockRejectedValue(
         new Error('Transaction failed'),

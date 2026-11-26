@@ -150,10 +150,11 @@ export type TransactionConfig = {
    * Whether the recipient must receive exactly the required amount, with any
    * swap surplus kept by the provider rather than sent to the recipient.
    * Distinct from an `EXACT_OUTPUT` trade type, which only guarantees a
-   * minimum. Quotes are priced as an exact output and only fetched
-   * through the server strategy, ignoring the strategy order and the server
-   * transaction type allowlist. Submission fails if the settlement hash is
-   * unknown. Ignored for post-quote transactions.
+   * minimum. Quotes are priced as an exact output, and only the server and
+   * relay strategies support it; the server strategy skips its transaction
+   * type allowlist for it. Not supported with `isMaxAmount` or
+   * `atomic: false`. Submission fails if the settlement hash is unknown.
+   * Ignored for post-quote transactions.
    */
   isTrueExactOutput?: boolean;
 

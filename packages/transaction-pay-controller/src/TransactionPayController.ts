@@ -470,12 +470,6 @@ export class TransactionPayController extends BaseController<
   ): TransactionPayStrategy[] {
     const transactionData = this.state.transactionData[transaction.id];
 
-    // Only the server strategy can deliver a true exact output, so it overrides
-    // client callbacks and the remote strategy order rather than falling back.
-    if (transactionData?.isTrueExactOutput && !transactionData.isPostQuote) {
-      return [TransactionPayStrategy.Server];
-    }
-
     const strategyCandidates: unknown[] =
       this.#getStrategies?.(transaction) ??
       (this.#getStrategy ? [this.#getStrategy(transaction)] : []);

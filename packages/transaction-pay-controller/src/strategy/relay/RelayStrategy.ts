@@ -8,14 +8,14 @@ import type {
 import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
 import { getMaxAmountRefreshInterval } from '../../utils/max-quote.js';
 import { isEvmQuoteRequest } from '../../utils/token.js';
+import { isTrueExactOutputSupported } from '../../utils/trade-type.js';
 import { getRelayQuotes } from './relay-quotes.js';
 import { submitRelayQuotes } from './relay-submit.js';
 import type { RelayQuote } from './types.js';
 
 /**
  * Pay strategy that quotes and submits through Relay. Only supports requests
- * with an EVM source asset. True exact output requests are only quoted by the
- * server strategy.
+ * with an EVM source asset.
  */
 export class RelayStrategy implements PayStrategy<RelayQuote> {
   supports(request: PayStrategyGetQuotesRequest): boolean {
@@ -24,7 +24,7 @@ export class RelayStrategy implements PayStrategy<RelayQuote> {
     return (
       config.relay.enabled &&
       request.requests.every(isEvmQuoteRequest) &&
-      !request.requests.some((singleRequest) => singleRequest.isTrueExactOutput)
+      isTrueExactOutputSupported(request.requests)
     );
   }
 

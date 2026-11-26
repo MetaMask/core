@@ -14,6 +14,14 @@ export type RelayQuoteRequest = {
   }[];
   destinationChainId: number;
   destinationCurrency: Hex;
+
+  /**
+   * Whether the recipient must receive exactly `amount`, with any swap surplus
+   * sent to the solver rather than the recipient. Requires an exact output
+   * trade type.
+   */
+  enableTrueExactOutput?: boolean;
+
   originChainId: number;
   originCurrency: Hex;
   originGasOverhead?: string;

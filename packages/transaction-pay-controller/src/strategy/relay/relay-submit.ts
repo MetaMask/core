@@ -192,11 +192,16 @@ async function executeSingleQuote(
     );
   }
 
+  const isTrueExactOutput = Boolean(quote.request.isTrueExactOutput);
+
   const completion = await waitForRelayCompletion(mutableOriginal, messenger, {
     onSourceHash: (hash) => {
       log('Source hash received', hash);
       setRelaySourceHash(transaction, messenger, hash);
     },
+    // Execute submissions return no hash, so a true exact output must poll
+    // for it even on same-chain routes.
+    pollSameChain: isTrueExactOutput && submittedSourceHash === FALLBACK_HASH,
     tolerateFailure: isPolymarket,
   });
 
@@ -231,6 +236,15 @@ async function executeSingleQuote(
         })
       : {};
 
+  // True exact output recipients reconcile the settlement by its hash.
+  const trueExactOutputHash = isTrueExactOutput
+    ? getSettlementHash({ completion, quote, submittedSourceHash })
+    : undefined;
+
+  if (isTrueExactOutput && !trueExactOutputHash) {
+    throw new Error('Missing target hash for true exact output');
+  }
+
   // Only complete once every leg has landed, so a failed second leg does not
   // leave the parent transaction flagged as achieved.
   updateTransaction(
@@ -244,7 +258,10 @@ async function executeSingleQuote(
     },
   );
 
-  return { transactionHash: secondLegHash ?? completion.targetHash };
+  return {
+    transactionHash:
+      secondLegHash ?? trueExactOutputHash ?? completion.targetHash,
+  };
 }
 
 /**
@@ -408,10 +425,11 @@ async function waitForRelayCompletion(
   messenger: TransactionPayControllerMessenger,
   options: {
     onSourceHash?: (hash: Hex) => void;
+    pollSameChain?: boolean;
     tolerateFailure?: boolean;
   },
 ): Promise<RelayCompletionOutcome> {
-  const { onSourceHash, tolerateFailure } = options;
+  const { onSourceHash, pollSameChain, tolerateFailure } = options;
 
   const isSameChain =
     quote.details.currencyIn.currency.chainId ===
@@ -420,7 +438,7 @@ async function waitForRelayCompletion(
   const isSingleDepositStep =
     quote.steps.length === 1 && quote.steps[0].id === 'deposit';
 
-  if (isSameChain && !isSingleDepositStep) {
+  if (isSameChain && !isSingleDepositStep && !pollSameChain) {
     log('Skipping polling as same chain');
     return { status: 'success', targetHash: FALLBACK_HASH };
   }
@@ -456,8 +474,16 @@ async function waitForRelayCompletion(
       }
 
       if (status.status === 'success') {
+        // A same-chain request polled for its hash settles in the origin
+        // transaction, so Relay reports no separate fill transaction.
+        const settledInOrigin = pollSameChain && isSameChain;
+
         const targetHash =
-          (status.txHashes?.slice(-1)[0] as Hex | undefined) ?? FALLBACK_HASH;
+          (status.txHashes?.slice(-1)[0] as Hex | undefined) ??
+          (settledInOrigin
+            ? (status.inTxHashes?.[0] as Hex | undefined)
+            : undefined) ??
+          FALLBACK_HASH;
         return { status: 'success', targetHash };
       }
 

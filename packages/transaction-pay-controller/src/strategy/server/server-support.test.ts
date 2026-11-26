@@ -109,13 +109,19 @@ describe('server-support', () => {
       ).toBeUndefined();
     });
 
-    it('returns true exact output max amount when a true exact output request is a maximum amount', () => {
-      expect(
-        getReason({
-          requests: [{ ...TRUE_EXACT_OUTPUT_REQUEST_MOCK, isMaxAmount: true }],
-        }),
-      ).toBe(ServerUnsupportedReason.TrueExactOutputMaxAmount);
-    });
+    it.each([
+      ['the maximum amount', { isMaxAmount: true }],
+      ['a non-atomic execution', { atomic: false }],
+    ])(
+      'returns unsupported true exact output when a true exact output request uses %s',
+      (_title, overrides) => {
+        expect(
+          getReason({
+            requests: [{ ...TRUE_EXACT_OUTPUT_REQUEST_MOCK, ...overrides }],
+          }),
+        ).toBe(ServerUnsupportedReason.UnsupportedTrueExactOutput);
+      },
+    );
 
     it('checks the allowlist when no request requires a true exact output', () => {
       expect(

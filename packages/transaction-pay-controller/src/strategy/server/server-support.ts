@@ -5,6 +5,7 @@ import {
 } from '@metamask/transaction-controller';
 
 import type { QuoteRequest } from '../../types.js';
+import { isTrueExactOutputSupported } from '../../utils/trade-type.js';
 
 /**
  * Parent transaction types enabled for the server strategy by default.
@@ -22,8 +23,11 @@ export enum ServerUnsupportedReason {
   /** The parent transaction type is not in the remote-flag allowlist. */
   DisabledTransactionType = 'disabledTransactionType',
 
-  /** A true exact output was requested together with the maximum amount. */
-  TrueExactOutputMaxAmount = 'trueExactOutputMaxAmount',
+  /**
+   * A true exact output was requested together with the maximum amount or a
+   * non-atomic execution.
+   */
+  UnsupportedTrueExactOutput = 'unsupportedTrueExactOutput',
 }
 
 /**
@@ -34,10 +38,9 @@ export enum ServerUnsupportedReason {
  * types across its nested transactions, so the allowlist is matched against the
  * transaction and its nested transactions.
  *
- * True exact output requests are opted in per transaction by the client and are
- * only quoted by the server strategy, so they skip the allowlist. A maximum
- * amount spends the whole balance and cannot also fix the output amount, so
- * that combination is declined.
+ * True exact output requests are opted in per transaction by the client, so
+ * they skip the allowlist. They are declined with a maximum amount or a
+ * non-atomic execution, see {@link isTrueExactOutputSupported}.
  *
  * @param options - Options bag.
  * @param options.enabledTransactionTypes - Transaction types opted in via
@@ -56,15 +59,11 @@ export function getServerUnsupportedReason({
   requests?: QuoteRequest[];
   transaction?: TransactionMeta;
 }): ServerUnsupportedReason | undefined {
-  const trueExactOutputRequests = requests.filter(
-    (request) => request.isTrueExactOutput,
-  );
-
-  if (trueExactOutputRequests.some((request) => request.isMaxAmount)) {
-    return ServerUnsupportedReason.TrueExactOutputMaxAmount;
+  if (!isTrueExactOutputSupported(requests)) {
+    return ServerUnsupportedReason.UnsupportedTrueExactOutput;
   }
 
-  if (trueExactOutputRequests.length) {
+  if (requests.some((request) => request.isTrueExactOutput)) {
     return undefined;
   }
 
