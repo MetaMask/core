@@ -677,9 +677,6 @@
     "no-unused-vars": {
       "count": 1
     },
-    "no-useless-return": {
-      "count": 2
-    },
     "typescript/explicit-function-return-type": {
       "count": 3
     }
@@ -833,9 +830,6 @@
     "no-unmodified-loop-condition": {
       "count": 1
     },
-    "no-useless-return": {
-      "count": 1
-    },
     "typescript/no-unsafe-assignment": {
       "count": 2
     }
@@ -935,11 +929,6 @@
     },
     "typescript/no-unsafe-return": {
       "count": 6
-    }
-  },
-  "packages/assets-controllers/src/TokenBalancesController.test.ts": {
-    "no-useless-return": {
-      "count": 3
     }
   },
   "packages/assets-controllers/src/TokenBalancesController.ts": {
@@ -1113,9 +1102,6 @@
     "no-import-assign": {
       "count": 2
     },
-    "no-useless-return": {
-      "count": 1
-    },
     "typescript/no-unsafe-call": {
       "count": 13
     },
@@ -1181,9 +1167,6 @@
   "packages/assets-controllers/src/rpc-service/rpc-balance-fetcher.test.ts": {
     "id-length": {
       "count": 17
-    },
-    "no-useless-return": {
-      "count": 1
     }
   },
   "packages/assets-controllers/src/selectors/stringify-balance.ts": {

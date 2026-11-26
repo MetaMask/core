@@ -111,7 +111,7 @@ describe('AccountTrackerController', () => {
         try {
           return await operation();
         } catch {
-          return;
+          // Resolve to undefined on failure, like the real helper.
         }
       },
     );
@@ -1829,7 +1829,7 @@ describe('AccountTrackerController', () => {
               try {
                 return await operation();
               } catch {
-                return;
+                // Resolve to undefined on failure, like the real helper.
               }
             },
           );
