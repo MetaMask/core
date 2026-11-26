@@ -413,62 +413,70 @@ describe('StreamChannelManager', () => {
       expect(subscribeToConnectionState).toHaveBeenCalledTimes(2);
     });
 
-    it('keeps the watch a rebind installs while the outer one registers, and leaves none when the channels close', () => {
-      let registrations = 0;
-      let stops = 0;
-      let rebinder: StreamChannelManager | undefined;
-      const manager = new StreamChannelManager({
-        subscribeToConnectionState: (next): (() => void) => {
-          registrations += 1;
-          if (registrations === 1) {
-            // Delivery during registration moves the channel to a new
-            // provider, which watches the connection again.
-            next(WebSocketConnectionState.Connected);
-            rebinder?.rebind(
-              (key) => key.providerId === 'b',
-              (key) => ({ ...key, providerId: 'b' }),
-            );
-          }
-          return () => {
-            stops += 1;
-          };
-        },
+    /**
+     * A manager whose first connection watch rebinds its channels to provider
+     * `b` while it registers, then returns or throws; later watches register.
+     *
+     * @param first - What the first registration does after the rebind.
+     * @returns The manager and its watch counts.
+     */
+    const rebindingWatch = (
+      first: 'return' | 'throw',
+    ): {
+      manager: StreamChannelManager;
+      counts: { registrations: number; stops: number };
+    } => {
+      const counts = { registrations: 0, stops: 0 };
+      const holder: { manager?: StreamChannelManager } = {};
+      const watch = (): (() => void) => {
+        counts.registrations += 1;
+        return (): void => {
+          counts.stops += 1;
+        };
+      };
+      const subscribeToConnectionState = vi
+        .fn<
+          (listener: (state: WebSocketConnectionState) => void) => () => void
+        >()
+        .mockImplementationOnce((listener) => {
+          // Delivery during registration moves the channel to a new
+          // provider, which watches the connection again.
+          listener(WebSocketConnectionState.Connected);
+          holder.manager?.rebind(
+            (key) => key.providerId === 'b',
+            (key) => ({ ...key, providerId: 'b' }),
+          );
+          const stop = watch();
+          return first === 'return'
+            ? stop
+            : ((): never => {
+                throw new Error('registration failed');
+              })();
+        })
+        .mockImplementation(watch);
+      holder.manager = new StreamChannelManager({
+        subscribeToConnectionState,
+        onError: vi.fn(),
       });
-      rebinder = manager;
+      return { manager: holder.manager, counts };
+    };
+
+    it('keeps the watch a rebind installs while the outer one registers, and stops the outer one', () => {
+      const { manager, counts } = rebindingWatch('return');
 
       const leave = manager.subscribe(
         { stream: 'book', providerId: 'a' },
         createSource(),
         { callback: vi.fn() },
       );
-      expect(registrations).toBe(2);
-      expect(stops).toBe(1);
+      expect(counts).toStrictEqual({ registrations: 2, stops: 1 });
 
       leave();
-      expect(stops).toBe(2);
+      expect(counts).toStrictEqual({ registrations: 2, stops: 2 });
     });
 
     it('keeps the watch a rebind installs when the outer registration then throws', () => {
-      let registrations = 0;
-      let stops = 0;
-      let rebinder: StreamChannelManager | undefined;
-      const manager = new StreamChannelManager({
-        onError: vi.fn(),
-        subscribeToConnectionState: (): (() => void) => {
-          registrations += 1;
-          if (registrations === 1) {
-            rebinder?.rebind(
-              (key) => key.providerId === 'b',
-              (key) => ({ ...key, providerId: 'b' }),
-            );
-            throw new Error('registration failed');
-          }
-          return () => {
-            stops += 1;
-          };
-        },
-      });
-      rebinder = manager;
+      const { manager, counts } = rebindingWatch('throw');
 
       const leave = manager.subscribe(
         { stream: 'book', providerId: 'a' },
@@ -477,8 +485,8 @@ describe('StreamChannelManager', () => {
       );
       leave();
 
-      expect(registrations).toBe(2);
-      expect(stops).toBe(1);
+      // The outer one threw after counting itself, with nothing to stop.
+      expect(counts).toStrictEqual({ registrations: 2, stops: 1 });
     });
 
     it('moves with a rebind', () => {
