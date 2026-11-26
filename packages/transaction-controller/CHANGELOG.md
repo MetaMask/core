@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [74.5.1]
+
 ### Fixed
 
 - Fix type-4 gas estimation without the Simulation API on networks without EIP-2780, where removing or replacing an existing delegation was estimated below the intrinsic gas ([#11783](https://github.com/MetaMask/core/pull/11783))
@@ -2976,7 +2978,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.5.1...HEAD
+[74.5.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.5.0...@metamask/transaction-controller@74.5.1
 [74.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.4.1...@metamask/transaction-controller@74.5.0
 [74.4.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.4.0...@metamask/transaction-controller@74.4.1
 [74.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.3.0...@metamask/transaction-controller@74.4.0
