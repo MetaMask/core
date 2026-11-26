@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** `SubscriptionService` now requires `baseUrl` instead of `env` and no longer defaults to production. The `Env` and `SUBSCRIPTION_URL` exports have been removed. ([#11703](https://github.com/MetaMask/core/pull/11703))
   - Pass the API base URL without a trailing slash or `/v1`, for example `https://subscription.api.cx.metamask.io` for production.
-- Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.4.0` ([#11732](https://github.com/MetaMask/core/pull/11732))
+- Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.4.1` ([#11732](https://github.com/MetaMask/core/pull/11732), [#11761](https://github.com/MetaMask/core/pull/11761))
 
 ## [15.4.0]
 

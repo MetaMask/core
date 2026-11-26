@@ -266,32 +266,6 @@ export type ValidRestrictedMethod<
     : never
   : never;
 
-/**
- * {@link EndowmentGetter} parameter object.
- */
-export type EndowmentGetterParams = {
-  /**
-   * The origin of the requesting subject.
-   */
-  origin: string;
-
-  /**
-   * Any additional data associated with the request.
-   */
-  requestData?: unknown;
-
-  [key: string]: unknown;
-};
-
-/**
- * A synchronous or asynchronous function that gets the endowments for a
- * particular endowment permission. The getter receives the origin of the
- * requesting subject and, optionally, additional request metadata.
- */
-export type EndowmentGetter<Endowments extends Json> = (
-  options: EndowmentGetterParams,
-) => Endowments | Promise<Endowments>;
-
 export type PermissionFactory<
   TargetPermission extends PermissionConstraint,
   RequestData extends Record<string, unknown>,
@@ -458,12 +432,17 @@ export type RestrictedMethodSpecificationConstraint =
 export type EndowmentSpecificationConstraint =
   PermissionSpecificationBase<PermissionType.Endowment> & {
     /**
-     * The {@link EndowmentGetter} function for the permission. This function
-     * will be called by the {@link PermissionController} whenever the
-     * permission is invoked, after which the host can apply the endowments to
-     * the requesting subject in the intended manner.
+     * The names of the JavaScript globals (e.g., `fetch` or `WebAssembly`)
+     * that the host should expose to subjects holding this endowment. The
+     * host retrieves them via the {@link PermissionController}, after which it
+     * can apply them to the requesting subject in the intended manner.
      */
-    endowmentGetter: EndowmentGetter<Json>;
+    globals?: readonly string[];
+
+    /**
+     * A list of RPC method names this endowment gates access to.
+     */
+    rpcMethods?: readonly string[];
   };
 
 /**

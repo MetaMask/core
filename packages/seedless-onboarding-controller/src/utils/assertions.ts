@@ -37,6 +37,23 @@ export function assertIsValidPassword(
   }
 }
 
+const RECOVERY_SECRET_LENGTH = 32;
+
+/**
+ * @param recoverySecret - The Recovery Secret.
+ * @throws `InvalidRecoverySecret` unless it is a 32-byte `Uint8Array`.
+ */
+export function assertIsRecoverySecret(recoverySecret: unknown): void {
+  if (
+    !(recoverySecret instanceof Uint8Array) ||
+    recoverySecret.length !== RECOVERY_SECRET_LENGTH
+  ) {
+    throw new SeedlessOnboardingError(
+      SeedlessOnboardingControllerErrorMessage.InvalidRecoverySecret,
+    );
+  }
+}
+
 /**
  * Check if the provided value is a valid authenticated user.
  *

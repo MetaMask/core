@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+
+### Changed
+
+- **BREAKING:** Rename the `SET_OHLCV_DATA` payload flag `atomicIntervalWindow` to `boundedIntervalWindow` ([#11762](https://github.com/MetaMask/core/pull/11762))
+  - Hosts that set `atomicIntervalWindow` must send `boundedIntervalWindow` instead; the old name is no longer read
+
+### Removed
+
+- Remove the 5,000-bar cap on RN-backed backward pagination requests ([#11762](https://github.com/MetaMask/core/pull/11762))
+  - It did not stop the coarse→fine interval-switch pagination storm, which is now prevented upstream (see Fixed)
+
+### Fixed
+
+- Fix a backward pagination storm when switching from a coarse to a fine interval (e.g. 1D → 1m) with `boundedIntervalWindow` enabled ([#11762](https://github.com/MetaMask/core/pull/11762))
+  - The initial visible window is now applied once the chart is ready instead of being passed to the TradingView widget as its constructor `timeframe`, which TradingView kept and used to size later interval switches (e.g. ~46k one-minute bars for a one-month 1D window)
+  - Consumers that do not set `boundedIntervalWindow`, and Social Leaderboard, keep the constructor `timeframe`
+  - Interval switches no longer reset the time-scale right offset before `setResolution`, and the stale `setResolution` callback guard is restored
+
 ## [1.2.0]
 
 ### Added
@@ -47,7 +66,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release: platform-agnostic TradingView Advanced Charts WebView engine copied verbatim from `metamask-mobile`'s `AdvancedChart/webview/src` ([#9762](https://github.com/MetaMask/core/pull/9762), [#10521](https://github.com/MetaMask/core/pull/10521))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@1.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@1.2.0...@metamask/advanced-chart-core@2.0.0
 [1.2.0]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@1.1.2...@metamask/advanced-chart-core@1.2.0
 [1.1.2]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@1.1.1...@metamask/advanced-chart-core@1.1.2
 [1.1.1]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@1.1.0...@metamask/advanced-chart-core@1.1.1
