@@ -587,9 +587,10 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     if (!provider) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
     }
-    return provider.getExchangeAccountStatus
-      ? provider.getExchangeAccountStatus(params)
-      : { registered: true };
+    if (!provider.getExchangeAccountStatus) {
+      return { registered: true };
+    }
+    return await provider.getExchangeAccountStatus(params);
   }
 
   /**

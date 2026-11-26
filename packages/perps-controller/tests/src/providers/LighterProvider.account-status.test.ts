@@ -26,7 +26,7 @@ vi.mock('../../../src/services/LighterWalletService');
 const route = { providerId: 'lighter' } as const;
 const absent = { subAccounts: [] };
 const tick = async (): Promise<void> =>
-  new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
 
 /**
  * Wait until the predicate holds, bounded across macrotask rounds.

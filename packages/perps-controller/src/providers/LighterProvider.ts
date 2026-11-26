@@ -2767,7 +2767,7 @@ export class LighterProvider implements PerpsProvider {
     // Even a cached index or a delayed 21100 can belong to a wallet just left.
     this.#ensureSessionBinding();
     if (generation !== this.#sessionGeneration) {
-      return this.getExchangeAccountStatus(params);
+      return await this.getExchangeAccountStatus(params);
     }
     return accountIndex === null
       ? { registered: false }
@@ -7662,8 +7662,9 @@ export class LighterProvider implements PerpsProvider {
     this.#assertSession(generation);
     // Keep discovery and allocation together across provider lifetimes. The
     // inner venue lock separately protects each candidate's financial writes.
-    await this.#withKeySetupLock(accountIndex, async () =>
-      this.#setupSignerForAccount(accountIndex, generation),
+    await this.#withKeySetupLock(
+      accountIndex,
+      async () => await this.#setupSignerForAccount(accountIndex, generation),
     );
   };
 
@@ -18964,14 +18965,14 @@ export class LighterProvider implements PerpsProvider {
   ): Promise<string> {
     this.#assertSession(generation);
     if (this.#readyApiKeyIndex !== null) {
-      return this.#getAuthToken(accountIndex);
+      return await this.#getAuthToken(accountIndex);
     }
     // Decide under the setup lock: a signer can become ready while a stream
     // refresh is queued. A temporary read client would displace it.
-    return this.#withKeySetupLock(accountIndex, async () => {
+    return await this.#withKeySetupLock(accountIndex, async () => {
       this.#assertSession(generation);
       if (this.#readyApiKeyIndex !== null) {
-        return this.#getAuthToken(accountIndex);
+        return await this.#getAuthToken(accountIndex);
       }
       return (await this.#getRegisteredReadToken(accountIndex, generation))
         .token;
