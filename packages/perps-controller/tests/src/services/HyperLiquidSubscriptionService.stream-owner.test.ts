@@ -1283,10 +1283,10 @@ describe('shared streams over the HyperLiquid subscription service', () => {
 
     it('drops the slice fills of a schedule it no longer keeps', async () => {
       // One more ended schedule than are kept; '1' is the oldest.
-      const ended = Array.from({ length: 101 }, (_, index) => ({
+      const ended = Array.from({ length: 101 }, (_, index): TwapOrder => ({
         ...schedule(),
         orderId: String(index + 1),
-        status: 'finished' as const,
+        status: 'completed',
         startedAt: index + 1,
         lastUpdated: index + 1,
       }));
