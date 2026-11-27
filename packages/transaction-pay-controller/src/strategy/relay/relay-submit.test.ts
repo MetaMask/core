@@ -855,7 +855,7 @@ describe('Relay Submit Utils', () => {
       );
     });
 
-    it('returns fallback hash if same-chain polling returns no hash', async () => {
+    it('throws when same-chain polling returns no hash', async () => {
       request.quotes[0].original.details.currencyOut.currency.chainId = 1;
       successfulFetchMock.mockResolvedValue({
         ok: true,
@@ -866,9 +866,9 @@ describe('Relay Submit Utils', () => {
         }),
       });
 
-      const result = await submitRelayQuotes(request);
-
-      expect(result.transactionHash).toBe('0x0');
+      await expect(submitRelayQuotes(request)).rejects.toThrow(
+        'Missing settlement hash',
+      );
     });
 
     it('returns the origin hash if same-chain polling returns no fill hash', async () => {
@@ -966,7 +966,7 @@ describe('Relay Submit Utils', () => {
         });
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
-          'Missing target hash for true exact output',
+          'Missing settlement hash',
         );
       });
 
@@ -982,7 +982,7 @@ describe('Relay Submit Utils', () => {
         });
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
-          'Missing target hash for true exact output',
+          'Missing settlement hash',
         );
       });
     });
@@ -1192,17 +1192,19 @@ describe('Relay Submit Utils', () => {
       expect(result.transactionHash).toBe(TRANSACTION_HASH_MOCK);
     });
 
-    it('returns fallback hash if none included', async () => {
+    it('throws when no hash is included', async () => {
       successfulFetchMock.mockResolvedValue({
         ok: true,
         json: async () => ({
           ...STATUS_RESPONSE_MOCK,
+          inTxHashes: [],
           txHashes: [],
         }),
       });
 
-      const result = await submitRelayQuotes(request);
-      expect(result.transactionHash).toBe('0x0');
+      await expect(submitRelayQuotes(request)).rejects.toThrow(
+        'Missing settlement hash',
+      );
     });
 
     it('adds required transaction IDs', async () => {
@@ -1303,7 +1305,7 @@ describe('Relay Submit Utils', () => {
           json: async () => ({
             status: 'success',
             inTxHashes: [SOURCE_HASH_MOCK],
-            txHashes: [FALLBACK_HASH],
+            txHashes: [TRANSACTION_HASH_MOCK],
           }),
         });
 
@@ -2207,7 +2209,7 @@ describe('Relay Submit Utils', () => {
         expect(completionUpdate).toBeUndefined();
       });
 
-      it('passes settlementHash as undefined when targetHash is FALLBACK_HASH', async () => {
+      it('throws before the second leg when targetHash is FALLBACK_HASH', async () => {
         successfulFetchMock.mockResolvedValue({
           ok: true,
           json: async () => ({
@@ -2217,11 +2219,10 @@ describe('Relay Submit Utils', () => {
           }),
         });
 
-        await submitRelayQuotes(request);
-
-        expect(submitSecondLegMock).toHaveBeenCalledWith(
-          expect.objectContaining({ settlementHash: undefined }),
+        await expect(submitRelayQuotes(request)).rejects.toThrow(
+          'Missing settlement hash',
         );
+        expect(submitSecondLegMock).not.toHaveBeenCalled();
       });
 
       it('passes the fill hash as settlementHash on same-chain flows', async () => {
@@ -2238,7 +2239,7 @@ describe('Relay Submit Utils', () => {
         );
       });
 
-      it('passes settlementHash as undefined on same-chain flows when submit returns FALLBACK_HASH', async () => {
+      it('throws before the second leg on same-chain flows when submit returns FALLBACK_HASH', async () => {
         request.quotes[0].request.targetChainId = CHAIN_ID_MOCK;
         request.quotes[0].original.details.currencyIn.currency.chainId = 1;
         request.quotes[0].original.details.currencyOut.currency.chainId = 1;
@@ -2250,16 +2251,15 @@ describe('Relay Submit Utils', () => {
           ok: true,
           json: async () => ({
             status: 'success',
-            inTxHashes: [SOURCE_HASH_MOCK],
-            txHashes: [FALLBACK_HASH],
+            inTxHashes: [],
+            txHashes: [],
           }),
         });
 
-        await submitRelayQuotes(request);
-
-        expect(submitSecondLegMock).toHaveBeenCalledWith(
-          expect.objectContaining({ settlementHash: undefined }),
+        await expect(submitRelayQuotes(request)).rejects.toThrow(
+          'Missing settlement hash',
         );
+        expect(submitSecondLegMock).not.toHaveBeenCalled();
       });
 
       it('falls back to completion targetHash when submitSecondLeg returns no hash', async () => {

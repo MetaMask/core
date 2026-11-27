@@ -192,8 +192,6 @@ async function executeSingleQuote(
     );
   }
 
-  const isTrueExactOutput = Boolean(quote.request.isTrueExactOutput);
-
   const completion = await waitForRelayCompletion(mutableOriginal, messenger, {
     onSourceHash: (hash) => {
       log('Source hash received', hash);
@@ -218,6 +216,16 @@ async function executeSingleQuote(
     }
   }
 
+  const settlementHash = getSettlementHash({
+    completion,
+    quote,
+    submittedSourceHash,
+  });
+
+  if (!settlementHash) {
+    throw new Error('Missing settlement hash');
+  }
+
   // Non-atomic flow: the quote bridged funds to `recipient` without embedding
   // the second leg. Now that Relay has settled, resolve the settled amount from
   // the on-chain Transfer log and submit the second-leg batch (approve + vault
@@ -233,15 +241,6 @@ async function executeSingleQuote(
         })
       : {};
 
-  // True exact output recipients reconcile the settlement by its hash.
-  const trueExactOutputHash = isTrueExactOutput
-    ? getSettlementHash({ completion, quote, submittedSourceHash })
-    : undefined;
-
-  if (isTrueExactOutput && !trueExactOutputHash) {
-    throw new Error('Missing target hash for true exact output');
-  }
-
   // Only complete once every leg has landed, so a failed second leg does not
   // leave the parent transaction flagged as achieved.
   updateTransaction(
@@ -256,8 +255,7 @@ async function executeSingleQuote(
   );
 
   return {
-    transactionHash:
-      secondLegHash ?? trueExactOutputHash ?? completion.targetHash,
+    transactionHash: secondLegHash ?? settlementHash,
   };
 }
 
