@@ -31,7 +31,7 @@ import type {
   UpdateFiatPaymentRequest,
   UpdatePaymentTokenRequest,
 } from './types.js';
-import { getStrategyOrder, isServerEnabled } from './utils/feature-flags.js';
+import { getStrategyOrder } from './utils/feature-flags.js';
 import { updateQuotes } from './utils/quotes.js';
 import { updateSourceAmounts } from './utils/source-amounts.js';
 import { getEvmPaymentToken } from './utils/token.js';
@@ -483,15 +483,6 @@ export class TransactionPayController extends BaseController<
       return validStrategies;
     }
 
-    const fiatPaymentMethodId =
-      transactionData?.fiatPayment?.selectedPaymentMethodId;
-
-    // Provider routing for server transactions happens in the intents API, so
-    // the client-side strategy order only applies to the remaining flows.
-    if (!fiatPaymentMethodId && isServerEnabled(this.messenger, transaction)) {
-      return [TransactionPayStrategy.Server];
-    }
-
     const evmPaymentToken = getEvmPaymentToken(transactionData?.paymentToken);
 
     return getStrategyOrder(
@@ -499,7 +490,7 @@ export class TransactionPayController extends BaseController<
       evmPaymentToken?.chainId,
       evmPaymentToken?.address,
       transaction.type,
-      fiatPaymentMethodId,
+      transactionData?.fiatPayment?.selectedPaymentMethodId,
     );
   }
 }

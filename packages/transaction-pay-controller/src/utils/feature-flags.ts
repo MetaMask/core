@@ -54,6 +54,7 @@ export const DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD = 1;
 export const DEFAULT_ACROSS_API_BASE = 'https://app.across.to/api';
 export const DEFAULT_SERVER_BASE_URL = SERVER_URL_BASE;
 export const DEFAULT_STRATEGY_ORDER: StrategyOrder = [
+  TransactionPayStrategy.Server,
   TransactionPayStrategy.Relay,
   TransactionPayStrategy.Across,
 ];
@@ -140,6 +141,9 @@ export type HyperliquidActivationFeeConfig = {
 type StrategyRoutingConfig = {
   payStrategies: {
     across: {
+      enabled: boolean;
+    };
+    server: {
       enabled: boolean;
     };
     relay: {
@@ -371,6 +375,7 @@ function normalizeStrategyOverride(
 
 function normalizeStrategyRoutingConfig(
   featureFlags: FeatureFlagsRaw,
+  serverFeatureFlags: ServerFeatureFlagsRaw,
 ): StrategyRoutingConfig {
   const strategyOrder = normalizeStrategyList(featureFlags.strategyOrder);
 
@@ -378,6 +383,9 @@ function normalizeStrategyRoutingConfig(
     payStrategies: {
       across: {
         enabled: featureFlags.payStrategies?.across?.enabled ?? false,
+      },
+      server: {
+        enabled: serverFeatureFlags.enabled ?? false,
       },
       relay: {
         enabled: featureFlags.payStrategies?.relay?.enabled ?? true,
@@ -406,8 +414,12 @@ function getStrategyRoutingConfig(
   const featureFlags = state.remoteFeatureFlags?.confirmations_pay as
     | FeatureFlagsRaw
     | undefined;
+  const serverFeatureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_server as
+      | ServerFeatureFlagsRaw
+      | undefined) ?? {};
 
-  return normalizeStrategyRoutingConfig(featureFlags ?? {});
+  return normalizeStrategyRoutingConfig(featureFlags ?? {}, serverFeatureFlags);
 }
 
 function filterEnabledStrategies(
@@ -423,10 +435,8 @@ function filterEnabledStrategies(
       return routingConfig.payStrategies.relay.enabled;
     }
 
-    // Server routing is decided solely by `confirmations_pay_server`, so the
-    // legacy order and overrides never select it.
     if (strategy === TransactionPayStrategy.Server) {
-      return false;
+      return routingConfig.payStrategies.server.enabled;
     }
 
     return true;
@@ -717,26 +727,6 @@ export function getServerConfig(
     pollingInterval: featureFlags.pollingInterval ?? SERVER_POLLING_INTERVAL,
     validationEnabled: featureFlags.validationEnabled,
   };
-}
-
-/**
- * Whether a transaction should be routed to the server strategy.
- *
- * Requires `confirmations_pay_server.enabled`, and the transaction or one of
- * its nested transactions to have a type in
- * `confirmations_pay_server.enabledTransactionTypes`.
- *
- * @param messenger - Controller messenger.
- * @param transaction - Transaction to check.
- * @returns True if the transaction should use the server strategy.
- */
-export function isServerEnabled(
-  messenger: TransactionPayControllerMessenger,
-  transaction?: TransactionMeta,
-): boolean {
-  const { enabled, enabledTransactionTypes } = getServerConfig(messenger);
-
-  return enabled && hasTransactionType(transaction, enabledTransactionTypes);
 }
 
 /**
