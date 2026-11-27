@@ -6321,6 +6321,7 @@ export class HyperLiquidSubscriptionService {
         this.#deps.debugLogger.log(
           `HyperLiquid: Order book subscription established for ${symbol}`,
         );
+        return;
       })
       .catch(fail);
 

@@ -60,6 +60,19 @@ export class PerpsControllerError extends Error {
 }
 
 /**
+ * Check whether the orders source is waiting to resume with a trading key.
+ *
+ * @param error - The subscription error.
+ * @returns Whether the venue will resume the existing subscription.
+ */
+export function isOrdersStreamPaused(error: Error): boolean {
+  return (
+    error instanceof PerpsControllerError &&
+    error.errorCode === PERPS_ERROR_CODES.ORDERS_STREAM_PAUSED
+  );
+}
+
+/**
  * Creates a normalized local price movement error.
  *
  * @param params - Price movement context.

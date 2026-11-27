@@ -9,6 +9,7 @@
  */
 
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import { isOrdersStreamPaused } from '../errors.js';
 import { StreamChannelManager } from '../services/StreamChannelManager.js';
 import type {
   PerpsProviderType,
@@ -235,6 +236,7 @@ export class SubscriptionMultiplexer {
       },
       {
         replay: false,
+        shouldRetry: (error) => !isOrdersStreamPaused(error),
         open: (emit, fail) => {
           try {
             return open(emit, fail);
@@ -248,7 +250,9 @@ export class SubscriptionMultiplexer {
       {
         callback,
         onError: (error: Error) => {
-          this.#logError(error, method, providerId);
+          if (!isOrdersStreamPaused(error)) {
+            this.#logError(error, method, providerId);
+          }
           onError?.(error, providerId);
         },
       },

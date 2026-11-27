@@ -8,11 +8,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked } from 'vitest';
 
+import { PerpsControllerError } from '../../src/errors.js';
 import {
   PerpsController,
   getDefaultPerpsControllerState,
   InitializationState,
 } from '../../src/PerpsController.js';
+import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from '../../src/providers/AggregatedPerpsProvider.js';
 import type { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
 import { RewardsIntegrationService } from '../../src/services/RewardsIntegrationService.js';
@@ -25,7 +27,10 @@ import type {
   Position,
   SubscribeOrderFillsParams,
 } from '../../src/types/index.js';
-import { createMockHyperLiquidProvider } from '../helpers/providerMocks.js';
+import {
+  createMockHyperLiquidProvider,
+  createMockOrder,
+} from '../helpers/providerMocks.js';
 import {
   createMockEvmAccount,
   createMockInfrastructure,
@@ -583,7 +588,40 @@ describe('PerpsController stream subscriptions', () => {
       ]);
     });
 
-    it('re-reads after a live fill, an account switch and a benefits invalidation, not after the snapshot', async () => {
+    it('refreshes after the fills stream restores a snapshot', async () => {
+      const callback = vi.fn();
+      const stopFillsStream = controller.subscribeToOrderFills({
+        callback: vi.fn(),
+      });
+      fills?.callback([createFill('initial')], true);
+      const stopRates = controller.subscribeToFeeRates({
+        symbol: 'BTC',
+        callback,
+      });
+      await settleFills();
+
+      expect(controller.calculateFees).toHaveBeenCalledTimes(2);
+      vi.mocked(controller.calculateFees).mockClear();
+
+      tier = 1;
+      fills?.callback([createFill('caught-up')], true);
+      await settleFills();
+
+      expect(controller.calculateFees).toHaveBeenCalledTimes(2);
+      expect(controller.calculateFees).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ isMaker: false, skipCache: true }),
+      );
+      expect(callback).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          taker: expect.objectContaining({ feeRate: 0.00039 }),
+        }),
+      );
+      stopRates();
+      stopFillsStream();
+    });
+
+    it('re-reads after a live fill, an account switch and a benefits invalidation', async () => {
       const callback = vi.fn();
       controller.subscribeToFeeRates({ symbol: 'BTC', callback });
       await flush();
@@ -887,6 +925,49 @@ describe('PerpsController stream subscriptions', () => {
       );
       provider.subscribeToOrders.mock.calls[0][0].callback([]);
       expect(callback).toHaveBeenCalledWith([], 'hyperliquid');
+    });
+
+    it('excludes paused venue orders from replay and lets the venue resume', async () => {
+      install();
+      const stopVenue = vi.fn();
+      lighter.subscribeToOrders.mockReturnValue(stopVenue);
+      provider.subscribeToOrders.mockReturnValue(vi.fn());
+      const onError = vi.fn();
+      const stop = controller.subscribeToOrders({ callback: vi.fn(), onError });
+      const hyperliquid = provider.subscribeToOrders.mock.calls[0][0];
+      const lighterOrders = lighter.subscribeToOrders.mock.calls[0][0];
+      const healthyOrder = createMockOrder({ orderId: 'healthy' });
+      const pausedOrder = createMockOrder({ orderId: 'paused' });
+      hyperliquid.callback([healthyOrder]);
+      lighterOrders.callback([pausedOrder]);
+      const paused = new PerpsControllerError(
+        PERPS_ERROR_CODES.ORDERS_STREAM_PAUSED,
+        'Waiting for a trading key',
+      );
+      lighterOrders.onError?.(paused);
+
+      const late = vi.fn();
+      const stopLate = controller.subscribeToOrders({ callback: late });
+      await vi.advanceTimersByTimeAsync(60_000);
+      await flush();
+
+      expect(onError).toHaveBeenCalledWith(paused, 'lighter');
+      expect(late).toHaveBeenCalledExactlyOnceWith([
+        { ...healthyOrder, providerId: 'hyperliquid' },
+      ]);
+      expect(lighter.subscribeToOrders).toHaveBeenCalledTimes(1);
+      expect(stopVenue).not.toHaveBeenCalled();
+
+      lighterOrders.callback([pausedOrder]);
+      expect(late).toHaveBeenLastCalledWith(
+        [
+          { ...healthyOrder, providerId: 'hyperliquid' },
+          { ...pausedOrder, providerId: 'lighter' },
+        ],
+        'lighter',
+      );
+      stopLate();
+      stop();
     });
 
     it("keeps a change a closed reader heard until that venue's markets are read afresh", async () => {

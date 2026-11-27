@@ -42,6 +42,7 @@ import {
   STREAM_RETRY_CONFIG,
   DECIMAL_PRECISION_CONFIG,
   HYPERLIQUID_TWAP_LIMITS,
+  MAX_TIMEOUT_MS,
   ORDER_SLIPPAGE_CONFIG,
   PERFORMANCE_CONFIG,
   PERPS_CONSTANTS,
@@ -1109,9 +1110,6 @@ type AgentValiditySubscriber = {
   /** Report a venue rejection of the agent. */
   reject: (agentAddress: Hex) => void;
 };
-
-/** Longest delay `setTimeout` keeps; a later deadline is re-armed. */
-const MAX_TIMEOUT_MS = 2_147_483_647;
 
 type HandleHip3PreOrderParams = {
   accountContext: AccountSupportContext;

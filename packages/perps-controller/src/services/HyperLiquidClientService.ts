@@ -391,8 +391,21 @@ export class HyperLiquidClientService {
       if (
         pingSentAt === undefined ||
         typeof event.data !== 'string' ||
-        !event.data.includes('"pong"') ||
         this.#wsTransport !== transport
+      ) {
+        return;
+      }
+      let frame: unknown;
+      try {
+        frame = JSON.parse(event.data);
+      } catch {
+        return;
+      }
+      if (
+        frame === null ||
+        typeof frame !== 'object' ||
+        !('channel' in frame) ||
+        frame.channel !== 'pong'
       ) {
         return;
       }

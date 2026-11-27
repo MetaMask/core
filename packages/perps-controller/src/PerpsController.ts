@@ -47,7 +47,11 @@ import {
   DEFAULT_ORDER_BOOK_PREFERENCES,
   DEFAULT_PRO_LAYOUT_PREFERENCES,
   DEFAULT_SELECTED_ORDER_TYPE,
+  FEE_CHANGE_SETTLE_MS,
+  MARKET_CHANGE_SETTLE_MS,
+  MAX_TIMEOUT_MS,
 } from './constants/perpsConfig.js';
+import { isOrdersStreamPaused } from './errors.js';
 import type { PerpsControllerMethodActions } from './PerpsController-method-action-types.js';
 import { PERPS_ERROR_CODES } from './perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from './providers/AggregatedPerpsProvider.js';
@@ -1183,15 +1187,6 @@ type UserSnapshotContext = {
  * Number of public trades `getPublicTrades` returns when no limit is given.
  */
 const PUBLIC_TRADES_DEFAULT_LIMIT = 50;
-
-/** Longest delay `setTimeout` keeps; a longer one would fire at once. */
-const MAX_TIMEOUT_MS = 2_147_483_647;
-
-/** Wait after a market change before reading the markets again. */
-const MARKET_CHANGE_SETTLE_MS = 1000;
-
-/** Wait after a fill before reading the fee rates again. */
-const FEE_CHANGE_SETTLE_MS = 1000;
 
 /**
  * `subscribeTo*` streams that span every venue in aggregated mode. The others
@@ -4367,15 +4362,21 @@ export class PerpsController extends BaseController<
       this.#options.infrastructure.rewards.subscribeToPerpsFeeChanges?.(
         refresh,
       );
+    let hasReceivedFills = false;
     const stopFills = this.subscribeToOrderFills({
       callback: (_fills, isSnapshot) => {
-        // Fills come in bursts; one read after they settle covers them all.
-        if (!isSnapshot) {
-          settleTimer ??= setTimeout(() => {
-            settleTimer = undefined;
-            refresh();
-          }, FEE_CHANGE_SETTLE_MS);
+        const isInitialSnapshot = isSnapshot && !hasReceivedFills;
+        hasReceivedFills = true;
+        // The initial read covers the baseline. Later snapshots can include
+        // fills the account made while the socket was down.
+        if (isInitialSnapshot) {
+          return;
         }
+        // Fills come in bursts; one read after they settle covers them all.
+        settleTimer ??= setTimeout(() => {
+          settleTimer = undefined;
+          refresh();
+        }, FEE_CHANGE_SETTLE_MS);
       },
     });
     read(skipCache);
@@ -9138,6 +9139,22 @@ export class PerpsController extends BaseController<
       params,
       (channelParams) => this.#openOrders(channelParams),
       {
+        shouldRetry: (error) => !isOrdersStreamPaused(error),
+        getSnapshotAfterError: (error, snapshot, providerId) => {
+          if (!isOrdersStreamPaused(error)) {
+            return;
+          }
+          const otherOrders =
+            providerId === undefined
+              ? undefined
+              : snapshot?.[0].filter(
+                  (order) => order.providerId !== providerId,
+                );
+          const retainedSnapshot: [Order[]] | undefined = otherOrders?.length
+            ? [otherOrders]
+            : undefined;
+          return { snapshot: retainedSnapshot };
+        },
         read: async (): Promise<
           [Order[], PerpsProviderType?, boolean?] | undefined
         > =>

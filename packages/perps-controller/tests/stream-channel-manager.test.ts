@@ -197,7 +197,7 @@ describe('StreamChannelManager', () => {
     const manager = disconnected();
     let settle: (value: [number]) => void = () => undefined;
     const source = createSource({
-      read: async () =>
+      read: () =>
         new Promise<[number]>((resolve) => {
           settle = resolve;
         }),

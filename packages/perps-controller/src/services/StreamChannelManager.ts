@@ -75,6 +75,17 @@ export type StreamChannelSource<Args extends unknown[]> = {
    * channel stays the one owner of that resubscribe, whatever its reader count.
    */
   reopenOnReconnect?: boolean;
+  /** Whether a reported failure requires the manager to reopen the source. */
+  shouldRetry?(error: Error): boolean;
+  /**
+   * Replace or clear a snapshot invalidated by an error. Return undefined to
+   * keep it, or an object without a snapshot to clear it.
+   */
+  getSnapshotAfterError?(
+    error: Error,
+    snapshot: Args | undefined,
+    ...detail: unknown[]
+  ): { snapshot?: Args } | undefined;
 };
 
 /** One reader of a channel. */
@@ -664,6 +675,10 @@ export class StreamChannelManager {
    * @param detail - Detail the source adds, such as the failing venue.
    */
   #fail(channel: Channel, error: Error, detail: unknown[]): void {
+    if (channel.source.shouldRetry?.(error) === false) {
+      this.#report(channel, error, detail);
+      return;
+    }
     if (
       channel.delivered &&
       Date.now() - channel.startedAt >= STREAM_RETRY_CONFIG.StableMs
@@ -689,6 +704,20 @@ export class StreamChannelManager {
   }
 
   #report(channel: Channel, error: Error, detail: unknown[]): void {
+    const replacement = channel.source.getSnapshotAfterError?.(
+      error,
+      channel.last,
+      ...detail,
+    );
+    if (replacement) {
+      channel.last = replacement.snapshot;
+      channel.hasValue = replacement.snapshot !== undefined;
+      channel.version += 1;
+      channel.held = [];
+      for (const reader of channel.readers) {
+        this.#cancelPending(reader);
+      }
+    }
     for (const reader of [...channel.readers]) {
       try {
         reader.subscriber.onError?.(error, ...detail);

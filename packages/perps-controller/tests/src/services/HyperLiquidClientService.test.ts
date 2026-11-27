@@ -1935,6 +1935,25 @@ describe('HyperLiquidClientService', () => {
 
         expect(listener).not.toHaveBeenCalled();
       });
+
+      it('waits for the pong channel while a keepalive is pending', () => {
+        service.initialize(mockWallet);
+        const listener = vi.fn();
+        service.subscribeToLatency(listener);
+        mockWsTransport.socket.send('{"method":"ping"}');
+
+        vi.setSystemTime(1_010);
+        socketListener('message')({
+          data: '{"channel":"trades","data":{"coin":"pong"}}',
+        });
+        socketListener('message')({ data: '{"channel":"pong"' });
+        socketListener('message')({ data: '"pong"' });
+        expect(listener).not.toHaveBeenCalled();
+
+        vi.setSystemTime(1_042);
+        socketListener('message')({ data: '{"channel":"pong"}' });
+        expect(listener.mock.calls).toStrictEqual([[42]]);
+      });
     });
 
     describe('connection epoch', () => {

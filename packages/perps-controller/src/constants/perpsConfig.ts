@@ -170,6 +170,15 @@ export const STREAM_RETRY_CONFIG = {
  */
 export const MARKET_STATE_CONFIRM_MS = 60000;
 
+/** Wait after a market change before reading the markets again. */
+export const MARKET_CHANGE_SETTLE_MS = 1000;
+
+/** Wait after a fill before reading the fee rates again. */
+export const FEE_CHANGE_SETTLE_MS = 1000;
+
+/** Largest delay supported by setTimeout. */
+export const MAX_TIMEOUT_MS = 2_147_483_647;
+
 /** Read timing of a live TWAP list. */
 export const TWAP_ORDER_CONFIG = {
   /** Delay before re-reading when the stream lists a schedule no read has. */
