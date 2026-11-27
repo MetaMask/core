@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [24.0.0]
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^74.5.0` to `^74.5.1` ([#11789](https://github.com/MetaMask/core/pull/11789))
@@ -531,7 +533,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@23.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@24.0.0...HEAD
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@23.0.0...@metamask/wallet@24.0.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@22.0.0...@metamask/wallet@23.0.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.5...@metamask/wallet@22.0.0
 [21.0.5]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.4...@metamask/wallet@21.0.5
