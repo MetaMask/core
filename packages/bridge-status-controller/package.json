@@ -71,7 +71,7 @@
     "@metamask/superstruct": "^3.4.1",
     "@metamask/transaction-controller": "^74.5.1",
     "@metamask/transaction-pay-controller": "^33.2.0",
-    "@metamask/utils": "^12.0.3",
+    "@metamask/utils": "^12.1.0",
     "bignumber.js": "^9.1.2",
     "uuid": "^14.0.3"
   },

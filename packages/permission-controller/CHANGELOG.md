@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `PermissionMiddlewareActions` now includes the `PermissionController:getEndowmentsRpcMethods` and `PermissionController:isEndowmentRpcMethod` actions ([#11704](https://github.com/MetaMask/core/pull/11704))
   - Messengers passed to `createPermissionMiddleware` and `createPermissionMiddlewareV2` must now delegate these in addition to the existing actions.
 - Bump `nanoid` from `^3.3.19` to `^6.0.2` ([#10602](https://github.com/MetaMask/core/pull/10602))
-- Bump `@metamask/utils` from `^12.0.1` to `^12.0.3` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11796](https://github.com/MetaMask/core/pull/11796))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.1.0` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11796](https://github.com/MetaMask/core/pull/11796))
 - Bump `immer` from `^11.1.18` to `^11.2.10` ([#11645](https://github.com/MetaMask/core/pull/11645))
 
 ### Removed

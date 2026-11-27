@@ -54,7 +54,7 @@
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/eth-sig-util": "^10.0.1",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/utils": "^12.0.3",
+    "@metamask/utils": "^12.1.0",
     "jsonschema": "^1.5.0",
     "uuid": "^14.0.3"
   },

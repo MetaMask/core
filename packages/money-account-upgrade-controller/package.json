@@ -64,7 +64,7 @@
     "@metamask/money-account-utils": "^2.2.1",
     "@metamask/network-controller": "^38.0.1",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
-    "@metamask/utils": "^12.0.3",
+    "@metamask/utils": "^12.1.0",
     "@noble/hashes": "^1.8.0"
   },
   "devDependencies": {

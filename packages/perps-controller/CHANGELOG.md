@@ -61,7 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - While a chase change subscription is open, Hyperliquid `getChaseOrders` reads a child order's status only after the venue pushed a change of it ([#11742](https://github.com/MetaMask/core/pull/11742))
 - Hyperliquid connection latency is timed with `PerpsPlatformDependencies.performance`, not the wall clock ([#11742](https://github.com/MetaMask/core/pull/11742))
 - Hyperliquid price updates carry `openInterest` and `volume24h` for every `subscribeToPrices` subscriber, list subscribers (`includeMarketData: false`) included, from the per-DEX `assetCtxs` feed every price subscription already keeps open ([#11742](https://github.com/MetaMask/core/pull/11742))
-- Bump `@metamask/utils` from `^12.0.2` to `^12.0.3` ([#11796](https://github.com/MetaMask/core/pull/11796))
+- Bump `@metamask/utils` from `^12.0.2` to `^12.1.0` ([#11796](https://github.com/MetaMask/core/pull/11796))
 
 ### Deprecated
 
