@@ -681,8 +681,9 @@ export const TESTNET_HIP3_CONFIG = {
    * Allowed DEX names for testnet
    * Empty array = main DEX only (no HIP-3 DEXs)
    * Add specific DEX names to test with particular HIP-3 DEXs: ['testdex1', 'testdex2']
+   * `ignp` is the partner's permissioned dex used for US perps testing.
    */
-  EnabledDexs: ['xyz'] as string[],
+  EnabledDexs: ['xyz', 'ignp'] as string[],
 
   /**
    * Set to true to enable full HIP-3 discovery on testnet (not recommended)

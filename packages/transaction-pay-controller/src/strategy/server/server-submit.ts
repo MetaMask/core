@@ -4,6 +4,7 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
+import { generateEIP7702BatchTransaction } from '@metamask/transaction-controller';
 import type {
   AuthorizationList,
   BatchTransactionParams,
@@ -221,6 +222,13 @@ export async function getServerExecuteDelegation(
     value: (param.value ?? '0x0') as Hex,
   }));
 
+  // Subsidized caveats are built from `txParams.data`, so it must match the
+  // calls being redeemed rather than the original transaction.
+  const batchParams =
+    nestedTransactions.length === 1
+      ? nestedTransactions[0]
+      : generateEIP7702BatchTransaction(from, nestedTransactions);
+
   const sourceCallTransaction = {
     ...transaction,
     chainId: sourceChainId,
@@ -228,13 +236,19 @@ export async function getServerExecuteDelegation(
     nestedTransactions,
     txParams: {
       ...transaction.txParams,
+      data: batchParams.data,
       from,
+      to: batchParams.to,
+      value: batchParams.value ?? '0x0',
     },
   } as TransactionMeta;
 
   const delegation = await messenger.call(
     'TransactionPayController:getDelegationTransaction',
-    { transaction: sourceCallTransaction },
+    {
+      isSubsidized: quote.original.fees.subsidized,
+      transaction: sourceCallTransaction,
+    },
   );
 
   log('Delegation result for server source calls', delegation);
@@ -273,6 +287,7 @@ async function executeSingleServerQuote(
   // Phase 2: on-chain transaction steps (if any). A deposit wallet withdraw
   // replaces them with an unwrap straight to the provider deposit address.
   let preSubmitUsdceBalance: bigint | undefined;
+  let statusId: string | undefined;
 
   if (isDepositWallet) {
     preSubmitUsdceBalance = await submitDepositWalletWithdraw(
@@ -281,7 +296,7 @@ async function executeSingleServerQuote(
       transaction,
     );
   } else {
-    await submitTransactionSteps(quote, messenger, transaction);
+    statusId = await submitTransactionSteps(quote, messenger, transaction);
   }
 
   // Phase 3: poll until the intent settles on the target chain.
@@ -289,6 +304,7 @@ async function executeSingleServerQuote(
     quote.original,
     messenger,
     transaction.id,
+    statusId,
   );
 
   log('Server request completed', completion);
@@ -463,12 +479,13 @@ async function submitDepositWalletWithdraw(
  * @param quote - Server quote.
  * @param messenger - Controller messenger.
  * @param transaction - Original transaction meta.
+ * @returns ID to poll status with, if returned by the server submit.
  */
 async function submitTransactionSteps(
   quote: TransactionPayQuote<ServerQuote>,
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
-): Promise<void> {
+): Promise<string | undefined> {
   const transactionSteps = quote.original.steps.filter(isTransactionStep);
 
   if (transactionSteps.length === 0) {
@@ -478,7 +495,7 @@ async function submitTransactionSteps(
     if (!quote.original.gasless && !hasSignatureSteps) {
       throw new Error('Server quote has no steps to submit');
     }
-    return;
+    return undefined;
   }
 
   const { isHyperliquidSource, isPostQuote, paymentOverride } = quote.request;
@@ -500,21 +517,23 @@ async function submitTransactionSteps(
   const gasPayment = getServerGasPayment(quote, messenger, transaction);
 
   if (gasPayment.mode === GasPaymentMode.Delegation) {
-    await submitViaServerExecute(
+    return await submitViaServerExecute(
       quote,
       stepTransactions,
       messenger,
       transaction,
-    );
-  } else {
-    await submitViaTransactionController(
-      quote,
-      stepTransactions,
-      messenger,
-      transaction,
-      gasPayment,
     );
   }
+
+  await submitViaTransactionController(
+    quote,
+    stepTransactions,
+    messenger,
+    transaction,
+    gasPayment,
+  );
+
+  return undefined;
 }
 
 /**
@@ -927,7 +946,7 @@ async function submitViaServerExecute(
   stepTransactions: StepTransaction[],
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
-): Promise<void> {
+): Promise<string | undefined> {
   const { chainId: sourceChainId } = getEvmQuoteSource(quote.request);
 
   const delegation = await getServerExecuteDelegation(
@@ -944,6 +963,9 @@ async function submitViaServerExecute(
     to: delegation.to,
     data: delegation.data,
     value: new BigNumber(delegation.value).toFixed(),
+    ...(quote.original.signature
+      ? { signature: quote.original.signature }
+      : {}),
     ...(delegation.authorizationList?.length
       ? {
           authorizationList: delegation.authorizationList.map((auth) => ({
@@ -965,6 +987,8 @@ async function submitViaServerExecute(
       `Server submit failed: ${submitResponse.error ?? 'unknown'}`,
     );
   }
+
+  return submitResponse.id;
 }
 
 async function submitViaTransactionController(
@@ -1319,12 +1343,14 @@ function deriveEIP712DomainType(
  * @param quote - Server quote being polled.
  * @param messenger - Controller messenger.
  * @param transactionId - ID of the parent transaction.
+ * @param statusId - ID returned by the server submit, used instead of the quote ID when set.
  * @returns The terminal status and the target-chain hash when reported.
  */
 async function waitForServerCompletion(
   quote: ServerQuote,
   messenger: TransactionPayControllerMessenger,
   transactionId: string,
+  statusId?: string,
 ): Promise<ServerCompletion> {
   const pollingInterval = getServerPollingInterval(messenger);
   const pollingTimeout = getServerPollingTimeout(messenger);
@@ -1349,7 +1375,7 @@ async function waitForServerCompletion(
 
       statusResponse = await getServerStatus(messenger, {
         provider: quote.provider,
-        id: quote.id,
+        id: statusId ?? quote.id,
         hash,
         logs: sourceLogs,
       });

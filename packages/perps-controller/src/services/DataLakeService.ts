@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { PerpsMeasurementName } from '../constants/performanceMetrics.js';
 import {
   DATA_LAKE_API_CONFIG,
+  NOTIFY_PERPS_API_CONFIG,
   PERPS_CONSTANTS,
 } from '../constants/perpsConfig.js';
 import { PerpsTraceNames, PerpsTraceOperations } from '../types/index.js';
@@ -10,7 +11,7 @@ import type { PerpsPlatformDependencies } from '../types/index.js';
 import type { PerpsControllerMessengerBase } from '../types/messenger.js';
 import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils.js';
 import { ensureError } from '../utils/errorUtils.js';
-import { isMissingActionHandlerError } from './missingActionHandler.js';
+import { getOptionalBearerToken } from './getOptionalBearerToken.js';
 import type { ServiceContext } from './ServiceContext.js';
 
 /**
@@ -39,32 +40,6 @@ export class DataLakeService {
   ) {
     this.#deps = deps;
     this.#messenger = messenger;
-  }
-
-  /**
-   * Get bearer token via DI authentication controller
-   *
-   * @returns The bearer token string for API authentication, or undefined when
-   * the host does not provide `AuthenticationController:getBearerToken`.
-   */
-  async #getBearerToken(): Promise<string | undefined> {
-    try {
-      return await this.#messenger.call(
-        'AuthenticationController:getBearerToken',
-      );
-    } catch (error) {
-      // Reporting is optional: a host without authentication skips it rather
-      // than logging and retrying a call that can never succeed.
-      if (
-        isMissingActionHandlerError(
-          error,
-          'AuthenticationController:getBearerToken',
-        )
-      ) {
-        return undefined;
-      }
-      throw error;
-    }
   }
 
   /**
@@ -113,9 +88,6 @@ export class DataLakeService {
       return { success: true, error: 'Skipped for testnet' };
     }
 
-    const MAX_RETRIES = 3;
-    const RETRY_DELAY_MS = 1000;
-
     // Generate trace ID once on first call
     const traceId = _traceId ?? uuidv4();
 
@@ -139,7 +111,7 @@ export class DataLakeService {
       action,
       symbol,
       attempt: retryCount + 1,
-      maxAttempts: MAX_RETRIES + 1,
+      maxAttempts: NOTIFY_PERPS_API_CONFIG.MaxRetries + 1,
       hasStopLoss: Boolean(slPrice),
       hasTakeProfit: Boolean(tpPrice),
       timestamp: new Date().toISOString(),
@@ -148,7 +120,7 @@ export class DataLakeService {
     const apiCallStartTime = this.#deps.performance.now();
 
     try {
-      const token = await this.#getBearerToken();
+      const token = await getOptionalBearerToken(this.#messenger);
       const evmAccount = getSelectedEvmAccountFromMessenger(this.#messenger);
 
       if (!evmAccount || !token) {
@@ -232,15 +204,16 @@ export class DataLakeService {
               action,
               symbol,
               retryCount,
-              willRetry: retryCount < MAX_RETRIES,
+              willRetry: retryCount < NOTIFY_PERPS_API_CONFIG.MaxRetries,
             },
           },
         },
       );
 
       // Retry logic
-      if (retryCount < MAX_RETRIES) {
-        const retryDelay = RETRY_DELAY_MS * Math.pow(2, retryCount);
+      if (retryCount < NOTIFY_PERPS_API_CONFIG.MaxRetries) {
+        const retryDelay =
+          NOTIFY_PERPS_API_CONFIG.RetryDelayMs * Math.pow(2, retryCount);
         this.#deps.debugLogger.log('DataLake API: Scheduling retry', {
           retryIn: `${retryDelay}ms`,
           nextAttempt: retryCount + 2,

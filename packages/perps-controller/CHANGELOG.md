@@ -7,6 +7,98 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export `PERPS_EVENT_VALUE.INTERACTION_TYPE.TRADE_ON_SHEET_OPENED` and `TRADE_ON_VENUE_CHANGED` for the Lite market page's per-order venue selector ([#11778](https://github.com/MetaMask/core/pull/11778))
+- Report Lighter wallet registration in `AccountState.exchangeAccountStatus` on account reads and subscriptions. Export `LIGHTER_ACCOUNT_DISCOVERY_CONFIG` (from `constants/lighterConfig`) for the discovery interval and deadline. ([#11746](https://github.com/MetaMask/core/pull/11746))
+- Add `PerpsController:getExchangeAccountStatus` for read-only registration checks on an explicit venue. Export `GetExchangeAccountStatusParams`, `ExchangeAccountStatus`, `PerpsControllerGetExchangeAccountStatusAction`, and an optional provider hook. Lighter returns the master account index when registered; venues without a registration step return `{ registered: true }`. ([#11746](https://github.com/MetaMask/core/pull/11746))
+- Add `PERPS_ERROR_CODES.ORDERS_STREAM_PAUSED`. Lighter orders subscribers receive it through `onError` as a `PerpsControllerError` when the orders stream waits for a usable trading key, after a signer reset or when no retained key matches the venue. Show it as a waiting state, not a failure; the stream resumes once trading is set up. ([#11746](https://github.com/MetaMask/core/pull/11746))
+- Add `subscribeToMarketMeta`: every market's metadata (margin tiers, delisting, max leverage, Cross support), read from the provider's cache at once (afresh when the provider reports, as the stream opens, a change no reader heard) and read again when the venue's own push shows a listing or a delisting and after a reconnect. It needs no preload and adds no timer; a failed or empty read goes to `onError`, keeps the last list and is retried with a bounded backoff ([#11742](https://github.com/MetaMask/core/pull/11742))
+  - Optional `PerpsProvider.subscribeToMarketChanges` (type `SubscribeMarketChangesParams`), implemented for HyperLiquid (`assetCtxs`) and Lighter (`market_stats`) and routed by `AggregatedPerpsProvider`
+- Add `subscribeToMarginAdjustmentLimits`: the result `getMarginAdjustmentLimits` returns, computed by HyperLiquid from its live account and position streams with no venue reads. Providers without the stream report `unavailable`/`provider` ([#11742](https://github.com/MetaMask/core/pull/11742))
+- Add `subscribeToConnectionLatency`: the round trip of the WebSocket keepalive ping the HyperLiquid transport already sends, in milliseconds, starting with the last measurement. No ping or timer is added ([#11742](https://github.com/MetaMask/core/pull/11742))
+- Add `subscribeToFeeRates` (types `SubscribeFeeRatesParams`, `PerpsFeeRates`): the selected account's `calculateFees` taker and maker results for a market, and for an `amount` when given, read once, then again after the account's own fills (including catch-up snapshots after reconnect), an account switch, a default provider change, a Rewards change, a trading fee grant's expiry or `invalidateSubscriptionBenefits` ([#11742](https://github.com/MetaMask/core/pull/11742))
+  - Optional `PerpsPlatformDependencies.rewards.subscribeToPerpsFeeChanges`: the client reports that a Rewards answer may have changed
+- Add optional `PerpsProvider.subscribeToChaseOrderChanges` (type `SubscribeChaseOrderChangesParams`), implemented for HyperLiquid and Lighter and fanned out by `AggregatedPerpsProvider`, and optional `LiveChaseOrderSource.subscribeToChaseOrderChanges` ([#11742](https://github.com/MetaMask/core/pull/11742))
+- Add optional `onError` to `SubscribePricesParams`, `SubscribePositionsParams`, `SubscribeAccountParams`, `SubscribeOICapsParams` and `SubscribeTwapOrdersParams`: a stream that cannot open, cannot be restored after a reconnect, or whose first read fails, is reported instead of staying silent; Lighter reports position and account setup failures too ([#11742](https://github.com/MetaMask/core/pull/11742))
+- Add `STREAM_RETRY_CONFIG`: the backoff of a stream that failed ([#11742](https://github.com/MetaMask/core/pull/11742))
+- Add `subscribeToTradingAgentValidity` (types `SubscribeTradingAgentValidityParams`, `PerpsTradingAgentValidity`): whether the account's trading agent is `valid`, `invalid` (`no_agent`, `not_approved`, `expired`, `rejected`), `unknown` or `not_required`. HyperLiquid reads its `extraAgents` list once, then pushes on `setAgentSigner`/`clearAgentSigners`, a venue rejection, an account switch and one timeout at the agent's `validUntil`; venues without an agent step report `not_required` ([#11742](https://github.com/MetaMask/core/pull/11742))
+  - Optional `PerpsProvider.subscribeToTradingAgentValidity`, routed by `AggregatedPerpsProvider`
+- Add optional `feeAmountUsd` to `estimateCrossLiquidation`: the fee is taken from the Cross collateral as the fill takes it; without one the estimate excludes the fee, and a negative or non-finite fee makes the estimate `unavailable` ([#11742](https://github.com/MetaMask/core/pull/11742))
+- Add optional `skipCache` to `FeeCalculationParams`: HyperLiquid reads the account's fee rates again instead of its five-minute copy, and rejects when that read fails ([#11742](https://github.com/MetaMask/core/pull/11742))
+- Add optional `skipCache` and `requireComplete` to `getMarkets`: HyperLiquid and Lighter read the venue's market metadata afresh and refresh their cache, and HyperLiquid rejects when a HIP-3 DEX could not be read instead of leaving its markets out ([#11742](https://github.com/MetaMask/core/pull/11742))
+- Add `getStreamSnapshot(stream, params)` (messenger action `PerpsController:getStreamSnapshot`; types `PerpsStreamName`, `PerpsStreamParams`, `PerpsStreamSnapshot`, `PerpsStreamSnapshotParams`): the last callback arguments of the channel a `subscribeTo*` call with the same parameters reads, or `undefined`, for React's `useSyncExternalStore` ([#11742](https://github.com/MetaMask/core/pull/11742))
+- Add `resubscribeStreams()` (messenger action `PerpsController:resubscribeStreams`): stops and restarts every open stream's venue subscription, keeping subscribers and last values, for a socket that reports open but stopped delivering ([#11742](https://github.com/MetaMask/core/pull/11742))
+- Add optional `onReset` to every `Subscribe*Params` routed through `StreamChannelManager`: called when the stream moves to another provider or account and its last value no longer applies ([#11742](https://github.com/MetaMask/core/pull/11742))
+- Add `StreamChannelManager` (types `StreamChannelKey`, `StreamChannelManagerOptions`, `StreamChannelSource`, `StreamChannelSubscriber`, `StreamConnectionWatcher`, `StreamRebindOptions`): one ref-counted channel per key, each opening a `StreamChannelSource` once for all its subscribers, with the last value replayed to late subscribers, a throttle per subscriber, a REST `read` only while the connection is down, and a bounded reopen of a failed source ([#11742](https://github.com/MetaMask/core/pull/11742))
+  - `subscribe`, `getLast`, `rebind` (move channels to a new provider or account), `pause` (ref-counted, values held), `reopenAll`, `clear` and `size`
+  - `StreamChannelSource.open` and `read` receive the channel key; `reduce` and `delivery` say how a source's deltas and events reach late, throttled and paused subscribers, and `open` receives a `report` for failures the source recovers from by itself
+  - `StreamChannelManagerOptions.onError` receives subscriber failures with the key of their channel
+
+### Changed
+
+- Add the partner's permissioned `ignp` HIP-3 dex to `TESTNET_HIP3_CONFIG.EnabledDexs`, so testnet loads and trades `ignp:*` markets alongside `xyz` ([#11701](https://github.com/MetaMask/core/pull/11701))
+- Every `subscribeTo*` method except `subscribeToConnectionState` and `subscribeToProviderHealth` now goes through one shared `StreamChannelManager`: one ref-counted venue subscription per parameter set, the last value replayed to later subscribers, a throttle per subscriber, and REST read only while the transport is down. Callers keep the same API ([#11742](https://github.com/MetaMask/core/pull/11742))
+  - Every `Subscribe*Params` type routed through it takes an optional `throttleMs`: the minimum time between deliveries to that subscriber, without affecting other subscribers of the same channel
+  - A channel whose venue subscription fails reopens it itself, with a bounded backoff and again on reconnect. Subscribers keep their subscription and hear each failure through `onError`; they do not resubscribe. In aggregated mode one venue's failure leaves the other venues streaming and only that venue is reopened
+  - `subscribeToPrices` replays, snapshots and throttles every symbol: venues send only the symbols that changed, and those are merged. Throttled fills and public trades are queued, not dropped
+  - `subscribeToOrderFills` replays the venue's snapshot, with the fills that followed it, to late subscribers of every venue
+  - `subscribeToCandles` and `subscribeToPublicTrades` reopen after a reconnect
+  - The venue subscription always reports failures to the channel, so every subscriber with an `onError` hears them, not only when the subscriber that opened the channel passed one
+  - Subscriptions follow the controller context instead of going dead: a `subscribeTo*` call made before `init` opens when init succeeds; after a re-initialization (`init` after `disconnect`, `switchProvider`, `toggleTestnet`, aggregated rollback) every channel moves to the new provider; on a selected-account change, default-account streams move to the new account. Subscribers keep their unsubscribe and get `onReset`, then the new context's data. Channels stop their venue subscription when init starts and on `disconnect`
+  - In aggregated mode `setDefaultProvider` moves every stream that follows the default provider, with `onReset`
+  - When a provider comes up, streams for the selected wallet open before streams for a named wallet so a subscription queued before init cannot take the selected wallet's HyperLiquid binding
+  - `subscribeToPrices` subscribers that pass the same symbols in a different order share one channel
+  - Stream pauses during writes (`cancelOrders`) now pause Core's own channels: what arrives is held and delivered when the operation ends
+- **BREAKING:** `subscribeToAccount`, `subscribeToTwapOrders`, `subscribeToAvailableToTrade` and `subscribeToMarginAdjustmentLimits` no longer deliver `null`, `[]`, an `onError` or `unavailable` when an aggregated provider is replaced or the default provider changes ([#11742](https://github.com/MetaMask/core/pull/11742))
+  - Pass `onReset` and clear the value you show there; the next delivery is the new provider's. A client that relied on the old delivery keeps showing the previous provider's value until then
+- **BREAKING:** `createLiveTwapOrderList` and `createLiveChaseOrderList` no longer read on a timer, and no longer take `refreshIntervalMs`; `TWAP_ORDER_CONFIG.RefreshIntervalMs` and `CHASE_ORDER_CONFIG.RefreshIntervalMs` are removed ([#11742](https://github.com/MetaMask/core/pull/11742))
+  - Pass a source whose `subscribeToTwapOrders` carries slice fills, and a `subscribeToChaseOrderChanges`. `PerpsController.subscribeToLiveTwapOrders` and `subscribeToChaseOrderLists` need no change
+- Hyperliquid `subscribeToTwapOrders` carries slice fills, from `userTwapSliceFills`, and raises execution totals from them ([#11742](https://github.com/MetaMask/core/pull/11742))
+- Hyperliquid `subscribeToOrderBook` keeps books of one coin with different `nSigFigs`, `mantissa` or `fast` on different sockets, drops a frame older than the last one, and reports a subscription that fails after it opened ([#11742](https://github.com/MetaMask/core/pull/11742))
+- Hyperliquid user streams (`subscribeToPositions`, `subscribeToOrders`, `subscribeToOICaps`) refuse another wallet with `PROVIDER_NOT_AVAILABLE` while one wallet's streams are open, as `subscribeToAccount` does, instead of delivering that wallet's data ([#11742](https://github.com/MetaMask/core/pull/11742))
+- A Hyperliquid subscription the venue refuses to restore after a short disconnection is reported to its readers and opened again, instead of staying silent ([#11742](https://github.com/MetaMask/core/pull/11742))
+- While a chase change subscription is open, Hyperliquid `getChaseOrders` reads a child order's status only after the venue pushed a change of it ([#11742](https://github.com/MetaMask/core/pull/11742))
+- Hyperliquid connection latency is timed with `PerpsPlatformDependencies.performance`, not the wall clock ([#11742](https://github.com/MetaMask/core/pull/11742))
+- Hyperliquid price updates carry `openInterest` and `volume24h` for every `subscribeToPrices` subscriber, list subscribers (`includeMarketData: false`) included, from the per-DEX `assetCtxs` feed every price subscription already keeps open ([#11742](https://github.com/MetaMask/core/pull/11742))
+- Bump `@metamask/utils` from `^12.0.2` to `^12.1.0` ([#11796](https://github.com/MetaMask/core/pull/11796))
+
+### Deprecated
+
+- `PerpsPlatformDependencies.streamManager` (`pauseChannel`, `resumeChannel`): Core pauses its own channels. It is still called for one release ([#11742](https://github.com/MetaMask/core/pull/11742))
+
+### Fixed
+
+- Resume existing Lighter account, position, fill and order subscriptions by automatically checking for the account created by a first deposit, without reconnecting, prompting for a trading key, or replacing a ready trading signer. ([#11746](https://github.com/MetaMask/core/pull/11746))
+- After a Lighter signer reset, report the interrupted orders stream through `onError` and stop replaying its cached orders in both direct and multi-venue subscriptions until a fresh authenticated snapshot arrives. ([#11746](https://github.com/MetaMask/core/pull/11746))
+- Keep Lighter order updates flowing after a malformed frame on an initialized stream. Request a fresh authenticated orders snapshot without reconnecting unrelated channels or reporting an unconfirmed empty list. If the repair token refresh fails, keep known open orders visible in both direct and multi-venue subscriptions and retry on the next orders update. Report `onError` when no orders can be replayed, including when the repaired snapshot is malformed too. ([#11746](https://github.com/MetaMask/core/pull/11746))
+
+## [26.2.0]
+
+### Added
+
+- Add `PerpsController.submitLighterTransfer` and `LighterProvider.submitTransfer` to sign and send the Lighter L2 transfer that Relay returns for a Lighter withdrawal, with the new `LighterTransferParams` and `LighterTransferResult` types, and expose it as the `PerpsController:submitLighterTransfer` messenger action ([#11754](https://github.com/MetaMask/core/pull/11754))
+  - `LighterTransferParams.eoa` and `accountIndex` name the wallet and Lighter account the transfer was quoted for, and `submitTransfer` refuses it when the selected wallet or the Lighter account it would sign for is another one.
+
+## [26.1.0]
+
+### Added
+
+- Add optional `notifyPerpsApi.baseUrl` platform dependency and enroll the Lighter account index with notify-perps after every Lighter `placeOrder` and `closePosition` ([#11690](https://github.com/MetaMask/core/pull/11690))
+  - Calls `POST ${baseUrl}/api/v1/lighter/accounts` with `{ account_index }` and the bearer token, retrying like the Hyperliquid order report; skipped on testnet and when `baseUrl` is not provided
+  - The account index comes from the provider that executed the order, read when the order succeeds
+  - New optional `PerpsProvider.getNotificationAccountIndex` method, implemented by the Lighter provider and the aggregated provider
+- Add `NOTIFY_PERPS_API_CONFIG` with `LighterNotificationAccountsPath`, `MaxRetries` and `RetryDelayMs` ([#11690](https://github.com/MetaMask/core/pull/11690))
+
+### Changed
+
+- Lighter orders are no longer reported to `https://perps.api.cx.metamask.io/api/v1/orders`, which only holds Hyperliquid orders ([#11690](https://github.com/MetaMask/core/pull/11690))
+  - Clients must pass `notifyPerpsApi.baseUrl` to enroll Lighter accounts instead; until they do, Lighter orders make no notify-perps call
+- Tag the client order index of Lighter stop loss and take profit orders so notify-perps can recognize their fills ([#11706](https://github.com/MetaMask/core/pull/11706))
+  - Applies to attached TP/SL, standalone stop and take profit orders (market and limit), and `updatePositionTPSL`
+  - Bits 47 to 32 are `0xA5C3`, bit 31 is 0 for stop loss and 1 for take profit, and bits 30 to 0 are random
+  - Every other Lighter order redraws its random index when it would carry the `0xA5C3` prefix
+
 ## [26.0.0]
 
 ### Added
@@ -1901,7 +1993,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@26.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@26.2.0...HEAD
+[26.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@26.1.0...@metamask/perps-controller@26.2.0
+[26.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@26.0.0...@metamask/perps-controller@26.1.0
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@25.0.0...@metamask/perps-controller@26.0.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@24.1.0...@metamask/perps-controller@25.0.0
 [24.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@24.0.0...@metamask/perps-controller@24.1.0

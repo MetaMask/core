@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^12.0.2` to `^12.1.0` ([#11796](https://github.com/MetaMask/core/pull/11796))
+
+## [9.0.0]
+
 ### Added
 
 - Add `MultichainTransactionsController:transactionFailed` event, published when a non-EVM transaction reaches `TransactionStatus.Failed` ([#10611](https://github.com/MetaMask/core/pull/10611))
@@ -14,9 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/core-backend` from `^14.0.0` to `^14.1.0` ([#11454](https://github.com/MetaMask/core/pull/11454))
 - **BREAKING:** The controller's messenger type now requires the `AccountActivityService:transactionUpdated` event from `@metamask/core-backend`, so consumers must allow and delegate this event to the controller's messenger ([#11240](https://github.com/MetaMask/core/pull/11240))
   - Used to drive submit-time pending non-EVM transactions to a terminal status (`confirmed` or `failed`).
+- Bump `@metamask/core-backend` from `^14.0.0` to `^15.0.0` ([#11454](https://github.com/MetaMask/core/pull/11454), [#11784](https://github.com/MetaMask/core/pull/11784))
 - Add dependency `@metamask/core-backend` (`^14.0.0`) ([#11240](https://github.com/MetaMask/core/pull/11240), [#11300](https://github.com/MetaMask/core/pull/11300))
 - Bump `@types/uuid` from `^8.3.0` to `^9.0.8` ([#10117](https://github.com/MetaMask/core/pull/10117))
 - Bump `uuid` from `^8.3.2` to `^14.0.3` ([#10117](https://github.com/MetaMask/core/pull/10117), [#10243](https://github.com/MetaMask/core/pull/10243), [#10941](https://github.com/MetaMask/core/pull/10941), [#11179](https://github.com/MetaMask/core/pull/11179), [#11305](https://github.com/MetaMask/core/pull/11305), [#11645](https://github.com/MetaMask/core/pull/11645))
@@ -342,7 +348,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5133](https://github.com/MetaMask/core/pull/5133), [#5177](https://github.com/MetaMask/core/pull/5177))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@8.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@9.0.0...HEAD
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@8.0.0...@metamask/multichain-transactions-controller@9.0.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@7.1.2...@metamask/multichain-transactions-controller@8.0.0
 [7.1.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@7.1.1...@metamask/multichain-transactions-controller@7.1.2
 [7.1.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@7.1.0...@metamask/multichain-transactions-controller@7.1.1

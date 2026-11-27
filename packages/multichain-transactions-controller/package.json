@@ -1,6 +1,6 @@
 {
   "name": "@metamask/multichain-transactions-controller",
-  "version": "8.0.0",
+  "version": "9.0.0",
   "description": "This package is responsible for getting transactions from our Bitcoin and Solana snaps",
   "keywords": [
     "Ethereum",
@@ -54,7 +54,7 @@
   "dependencies": {
     "@metamask/accounts-controller": "^40.2.0",
     "@metamask/base-controller": "^10.1.0",
-    "@metamask/core-backend": "^14.1.0",
+    "@metamask/core-backend": "^15.0.0",
     "@metamask/keyring-api": "^24.3.0",
     "@metamask/keyring-internal-api": "^12.1.2",
     "@metamask/keyring-snap-client": "^10.0.1",
@@ -63,7 +63,7 @@
     "@metamask/snaps-controllers": "^19.0.1",
     "@metamask/snaps-sdk": "^11.2.0",
     "@metamask/snaps-utils": "^12.1.2",
-    "@metamask/utils": "^12.0.2",
+    "@metamask/utils": "^12.1.0",
     "immer": "^11.2.10",
     "uuid": "^14.0.3"
   },

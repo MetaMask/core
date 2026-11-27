@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.1.0]
+
+### Added
+
+- Add XRPL CAIP namespace ([#11786](https://github.com/MetaMask/core/pull/11786))
+
 ### Changed
 
 - Bump `semver` from `^7.8.5` to `^7.8.6` ([#11645](https://github.com/MetaMask/core/pull/11645))
@@ -60,6 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Narrow byte helper return types to `Uint8Array<ArrayBuffer>` ([#10617](https://github.com/MetaMask/core/pull/10617))
   - These functions already returned a `Uint8Array` backed by an `ArrayBuffer`, but were typed as returning `Uint8Array<ArrayBufferLike>`.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/utils@12.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/utils@12.1.0...HEAD
+[12.1.0]: https://github.com/MetaMask/core/compare/@metamask/utils@12.0.2...@metamask/utils@12.1.0
 [12.0.2]: https://github.com/MetaMask/core/compare/@metamask/utils@12.0.1...@metamask/utils@12.0.2
 [12.0.1]: https://github.com/MetaMask/core/releases/tag/@metamask/utils@12.0.1

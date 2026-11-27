@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^12.0.2` to `^12.1.0` ([#11796](https://github.com/MetaMask/core/pull/11796))
+
+## [74.5.1]
+
+### Fixed
+
+- Fix type-4 gas estimation without the Simulation API on networks without EIP-2780, where removing or replacing an existing delegation was estimated below the intrinsic gas ([#11783](https://github.com/MetaMask/core/pull/11783))
+  - Keep unsigned authorizations in the selected network request with placeholder signatures, so the network charges the intrinsic gas of each authorization under its active rules, instead of adding a fixed EIP-2780 value.
+  - In the `estimateGasBatch` fallback, add 25,000 instead of 7,816 when replacing an existing delegation, as the active rules are not known.
+
+## [74.5.0]
+
+### Added
+
+- Add support for passing `undefined` as `multiplier` to `estimateGasBuffered`, which then uses the value from `confirmations_gas_buffer`. The buffer is applied even when estimation fails ([#11756](https://github.com/MetaMask/core/pull/11756))
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^14.1.0` to `^15.0.0` ([#11784](https://github.com/MetaMask/core/pull/11784))
+
+## [74.4.1]
+
+### Fixed
+
+- Treat transactions as not sponsored when the simulation `sponsorship` response contains a non-empty `error` ([#11752](https://github.com/MetaMask/core/pull/11752))
+
+## [74.4.0]
+
 ### Added
 
 - Add optional `isDirectMusd` property to `MetamaskPayMetadata.fiat` to record whether a fiat order on-ramps mUSD directly into the Money Account ([#11451](https://github.com/MetaMask/core/pull/11451))
@@ -2952,7 +2982,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.5.1...HEAD
+[74.5.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.5.0...@metamask/transaction-controller@74.5.1
+[74.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.4.1...@metamask/transaction-controller@74.5.0
+[74.4.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.4.0...@metamask/transaction-controller@74.4.1
+[74.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.3.0...@metamask/transaction-controller@74.4.0
 [74.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.2.0...@metamask/transaction-controller@74.3.0
 [74.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.1.0...@metamask/transaction-controller@74.2.0
 [74.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.0.0...@metamask/transaction-controller@74.1.0

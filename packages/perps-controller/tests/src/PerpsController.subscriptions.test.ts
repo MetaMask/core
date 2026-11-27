@@ -356,9 +356,13 @@ class TestablePerpsController extends PerpsController {
    * Test accessor for protected method reportOrderToDataLake.
    * Wrapper is necessary because protected methods can't be called from test code.
    * @param data
+   * @param provider
    */
-  public testReportOrderToDataLake(data: any): Promise<any> {
-    return this.reportOrderToDataLake(data);
+  public testReportOrderToDataLake(
+    data: any,
+    provider: PerpsProvider,
+  ): Promise<any> {
+    return this.reportOrderToDataLake(data, provider);
   }
 
   public testHasStandaloneProvider(): boolean {
@@ -612,8 +616,11 @@ describe('PerpsController', () => {
 
       const unsubscribe = controller.subscribeToPositions(params);
 
-      expect(unsubscribe).toBe(mockUnsubscribe);
-      expect(mockProvider.subscribeToPositions).toHaveBeenCalledWith(params);
+      expect(mockProvider.subscribeToPositions).toHaveBeenCalledWith(
+        expect.objectContaining({ callback: expect.any(Function) }),
+      );
+      unsubscribe();
+      expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -1140,8 +1147,9 @@ describe('PerpsController', () => {
           oldCallback(oldUpdate);
 
           expect(controller.state).toBe(selectedState);
-          // The old stream still feeds its own consumer, not selected state.
-          expect(oldConsumer).toHaveBeenLastCalledWith(oldUpdate);
+          // The old stream was stopped, so its consumer, which moved to the new
+          // account, does not hear it either.
+          expect(oldConsumer).toHaveBeenLastCalledWith(accountState('200'));
         },
       );
 
@@ -1572,9 +1580,12 @@ describe('PerpsController', () => {
 
       const unsubscribe = controller.subscribeToAvailableToTrade(params);
 
-      expect(subscribe).toHaveBeenCalledWith(params);
+      expect(subscribe).toHaveBeenCalledWith(
+        expect.objectContaining({ symbol: 'BTC' }),
+      );
       expect(callback).toHaveBeenCalledWith(venueValue);
-      expect(unsubscribe).toBe(mockUnsubscribe);
+      unsubscribe();
+      expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
     });
 
     it('leaves the value unknown when the provider cannot read it from its venue', () => {
@@ -1887,7 +1898,7 @@ describe('PerpsController', () => {
         );
       });
 
-      it('passes no onError to the provider when the caller gave none', () => {
+      it('passes the channel error handler to the provider even when the caller gave none', () => {
         controllableStream();
 
         controller.subscribeToPublicTrades({
@@ -1895,9 +1906,11 @@ describe('PerpsController', () => {
           callback: vi.fn(),
         });
 
+        // A later reader of the same channel may listen for failures.
         expect(mockProvider.subscribeToPublicTrades).toHaveBeenCalledWith({
           symbol: 'BTC',
           callback: expect.any(Function),
+          onError: expect.any(Function),
         });
       });
 

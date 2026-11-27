@@ -78,6 +78,8 @@ export enum SubscriptionServiceErrorMessage {
   InvalidCryptoAuthCombo = 'Crypto subscription requires exactly one of rawTransaction (erc20_approval) or delegationHash (delegation)',
   FailedToUpdatePaymentMethodCard = 'Failed to update payment method card',
   FailedToUpdatePaymentMethodCrypto = 'Failed to update payment method crypto',
+  FailedToPayLastInvoice = 'Failed to pay last invoice',
+  FailedToVerifyPaymentMethod = 'Failed to verify payment method',
   FailedToGetSubscriptionsEligibilities = 'Failed to get subscriptions eligibilities',
   FailedToSubmitUserEvent = 'Failed to submit user event',
   FailedToAssignUserToCohort = 'Failed to assign user to cohort',

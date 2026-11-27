@@ -3708,6 +3708,97 @@ describe('SocialService', () => {
     });
   });
 
+  describe('fetchSupportedNetworks', () => {
+    const mockSupportedNetworks = {
+      fullSupport: [
+        'eip155:8453',
+        'eip155:1',
+        'eip155:56',
+        'eip155:4663',
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+        'eip155:999',
+      ],
+      partialSupport: [],
+    };
+
+    it('fetches supported networks from /supportedNetworks', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockSupportedNetworks),
+      });
+
+      const service = createService();
+      const result = await service.fetchSupportedNetworks();
+
+      expect(result).toStrictEqual(mockSupportedNetworks);
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/supportedNetworks`, {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 401 });
+
+      const service = createService();
+
+      await expect(service.fetchSupportedNetworks()).rejects.toThrow(
+        `${SocialServiceErrorMessage.FETCH_SUPPORTED_NETWORKS_FAILED}: 401`,
+      );
+    });
+
+    it('throws when response schema is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({ ...mockSupportedNetworks, fullSupport: [1] }),
+      });
+
+      const service = createService();
+
+      await expect(service.fetchSupportedNetworks()).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_SUPPORTED_NETWORKS_INVALID_RESPONSE,
+      );
+    });
+
+    it('throws when a network is not a CAIP-2 chain id', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            ...mockSupportedNetworks,
+            partialSupport: ['not-a-chain-id'],
+          }),
+      });
+
+      const service = createService();
+
+      await expect(service.fetchSupportedNetworks()).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_SUPPORTED_NETWORKS_INVALID_RESPONSE,
+      );
+    });
+
+    it('is callable via messenger action', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockSupportedNetworks),
+      });
+
+      const messenger = createMessenger();
+      // eslint-disable-next-line no-new
+      new SocialService({ messenger, baseUrl: BASE_URL });
+
+      const result = await messenger.call(
+        'SocialService:fetchSupportedNetworks',
+      );
+
+      expect(result).toStrictEqual(mockSupportedNetworks);
+    });
+  });
+
   describe('translateComment', () => {
     const mockTranslation = {
       sourceLanguage: 'ko',

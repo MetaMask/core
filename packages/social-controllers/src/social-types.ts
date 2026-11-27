@@ -10,7 +10,7 @@ import {
   string,
   type as structType,
 } from '@metamask/superstruct';
-import type { CaipAssetTypeOrId } from '@metamask/utils';
+import type { CaipAssetTypeOrId, CaipChainId } from '@metamask/utils';
 
 // ---------------------------------------------------------------------------
 // Shared sub-types
@@ -1052,6 +1052,18 @@ export type QuoteTokensResponse = {
   natives: string[];
   /** CAIP-19 ids for stablecoins. */
   stablecoins: string[];
+};
+
+/**
+ * Networks social-api supports, as CAIP-2 chain ids.
+ *
+ * Returned by `GET /v1/supportedNetworks`.
+ */
+export type SupportedNetworksResponse = {
+  /** CAIP-2 ids of the networks with full social support. */
+  fullSupport: CaipChainId[];
+  /** CAIP-2 ids of the networks with limited social support. */
+  partialSupport: CaipChainId[];
 };
 
 /**

@@ -81,10 +81,6 @@ describe('SocialRealtimeService', () => {
           return false;
         }
 
-        if (action === 'BackendWebSocketService:getSubscriptionsByChannel') {
-          return [];
-        }
-
         return Promise.resolve(mockSubscription(unsubscribe));
       },
     );
@@ -897,10 +893,6 @@ describe('SocialRealtimeService', () => {
   it('creates an owned subscription when the feed channel already has one', async () => {
     const { call, service, unsubscribe } = createService();
     const listener = vi.fn();
-    const existingUnsubscribe = vi.fn().mockResolvedValue(undefined);
-    const existingSubscription = {
-      unsubscribe: existingUnsubscribe,
-    } as unknown as WebSocketSubscription;
     call.mockImplementation((action: string, _options?: unknown): unknown => {
       if (action === 'BackendWebSocketService:connect') {
         return Promise.resolve();
@@ -908,10 +900,6 @@ describe('SocialRealtimeService', () => {
 
       if (action === 'BackendWebSocketService:channelHasSubscription') {
         return true;
-      }
-
-      if (action === 'BackendWebSocketService:getSubscriptionsByChannel') {
-        return [existingSubscription];
       }
 
       return Promise.resolve(mockSubscription(unsubscribe));
@@ -932,7 +920,6 @@ describe('SocialRealtimeService', () => {
       }),
     );
     expect(listener).toHaveBeenCalledWith(event, 'trending');
-    expect(existingUnsubscribe).not.toHaveBeenCalled();
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
@@ -945,10 +932,6 @@ describe('SocialRealtimeService', () => {
 
       if (action === 'BackendWebSocketService:channelHasSubscription') {
         return true;
-      }
-
-      if (action === 'BackendWebSocketService:getSubscriptionsByChannel') {
-        return [];
       }
 
       return Promise.resolve(mockSubscription(unsubscribe));
@@ -1044,10 +1027,6 @@ describe('SocialRealtimeService', () => {
         return false;
       }
 
-      if (action === 'BackendWebSocketService:getSubscriptionsByChannel') {
-        return [];
-      }
-
       return subscriptionPromise;
     });
 
@@ -1082,10 +1061,6 @@ describe('SocialRealtimeService', () => {
 
       if (action === 'BackendWebSocketService:channelHasSubscription') {
         return false;
-      }
-
-      if (action === 'BackendWebSocketService:getSubscriptionsByChannel') {
-        return [];
       }
 
       return subscriptionPromise;

@@ -1036,6 +1036,8 @@ export type CrossMarginSummary = {
 
 // Using 'type' instead of 'interface' for BaseController Json compatibility
 export type AccountState = {
+  /** Registration of this wallet on this venue, when reported. */
+  exchangeAccountStatus?: ExchangeAccountStatus;
   /**
    * Venue account mode when confirmed by the current account stream or read
    * (Hyperliquid `userAbstraction`). Pass it to `calculateAccountSummary`.
@@ -2217,6 +2219,8 @@ export type GetMarketsParams = {
   skipFilters?: boolean; // Skip market filtering (both allowlist and blocklist, default: false). When true, returns all markets without filtering.
   standalone?: boolean; // Lightweight mode: skip full initialization, only fetch market metadata (no wallet/WebSocket needed). Only main DEX markets returned. Use for discovery use cases like checking if a perps market exists.
   useTerminalApi?: boolean; // When true, enrich provider data from the legacy Terminal market endpoint.
+  requireComplete?: boolean; // Reject when part of the venue's list could not be read, instead of leaving it out. Providers that read the list in one request ignore it.
+  skipCache?: boolean; // Read the venue's market metadata afresh and refresh the provider's session cache with it. Providers without a metadata cache ignore it.
 };
 
 /**
@@ -2237,7 +2241,15 @@ export type GetMarketDataWithPricesParams = {
 export type SubscribePricesParams = {
   symbols: string[];
   callback: (prices: PriceUpdate[]) => void;
-  throttleMs?: number; // Future: per-subscription throttling
+  /**
+   * Receives a failure to open the stream or to read its first value. The
+   * stream retries by itself; a later delivery means that it recovered.
+   */
+  onError?: (error: Error) => void;
+  /** Minimum time between deliveries to this subscriber; other subscribers of the same channel are unaffected. */
+  throttleMs?: number;
+  /** Called when the stream moves to another provider or account; the next delivery is the new context's data. */
+  onReset?: () => void;
   includeOrderBook?: boolean; // Optional: include bid/ask data from L2 book
   includeMarketData?: boolean; // Optional: include funding, open interest, volume data
 };
@@ -2245,17 +2257,25 @@ export type SubscribePricesParams = {
 export type SubscribePositionsParams = {
   /** The completeness flag is true for deliveries from the opt-in Hyperliquid stream. */
   callback: (positions: Position[], completeSnapshot?: boolean) => void;
+  /**
+   * Receives a failure to open the stream or to read its first value. The
+   * stream retries by itself; a later delivery means that it recovered.
+   */
+  onError?: (error: Error) => void;
   /** Direct Hyperliquid only. Wait for all configured DEXs to publish positions for this wallet and connection. */
   includeSnapshotStatus?: boolean;
   accountId?: CaipAccountId; // Optional: defaults to selected account
   includeHistory?: boolean; // Future: include historical data
+  /** Minimum time between deliveries to this subscriber; other subscribers of the same channel are unaffected. */
+  throttleMs?: number;
+  /** Called when the stream moves to another provider or account; the next delivery is the new context's data. */
+  onReset?: () => void;
 };
 
 export type SubscribeOrderFillsParams = {
   /**
-   * Reports detectable setup failures without asserting an empty account.
-   * Lighter currently produces these errors; other providers may not report
-   * setup failures through this optional callback.
+   * Reports detectable setup failures without asserting an empty account. The
+   * stream retries by itself; a later delivery means that it recovered.
    */
   onError?: (error: Error, sourceProviderId?: PerpsProviderType) => void;
   callback: (
@@ -2265,13 +2285,17 @@ export type SubscribeOrderFillsParams = {
   ) => void;
   accountId?: CaipAccountId; // Optional: defaults to selected account
   since?: number; // Future: only fills after timestamp
+  /** Minimum time between deliveries to this subscriber; other subscribers of the same channel are unaffected. */
+  throttleMs?: number;
+  /** Called when the stream moves to another provider or account; the next delivery is the new context's data. */
+  onReset?: () => void;
 };
 
 export type SubscribeOrdersParams = {
   /**
-   * Reports detectable setup failures without asserting an empty account.
-   * Lighter currently produces these errors; other providers may not report
-   * setup failures through this optional callback.
+   * Reports an unavailable orders stream without asserting an empty account.
+   * Lighter reports setup failures and loss of signer authentication. Keep the
+   * subscription for the next authenticated snapshot.
    */
   onError?: (error: Error, sourceProviderId?: PerpsProviderType) => void;
   /** The completeness flag is true for deliveries from the opt-in Hyperliquid stream. */
@@ -2284,6 +2308,10 @@ export type SubscribeOrdersParams = {
   includeSnapshotStatus?: boolean;
   accountId?: CaipAccountId; // Optional: defaults to selected account
   includeHistory?: boolean; // Optional: include filled/canceled orders
+  /** Minimum time between deliveries to this subscriber; other subscribers of the same channel are unaffected. */
+  throttleMs?: number;
+  /** Called when the stream moves to another provider or account; the next delivery is the new context's data. */
+  onReset?: () => void;
 };
 
 export type SubscribeTwapOrdersParams = {
@@ -2302,19 +2330,32 @@ export type SubscribeTwapOrdersParams = {
    * the merged result of a delta.
    */
   callback: (twapOrders: TwapOrder[], isSnapshot?: boolean) => void;
+  /**
+   * Receives a failure to open the stream or to read its first value. The
+   * stream retries by itself; a later delivery means that it recovered.
+   */
+  onError?: (error: Error) => void;
   accountId?: CaipAccountId; // Optional: defaults to selected account
+  /** Minimum time between deliveries to this subscriber; other subscribers of the same channel are unaffected. */
+  throttleMs?: number;
+  /** Called when the stream moves to another provider or account; the next delivery is the new context's data. */
+  onReset?: () => void;
 };
 
 /** Subscription to the merged live TWAP list. */
 export type SubscribeLiveTwapOrdersParams = {
   /**
    * Receives every known schedule, newest first, whenever the list changes.
-   * Reads and stream pushes are merged here, with execution totals raised
-   * from slice fills; split the list with `partitionTwapOrders`.
+   * One read and the venue's pushes are merged here, with execution totals
+   * raised from pushed slice fills; split the list with `partitionTwapOrders`.
    */
   callback: (twapOrders: TwapOrder[]) => void;
   /** Called when a read fails; the list keeps its last state. */
   onError?: (error: Error) => void;
+  /** Minimum time between deliveries to this subscriber; other subscribers of the same channel are unaffected. */
+  throttleMs?: number;
+  /** Called when the stream moves to another provider or account; the next delivery is the new context's data. */
+  onReset?: () => void;
 };
 
 /** Subscription to the live chase lists. */
@@ -2323,6 +2364,10 @@ export type SubscribeChaseOrderListsParams = {
   callback: (lists: ChaseOrderLists) => void;
   /** Called when a read fails; the lists keep their last state. */
   onError?: (error: Error) => void;
+  /** Minimum time between deliveries to this subscriber; other subscribers of the same channel are unaffected. */
+  throttleMs?: number;
+  /** Called when the stream moves to another provider or account; the next delivery is the new context's data. */
+  onReset?: () => void;
 };
 
 /**
@@ -2365,10 +2410,13 @@ export type SubscribeAvailableToTradeParams = {
    * opened (for example a rejected resubscription). Also invalidates the old
    * venue's value when a default-routed subscription changes providers.
    * The value is unknown again.
-   * Not terminal: keep the subscription, since the stream reopens when the
-   * WebSocket transport is replaced.
+   * Not terminal: keep the subscription, since the stream reopens by itself.
    */
   onError?: (error: Error) => void;
+  /** Minimum time between deliveries to this subscriber; other subscribers of the same channel are unaffected. */
+  throttleMs?: number;
+  /** Called when the stream moves to another provider or account; the next delivery is the new context's data. */
+  onReset?: () => void;
 };
 
 export type SubscribeAccountParams = {
@@ -2378,6 +2426,11 @@ export type SubscribeAccountParams = {
     account: AccountState | null,
     aggregate?: AccountAggregateMetadata,
   ) => void;
+  /**
+   * Receives a failure to open the stream or to read its first value. The
+   * stream retries by itself; a later delivery means that it recovered.
+   */
+  onError?: (error: Error) => void;
   accountId?: CaipAccountId; // Optional: defaults to selected account
   /**
    * Optional: emit `null` instead of a snapshot that is missing part of the
@@ -2387,10 +2440,19 @@ export type SubscribeAccountParams = {
    * it keep each venue's lenient default.
    */
   requireCompleteAccount?: boolean;
+  /** Minimum time between deliveries to this subscriber; other subscribers of the same channel are unaffected. */
+  throttleMs?: number;
+  /** Called when the stream moves to another provider or account; the next delivery is the new context's data. */
+  onReset?: () => void;
 };
 
 export type SubscribeOICapsParams = {
   callback: (caps: string[]) => void;
+  /**
+   * Receives a failure to open the stream or to read its first value. The
+   * stream retries by itself; a later delivery means that it recovered.
+   */
+  onError?: (error: Error) => void;
   accountId?: CaipAccountId; // Optional: defaults to selected account
   /**
    * Optional explicit venue route. Omit for the default-routed behavior
@@ -2398,6 +2460,10 @@ export type SubscribeOICapsParams = {
    * supply one to pin the stream to that venue.
    */
   providerId?: PerpsProviderType;
+  /** Minimum time between deliveries to this subscriber; other subscribers of the same channel are unaffected. */
+  throttleMs?: number;
+  /** Called when the stream moves to another provider or account; the next delivery is the new context's data. */
+  onReset?: () => void;
 };
 
 export type SubscribeCandlesParams = {
@@ -2413,6 +2479,10 @@ export type SubscribeCandlesParams = {
    * list the same symbol and the data must come from a specific one.
    */
   providerId?: PerpsProviderType;
+  /** Minimum time between deliveries to this subscriber; other subscribers of the same channel are unaffected. */
+  throttleMs?: number;
+  /** Called when the stream moves to another provider or account; the next delivery is the new context's data. */
+  onReset?: () => void;
 };
 
 /**
@@ -2472,6 +2542,10 @@ export type SubscribePublicTradesParams = {
   callback: (trades: PublicTrade[]) => void;
   /** Receives a failure to open the stream. */
   onError?: (error: Error) => void;
+  /** Minimum time between deliveries to this subscriber; other subscribers of the same channel are unaffected. */
+  throttleMs?: number;
+  /** Called when the stream moves to another provider or account; the next delivery is the new context's data. */
+  onReset?: () => void;
 };
 
 /**
@@ -2536,6 +2610,10 @@ export type SubscribeOrderBookParams = {
   callback: (orderBook: OrderBookData) => void;
   /** Callback for errors */
   onError?: (error: Error) => void;
+  /** Minimum time between deliveries to this subscriber; other subscribers of the same channel are unaffected. */
+  throttleMs?: number;
+  /** Called when the stream moves to another provider or account; the next delivery is the new context's data. */
+  onReset?: () => void;
 };
 
 /** A Cross order to estimate with `estimateCrossLiquidation`. */
@@ -2550,6 +2628,12 @@ export type EstimateCrossLiquidationParams = {
   entryPrice: string;
   /** Cross leverage the order sets on the market. */
   leverage: number;
+  /**
+   * Fee the order pays in USD, taken from the Cross collateral at the fill.
+   * Omit for an estimate without the fee. A negative or non-finite fee makes
+   * the estimate `unavailable` (`missing_inputs`).
+   */
+  feeAmountUsd?: number;
   /** Provider that would place the order when calculations are aggregated. */
   providerId?: PerpsProviderType;
 };
@@ -2804,6 +2888,22 @@ export type MarginAdjustmentLimits =
   | { status: 'available'; maxAdd: string; maxRemove: string }
   | { status: 'unavailable'; reason: MarginAdjustmentLimitsUnavailableReason };
 
+/**
+ * Stream an isolated position's margin adjustment limits. The callback
+ * receives the current limits at once, then each change.
+ */
+export type SubscribeMarginAdjustmentLimitsParams =
+  GetMarginAdjustmentLimitsParams & {
+    /** Receives the limits, or why they are unavailable. */
+    callback: (limits: MarginAdjustmentLimits) => void;
+    /** Receives a failure to open the stream. */
+    onError?: (error: Error) => void;
+    /** Minimum time between deliveries to this subscriber; other subscribers of the same channel are unaffected. */
+    throttleMs?: number;
+    /** Called when the stream moves to another provider or account; the next delivery is the new context's data. */
+    onReset?: () => void;
+  };
+
 /** Market (or every market, when `symbol` is omitted) whose metadata is requested. */
 export type GetMarketMetaParams = {
   /** Provider-specific market identifier, including any routing prefix. */
@@ -2822,6 +2922,177 @@ export type PerpsMarketMeta = {
   /** Whether the market rejects Cross margin. */
   onlyIsolated: boolean;
 };
+
+/**
+ * Stream every market's metadata (margin tiers, delisting, max leverage,
+ * Cross support). The callback receives the provider's current list at once,
+ * then a new list when the venue's own stream shows a listing or a delisting,
+ * and after a reconnect.
+ */
+export type SubscribeMarketMetaParams = {
+  /** Provider whose markets are streamed; defaults to the active route. */
+  providerId?: PerpsProviderType;
+  /** Receives the full market list; never an empty list for a failed read. */
+  callback: (markets: PerpsMarketMeta[]) => void;
+  /** Receives a failed read; the last list stays current. */
+  onError?: (error: Error) => void;
+  /** Minimum time between deliveries to this subscriber; other subscribers of the same channel are unaffected. */
+  throttleMs?: number;
+  /** Called when the stream moves to another provider or account; the next delivery is the new context's data. */
+  onReset?: () => void;
+};
+
+/**
+ * Stream the round trip of the provider's WebSocket keepalive. The callback
+ * receives the last measured value at once when there is one, then each new
+ * measurement.
+ */
+export type SubscribeConnectionLatencyParams = {
+  /** Provider whose connection is measured; defaults to the active route. */
+  providerId?: PerpsProviderType;
+  /** Receives each round trip in whole milliseconds. */
+  callback: (latencyMs: number) => void;
+  /** Receives a failure to open the stream. */
+  onError?: (error: Error) => void;
+  /** Minimum time between deliveries to this subscriber; other subscribers of the same channel are unaffected. */
+  throttleMs?: number;
+  /** Called when the stream moves to another provider or account; the next delivery is the new context's data. */
+  onReset?: () => void;
+};
+
+/**
+ * A market's post-discount fee rates: what `calculateFees` returns for a
+ * taker fill (`isMaker: false`) and a maker fill (`isMaker: true`).
+ */
+export type PerpsFeeRates = {
+  /** Market the rates apply to. */
+  symbol: string;
+  /** The `calculateFees` result for a taker fill. */
+  taker: FeeCalculationResult;
+  /** The `calculateFees` result for a maker fill. */
+  maker: FeeCalculationResult;
+};
+
+/**
+ * Stream a market's fee rates for the selected account. The callback receives
+ * one read at once, then a new read after one of the account's own fills (its
+ * volume tier can change), an account switch, a Rewards change, the expiry of
+ * a trading fee grant or `invalidateSubscriptionBenefits`. There is no
+ * repeating timer.
+ */
+export type SubscribeFeeRatesParams = {
+  /** Market, including any routing prefix. */
+  symbol: string;
+  /**
+   * Order type both rates are priced for. Omitted, the taker rate is priced
+   * as `market` and the maker rate as `limit`.
+   */
+  orderType?: OrderType;
+  /** Provider whose fees are read; defaults to the active route. */
+  providerId?: PerpsProviderType;
+  /** Order amount in USD to price, as in `calculateFees`. */
+  amount?: string;
+  /** Receives the rates; unchanged reads are not delivered again. */
+  callback: (rates: PerpsFeeRates) => void;
+  /** Receives a failed read; the last rates stay current. */
+  onError?: (error: Error) => void;
+  /** Minimum time between deliveries to this subscriber; other subscribers of the same channel are unaffected. */
+  throttleMs?: number;
+  /** Called when the stream moves to another provider or account; the next delivery is the new context's data. */
+  onReset?: () => void;
+};
+
+/** Told when a venue's markets may have changed; see `PerpsProvider`. */
+export type SubscribeMarketChangesParams = {
+  /** Provider whose markets are watched; defaults to the active route. */
+  providerId?: PerpsProviderType;
+  /** Called on each change; read the markets again. */
+  callback: () => void;
+  /** Receives a failure to open the venue's feed. */
+  onError?: (error: Error) => void;
+};
+
+/** Told when the account's chases may have changed; see `PerpsProvider`. */
+export type SubscribeChaseOrderChangesParams = {
+  /** Called on each change; read the chases again. */
+  callback: () => void;
+};
+
+/**
+ * Whether an account's trading agent is valid for the venue:
+ * - `not_required`: the venue, or this host, signs trades without an agent.
+ * - `valid`: the venue lists the agent; `validUntil` is its expiry in epoch
+ *   milliseconds, or null when it does not expire.
+ * - `invalid`: `no_agent` (none is set or resolved for the account),
+ *   `not_approved` (the venue does not list it), `expired` (listed past its
+ *   `validUntil` by this device's clock) or `rejected` (the venue refused a
+ *   request it signed).
+ * - `unknown`: the account or the venue's agent list could not be read.
+ */
+export type PerpsTradingAgentValidity =
+  | { status: 'not_required' }
+  | { status: 'valid'; agentAddress: Hex; validUntil: number | null }
+  | {
+      status: 'invalid';
+      reason: 'no_agent' | 'not_approved' | 'expired' | 'rejected';
+      agentAddress?: Hex;
+    }
+  | { status: 'unknown'; reason: 'account_unknown' | 'read_failed' };
+
+/** Stream whether an account's trading agent is valid for the venue. */
+export type SubscribeTradingAgentValidityParams = {
+  /** Account to check; defaults to the selected account, following switches. */
+  accountId?: CaipAccountId;
+  /** Provider whose agent is checked; defaults to the active route. */
+  providerId?: PerpsProviderType;
+  /** Receives the validity; unchanged values are not delivered again. */
+  callback: (validity: PerpsTradingAgentValidity) => void;
+  /** Receives a failure to open the stream. */
+  onError?: (error: Error) => void;
+  /** Minimum time between deliveries to this subscriber; other subscribers of the same channel are unaffected. */
+  throttleMs?: number;
+  /** Called when the stream moves to another provider or account; the next delivery is the new context's data. */
+  onReset?: () => void;
+};
+
+/** Parameters of each `PerpsController.subscribeTo*` stream, by stream name. */
+export type PerpsStreamParams = {
+  account: SubscribeAccountParams;
+  availableToTrade: SubscribeAvailableToTradeParams;
+  candles: SubscribeCandlesParams;
+  chaseOrderLists: SubscribeChaseOrderListsParams;
+  connectionLatency: SubscribeConnectionLatencyParams;
+  feeRates: SubscribeFeeRatesParams;
+  liveTwapOrders: SubscribeLiveTwapOrdersParams;
+  marginAdjustmentLimits: SubscribeMarginAdjustmentLimitsParams;
+  marketMeta: SubscribeMarketMetaParams;
+  oiCaps: SubscribeOICapsParams;
+  orderBook: SubscribeOrderBookParams;
+  orderFills: SubscribeOrderFillsParams;
+  orders: SubscribeOrdersParams;
+  positions: SubscribePositionsParams;
+  prices: SubscribePricesParams;
+  publicTrades: SubscribePublicTradesParams;
+  tradingAgentValidity: SubscribeTradingAgentValidityParams;
+  twapOrders: SubscribeTwapOrdersParams;
+};
+
+/** Name of a `PerpsController.subscribeTo*` stream. */
+export type PerpsStreamName = keyof PerpsStreamParams;
+
+/**
+ * The parameters that pick a stream's channel: the `subscribeTo*` parameters
+ * without callbacks and throttle.
+ */
+export type PerpsStreamSnapshotParams<Stream extends PerpsStreamName> = Omit<
+  PerpsStreamParams[Stream],
+  'callback' | 'onError' | 'onReset' | 'throttleMs'
+>;
+
+/** The arguments a stream's callback last received. */
+export type PerpsStreamSnapshot<Stream extends PerpsStreamName> = Parameters<
+  PerpsStreamParams[Stream]['callback']
+>;
 
 /** Inputs for a provider-normalized Scale price ladder preview. */
 export type GetScalePriceLadderParams = {
@@ -3093,6 +3364,8 @@ export type FeeCalculationParams = {
   symbol: string; // Required: Asset identifier for HIP-3 fee calculation (e.g., 'BTC', 'xyz:TSLA')
   // Optional provider override. Omission uses active/default routing.
   providerId?: PerpsProviderType;
+  // Read the account's venue rates again instead of a cached copy.
+  skipCache?: boolean;
 };
 
 export type FeeCalculationResult = {
@@ -3448,6 +3721,14 @@ export type GetAccountSupportParams = {
   providerId?: PerpsProviderType;
 };
 
+/** Selects the venue whose registration should be checked. */
+export type GetExchangeAccountStatusParams = { providerId: PerpsProviderType };
+
+/** The selected wallet's venue registration and, when applicable, master index. */
+export type ExchangeAccountStatus =
+  | { registered: true; accountIndex?: number }
+  | { registered: false };
+
 /**
  * Selects the provider route whose withdrawal destination should be resolved.
  * Accepts the same optional route `withdraw` accepts.
@@ -3489,6 +3770,14 @@ export type PerpsProvider = {
   ): Promise<PerpsAccountSupport>;
 
   /**
+   * Check the selected wallet’s venue registration once, without signing.
+   * Omit this hook for venues with no registration step.
+   */
+  getExchangeAccountStatus?(
+    params: GetExchangeAccountStatusParams,
+  ): Promise<ExchangeAccountStatus>;
+
+  /**
    * Return order capabilities for the provider/market route. Providers may
    * omit this hook; the controller then reports capabilities as unavailable.
    */
@@ -3507,6 +3796,45 @@ export type PerpsProvider = {
   getMarginModeLock?(
     params: GetMarginModeLockParams,
   ): Promise<PerpsMarginModeLock>;
+
+  /**
+   * Stream an isolated position's margin adjustment limits from the
+   * provider's live account and position streams, without venue reads.
+   * The callback receives the current limits at once, then each change.
+   * Providers without it are reported as `unavailable`/`provider`.
+   *
+   * @param params - Market, optional route, callback and error handler.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToMarginAdjustmentLimits?(
+    params: SubscribeMarginAdjustmentLimitsParams,
+  ): () => void;
+
+  /**
+   * Stream the round trip of the provider's WebSocket keepalive, in whole
+   * milliseconds, measured on the keepalive the transport already sends.
+   * Providers without one never call back.
+   *
+   * @param params - Callback and error handler.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToConnectionLatency?(
+    params: SubscribeConnectionLatencyParams,
+  ): () => void;
+
+  /**
+   * Report whether the account's trading agent is valid for the venue. The
+   * callback receives one read at once, then a new value on events only: an
+   * agent set or cleared, a venue rejection of the agent, and the agent's
+   * `validUntil` expiry (one timeout at the deadline). Providers without it
+   * have no agent step, and the controller reports `not_required`.
+   *
+   * @param params - Optional account and route, callback and error handler.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToTradingAgentValidity?(
+    params: SubscribeTradingAgentValidityParams,
+  ): () => void;
 
   /**
    * Return how much margin an isolated position can take in and release.
@@ -3542,11 +3870,31 @@ export type PerpsProvider = {
   cancelOrders?(params: BatchCancelOrdersParams): Promise<CancelOrdersResult>; // Optional: batch cancel for protocols that support it
   getTwapOrders?(): Promise<TwapOrder[]>;
   /**
-   * Stream TWAP lifecycle updates. Optional: providers without a native TWAP
-   * push channel omit it, and clients fall back to polling `getTwapOrders`.
+   * Resolve the venue account index the client enrolls for notifications.
+   * Optional: only providers whose notification events are keyed by account
+   * index (Lighter) implement it.
+   */
+  getNotificationAccountIndex?(): Promise<number>;
+  /**
+   * Stream TWAP lifecycle updates, with slice fills. Optional: providers
+   * without a native TWAP push channel omit it.
    */
   subscribeToTwapOrders?(params: SubscribeTwapOrdersParams): () => void;
   getChaseOrders?(): Promise<ChaseOrder[]>;
+  /**
+   * Call back when a chase of the selected account was placed, re-priced,
+   * filled or ended, so `getChaseOrders` is read on changes instead of on a
+   * timer. Providers without chases omit it.
+   */
+  subscribeToChaseOrderChanges?(
+    params: SubscribeChaseOrderChangesParams,
+  ): () => void;
+  /**
+   * Call back when the venue's own push shows that a market was listed or
+   * delisted, so `getMarkets` is read on changes instead of on a timer.
+   * Providers whose stream cannot show it omit it.
+   */
+  subscribeToMarketChanges?(params: SubscribeMarketChangesParams): () => void;
   /** Pure local observation; no signing, transport, continuation or durable writes. */
   getChaseOrderOwnership?(
     params: GetChaseOrderOwnershipParams,
@@ -4193,7 +4541,15 @@ export type PerpsDebugLogger = {
  * - Extension: Implement with whatever streaming solution they use
  */
 export type PerpsStreamManager = {
+  /**
+   * @deprecated Core pauses its own stream channels. Still called for one
+   * release so a client-side stream manager keeps working.
+   */
   pauseChannel(channel: string): void;
+  /**
+   * @deprecated Core resumes its own stream channels. Still called for one
+   * release so a client-side stream manager keeps working.
+   */
   resumeChannel(channel: string): void;
   clearAllChannels(): void;
 };
@@ -4470,6 +4826,12 @@ export type PerpsPlatformDependencies = {
   tracer: PerpsTracer;
 
   // === Platform Services (mobile/extension specific) ===
+  /**
+   * @deprecated Core's stream channels pause, rebind and reopen themselves
+   * (`PerpsController.resubscribeStreams` replaces a client-side reconnect).
+   * Still called for one release; a client without its own stream manager
+   * can pass no-ops.
+   */
   streamManager: PerpsStreamManager;
 
   // === Feature Flags (platform-specific version gating) ===
@@ -4509,6 +4871,17 @@ export type PerpsPlatformDependencies = {
      * (`GET /v4/perpetuals`).
      */
     globalSnapshotUrl?: string;
+  };
+
+  // === notify-perps API (Lighter account enrollment) ===
+  notifyPerpsApi?: {
+    /**
+     * Base URL of the notify-perps API for the current environment (for
+     * example `https://perps.api.cx.metamask.io`). Lighter accounts are
+     * enrolled at `${baseUrl}/api/v1/lighter/accounts`. When omitted,
+     * enrollment is skipped.
+     */
+    baseUrl?: string;
   };
 
   /** @deprecated Use `terminalApi.marketDataUrl`. */
@@ -4555,6 +4928,14 @@ export type PerpsPlatformDependencies = {
     getPerpsTradingFeeGrant?(
       scope: PerpsFeeResolverScope,
     ): Promise<PerpsTradingFeeGrant | null>;
+
+    /**
+     * Call the listener when an answer of the two reads above may have changed
+     * (a Rewards session started, ended or expired, or a tier changed), so fee
+     * rate streams are priced again. Optional: without it they follow fills
+     * and account changes only.
+     */
+    subscribeToPerpsFeeChanges?(listener: () => void): () => void;
   };
 
   // === Subscription (DI — benefits endpoint is owned by the Subscription team) ===

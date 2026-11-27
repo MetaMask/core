@@ -98,7 +98,10 @@ class MockHttpTransport {
 }
 
 class MockWebSocketTransport {
-  readonly socket = { addEventListener: (): void => undefined };
+  readonly socket = {
+    addEventListener: (): void => undefined,
+    send: (): void => undefined,
+  };
 
   async ready(): Promise<void> {
     // Connected at once.

@@ -70,9 +70,7 @@ export const HL_UNIFIED_ACCOUNT_MODE = 'unifiedAccount' as const;
  * @param mode - Abstraction mode from `userAbstraction` endpoint; null/undefined means unknown.
  * @returns `true` when spot folds into spendable/withdrawable (Unified / Portfolio); `false` for Standard / default / unknown.
  */
-export function hyperLiquidModeFoldsSpot(
-  mode?: HyperLiquidAbstractionMode | null,
-): boolean {
+export function hyperLiquidModeFoldsSpot(mode?: string | null): boolean {
   if (mode === null || mode === undefined) {
     return false;
   }

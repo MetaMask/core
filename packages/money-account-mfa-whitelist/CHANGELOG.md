@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add the `rewards-claim-delegation` rule: a single-use delegation whose exact executions are `mUSD.receiveWithAuthorization` to the Money Account, followed by a vault deposit of the same amount
   - Add the `rewards-claim-proof` rule: the Rewards claim proof message when its earning address and payout address are the Money Account and it expires within `maxMessageAge` plus one minute
 
+### Changed
+
+- Bump `@metamask/utils` from `^12.0.2` to `^12.1.0` ([#11796](https://github.com/MetaMask/core/pull/11796))
+
 ## [0.3.0]
 
 ### Added

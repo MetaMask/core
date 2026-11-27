@@ -142,8 +142,6 @@ export const CHASE_ORDER_CONFIG = {
    * the only thing that can enforce it.
    */
   MaxActiveSessions: 5,
-  /** How often a live chase list re-reads the provider's chase snapshots. */
-  RefreshIntervalMs: 1000,
   /** Most ended chases a live chase list keeps in history, newest first. */
   HistoryLimit: 50,
   /**
@@ -154,13 +152,35 @@ export const CHASE_ORDER_CONFIG = {
   OmissionGraceReads: 1,
 } as const;
 
-/** Refresh cadence of a live TWAP list. */
+/** How a shared stream channel reopens a source that failed. */
+export const STREAM_RETRY_CONFIG = {
+  /** Delay before the first reopen; it doubles with each attempt. */
+  BaseDelayMs: 1000,
+  /** Longest delay between two attempts. */
+  MaxDelayMs: 30000,
+  /** Reopens before the channel waits for a reconnect or a new reader. */
+  MaxAttempts: 5,
+  /** How long a source must run, with data, to earn a fresh budget. */
+  StableMs: 60000,
+} as const;
+
+/**
+ * How long a market must look retired, or quoted again, before it counts as a
+ * change. An illiquid market's book empties for shorter than that.
+ */
+export const MARKET_STATE_CONFIRM_MS = 60000;
+
+/** Wait after a market change before reading the markets again. */
+export const MARKET_CHANGE_SETTLE_MS = 1000;
+
+/** Wait after a fill before reading the fee rates again. */
+export const FEE_CHANGE_SETTLE_MS = 1000;
+
+/** Largest delay supported by setTimeout. */
+export const MAX_TIMEOUT_MS = 2_147_483_647;
+
+/** Read timing of a live TWAP list. */
 export const TWAP_ORDER_CONFIG = {
-  /**
-   * How often a live TWAP list re-reads while a schedule runs. The stream
-   * carries no slice fills, so only reads raise the execution totals.
-   */
-  RefreshIntervalMs: 5000,
   /** Delay before re-reading when the stream lists a schedule no read has. */
   StreamCatchUpIntervalMs: 1000,
 } as const;
@@ -472,6 +492,18 @@ export const MARGIN_ADJUSTMENT_CONFIG = {
 export const DATA_LAKE_API_CONFIG = {
   // Order reporting endpoint - only used for mainnet perps trading
   OrdersEndpoint: 'https://perps.api.cx.metamask.io/api/v1/orders',
+} as const;
+
+/**
+ * notify-perps settings for Lighter notification enrollment and the shared
+ * fire-and-forget retry policy of the notify-perps reporters
+ */
+export const NOTIFY_PERPS_API_CONFIG = {
+  // Path appended to `notifyPerpsApi.baseUrl`
+  LighterNotificationAccountsPath: '/api/v1/lighter/accounts',
+  // Retries after the first attempt, with exponential backoff from RetryDelayMs
+  MaxRetries: 3,
+  RetryDelayMs: 1000,
 } as const;
 
 /**

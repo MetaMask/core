@@ -601,6 +601,20 @@ describe('LighterProvider', () => {
       expect(markets[0]).toMatchObject({ name: 'BTC', providerId: 'lighter' });
     });
 
+    it('reads the venue again, with its leverage metadata, when asked to skip the cache', async () => {
+      const { provider, clientInstance } = buildProvider();
+      await provider.getMarkets();
+      await provider.getMarkets();
+      const details = clientInstance.getOrderBookDetails.mock.calls.length;
+
+      await provider.getMarkets({ skipCache: true });
+
+      expect(clientInstance.getOrderBooks).toHaveBeenLastCalledWith(true);
+      expect(clientInstance.getOrderBookDetails).toHaveBeenCalledTimes(
+        details + 1,
+      );
+    });
+
     it('returns empty markets on API failure', async () => {
       const { provider, clientInstance } = buildProvider();
       clientInstance.getOrderBooks.mockRejectedValue(new Error('down'));
@@ -1212,6 +1226,26 @@ describe('LighterProvider', () => {
         expect(state.providerStates?.lighter).not.toHaveProperty(
           'state.crossMarginSummary',
         );
+      });
+
+      it('exposes the configured account index for enrollment', async () => {
+        const { provider } = buildProvider();
+        expect(await provider.getNotificationAccountIndex()).toBe(28);
+      });
+
+      it('exposes the master (lowest) account index for enrollment', async () => {
+        const { provider, clientInstance } = buildProvider({
+          configuredAccountIndex: null,
+        });
+        clientInstance.getAccountsByL1Address.mockResolvedValue({
+          code: 200,
+          l1Address: ACCOUNT.l1Address,
+          subAccounts: [
+            { ...ACCOUNT, index: 7 },
+            { ...ACCOUNT, index: 3 },
+          ],
+        });
+        expect(await provider.getNotificationAccountIndex()).toBe(3);
       });
 
       it('still reads a wallet without a Lighter account as empty', async () => {

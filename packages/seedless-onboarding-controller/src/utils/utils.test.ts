@@ -1,3 +1,4 @@
+import { SomeError } from '@metamask/auth-network-utils';
 import {
   EncAccountDataType,
   TOPRFError,
@@ -15,12 +16,15 @@ import {
 import { SecretMetadata } from '../SecretMetadata.js';
 import type { DecodedNodeAuthToken } from '../types.js';
 import {
-  decodeNodeAuthToken,
-  decodeJWTToken,
   compareAndGetLatestToken,
+  decodeJWTToken,
+  decodeNodeAuthToken,
   getInvalidPrimarySecretDataTypeErrorData,
+  getLatestAccessToken,
   getSecretTypeFromDataType,
   isAuthTokenError,
+  isCouldNotDeriveEncryptionKeyError,
+  isCouldNotDeriveThresholdAuthPubKeyError,
   isMaxKeyChainLengthError,
   isTokenNearExpiry,
   parseVaultData,
@@ -278,6 +282,30 @@ describe('utils', () => {
     });
   });
 
+  describe('getLatestAccessToken', () => {
+    it('returns the vault token when there is no token from before unlock', () => {
+      const vaultToken = createMockJWTToken({ exp: 1500000000 });
+
+      expect(getLatestAccessToken(undefined, vaultToken)).toBe(vaultToken);
+    });
+
+    it('returns the token from before unlock when it expires later', () => {
+      const refreshedToken = createMockJWTToken({ exp: 2000000000 });
+      const vaultToken = createMockJWTToken({ exp: 1000000000 });
+
+      expect(getLatestAccessToken(refreshedToken, vaultToken)).toBe(
+        refreshedToken,
+      );
+    });
+
+    it('returns the vault token when it expires later', () => {
+      const refreshedToken = createMockJWTToken({ exp: 1000000000 });
+      const vaultToken = createMockJWTToken({ exp: 2000000000 });
+
+      expect(getLatestAccessToken(refreshedToken, vaultToken)).toBe(vaultToken);
+    });
+  });
+
   describe('getSecretTypeFromDataType', () => {
     it('should throw an error for unknown EncAccountDataType', () => {
       const unknownDataType = 'UnknownType' as unknown as EncAccountDataType;
@@ -386,6 +414,42 @@ describe('utils', () => {
       ).toBe(true);
       expect(
         isAuthTokenError(
+          new SomeError({
+            errors: [],
+            responses: [],
+            predicate: TOPRFError.authTokenExpired(),
+          }),
+        ),
+      ).toBe(true);
+      expect(
+        isAuthTokenError(
+          new SomeError({
+            errors: [],
+            responses: [],
+            predicate: TOPRFError.invalidAuthToken(),
+          }),
+        ),
+      ).toBe(true);
+      expect(
+        isAuthTokenError(
+          new SomeError({
+            errors: [],
+            responses: [],
+            predicate: TOPRFError.insufficientValidResponses('insufficient'),
+          }),
+        ),
+      ).toBe(false);
+      expect(
+        isAuthTokenError(
+          new SomeError({
+            errors: [new Error('network')],
+            responses: [],
+            predicate: undefined,
+          }),
+        ),
+      ).toBe(false);
+      expect(
+        isAuthTokenError(
           new TOPRFError(
             TOPRFErrorCode.MaxKeyChainLengthExceeded,
             'max key chain length',
@@ -412,6 +476,134 @@ describe('utils', () => {
       expect(isMaxKeyChainLengthError(new Error('not a TOPRF error'))).toBe(
         false,
       );
+    });
+
+    it('identifies could not derive encryption key errors', () => {
+      expect(
+        isCouldNotDeriveEncryptionKeyError(
+          new TOPRFError(
+            TOPRFErrorCode.CouldNotDeriveEncryptionKey,
+            'could not derive',
+          ),
+        ),
+      ).toBe(true);
+      expect(
+        isCouldNotDeriveEncryptionKeyError(
+          new TOPRFError(TOPRFErrorCode.AuthTokenExpired, 'expired'),
+        ),
+      ).toBe(false);
+      expect(
+        isCouldNotDeriveEncryptionKeyError(new Error('not a TOPRF error')),
+      ).toBe(false);
+    });
+
+    it('identifies could not derive threshold auth public key errors', () => {
+      expect(
+        isCouldNotDeriveThresholdAuthPubKeyError(
+          TOPRFError.couldNotDeriveThresholdAuthPubKey(),
+        ),
+      ).toBe(true);
+      expect(
+        isCouldNotDeriveThresholdAuthPubKeyError(
+          new TOPRFError(
+            TOPRFErrorCode.CouldNotDeriveEncryptionKey,
+            'could not derive',
+          ),
+        ),
+      ).toBe(false);
+      expect(
+        isCouldNotDeriveThresholdAuthPubKeyError(
+          new Error('not a TOPRF error'),
+        ),
+      ).toBe(false);
+    });
+
+    it('returns true for a SomeError wrapping the nodes "Error getting pub key" response', () => {
+      // Nodes without a key for the verifier ID answer with this JSON-RPC
+      // error data, which `Some` surfaces as a `SomeError` rather than a
+      // `TOPRFError`.
+      const error = new SomeError({
+        errors: [new Error('Error getting pub key')],
+        responses: [],
+        predicate: undefined,
+      });
+
+      expect(isCouldNotDeriveThresholdAuthPubKeyError(error)).toBe(true);
+    });
+
+    it('returns true for the SomeError shape logged when every node lacks the key', () => {
+      const error = new SomeError({
+        errors: [
+          new Error('Error getting pub key'),
+          new Error('Error getting pub key'),
+          new Error('Error getting pub key'),
+          new Error('Error getting pub key'),
+          new Error('Error getting pub key'),
+        ],
+        responses: [],
+        predicate: TOPRFError.insufficientValidResponses(
+          'Insufficient get pub key request results, expected 3 but got 0',
+        ),
+      });
+
+      expect(isCouldNotDeriveThresholdAuthPubKeyError(error)).toBe(true);
+    });
+
+    it('returns false for a SomeError with other errors', () => {
+      const error = new SomeError({
+        errors: [new Error('Some other failure')],
+        responses: [],
+        predicate: undefined,
+      });
+
+      expect(isCouldNotDeriveThresholdAuthPubKeyError(error)).toBe(false);
+    });
+
+    it('returns true for a SomeError whose predicate is CouldNotDeriveThresholdAuthPubKey', () => {
+      const error = new SomeError({
+        errors: [],
+        responses: [],
+        predicate: TOPRFError.couldNotDeriveThresholdAuthPubKey(),
+      });
+
+      expect(isCouldNotDeriveThresholdAuthPubKeyError(error)).toBe(true);
+    });
+
+    it('returns false when only some nodes report "Error getting pub key" alongside transient failures', () => {
+      const mixedError = new SomeError({
+        errors: [
+          new Error('Error getting pub key'),
+          new Error('Promise timed out'),
+        ],
+        responses: [],
+        predicate: undefined,
+      });
+      const partialUndefinedError = new SomeError({
+        errors: [new Error('Error getting pub key'), undefined],
+        responses: [],
+        predicate: undefined,
+      });
+      const emptyErrors = new SomeError({
+        errors: [],
+        responses: [],
+        predicate: undefined,
+      });
+
+      expect(isCouldNotDeriveThresholdAuthPubKeyError(mixedError)).toBe(false);
+      expect(
+        isCouldNotDeriveThresholdAuthPubKeyError(partialUndefinedError),
+      ).toBe(false);
+      expect(isCouldNotDeriveThresholdAuthPubKeyError(emptyErrors)).toBe(false);
+    });
+
+    it('returns false when a SomeError has an auth token predicate error', () => {
+      const error = new SomeError({
+        errors: [new Error('Error getting pub key')],
+        responses: [],
+        predicate: TOPRFError.authTokenExpired(),
+      });
+
+      expect(isCouldNotDeriveThresholdAuthPubKeyError(error)).toBe(false);
     });
   });
 });

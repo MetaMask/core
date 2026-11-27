@@ -1,6 +1,7 @@
 import type { AnalyticsTrackingEvent } from '@metamask/analytics-controller';
+import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 import type { FetchedSecretDataItem } from '@metamask/toprf-secure-backup';
-import { bytesToHex, stringToBytes } from '@metamask/utils';
+import { bigIntToHex, bytesToHex, stringToBytes } from '@metamask/utils';
 import { hmac } from '@noble/hashes/hmac';
 import { sha256 } from '@noble/hashes/sha256';
 import type { Mock } from 'vitest';
@@ -18,6 +19,7 @@ import {
   SRP2,
 } from '../../tests/__fixtures__/secret-metadata.js';
 import {
+  PrimarySrpRepairType,
   SecretType,
   SeedlessIdentityMismatchEventName,
   SeedlessIdentityMismatchReason,
@@ -27,13 +29,15 @@ import {
   SeedlessPrimarySrpMismatchEventName,
   SeedlessPrimarySrpMissingEventName,
 } from '../constants.js';
-import { SeedlessOnboardingError } from '../errors.js';
+import { serializeControlRecord } from '../envelope/envelope-keys.js';
+import type { ControlRecord } from '../envelope/envelope-keys.js';
 import type { IncompleteMetadataBackupEventProperties } from './analytics.js';
 import {
   getIncompleteMetadataBackupEventProperties,
   trackIdentityMismatchEvent,
   trackIncompleteMetadataBackupEvents,
 } from './analytics.js';
+import { SeedlessOnboardingError } from './errors.js';
 import { parseSecretMetadata } from './secret-data-utils.js';
 
 const { logMock } = vi.hoisted(() => ({ logMock: vi.fn() }));
@@ -63,51 +67,54 @@ function expectTrackedEvent(
   });
 }
 
-describe('identifyIncompleteMetadataBackup', () => {
+describe('trackIncompleteMetadataBackupEvents', () => {
   beforeEach(() => {
     logMock.mockClear();
   });
 
-  it('does not track an event when the legacy primary matches the local primary', async () => {
-    const fetchAllSecretDataFn = vi
-      .fn()
-      .mockResolvedValue([
-        createFetchedSecretDataItem(PrivateKey1),
-        createFetchedSecretDataItem(SRP1),
-        createFetchedSecretDataItem(SRP2),
-      ]);
-    const getPrimaryKeyringSeedPhraseFn = vi
-      .fn()
-      .mockResolvedValue(stringToBytes(SRP1.data));
+  it('does not track an event when there is no repair plan', async () => {
     const trackEvent = vi.fn();
 
     await trackIncompleteMetadataBackupEvents({
-      fetchAllSecretDataFn,
-      getPrimaryKeyringSeedPhraseFn,
+      plan: undefined,
       trackEvent,
     });
 
-    expect(getPrimaryKeyringSeedPhraseFn).toHaveBeenCalledTimes(1);
     expect(trackEvent).not.toHaveBeenCalled();
     expect(logMock).not.toHaveBeenCalled();
   });
 
-  it('tracks a mismatch when the earliest legacy SRP is not the local primary', async () => {
-    const fetchAllSecretDataFn = vi
-      .fn()
-      .mockResolvedValue([
-        createFetchedSecretDataItem(PrivateKey1),
-        createFetchedSecretDataItem(SRP1),
-        createFetchedSecretDataItem(SRP2),
-      ]);
-    const getPrimaryKeyringSeedPhraseFn = vi
-      .fn()
-      .mockResolvedValue(stringToBytes('actual primary srp'));
+  it('ignores EnvelopeControl items mixed into the fetched items', async () => {
+    const controlRecord: ControlRecord = {
+      v: 1,
+      seq: 1,
+      passwordNamespace: {
+        verifier: 'verifier',
+        verifierId: 'user',
+        authSk: bigIntToHex(1n),
+        keyIndex: 1,
+      },
+      migratedAt: 1,
+    };
+    const controlItem = {
+      data: serializeControlRecord(controlRecord),
+      version: 'v2',
+      dataType: EncAccountDataType.EnvelopeControl,
+    } as FetchedSecretDataItem;
     const trackEvent = vi.fn();
 
     await trackIncompleteMetadataBackupEvents({
-      fetchAllSecretDataFn,
-      getPrimaryKeyringSeedPhraseFn,
+      plan: {
+        repairType: PrimarySrpRepairType.Mismatch,
+        secretMetadata: parseSecretMetadata([
+          createFetchedSecretDataItem(PrivateKey1),
+          controlItem,
+          createFetchedSecretDataItem(SRP1),
+          createFetchedSecretDataItem(SRP2),
+        ]),
+        metadataSchemaVersion: 'v1',
+        localPrimarySRP: stringToBytes('actual primary srp'),
+      },
       trackEvent,
     });
 
@@ -122,63 +129,12 @@ describe('identifyIncompleteMetadataBackup', () => {
     expect(logMock).not.toHaveBeenCalled();
   });
 
-  it('uses the explicitly tagged V2 primary when it matches the local primary', async () => {
-    const fetchAllSecretDataFn = vi
-      .fn()
-      .mockResolvedValue([
-        createFetchedSecretDataItem(ImportedSRP1),
-        createFetchedSecretDataItem(PrimarySRP2),
-      ]);
-    const getPrimaryKeyringSeedPhraseFn = vi
-      .fn()
-      .mockResolvedValue(stringToBytes(PrimarySRP2.data));
-    const trackEvent = vi.fn();
-
-    await trackIncompleteMetadataBackupEvents({
-      fetchAllSecretDataFn,
-      getPrimaryKeyringSeedPhraseFn,
-      trackEvent,
-    });
-
-    expect(trackEvent).not.toHaveBeenCalled();
-    expect(logMock).not.toHaveBeenCalled();
-  });
-
-  it('tracks a mismatch when the explicitly tagged V2 primary differs', async () => {
-    const fetchAllSecretDataFn = vi
-      .fn()
-      .mockResolvedValue([
-        createFetchedSecretDataItem(ImportedSRP1),
-        createFetchedSecretDataItem(PrimarySRP2),
-      ]);
-    const getPrimaryKeyringSeedPhraseFn = vi
-      .fn()
-      .mockResolvedValue(stringToBytes('actual primary srp'));
-    const trackEvent = vi.fn();
-
-    await trackIncompleteMetadataBackupEvents({
-      fetchAllSecretDataFn,
-      getPrimaryKeyringSeedPhraseFn,
-      trackEvent,
-    });
-
-    expectTrackedEvent(trackEvent, {
-      name: SeedlessPrimarySrpMismatchEventName,
-      properties: {
-        metadata_schema_version: 'v2',
-        number_of_imported_wallets: 1,
-        number_of_imported_accounts: 0,
-      },
-    });
-    expect(logMock).not.toHaveBeenCalled();
-  });
-
   it.each([
     {
       description: 'an empty response',
       secretDataItems: [],
       properties: {
-        metadata_schema_version: 'none',
+        metadata_schema_version: 'none' as const,
         number_of_imported_wallets: 0,
         number_of_imported_accounts: 0,
       },
@@ -204,99 +160,91 @@ describe('identifyIncompleteMetadataBackup', () => {
   ])(
     'tracks a missing-primary event for $description',
     async ({ secretDataItems, properties }) => {
-      const fetchAllSecretDataFn = vi.fn().mockResolvedValue(secretDataItems);
-      const getPrimaryKeyringSeedPhraseFn = vi.fn();
       const trackEvent = vi.fn();
 
       await trackIncompleteMetadataBackupEvents({
-        fetchAllSecretDataFn,
-        getPrimaryKeyringSeedPhraseFn,
+        plan: {
+          repairType: PrimarySrpRepairType.Missing,
+          secretMetadata: parseSecretMetadata(secretDataItems),
+          metadataSchemaVersion: properties.metadata_schema_version,
+          localPrimarySRP: stringToBytes(SRP1.data),
+        },
         trackEvent,
       });
 
       expectTrackedEvent(trackEvent, {
         name: SeedlessPrimarySrpMissingEventName,
-        properties: properties as IncompleteMetadataBackupEventProperties,
+        properties,
       });
-      expect(getPrimaryKeyringSeedPhraseFn).not.toHaveBeenCalled();
       expect(logMock).not.toHaveBeenCalled();
     },
   );
 
-  it('logs fetch failures without tracking an affected-user event', async () => {
-    const error = new Error('network failure');
-    const fetchAllSecretDataFn = vi.fn().mockRejectedValue(error);
-    const trackEvent = vi.fn();
+  it.each([
+    {
+      description: 'legacy metadata',
+      secretDataItems: [
+        createFetchedSecretDataItem(PrivateKey1),
+        createFetchedSecretDataItem(SRP1),
+        createFetchedSecretDataItem(SRP2),
+      ],
+      properties: {
+        metadata_schema_version: 'v1' as const,
+        number_of_imported_wallets: 1,
+        number_of_imported_accounts: 1,
+      },
+    },
+    {
+      description: 'an explicitly tagged V2 primary',
+      secretDataItems: [
+        createFetchedSecretDataItem(ImportedSRP1),
+        createFetchedSecretDataItem(PrimarySRP2),
+      ],
+      properties: {
+        metadata_schema_version: 'v2' as const,
+        number_of_imported_wallets: 1,
+        number_of_imported_accounts: 0,
+      },
+    },
+  ])(
+    'tracks a mismatch event for $description',
+    async ({ secretDataItems, properties }) => {
+      const trackEvent = vi.fn();
 
-    await trackIncompleteMetadataBackupEvents({
-      fetchAllSecretDataFn,
-      getPrimaryKeyringSeedPhraseFn: vi.fn(),
-      trackEvent,
-    });
+      await trackIncompleteMetadataBackupEvents({
+        plan: {
+          repairType: PrimarySrpRepairType.Mismatch,
+          secretMetadata: parseSecretMetadata(secretDataItems),
+          metadataSchemaVersion: properties.metadata_schema_version,
+          localPrimarySRP: stringToBytes(SRP1.data),
+        },
+        trackEvent,
+      });
 
-    expect(logMock).toHaveBeenCalledWith(
-      'Error identifying incomplete metadata backup',
-      error,
-    );
-    expect(trackEvent).not.toHaveBeenCalled();
-  });
-
-  it('logs malformed metadata without tracking an affected-user event', async () => {
-    const fetchAllSecretDataFn = vi.fn().mockResolvedValue([
-      {
-        data: stringToBytes('malformed metadata'),
-        version: 'v1',
-      } as FetchedSecretDataItem,
-    ]);
-    const trackEvent = vi.fn();
-
-    await trackIncompleteMetadataBackupEvents({
-      fetchAllSecretDataFn,
-      getPrimaryKeyringSeedPhraseFn: vi.fn(),
-      trackEvent,
-    });
-
-    expect(logMock).toHaveBeenCalledWith(
-      'Error identifying incomplete metadata backup',
-      expect.any(Error),
-    );
-    expect(trackEvent).not.toHaveBeenCalled();
-  });
-
-  it('logs local keyring failures without tracking an affected-user event', async () => {
-    const error = new Error('keyring unavailable');
-    const fetchAllSecretDataFn = vi
-      .fn()
-      .mockResolvedValue([createFetchedSecretDataItem(SRP1)]);
-    const getPrimaryKeyringSeedPhraseFn = vi.fn().mockRejectedValue(error);
-    const trackEvent = vi.fn();
-
-    await trackIncompleteMetadataBackupEvents({
-      fetchAllSecretDataFn,
-      getPrimaryKeyringSeedPhraseFn,
-      trackEvent,
-    });
-
-    expect(logMock).toHaveBeenCalledWith(
-      'Error identifying incomplete metadata backup',
-      error,
-    );
-    expect(trackEvent).not.toHaveBeenCalled();
-  });
+      expectTrackedEvent(trackEvent, {
+        name: SeedlessPrimarySrpMismatchEventName,
+        properties,
+      });
+      expect(logMock).not.toHaveBeenCalled();
+    },
+  );
 
   it('does not propagate analytics tracking failures', async () => {
-    const fetchAllSecretDataFn = vi.fn().mockResolvedValue([]);
     const trackError = new Error('analytics unavailable');
     const trackEvent = vi.fn().mockRejectedValue(trackError);
 
     await trackIncompleteMetadataBackupEvents({
-      fetchAllSecretDataFn,
-      getPrimaryKeyringSeedPhraseFn: vi.fn(),
+      plan: {
+        repairType: PrimarySrpRepairType.Mismatch,
+        secretMetadata: [],
+        metadataSchemaVersion: 'none',
+        localPrimarySRP: stringToBytes(SRP1.data),
+      },
       trackEvent,
     });
 
     expectTrackedEvent(trackEvent, {
-      name: SeedlessPrimarySrpMissingEventName,
+      name: SeedlessPrimarySrpMismatchEventName,
       properties: {
         metadata_schema_version: 'none',
         number_of_imported_wallets: 0,

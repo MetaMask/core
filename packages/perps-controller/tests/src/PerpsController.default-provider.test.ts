@@ -51,6 +51,8 @@ import type {
   PerpsProvider,
   PerpsProviderHealth,
   PerpsProviderType,
+  SubscribeAvailableToTradeParams,
+  SubscribeTwapOrdersParams,
 } from '../../src/types/index.js';
 
 vi.mock('../../src/providers/HyperLiquidProvider');
@@ -837,6 +839,34 @@ describe('PerpsController default provider', () => {
           controller.getActiveProviderOrNull() as AggregatedPerpsProvider
         ).getWriteProviderId(),
       ).toBe('lighter');
+    });
+  });
+
+  describe('getExchangeAccountStatus', () => {
+    it('routes an aggregated read to the named venue instead of the default', async () => {
+      const status = { registered: true, accountIndex: 28 };
+      lighterProvider.getExchangeAccountStatus = vi
+        .fn()
+        .mockResolvedValue(status);
+      setupAggregatedMode('hyperliquid');
+
+      await expect(
+        controller.getExchangeAccountStatus({ providerId: 'lighter' }),
+      ).resolves.toStrictEqual(status);
+      expect(
+        lighterProvider.getExchangeAccountStatus,
+      ).toHaveBeenCalledExactlyOnceWith({ providerId: 'lighter' });
+    });
+
+    it('defaults to registered only for the active direct venue', async () => {
+      controller.testMarkInitialized();
+      controller.testSetActiveProvider(mockProvider);
+      await expect(
+        controller.getExchangeAccountStatus({ providerId: 'hyperliquid' }),
+      ).resolves.toStrictEqual({ registered: true });
+      await expect(
+        controller.getExchangeAccountStatus({ providerId: 'lighter' }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
     });
   });
 
@@ -2147,7 +2177,7 @@ describe('PerpsController default provider', () => {
         'switch',
         'network',
       ] as const)(
-        'preserves rollback subscriber ownership after initialization fails until %s',
+        'keeps a reader through a failed initialization and reopens it until %s',
         async (recovery) => {
           const callback = vi.fn();
           const oldCleanup = vi.fn();
@@ -2189,8 +2219,8 @@ describe('PerpsController default provider', () => {
             );
             expect(HyperLiquidProvider).toHaveBeenCalledTimes(6);
           }
-          const expectDelivery =
-            recovery === 'retry' || recovery === 'retry-twice';
+          // Readers survive every lifecycle change until they unsubscribe.
+          const expectDelivery = recovery !== 'unsubscribe';
           (HyperLiquidProvider as Mock).mockImplementation(function () {
             return replacement;
           });
@@ -2277,15 +2307,21 @@ describe('PerpsController default provider', () => {
         expect(replacement.subscribeToPositions).not.toHaveBeenCalled();
       });
 
-      it('isolates cleanup, invalidation and reopening failures from other streams', async () => {
-        mockProvider.subscribeToPrices.mockReturnValue(() => {
-          throw new Error('cleanup failed');
+      it('isolates cleanup, reset and reopening failures from other streams', async () => {
+        mockProvider.subscribeToPrices.mockImplementation(({ callback }) => {
+          callback([]);
+          return () => {
+            throw new Error('cleanup failed');
+          };
         });
-        controller.subscribeToPrices({ symbols: ['BTC'], callback: vi.fn() });
-        const accountCallback = vi.fn(() => {
-          throw new Error('invalidation failed');
+        controller.subscribeToPrices({
+          symbols: ['BTC'],
+          callback: vi.fn(),
+          onReset: () => {
+            throw new Error('reset failed');
+          },
         });
-        controller.subscribeToAccount({ callback: accountCallback });
+        controller.subscribeToAccount({ callback: vi.fn() });
         replacement.subscribeToAccount.mockImplementation(() => {
           throw new Error('reopen failed');
         });
@@ -2302,7 +2338,7 @@ describe('PerpsController default provider', () => {
         expect(positionsCallback).toHaveBeenCalledWith([]);
         for (const message of [
           'cleanup failed',
-          'invalidation failed',
+          'reset failed',
           'reopen failed',
         ]) {
           expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
@@ -2315,24 +2351,32 @@ describe('PerpsController default provider', () => {
 
       it('does not reinterpret an explicit available-to-trade route on the replacement venue', async () => {
         const oldCleanup = vi.fn();
-        lighterProvider.subscribeToAvailableToTrade = vi
-          .fn()
-          .mockReturnValue(oldCleanup);
+        lighterProvider.subscribeToAvailableToTrade = vi.fn(
+          ({ callback }: SubscribeAvailableToTradeParams) => {
+            callback({
+              providerId: 'lighter',
+              symbol: 'BTC',
+              long: '1',
+              short: '1',
+            });
+            return oldCleanup;
+          },
+        );
         replacement.subscribeToAvailableToTrade = vi
           .fn()
           .mockReturnValue(vi.fn());
-        const onError = vi.fn();
+        const onReset = vi.fn();
         const cleanup = controller.subscribeToAvailableToTrade({
           symbol: 'BTC',
           providerId: 'lighter',
           callback: vi.fn(),
-          onError,
+          onReset,
         });
 
         disableMultiProvider();
         await controller.init();
 
-        expect(onError).toHaveBeenCalledTimes(1);
+        expect(onReset).toHaveBeenCalledTimes(1);
         expect(oldCleanup).toHaveBeenCalledTimes(1);
         expect(replacement.subscribeToAvailableToTrade).not.toHaveBeenCalled();
         expect(() => cleanup()).not.toThrow();
@@ -2357,34 +2401,43 @@ describe('PerpsController default provider', () => {
         expect(() => cleanup()).not.toThrow();
       });
 
-      it('invalidates TWAP data even when the replacement has no native stream', async () => {
+      it('resets TWAP readers even when the replacement has no native stream', async () => {
         const oldCleanup = vi.fn();
-        mockProvider.subscribeToTwapOrders = vi
-          .fn()
-          .mockReturnValue(oldCleanup);
-        const callback = vi.fn();
-        const cleanup = controller.subscribeToTwapOrders({ callback });
+        mockProvider.subscribeToTwapOrders = vi.fn(
+          ({ callback }: SubscribeTwapOrdersParams) => {
+            callback([]);
+            return oldCleanup;
+          },
+        );
+        const onReset = vi.fn();
+        const cleanup = controller.subscribeToTwapOrders({
+          callback: vi.fn(),
+          onReset,
+        });
 
         disableMultiProvider();
         await controller.init();
 
-        expect(callback).toHaveBeenCalledWith([], true);
+        expect(onReset).toHaveBeenCalledTimes(1);
         expect(oldCleanup).toHaveBeenCalledTimes(1);
         expect(() => cleanup()).not.toThrow();
       });
 
-      it('does not replay old registrations after a caller-initiated disconnect', async () => {
+      it('stops a reader stream on a caller-initiated disconnect and reopens it on the next init', async () => {
         const oldCleanup = vi.fn();
         mockProvider.subscribeToAccount.mockReturnValue(oldCleanup);
+        const newCleanup = vi.fn();
+        replacement.subscribeToAccount.mockReturnValue(newCleanup);
         const cleanup = controller.subscribeToAccount({ callback: vi.fn() });
         await controller.disconnect();
-        await controller.init();
+
+        expect(oldCleanup).toHaveBeenCalledTimes(1);
         disableMultiProvider();
         await controller.init();
 
-        expect(replacement.subscribeToAccount).not.toHaveBeenCalled();
-        expect(oldCleanup).toHaveBeenCalledTimes(1);
+        expect(replacement.subscribeToAccount).toHaveBeenCalledTimes(1);
         cleanup();
+        expect(newCleanup).toHaveBeenCalledTimes(1);
         expect(oldCleanup).toHaveBeenCalledTimes(1);
       });
     });

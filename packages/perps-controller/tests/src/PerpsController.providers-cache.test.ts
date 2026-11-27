@@ -379,9 +379,13 @@ class TestablePerpsController extends PerpsController {
    * Test accessor for protected method reportOrderToDataLake.
    * Wrapper is necessary because protected methods can't be called from test code.
    * @param data
+   * @param provider
    */
-  public testReportOrderToDataLake(data: any): Promise<any> {
-    return this.reportOrderToDataLake(data);
+  public testReportOrderToDataLake(
+    data: any,
+    provider: PerpsProvider,
+  ): Promise<any> {
+    return this.reportOrderToDataLake(data, provider);
   }
 
   public testHasStandaloneProvider(): boolean {
@@ -1271,6 +1275,7 @@ describe('PerpsController', () => {
             onChaseOrderMaxDistanceReached: expect.any(Function),
             getCurrentIsTestnet: expect.any(Function),
             getAgentSigner: expect.any(Function),
+            hasAgentSource: expect.any(Function),
             onAgentRejected: expect.any(Function),
           },
         ],

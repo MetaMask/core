@@ -25,6 +25,18 @@ const AGENT = {
 } as const;
 
 describe('AgentBindings', () => {
+  it('has an agent source from a binding or getAgentSigner, and none for a pinned account', () => {
+    const withHost = new AgentBindings(vi.fn());
+    const withoutHost = new AgentBindings(undefined);
+
+    expect(withHost.hasSource(MAINNET_ACCOUNT)).toBe(true);
+    expect(withoutHost.hasSource(MAINNET_ACCOUNT)).toBe(false);
+    withoutHost.set(MAINNET_ACCOUNT, AGENT);
+    expect(withoutHost.hasSource(MAINNET_ACCOUNT)).toBe(true);
+    withHost.set(MAINNET_ACCOUNT, null);
+    expect(withHost.hasSource(MAINNET_ACCOUNT)).toBe(false);
+  });
+
   it('resolves no agent without getAgentSigner or a binding', async () => {
     const bindings = new AgentBindings(undefined);
 

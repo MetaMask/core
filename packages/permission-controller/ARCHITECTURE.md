@@ -305,14 +305,9 @@ const permissionSpecifications = {
     permissionType: PermissionType.Endowment,
     // Naming conventions for endowments are yet to be established.
     targetName: 'endowment:globals',
-    // This function will be called to retrieve the subject's endowment(s).
-    // Here we imagine that these are the names of globals that will be made
-    // available to a SES Compartment.
-    endowmentGetter: (_options: EndowmentGetterParams) => [
-      'fetch',
-      'Math',
-      'setTimeout',
-    ],
+    // The names of the globals that the host should expose to the subject.
+    // Here we imagine that these will be made available to a SES Compartment.
+    globals: ['fetch', 'Math', 'setTimeout'],
   },
 };
 
@@ -364,18 +359,15 @@ permissionController.executeRestrictedMethod(origin, 'wallet_getSecret', {
 });
 ```
 
-### Getting endowments
+### Getting endowment globals
 
 ```typescript
-// Getting endowments internally is the only option, since the host has to apply
-// them in some way external to the permission system.
-const endowments = await permissionController.getEndowments(
-  origin,
-  'endowment:globals',
-);
+// Getting endowment globals internally is the only option, since the host has
+// to apply them in some way external to the permission system.
+const globals = permissionController.getEndowmentsGlobals(origin);
 
-// Now the endowments can be applied, whatever that means.
-applyEndowments(origin, endowments);
+// Now the globals can be applied, whatever that means.
+applyGlobals(origin, globals);
 ```
 
 ### Requesting and getting permissions

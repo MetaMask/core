@@ -43,6 +43,7 @@ const intent: LighterChaseIntent = {
 };
 
 type TestEnvironment = {
+  onChange: Mock<() => void>;
   service: LighterChaseService;
   io: LighterChaseIo;
   storage: {
@@ -117,8 +118,10 @@ const setup = (): TestEnvironment => {
       return { ...row };
     }),
   };
-  const service = new LighterChaseService({ storage });
+  const onChange = vi.fn<() => void>();
+  const service = new LighterChaseService({ storage, onChange });
   return {
+    onChange,
     service,
     io,
     storage,
@@ -134,6 +137,20 @@ const setup = (): TestEnvironment => {
 };
 
 describe('Lighter bounded Chase lifecycle', () => {
+  it('reports each stored change of a record, and nothing for a read', async () => {
+    const env = setup();
+    await env.service.start(intent, env.io);
+    const afterStart = env.onChange.mock.calls.length;
+    expect(afterStart).toBeGreaterThan(0);
+    expect(env.storage.setItem).toHaveBeenCalledTimes(afterStart);
+
+    await env.service.list(owner, env.io);
+    expect(env.onChange).toHaveBeenCalledTimes(afterStart);
+
+    await env.service.stop(owner, intent.handle, env.io, 'canceled');
+    expect(env.onChange.mock.calls.length).toBeGreaterThan(afterStart);
+  });
+
   it.each([undefined, false, true])(
     'reads version-1 acknowledgment evidence %s without replay',
     async (acknowledged) => {
