@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controller` from `^22.0.0` to `^22.0.1` ([#11797](https://github.com/MetaMask/core/pull/11797))
 - Bump `@metamask/assets-controllers` from `^113.3.4` to `^113.3.5` ([#11797](https://github.com/MetaMask/core/pull/11797))
 - Bump `@metamask/profile-sync-controller` from `^36.1.2` to `^36.1.3` ([#11800](https://github.com/MetaMask/core/pull/11800))
+- Bump `bignumber.js` from `^9.1.2` to `^11.1.5` ([#11587](https://github.com/MetaMask/core/pull/11587))
 
 ## [84.0.1]
 
