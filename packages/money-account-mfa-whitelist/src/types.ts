@@ -111,9 +111,11 @@ export type MfaWhitelistRule =
   | 'card-sign-in'
   | 'chomp-successor-association'
   | 'rewards-binding'
+  | 'rewards-claim-proof'
   | 'eip7702-authorization'
   | 'vault-standing-delegation'
-  | 'vault-deposit-delegation';
+  | 'vault-deposit-delegation'
+  | 'rewards-claim-delegation';
 
 /**
  * Whether a signature request requires MFA. A whitelisted request names the
