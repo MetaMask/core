@@ -62,7 +62,7 @@
     "@metamask/messenger": "^3.0.0",
     "@metamask/snaps-controllers": "^19.0.1",
     "@metamask/snaps-sdk": "^11.2.0",
-    "@metamask/utils": "^12.0.2",
+    "@metamask/utils": "^12.0.3",
     "lodash-es": "^4.18.1"
   },
   "devDependencies": {
