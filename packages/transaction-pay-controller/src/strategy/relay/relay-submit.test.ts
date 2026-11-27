@@ -871,6 +871,23 @@ describe('Relay Submit Utils', () => {
       );
     });
 
+    it('returns the submitted source hash if same-chain polling returns no hash', async () => {
+      request.quotes[0].request.targetChainId = CHAIN_ID_MOCK;
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          ...STATUS_RESPONSE_MOCK,
+          inTxHashes: [],
+          txHashes: [],
+        }),
+      });
+
+      const result = await submitRelayQuotes(request);
+
+      expect(result.transactionHash).toBe(TRANSACTION_HASH_MOCK);
+    });
+
     it('returns the origin hash if same-chain polling returns no fill hash', async () => {
       request.quotes[0].original.details.currencyOut.currency.chainId = 1;
       successfulFetchMock.mockResolvedValue({
