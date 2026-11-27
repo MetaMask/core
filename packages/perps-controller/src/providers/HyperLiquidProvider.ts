@@ -39,8 +39,10 @@ import { DETAILED_ORDER_TYPES, isTPSLOrder } from '../constants/orderTypes.js';
 import {
   CHASE_ORDER_CONFIG,
   CHASE_ORDER_STATUS,
+  STREAM_RETRY_CONFIG,
   DECIMAL_PRECISION_CONFIG,
   HYPERLIQUID_TWAP_LIMITS,
+  MAX_TIMEOUT_MS,
   ORDER_SLIPPAGE_CONFIG,
   PERFORMANCE_CONFIG,
   PERPS_CONSTANTS,
@@ -165,6 +167,8 @@ import type {
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
+  SubscribeChaseOrderChangesParams,
+  SubscribeMarketChangesParams,
   SubscribeTwapOrdersParams,
   SubscribePositionsParams,
   SubscribePricesParams,
@@ -190,6 +194,10 @@ import type {
   MarginModeLockReason,
   MarginAdjustmentLimits,
   PerpsMarginModeLock,
+  PerpsTradingAgentValidity,
+  SubscribeConnectionLatencyParams,
+  SubscribeMarginAdjustmentLimitsParams,
+  SubscribeTradingAgentValidityParams,
 } from '../types/index.js';
 import type { PerpsControllerMessengerBase } from '../types/messenger.js';
 import type { OrderType, StrategyOrderType } from '../types/perps-types.js';
@@ -1085,8 +1093,22 @@ type HyperLiquidProviderOptions = {
   subscriptionBuilderAddressMainnet?: string;
   onChaseOrderMaxDistanceReached?: ChaseOrderMaxDistanceReachedHandler;
   getAgentSigner?: HyperLiquidCredentials['getAgentSigner'];
+  // Whether an account can sign with an agent at all; without it, any
+  // `getAgentSigner` counts as one.
+  hasAgentSource?: (account: PerpsAgentAccount) => boolean;
   // Told when the venue rejects a resolved agent (revoked or expired).
   onAgentRejected?: HyperLiquidCredentials['onAgentRejected'];
+};
+
+/** One `subscribeToTradingAgentValidity` reader. */
+type AgentValiditySubscriber = {
+  /** The account and agent of the last read, once known. */
+  account?: PerpsAgentAccount;
+  agentAddress?: Hex;
+  /** Read the validity again. */
+  refresh: () => void;
+  /** Report a venue rejection of the agent. */
+  reject: (agentAddress: Hex) => void;
 };
 
 type HandleHip3PreOrderParams = {
@@ -1220,6 +1242,21 @@ const getChaseScope = (
   context: Pick<AccountSupportContext, 'network' | 'userAddress'>,
 ): string => `${context.network}:${context.userAddress.toLowerCase()}`;
 
+/** An account's fees as the venue answers. */
+type UserFeesResponse = Awaited<ReturnType<InfoClient['userFees']>>;
+
+/**
+ * Delay before another read of a chase that could not be settled.
+ *
+ * @param followUps - Follow-ups so far.
+ * @returns The delay in milliseconds.
+ */
+const getChaseFollowUpDelay = (followUps: number): number =>
+  Math.min(
+    STREAM_RETRY_CONFIG.BaseDelayMs * 2 ** followUps,
+    STREAM_RETRY_CONFIG.MaxDelayMs,
+  );
+
 /**
  * A running chase: the order currently resting, and the loop re-pricing it.
  */
@@ -1266,6 +1303,10 @@ type ChaseSession = {
   intervalMs: number;
   /** Last live remainder refresh used by client-facing snapshots. */
   lastSnapshotSizeRefreshAt: number;
+  /** The venue pushed a change of the resting child since that refresh. */
+  isRemainderStale?: boolean;
+  /** Child the last refresh read; another one has not been read yet. */
+  refreshedOrderId?: string;
   /**
    * Builder fee this chase was quoted at, in tenths of a basis point.
    *
@@ -1296,6 +1337,10 @@ type ChaseSession = {
    * A later read asks the venue again; until then the status stays unchanged.
    */
   unresolvedOrderId?: string;
+  /** Reads so far that left something of this session to settle. */
+  followUps?: number;
+  /** When the next such read may run. */
+  nextFollowUpAt?: number;
   /** Absolute deadline, as a `Date.now()` stamp. */
   deadline: number;
   maxRepricings: number;
@@ -1724,6 +1769,12 @@ export class HyperLiquidProvider implements PerpsProvider {
   readonly #symbolToAssetId = new Map<string, number>();
 
   // Cache for user fee rates to avoid excessive API calls
+  /** Venue fee reads under way, by client and account. */
+  readonly #userFeeReads = new WeakMap<
+    InfoClient,
+    Map<Hex, Promise<UserFeesResponse>>
+  >();
+
   readonly #userFeeCache = new Map<
     string,
     {
@@ -1874,6 +1925,13 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   readonly #trackedTwapOrders: Map<string, TrackedTwapOrder>;
 
+  // Told when a chase session changed.
+  readonly #chaseChangeListeners = new Set<() => void>();
+
+  #chaseFollowUps = 0;
+
+  #chaseFollowUpTimer: ReturnType<typeof setTimeout> | undefined;
+
   // Chase sessions running on this provider instance, keyed by session handle.
   // Each owns a pending timer, so disconnect has to stop them.
   readonly #chaseSessions = new Map<string, ChaseSession>();
@@ -1919,6 +1977,10 @@ export class HyperLiquidProvider implements PerpsProvider {
   #clientsInitialized = false;
 
   readonly #getAgentSigner: HyperLiquidCredentials['getAgentSigner'];
+
+  readonly #hasAgentSource: HyperLiquidProviderOptions['hasAgentSource'];
+
+  readonly #agentValiditySubscribers = new Set<AgentValiditySubscriber>();
 
   // Incremented by clearAgentSigners so answers pending across a clear are
   // discarded and asked again.
@@ -1991,6 +2053,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     this.#subscriptionBuilderAddressMainnet =
       options.subscriptionBuilderAddressMainnet;
     this.#getAgentSigner = options.getAgentSigner;
+    this.#hasAgentSource = options.hasAgentSource;
     this.#onAgentRejected = options.onAgentRejected;
     this.#getCurrentIsTestnet = options.getCurrentIsTestnet;
     this.#onChaseOrderMaxDistanceReached =
@@ -2265,6 +2328,297 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
   }
 
+  /**
+   * Stream an isolated position's margin adjustment limits from the live
+   * account and position streams, with the same rules as
+   * `getMarginAdjustmentLimits`: Unified and Portfolio Margin add from the
+   * account's `spendableBalance`, Standard from its DEX's withdrawable. The
+   * market comes from the session's metadata cache. The callback receives the
+   * limits once the market is known, then each change.
+   *
+   * @param params - Market, optional account, callback and error handler.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToMarginAdjustmentLimits(
+    params: SubscribeMarginAdjustmentLimitsParams,
+  ): () => void {
+    const { symbol, callback } = params;
+    const { dex } = parseAssetName(symbol);
+    let account: AccountState | undefined;
+    let positions: Position[] | undefined;
+    let market: MarketInfo | undefined;
+    let marketKnown = false;
+    let closed = false;
+    let last: string | undefined;
+    const emit = (): void => {
+      if (closed || !marketKnown) {
+        return;
+      }
+      let limits: MarginAdjustmentLimits;
+      const mode = account?.accountMode;
+      if (!account || !positions || mode === undefined) {
+        limits = { status: 'unavailable', reason: 'account_unknown' };
+      } else if (
+        !hyperLiquidModeFoldsSpot(mode) &&
+        !isHyperLiquidStandardMode(mode)
+      ) {
+        limits = { status: 'unavailable', reason: 'provider' };
+      } else {
+        const maxAdd = isHyperLiquidStandardMode(mode)
+          ? account.subAccountBreakdown?.[dex ?? 'main']?.withdrawableBalance
+          : account.spendableBalance;
+        limits =
+          maxAdd === undefined
+            ? { status: 'unavailable', reason: 'account_unknown' }
+            : this.#computeMarginAdjustmentLimits(
+                maxAdd,
+                positions.find((item) => item.symbol === symbol),
+                market,
+              );
+      }
+      const key = JSON.stringify(limits);
+      if (key !== last) {
+        last = key;
+        callback(limits);
+      }
+    };
+    const fail = (error: unknown): void => {
+      if (!closed) {
+        params.onError?.(
+          ensureError(
+            error,
+            'HyperLiquidProvider.subscribeToMarginAdjustmentLimits',
+          ),
+        );
+      }
+    };
+    const stopAccount = this.subscribeToAccount({
+      onError: fail,
+      callback: (next) => {
+        account = next ?? undefined;
+        emit();
+      },
+    });
+    let stopPositions: () => void;
+    try {
+      stopPositions = this.subscribeToPositions({
+        onError: fail,
+        callback: (next) => {
+          positions = next;
+          emit();
+        },
+      });
+    } catch (error) {
+      // The caller gets no cleanup for streams that did not both open.
+      closed = true;
+      stopAccount();
+      throw error;
+    }
+    this.#fetchMarketsForDex({ dex })
+      .then((markets) => {
+        market = markets.find((item) => item.name === symbol);
+        marketKnown = true;
+        emit();
+        return marketKnown;
+      })
+      // Without the market the limits would be a guess: the stream reports
+      // the failure and is opened again.
+      .catch(fail);
+    return () => {
+      closed = true;
+      stopAccount();
+      stopPositions();
+    };
+  }
+
+  /**
+   * Stream the round trip of the WebSocket keepalive ping the transport
+   * already sends, in whole milliseconds. The last measurement, when there
+   * is one, is delivered at once.
+   *
+   * @param params - Callback.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToConnectionLatency(
+    params: SubscribeConnectionLatencyParams,
+  ): () => void {
+    return this.#clientService.subscribeToLatency(params.callback);
+  }
+
+  /**
+   * Report whether the account's agent is valid for the venue: resolved
+   * through `getAgentSigner` and listed by `extraAgents` before its
+   * `validUntil`. The callback receives one read at once, then a new value
+   * when agents are set or cleared (`clearAgentSigners`), when the venue
+   * rejects the agent, and at the agent's `validUntil` (a one-shot timeout).
+   *
+   * @param params - Optional account, callback and error handler.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToTradingAgentValidity(
+    params: SubscribeTradingAgentValidityParams,
+  ): () => void {
+    let closed = false;
+    let readId = 0;
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    let last: string | undefined;
+    const clearDeadline = (): void => {
+      clearTimeout(deadline);
+      deadline = undefined;
+    };
+    // One timeout at the agent's expiry; a deadline beyond the longest
+    // `setTimeout` delay is re-armed when it fires.
+    function armDeadline(agentAddress: Hex, validUntil: number): void {
+      deadline = setTimeout(
+        () => {
+          deadline = undefined;
+          if (Date.now() >= validUntil) {
+            emit({ status: 'invalid', reason: 'expired', agentAddress });
+          } else {
+            armDeadline(agentAddress, validUntil);
+          }
+        },
+        Math.min(Math.max(validUntil - Date.now(), 0), MAX_TIMEOUT_MS),
+      );
+    }
+    function emit(validity: PerpsTradingAgentValidity): void {
+      clearDeadline();
+      if (validity.status === 'valid' && validity.validUntil !== null) {
+        armDeadline(validity.agentAddress, validity.validUntil);
+      }
+      const key = JSON.stringify(validity);
+      if (key !== last) {
+        last = key;
+        params.callback(validity);
+      }
+    }
+    const subscriber: AgentValiditySubscriber = {
+      refresh: () => {
+        readId += 1;
+        const id = readId;
+        this.#readTradingAgentValidity(params.accountId)
+          .then(({ account, validity }) => {
+            if (closed || id !== readId) {
+              return;
+            }
+            subscriber.account = account;
+            subscriber.agentAddress =
+              'agentAddress' in validity ? validity.agentAddress : undefined;
+            emit(validity);
+            if (
+              validity.status === 'unknown' &&
+              validity.reason === 'read_failed'
+            ) {
+              params.onError?.(new Error('Trading agent list read failed'));
+            }
+          })
+          .catch((error: unknown) => {
+            if (!closed && id === readId) {
+              params.onError?.(
+                ensureError(
+                  error,
+                  'HyperLiquidProvider.subscribeToTradingAgentValidity',
+                ),
+              );
+            }
+          });
+      },
+      reject: (agentAddress) => {
+        // A read in flight predates the rejection.
+        readId += 1;
+        emit({ status: 'invalid', reason: 'rejected', agentAddress });
+      },
+    };
+    this.#agentValiditySubscribers.add(subscriber);
+    subscriber.refresh();
+    return () => {
+      closed = true;
+      clearDeadline();
+      this.#agentValiditySubscribers.delete(subscriber);
+    };
+  }
+
+  /**
+   * Read the validity of an account's agent once.
+   *
+   * @param accountId - The account, or the selected one.
+   * @returns The account checked and its agent's validity.
+   */
+  async #readTradingAgentValidity(accountId?: CaipAccountId): Promise<{
+    account?: PerpsAgentAccount;
+    validity: PerpsTradingAgentValidity;
+  }> {
+    let account: PerpsAgentAccount;
+    try {
+      await this.#ensureClientsInitialized();
+      this.#clientService.ensureInitialized();
+      const mainAddress = this.#walletService.getUserAddress(
+        accountId ?? (await this.getCurrentAccountId()),
+      );
+      account = { mainAddress, isTestnet: this.#clientService.isTestnetMode() };
+    } catch {
+      return { validity: { status: 'unknown', reason: 'account_unknown' } };
+    }
+    const hasSource =
+      this.#hasAgentSource?.(account) ?? this.#getAgentSigner !== undefined;
+    if (!hasSource) {
+      return { account, validity: { status: 'not_required' } };
+    }
+    let agent: PerpsAgentSigner | null;
+    try {
+      agent = await this.#resolveAgentSigner(
+        account.mainAddress,
+        account.isTestnet,
+      );
+    } catch {
+      return {
+        account,
+        validity: { status: 'unknown', reason: 'account_unknown' },
+      };
+    }
+    if (!agent) {
+      return { account, validity: { status: 'invalid', reason: 'no_agent' } };
+    }
+    const agentAddress = agent.address;
+    try {
+      const agents = await this.#clientService
+        .getInfoClient({ useHttp: true })
+        .extraAgents({ user: account.mainAddress });
+      const listed = agents.find(
+        ({ address }) => address.toLowerCase() === agentAddress.toLowerCase(),
+      );
+      if (!listed) {
+        return {
+          account,
+          validity: { status: 'invalid', reason: 'not_approved', agentAddress },
+        };
+      }
+      if (listed.validUntil !== null && listed.validUntil <= Date.now()) {
+        return {
+          account,
+          validity: { status: 'invalid', reason: 'expired', agentAddress },
+        };
+      }
+      return {
+        account,
+        validity: {
+          status: 'valid',
+          agentAddress,
+          validUntil: listed.validUntil,
+        },
+      };
+    } catch (error) {
+      this.#deps.debugLogger.log('HyperLiquidProvider: extraAgents failed', {
+        error: ensureError(error, 'HyperLiquidProvider.readAgentValidity')
+          .message,
+      });
+      return {
+        account,
+        validity: { status: 'unknown', reason: 'read_failed' },
+      };
+    }
+  }
+
   async #readMarginAdjustmentLimits(
     symbol: string,
   ): Promise<MarginAdjustmentLimits> {
@@ -2324,6 +2678,26 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (currentMode !== mode || currentAccount !== accountId) {
       return { status: 'unavailable', reason: 'account_unknown' };
     }
+    const market = (await this.#fetchMarketsForDex({ dex })).find(
+      (item) => item.name === symbol,
+    );
+    return this.#computeMarginAdjustmentLimits(maxAdd, position, market);
+  }
+
+  /**
+   * Margin adjustment limits from an account's free margin, its position and
+   * the market, shared by the read and the stream.
+   *
+   * @param maxAdd - Free margin the position can take in.
+   * @param position - The market's position, if any.
+   * @param market - The market, if known.
+   * @returns The limits, or a typed unavailable result.
+   */
+  #computeMarginAdjustmentLimits(
+    maxAdd: string,
+    position: Position | undefined,
+    market: MarketInfo | undefined,
+  ): MarginAdjustmentLimits {
     if (position?.leverage.type !== 'isolated') {
       return { status: 'unavailable', reason: 'no_isolated_position' };
     }
@@ -2332,9 +2706,6 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (!Number.isFinite(addable)) {
       return { status: 'unavailable', reason: 'account_unknown' };
     }
-    const market = (await this.#fetchMarketsForDex({ dex })).find(
-      (item) => item.name === symbol,
-    );
     // Only a confirmed strict-isolated market removes nothing; an unknown
     // market, margin mode or position figure is not a limit.
     const removalAllowed = isMarginRemovalAllowed(market);
@@ -3023,6 +3394,15 @@ export class HyperLiquidProvider implements PerpsProvider {
       'HyperLiquidProvider: agent rejected by the venue, asking again',
       { agent: agentAddress },
     );
+    for (const subscriber of this.#agentValiditySubscribers) {
+      if (
+        subscriber.account &&
+        getAgentAccountKey(subscriber.account) === key &&
+        subscriber.agentAddress?.toLowerCase() === agentAddress.toLowerCase()
+      ) {
+        subscriber.reject(agentAddress);
+      }
+    }
     try {
       this.#onAgentRejected?.(account, agentAddress);
     } catch (callbackError) {
@@ -4893,9 +5273,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       'DEX metadata cache write',
     );
     this.#cachedMetaByDex.set(dex, meta);
+    const subscriptionDexKey = dex ?? '';
+    // The live feed maps its frames with this list, so a market listed since
+    // it opened is followed once the list is read again.
+    this.#subscriptionService.setDexMetaCache(subscriptionDexKey, meta);
     if (assetCtxs) {
-      const subscriptionDexKey = dex ?? '';
-      this.#subscriptionService.setDexMetaCache(subscriptionDexKey, meta);
       this.#subscriptionService.setDexAssetCtxsCache(
         subscriptionDexKey,
         assetCtxs,
@@ -8852,6 +9234,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     this.#chaseSessions.set(sessionId, session);
     this.#scheduleChaseTick(sessionId);
+    this.#notifyChaseChange();
 
     this.#deps.debugLogger.log('Chase session started', {
       sessionId,
@@ -9035,7 +9418,8 @@ export class HyperLiquidProvider implements PerpsProvider {
             error: ensureError(error, 'HyperLiquidProvider.chaseTick').message,
           });
           this.#recoverFailedChaseTick(sessionId);
-        });
+        })
+        .then(() => this.#notifyChaseChange());
     }, session.intervalMs);
 
     // Node keeps the process alive for a pending timer; a background chase is
@@ -9870,6 +10254,98 @@ export class HyperLiquidProvider implements PerpsProvider {
       clearTimeout(session.timer);
       session.timer = null;
     }
+    this.#notifyChaseChange();
+  }
+
+  /** Tell the change subscribers that a chase session may have changed. */
+  #notifyChaseChange(): void {
+    for (const listener of [...this.#chaseChangeListeners]) {
+      listener();
+    }
+  }
+
+  /**
+   * Call back when a chase may have changed: on a placement, a re-price, a stop
+   * or an ending of this provider's own sessions, and when the venue's fill and
+   * order streams show a change of a session's resting child. Nothing is read
+   * on a timer.
+   *
+   * @param params - Subscription parameters.
+   * @param params.callback - Called on each change.
+   * @returns A cleanup function.
+   */
+  subscribeToChaseOrderChanges({
+    callback,
+  }: SubscribeChaseOrderChangesParams): () => void {
+    const listener = (): void => callback();
+    const resetFollowUps = (session: ChaseSession): void => {
+      delete session.followUps;
+      delete session.nextFollowUpAt;
+    };
+    // A new reader may settle what the last one could not.
+    this.#chaseSessions.forEach(resetFollowUps);
+    const markChanged = (isChanged: (orderId: string) => boolean): void => {
+      let changed = false;
+      for (const session of this.#chaseSessions.values()) {
+        const childId = session.orderId ?? session.unresolvedOrderId;
+        if (childId !== undefined && isChanged(childId)) {
+          session.isRemainderStale = true;
+          resetFollowUps(session);
+          changed = true;
+        }
+      }
+      if (changed) {
+        // The venue answered again: what it left open may be settled anew.
+        this.#chaseFollowUps = 0;
+        callback();
+      }
+    };
+    this.#chaseChangeListeners.add(listener);
+    const stops: (() => void)[] = [
+      (): void => {
+        this.#chaseChangeListeners.delete(listener);
+        if (this.#chaseChangeListeners.size === 0) {
+          this.#scheduleChaseFollowUp(false);
+        }
+      },
+    ];
+    let resting = new Set<string>();
+    const open = (subscribe: () => () => void): void => {
+      try {
+        stops.push(subscribe());
+      } catch (error) {
+        // The sessions' own changes are still reported.
+        this.#deps.debugLogger.log('Chase child stream unavailable', {
+          error: ensureError(
+            error,
+            'HyperLiquidProvider.subscribeToChaseOrderChanges',
+          ).message,
+        });
+      }
+    };
+    open(() =>
+      this.#subscriptionService.subscribeToOrderFills({
+        callback: (fills, isSnapshot) => {
+          const filled = new Set(fills.map((fill) => fill.orderId));
+          // A snapshot follows a reconnect: a child it lists may have filled
+          // while the stream was down.
+          markChanged((orderId) => isSnapshot === true || filled.has(orderId));
+        },
+      }),
+    );
+    open(() =>
+      this.#subscriptionService.subscribeToOrders({
+        callback: (orders) => {
+          const previous = resting;
+          resting = new Set(orders.map((order) => order.orderId));
+          // A child that stopped resting was filled or cancelled elsewhere.
+          markChanged(
+            (orderId) => previous.has(orderId) && !resting.has(orderId),
+          );
+        },
+      }),
+    );
+    return () => stops.forEach((stop) => stop());
   }
 
   /**
@@ -10169,16 +10645,30 @@ export class HyperLiquidProvider implements PerpsProvider {
         session.accountContext.userAddress.toLowerCase() === currentAddress &&
         session.accountContext.network === currentNetwork,
     );
-    return await Promise.all(
+    const snapshots = await Promise.all(
       sessions.map(async ([handle, session]) => {
         const now = Date.now();
         let snapshotRemainingSize = session.size;
+        // Changes of any chase bring a subscriber here, so what an earlier read
+        // left unsettled is tried again on its own bounded schedule.
+        const followUps = session.followUps ?? 0;
+        const isFollowUpDue =
+          this.#chaseChangeListeners.size === 0 ||
+          (followUps <= STREAM_RETRY_CONFIG.MaxAttempts &&
+            now >= (session.nextFollowUpAt ?? 0));
         if (
           session.orderId !== null &&
           session.pendingReplacement === null &&
-          now - session.lastSnapshotSizeRefreshAt >= session.intervalMs
+          // A change subscriber hears the child's own pushes; a caller without
+          // one is refreshed at the Chase interval.
+          (this.#chaseChangeListeners.size > 0
+            ? (session.isRemainderStale && isFollowUpDue) ||
+              session.refreshedOrderId !== session.orderId
+            : now - session.lastSnapshotSizeRefreshAt >= session.intervalMs)
         ) {
           session.lastSnapshotSizeRefreshAt = now;
+          session.isRemainderStale = false;
+          session.refreshedOrderId = session.orderId;
           const snapshotOrderId = session.orderId;
           try {
             const liveRemainder = await this.#readOrderRemainder(
@@ -10207,6 +10697,7 @@ export class HyperLiquidProvider implements PerpsProvider {
               }
             }
           } catch (error) {
+            session.isRemainderStale = true;
             this.#deps.debugLogger.log('Chase snapshot size refresh failed', {
               orderId: snapshotOrderId,
               error: ensureError(error, 'HyperLiquidProvider.getChaseOrders')
@@ -10215,7 +10706,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           }
         }
 
-        if (session.unresolvedOrderId !== undefined) {
+        if (session.unresolvedOrderId !== undefined && isFollowUpDue) {
           const remainder = await this.#readOrderRemainder(
             session.unresolvedOrderId,
           ).catch(() => undefined);
@@ -10227,16 +10718,76 @@ export class HyperLiquidProvider implements PerpsProvider {
           }
         }
 
-        if (!session.active && session.hip3Transfer) {
+        if (!session.active && session.hip3Transfer && isFollowUpDue) {
           const rebalanced = await this.#rebalanceChaseSession(session);
           if (rebalanced && session.removeAfterRebalance) {
             this.#chaseSessions.delete(handle);
           }
         }
 
+        if (!this.#isChaseUnsettled(session)) {
+          delete session.followUps;
+          delete session.nextFollowUpAt;
+        } else if (isFollowUpDue && this.#chaseChangeListeners.size > 0) {
+          session.followUps = followUps + 1;
+          session.nextFollowUpAt =
+            Date.now() + getChaseFollowUpDelay(followUps);
+        }
+
         return this.#chaseSnapshot(handle, session, snapshotRemainingSize);
       }),
     );
+    this.#scheduleChaseFollowUp(
+      sessions.some(
+        ([, session]) =>
+          this.#isChaseUnsettled(session) &&
+          (session.followUps ?? 0) <= STREAM_RETRY_CONFIG.MaxAttempts,
+      ),
+    );
+    return snapshots;
+  }
+
+  /**
+   * Whether the last read left something of a chase to settle.
+   *
+   * @param session - The chase session.
+   * @returns True when a later read may still settle something.
+   */
+  #isChaseUnsettled(session: ChaseSession): boolean {
+    return (
+      (session.isRemainderStale === true && session.orderId !== null) ||
+      session.unresolvedOrderId !== undefined ||
+      (!session.active && session.hip3Transfer !== undefined)
+    );
+  }
+
+  /**
+   * Report another chase change later, a bounded number of times, while a read
+   * left something the venue may still answer: a child whose status could not
+   * be read, or collateral that could not be returned.
+   *
+   * @param isUnsettled - Whether the last read left something to settle.
+   */
+  #scheduleChaseFollowUp(isUnsettled: boolean): void {
+    if (!isUnsettled) {
+      this.#chaseFollowUps = 0;
+      clearTimeout(this.#chaseFollowUpTimer);
+      this.#chaseFollowUpTimer = undefined;
+      return;
+    }
+    if (
+      this.#chaseChangeListeners.size === 0 ||
+      this.#chaseFollowUpTimer !== undefined ||
+      this.#chaseFollowUps >= STREAM_RETRY_CONFIG.MaxAttempts
+    ) {
+      return;
+    }
+    const delay = getChaseFollowUpDelay(this.#chaseFollowUps);
+    this.#chaseFollowUps += 1;
+    this.#chaseFollowUpTimer = setTimeout(() => {
+      this.#chaseFollowUpTimer = undefined;
+      this.#notifyChaseChange();
+    }, delay);
   }
 
   /**
@@ -10602,6 +11153,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       return result;
     } finally {
       this.#chaseTerminations.delete(params.orderId);
+      this.#notifyChaseChange();
     }
   }
 
@@ -15893,6 +16445,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             this.#fetchMarketsForDex({
               dex,
               skipFilters: params?.skipFilters,
+              skipCache: params?.skipCache,
             }),
           ),
         );
@@ -15911,7 +16464,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         // Determine which DEXs to query based on skipFilters flag
         const dexsToQuery = params?.skipFilters
           ? await this.#getAllAvailableDexs()
-          : await this.#getValidatedDexs();
+          : await (params?.requireComplete
+              ? this.#getValidatedDexsStrict()
+              : this.#getValidatedDexs());
 
         if (dexsToQuery.length > 1) {
           // More than just main DEX
@@ -15929,6 +16484,7 @@ export class HyperLiquidProvider implements PerpsProvider {
                 return await this.#fetchMarketsForDex({
                   dex,
                   skipFilters: params?.skipFilters,
+                  skipCache: params?.skipCache,
                 });
               } catch (error) {
                 this.#deps.logger.error(
@@ -15937,6 +16493,9 @@ export class HyperLiquidProvider implements PerpsProvider {
                     dex: dex ?? 'main',
                   }),
                 );
+                if (params?.requireComplete) {
+                  throw error;
+                }
                 return []; // Continue with other DEXs on error
               }
             }),
@@ -15957,6 +16516,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       return await this.#fetchMarketsForDex({
         dex: params?.dex ?? null,
         skipFilters: params?.skipFilters,
+        skipCache: params?.skipCache,
       });
     } catch (error) {
       this.#deps.logger.error(
@@ -15966,6 +16526,9 @@ export class HyperLiquidProvider implements PerpsProvider {
           symbolCount: params?.symbols?.length,
         }),
       );
+      if (params?.requireComplete) {
+        throw error;
+      }
       return [];
     }
   }
@@ -17431,12 +17994,19 @@ export class HyperLiquidProvider implements PerpsProvider {
         return;
       })
       .catch((error) => {
+        const safeError = ensureError(
+          error,
+          'HyperLiquidProvider.subscribeToPrices',
+        );
         this.#deps.logger.error(
-          ensureError(error, 'HyperLiquidProvider.subscribeToPrices'),
+          safeError,
           this.#getErrorContext('subscribeToPrices', {
             symbols: params.symbols,
           }),
         );
+        if (!cancelled) {
+          params.onError?.(safeError);
+        }
         return;
       });
 
@@ -17469,12 +18039,8 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Stream TWAP lifecycle updates from the venue's own push channel.
-   *
-   * The venue streams schedule state without slice fills, so each pushed
-   * schedule carries an empty `fills` array. A subscriber that renders fill
-   * history should keep what a prior `getTwapOrders()` read supplied rather
-   * than replacing it from the stream.
+   * Stream TWAP lifecycle updates from the venue's own push channels: schedule
+   * state from `userTwapHistory` and slice fills from `userTwapSliceFills`.
    *
    * @param params - Subscription parameters including callback and account ID.
    * @returns A cleanup function to unsubscribe from TWAP updates.
@@ -17482,35 +18048,42 @@ export class HyperLiquidProvider implements PerpsProvider {
   subscribeToTwapOrders(params: SubscribeTwapOrdersParams): () => void {
     return this.#subscriptionService.subscribeToTwapOrders({
       ...params,
-      adapt: (history) => {
-        const now = Date.now();
-        const ordersById = new Map<string, TwapOrder>();
-        for (const historyEntry of history) {
-          const order = this.#adaptTwapOrder({
-            historyEntry,
-            sliceFills: [],
-            now,
-          });
-          if (!order) {
-            continue;
+      adapt: {
+        sliceFills: (sliceFills) =>
+          sliceFills.map((entry) => ({
+            orderId: entry.twapId.toString(),
+            fill: adaptTwapOrderFill(entry),
+          })),
+        history: (history) => {
+          const now = Date.now();
+          const ordersById = new Map<string, TwapOrder>();
+          for (const historyEntry of history) {
+            const order = this.#adaptTwapOrder({
+              historyEntry,
+              sliceFills: [],
+              now,
+            });
+            if (!order) {
+              continue;
+            }
+            const existing = ordersById.get(order.orderId);
+            if (!existing || supersedesTwapOrder(order, existing)) {
+              ordersById.set(order.orderId, order);
+            }
           }
-          const existing = ordersById.get(order.orderId);
-          if (!existing || supersedesTwapOrder(order, existing)) {
-            ordersById.set(order.orderId, order);
-          }
-        }
-        const orders = [...ordersById.values()].sort(
-          (left, right) => right.startedAt - left.startedAt,
-        );
+          const orders = [...ordersById.values()].sort(
+            (left, right) => right.startedAt - left.startedAt,
+          );
 
-        // A streamed terminal schedule must reclaim HIP-3 collateral the same
-        // way a polled read does, or a consumer that replaced polling with
-        // this subscription strands manually transferred collateral. The
-        // listener is synchronous, so this runs detached and logs its own
-        // failures rather than rejecting into the stream.
-        this.#rebalanceStreamedTerminalTwaps(orders, params.accountId);
+          // A streamed terminal schedule must reclaim HIP-3 collateral the same
+          // way a polled read does, or a consumer that replaced polling with
+          // this subscription strands manually transferred collateral. The
+          // listener is synchronous, so this runs detached and logs its own
+          // failures rather than rejecting into the stream.
+          this.#rebalanceStreamedTerminalTwaps(orders, params.accountId);
 
-        return orders;
+          return orders;
+        },
       },
     });
   }
@@ -17632,6 +18205,34 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   subscribeToCandles(params: SubscribeCandlesParams): () => void {
     return this.#clientService.subscribeToCandles(params);
+  }
+
+  /**
+   * Call back when the venue's `assetCtxs` push shows a listing or delisting.
+   *
+   * @param params - Callback and error handler.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToMarketChanges(params: SubscribeMarketChangesParams): () => void {
+    let stop: (() => void) | undefined;
+    let closed = false;
+    const open = async (): Promise<void> => {
+      await this.#ensureClientsInitialized();
+      if (!closed) {
+        stop = this.#subscriptionService.subscribeToMarketChanges(params);
+      }
+    };
+    open().catch((error: unknown) => {
+      if (!closed) {
+        params.onError?.(
+          ensureError(error, 'HyperLiquidProvider.subscribeToMarketChanges'),
+        );
+      }
+    });
+    return () => {
+      closed = true;
+      stop?.();
+    };
   }
 
   /**
@@ -17792,6 +18393,10 @@ export class HyperLiquidProvider implements PerpsProvider {
   clearAgentSigners(): void {
     this.#agentSignersGeneration += 1;
     this.#agentSigners.clear();
+    // A set or cleared agent changes what validity readers report.
+    for (const subscriber of this.#agentValiditySubscribers) {
+      subscriber.refresh();
+    }
   }
 
   /**
@@ -18128,7 +18733,8 @@ export class HyperLiquidProvider implements PerpsProvider {
    * Liquidation price of the Cross position an order would leave: an opening,
    * or an add, reduce or flip of the market's position, priced against the
    * selected account's Cross collateral (`projectHyperLiquidCrossPositionModify`).
-   * The fee is not included. Never rejects.
+   * A `feeAmountUsd` is taken from the collateral as the fill takes it;
+   * without one the estimate excludes the fee. Never rejects.
    *
    * @param params - The proposed Cross order.
    * @returns `price`, `none` when no positive price liquidates the resulting
@@ -18145,7 +18751,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       (direction !== 'long' && direction !== 'short') ||
       !(positionSize > 0 && Number.isFinite(positionSize)) ||
       !(entryPrice > 0 && Number.isFinite(entryPrice)) ||
-      !(leverage > 0 && Number.isFinite(leverage))
+      !(leverage > 0 && Number.isFinite(leverage)) ||
+      // A fee that is given must be a usable amount; it is never guessed.
+      (params.feeAmountUsd !== undefined &&
+        !(params.feeAmountUsd >= 0 && Number.isFinite(params.feeAmountUsd)))
     ) {
       return crossLiquidationUnavailable('missing_inputs');
     }
@@ -18167,7 +18776,8 @@ export class HyperLiquidProvider implements PerpsProvider {
         size: params.size,
         price: params.entryPrice,
         leverage,
-        feeAmountUsd: 0,
+        // Without a fee the estimate excludes it.
+        feeAmountUsd: params.feeAmountUsd ?? 0,
         marginTiers: context.marginTiers,
         crossAccount: context.crossAccount,
       });
@@ -18616,6 +19226,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     });
 
     // Try to get user-specific rates if wallet is connected
+    let mustRead = false;
     try {
       const userAddress = await this.#walletService.getUserAddressWithDefault();
       this.#assertProviderLifecycleCurrent(
@@ -18629,7 +19240,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       });
 
       // Check cache first
-      if (this.#isFeeCacheValid(userAddress)) {
+      if (!params.skipCache && this.#isFeeCacheValid(userAddress)) {
         const cached = this.#userFeeCache.get(userAddress);
         if (cached) {
           // Same maker/taker decision as the base rates above, including the
@@ -18660,6 +19271,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           });
         }
       } else {
+        mustRead = params.skipCache === true;
         this.#deps.debugLogger.log(
           'Fetching Fresh Fee Rates from HyperLiquid API',
           {
@@ -18681,9 +19293,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         );
         this.#clientService.ensureInitialized();
         const infoClient = this.#clientService.getInfoClient();
-        const userFees = await infoClient.userFees({
-          user: userAddress,
-        });
+        const userFees = await this.#readUserFees(infoClient, userAddress);
 
         this.#deps.debugLogger.log('HyperLiquid userFees API Response', {
           userCrossRate: userFees.userCrossRate,
@@ -18831,7 +19441,11 @@ export class HyperLiquidProvider implements PerpsProvider {
         error,
         'HyperLiquidProvider.getFeeSchedule',
       );
-      if (safeError.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE) {
+      // A caller that asked for the venue's own rates gets no base rates.
+      if (
+        mustRead ||
+        safeError.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE
+      ) {
         throw safeError;
       }
       this.#deps.debugLogger.log(
@@ -18946,6 +19560,32 @@ export class HyperLiquidProvider implements PerpsProvider {
       return false;
     }
     return Date.now() - cached.timestamp < cached.ttl;
+  }
+
+  /**
+   * Read an account's venue fees, sharing a read that is under way: one change
+   * makes every open fee stream ask at once.
+   *
+   * @param infoClient - The client to read with.
+   * @param userAddress - The account.
+   * @returns The venue's answer.
+   */
+  async #readUserFees(
+    infoClient: InfoClient,
+    userAddress: Hex,
+  ): Promise<UserFeesResponse> {
+    const reads =
+      this.#userFeeReads.get(infoClient) ??
+      new Map<Hex, Promise<UserFeesResponse>>();
+    this.#userFeeReads.set(infoClient, reads);
+    let read = reads.get(userAddress);
+    if (!read) {
+      read = infoClient.userFees({ user: userAddress }).finally(() => {
+        reads.delete(userAddress);
+      });
+      reads.set(userAddress, read);
+    }
+    return await read;
   }
 
   /**

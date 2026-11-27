@@ -1,6 +1,6 @@
 {
   "name": "@metamask/profile-sync-controller",
-  "version": "36.1.2",
+  "version": "36.1.3",
   "description": "The profile sync helps developers synchronize data across multiple clients and devices in a privacy-preserving way. All data saved in the user storage database is encrypted client-side to preserve privacy. The user storage provides a modular design, giving developers the flexibility to construct and manage their storage spaces in a way that best suits their needs",
   "keywords": [
     "Ethereum",
@@ -82,9 +82,9 @@
     "@metamask/key-tree": "^11.0.0",
     "@metamask/keyring-controller": "^28.2.2",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/seedless-onboarding-controller": "^12.1.0",
+    "@metamask/seedless-onboarding-controller": "^13.0.0",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/utils": "^12.0.2",
+    "@metamask/utils": "^12.1.0",
     "@noble/curves": "^1.9.7",
     "@noble/hashes": "^1.8.0",
     "@signinwithethereum/siwe": "^4.2.1",

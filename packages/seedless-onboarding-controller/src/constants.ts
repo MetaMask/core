@@ -191,12 +191,81 @@ export enum SeedlessOnboardingControllerErrorMessage {
   PasswordResetRequiresRecovery = `${controllerName} - The password can only be reset with the vault keys after a recovery with the Recovery Secret`,
 }
 
+/**
+ * Whether the remote primary SRP backup is missing or differs from the local
+ * primary SRP.
+ */
+export enum PrimarySrpRepairType {
+  Missing = 'missing',
+  Mismatch = 'mismatch',
+}
+
 export const SeedlessPrimarySrpMissingEventName =
   'Seedless Onboarding Primary SRP Missing';
 export const SeedlessPrimarySrpMismatchEventName =
   'Seedless Onboarding Primary SRP Mismatch';
 export const SeedlessIdentityMismatchEventName =
   'Seedless Onboarding Identity Mismatch';
+
+/**
+ * Emitted once when a primary SRP repair starts, and once when it succeeds or
+ * fails. The `status` property tells the two apart.
+ */
+export const SeedlessPrimarySrpRepairEventName =
+  'Seedless Onboarding Primary SRP Repair';
+
+/**
+ * Saved result of a primary SRP backup check.
+ *
+ * `NONE` means the backup is healthy and skips later checks. `FAIL` means the
+ * check or the repair failed and runs again. After a repair write, the status
+ * is not changed, so the next check verifies the backup.
+ */
+export enum PrimarySrpRepairStatus {
+  None = 'NONE',
+  Fail = 'FAIL',
+}
+
+/**
+ * Status of a primary SRP repair analytics event.
+ */
+export enum PrimarySrpRepairEventStatus {
+  Started = 'started',
+  Succeeded = 'succeeded',
+  Failed = 'failed',
+}
+
+/**
+ * The write that makes the local primary SRP the remote primary SRP.
+ */
+export enum PrimarySrpRepairPrimaryWrite {
+  Promote = 'promote',
+  Add = 'add',
+}
+
+/**
+ * The step of a primary SRP repair that failed.
+ */
+export enum PrimarySrpRepairFailureStage {
+  Plan = 'plan',
+  IdentityChanged = 'identity_changed',
+  ControllerLocked = 'controller_locked',
+  Retag = 'retag',
+  Primary = 'primary',
+}
+
+/**
+ * Non-sensitive category of a failed primary SRP repair. Raw error messages
+ * are never sent.
+ */
+export enum PrimarySrpRepairFailureReason {
+  BackupUnreadable = 'backup_unreadable',
+  ExportFailed = 'export_failed',
+  IdentityMismatch = 'identity_mismatch',
+  Locked = 'locked',
+  WriteFailed = 'write_failed',
+  Unknown = 'unknown',
+}
 
 /**
  * HMAC key for user ids on the identity-mismatch event.

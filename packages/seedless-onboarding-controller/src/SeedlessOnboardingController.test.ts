@@ -89,6 +89,7 @@ import {
   SeedlessIdentityMismatchSource,
   SeedlessOnboardingControllerErrorMessage,
   SeedlessOnboardingMigrationVersion,
+  PrimarySrpRepairStatus,
   SeedlessPrimarySrpMismatchEventName,
   AuthConnection,
   SecretType,
@@ -5069,6 +5070,61 @@ describe('SeedlessOnboardingController', () => {
     });
 
     describe('completePasswordChange', () => {
+      it('saves the outdated password cache as in sync when the lifecycle completes', async () => {
+        await withController(
+          {
+            state: {
+              seedlessOperationLifecycle: {
+                operation: SeedlessOnboardingOperation.PasswordChange,
+                checkpoint: SeedlessOnboardingCheckpoint.KeySyncPending,
+              },
+              passwordOutdatedCache: {
+                isExpiredPwd: true,
+                timestamp: 1,
+              },
+            },
+          },
+          async ({ controller }) => {
+            await controller.completePasswordChange();
+
+            expect(controller.state.seedlessOperationLifecycle).toBeUndefined();
+            expect(controller.state.passwordOutdatedCache).toStrictEqual({
+              isExpiredPwd: false,
+              timestamp: expect.any(Number),
+            });
+          },
+        );
+      });
+
+      it('keeps the outdated password cache when completion is a no-op', async () => {
+        const passwordOutdatedCache = {
+          isExpiredPwd: true,
+          timestamp: 1,
+        };
+
+        await withController(
+          {
+            state: {
+              seedlessOperationLifecycle: {
+                operation: SeedlessOnboardingOperation.PasswordChange,
+                checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+              },
+              passwordOutdatedCache,
+            },
+          },
+          async ({ controller }) => {
+            await controller.completePasswordChange();
+
+            expect(controller.state.passwordOutdatedCache).toStrictEqual(
+              passwordOutdatedCache,
+            );
+            expect(getLifecyclePhase(controller.state)).toBe(
+              SeedlessOnboardingCheckpoint.LocalPasswordPending,
+            );
+          },
+        );
+      });
+
       it('clears an in-progress lifecycle', async () => {
         await withController(
           {
@@ -7586,6 +7642,391 @@ describe('SeedlessOnboardingController', () => {
           );
         },
       );
+    });
+
+    describe('missing primary SRP repair', () => {
+      const MISSING_PRIMARY_REMOTE_ITEMS = [
+        {
+          data: new SecretMetadata(MOCK_PRIVATE_KEY, {
+            dataType: EncAccountDataType.ImportedPrivateKey,
+          }).toBytes(),
+          itemId: 'remote-private-key',
+          version: 'v2' as const,
+          dataType: EncAccountDataType.ImportedPrivateKey,
+        },
+      ];
+
+      /**
+       * Run a test against an unlocked controller whose remote backup holds the
+       * given items.
+       *
+       * @param options - The options.
+       * @param options.remoteItems - The items returned by the metadata service.
+       * @param options.exportSeedPhrase - The handler for exporting the local primary SRP.
+       * @param testFn - The test body.
+       */
+      async function withRepairScenario(
+        {
+          remoteItems,
+          exportSeedPhrase = vi.fn().mockResolvedValue(MOCK_SEED_PHRASE),
+        }: {
+          remoteItems: Awaited<
+            ReturnType<ToprfSecureBackup['fetchAllSecretDataItems']>
+          >;
+          exportSeedPhrase?: Mock;
+        },
+        testFn: (args: {
+          controller: SeedlessOnboardingController<
+            EncryptionKey | CryptoKey,
+            KeyDerivationOptions
+          >;
+          baseMessenger: RootMessenger;
+          toprfClient: ToprfSecureBackup;
+          addSecretDataItem: Mock;
+          updateSecretDataItem: Mock;
+          identify: () => Promise<void>;
+        }) => Promise<void>,
+      ): Promise<void> {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              withMockAuthPubKey: true,
+            }),
+          },
+          async ({ controller, toprfClient, baseMessenger }) => {
+            await mockCreateToprfKeyAndBackupSeedPhrase(
+              toprfClient,
+              controller,
+              baseMessenger,
+              RECOVERED_PASSWORD,
+              MOCK_SEED_PHRASE,
+              MOCK_KEYRING_ID,
+            );
+            await baseMessenger.call(
+              'SeedlessOnboardingController:storeKeyringEncryptionKey',
+              MOCK_KEYRING_ENCRYPTION_KEY,
+            );
+
+            baseMessenger.registerActionHandler(
+              'KeyringController:exportSeedPhrase',
+              exportSeedPhrase,
+            );
+            baseMessenger.registerActionHandler(
+              'AnalyticsController:trackEvent',
+              vi.fn(),
+            );
+
+            mockFetchAuthPubKey(
+              toprfClient,
+              base64ToBytes(controller.state.authPubKey as string),
+            );
+            vi.spyOn(toprfClient, 'fetchAllSecretDataItems').mockResolvedValue(
+              remoteItems,
+            );
+            const addSecretDataItem = vi
+              .spyOn(toprfClient, 'addSecretDataItem')
+              .mockResolvedValue(undefined);
+            const updateSecretDataItem = vi
+              .spyOn(toprfClient, 'updateSecretDataItem')
+              .mockResolvedValue(undefined);
+
+            await testFn({
+              controller,
+              baseMessenger,
+              toprfClient,
+              addSecretDataItem,
+              updateSecretDataItem,
+              identify: () =>
+                baseMessenger.call(
+                  'SeedlessOnboardingController:identifyIncompleteMetadataBackup',
+                  GLOBAL_PASSWORD,
+                ),
+            });
+          },
+        );
+      }
+
+      it('adds the local primary SRP when the remote backup has no primary SRP', async () => {
+        await withRepairScenario(
+          { remoteItems: MISSING_PRIMARY_REMOTE_ITEMS },
+          async ({ addSecretDataItem, identify }) => {
+            await identify();
+
+            expect(addSecretDataItem).toHaveBeenCalledTimes(1);
+            expect(addSecretDataItem).toHaveBeenCalledWith({
+              encKey: expect.any(Uint8Array),
+              authKeyPair: expect.any(Object),
+              dataType: EncAccountDataType.PrimarySrp,
+              version: 'v2',
+              secretData: expect.any(Uint8Array),
+            });
+
+            const { secretData } = addSecretDataItem.mock.calls[0][0] as {
+              secretData: Uint8Array;
+            };
+            const metadata = SecretMetadata.fromRawMetadata(secretData, {});
+            expect(metadata.data).toStrictEqual(MOCK_SEED_PHRASE);
+            expect(metadata.type).toBe(SecretType.Mnemonic);
+          },
+        );
+      });
+
+      it('adds the local primary SRP as v2 when the remote backup is empty', async () => {
+        await withRepairScenario(
+          { remoteItems: [] },
+          async ({ addSecretDataItem, identify }) => {
+            await identify();
+
+            expect(addSecretDataItem).toHaveBeenCalledTimes(1);
+            expect(addSecretDataItem).toHaveBeenCalledWith(
+              expect.objectContaining({
+                dataType: EncAccountDataType.PrimarySrp,
+              }),
+            );
+          },
+        );
+      });
+
+      it('migrates a legacy private key to v2 before adding the local primary SRP when the remote backup is v1', async () => {
+        await withRepairScenario(
+          {
+            remoteItems: [
+              {
+                data: new SecretMetadata(MOCK_PRIVATE_KEY, {
+                  type: SecretType.PrivateKey,
+                }).toBytes(),
+                itemId: 'remote-legacy-private-key',
+                version: 'v1' as const,
+              },
+            ],
+          },
+          async ({ addSecretDataItem, updateSecretDataItem, identify }) => {
+            await identify();
+
+            expect(updateSecretDataItem).toHaveBeenCalledTimes(1);
+            expect(updateSecretDataItem).toHaveBeenCalledWith({
+              itemId: 'remote-legacy-private-key',
+              dataType: EncAccountDataType.ImportedPrivateKey,
+              authKeyPair: expect.any(Object),
+            });
+            expect(addSecretDataItem).toHaveBeenCalledTimes(1);
+            expect(addSecretDataItem).toHaveBeenCalledWith(
+              expect.objectContaining({
+                dataType: EncAccountDataType.PrimarySrp,
+                version: 'v2',
+              }),
+            );
+          },
+        );
+      });
+
+      it('does not add anything when the remote backup already has a primary SRP', async () => {
+        await withRepairScenario(
+          {
+            remoteItems: [
+              {
+                data: new SecretMetadata(MOCK_SEED_PHRASE, {
+                  dataType: EncAccountDataType.PrimarySrp,
+                }).toBytes(),
+                itemId: 'remote-primary-srp',
+                version: 'v2',
+              },
+            ],
+          },
+          async ({ addSecretDataItem, identify }) => {
+            await identify();
+
+            expect(addSecretDataItem).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('adds the local primary SRP when the remote backup only has imported SRPs', async () => {
+        await withRepairScenario(
+          {
+            remoteItems: [
+              {
+                data: new SecretMetadata(stringToBytes('imported srp'), {
+                  dataType: EncAccountDataType.ImportedSrp,
+                }).toBytes(),
+                itemId: 'remote-imported-srp',
+                version: 'v2',
+                dataType: EncAccountDataType.ImportedSrp,
+              },
+            ],
+          },
+          async ({ addSecretDataItem, identify }) => {
+            await identify();
+
+            expect(addSecretDataItem).toHaveBeenCalledTimes(1);
+          },
+        );
+      });
+
+      it('demotes a legacy untagged mnemonic that differs from the local primary SRP and adds the local one', async () => {
+        await withRepairScenario(
+          {
+            remoteItems: [
+              {
+                data: new SecretMetadata(stringToBytes('legacy primary srp'), {
+                  timestamp: 1,
+                  type: SecretType.Mnemonic,
+                }).toBytes(),
+                itemId: 'remote-legacy-srp',
+                version: 'v1',
+              },
+            ],
+          },
+          async ({ addSecretDataItem, updateSecretDataItem, identify }) => {
+            await identify();
+
+            expect(updateSecretDataItem).toHaveBeenCalledWith({
+              itemId: 'remote-legacy-srp',
+              dataType: EncAccountDataType.ImportedSrp,
+              authKeyPair: expect.any(Object),
+            });
+            expect(addSecretDataItem).toHaveBeenCalledWith(
+              expect.objectContaining({
+                dataType: EncAccountDataType.PrimarySrp,
+                version: 'v2',
+              }),
+            );
+          },
+        );
+      });
+
+      it('does not add anything when the remote items cannot be parsed', async () => {
+        await withRepairScenario(
+          {
+            remoteItems: [
+              {
+                data: stringToBytes('not valid metadata'),
+                itemId: 'remote-invalid-item',
+                version: 'v2',
+              },
+            ],
+          },
+          async ({ addSecretDataItem, identify }) => {
+            expect(await identify()).toBeUndefined();
+            expect(addSecretDataItem).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('does not add anything when exporting the local primary SRP fails', async () => {
+        await withRepairScenario(
+          {
+            remoteItems: MISSING_PRIMARY_REMOTE_ITEMS,
+            exportSeedPhrase: vi
+              .fn()
+              .mockRejectedValue(new Error('export failed')),
+          },
+          async ({ addSecretDataItem, identify }) => {
+            expect(await identify()).toBeUndefined();
+            expect(addSecretDataItem).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('does not add anything when the identity changes during the repair', async () => {
+        const exportSeedPhrase = vi.fn();
+
+        await withRepairScenario(
+          { remoteItems: MISSING_PRIMARY_REMOTE_ITEMS, exportSeedPhrase },
+          async ({ baseMessenger, addSecretDataItem, identify }) => {
+            exportSeedPhrase.mockImplementation(async () => {
+              await baseMessenger.call(
+                'SeedlessOnboardingController:clearState',
+              );
+              return MOCK_SEED_PHRASE;
+            });
+
+            await identify();
+
+            expect(addSecretDataItem).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('does not throw when the password is out of sync', async () => {
+        await withRepairScenario(
+          { remoteItems: MISSING_PRIMARY_REMOTE_ITEMS },
+          async ({ toprfClient, addSecretDataItem, identify }) => {
+            vi.spyOn(toprfClient, 'fetchAuthPubKey').mockRejectedValueOnce(
+              new Error('fetch failed'),
+            );
+
+            expect(await identify()).toBeUndefined();
+            expect(addSecretDataItem).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('does not throw when writing the backup fails', async () => {
+        await withRepairScenario(
+          { remoteItems: MISSING_PRIMARY_REMOTE_ITEMS },
+          async ({ addSecretDataItem, identify }) => {
+            addSecretDataItem.mockRejectedValueOnce(new Error('write failed'));
+
+            expect(await identify()).toBeUndefined();
+            expect(addSecretDataItem).toHaveBeenCalledTimes(1);
+          },
+        );
+      });
+
+      it('saves NONE after the check that verifies a repair, then skips later checks', async () => {
+        await withRepairScenario(
+          { remoteItems: MISSING_PRIMARY_REMOTE_ITEMS },
+          async ({ controller, toprfClient, addSecretDataItem, identify }) => {
+            await identify();
+
+            expect(controller.state.primarySrpRepairStatus).toBeUndefined();
+
+            vi.spyOn(toprfClient, 'fetchAllSecretDataItems').mockResolvedValue([
+              {
+                data: new SecretMetadata(MOCK_SEED_PHRASE, {
+                  dataType: EncAccountDataType.PrimarySrp,
+                }).toBytes(),
+                itemId: 'remote-primary-srp',
+                version: 'v2',
+                dataType: EncAccountDataType.PrimarySrp,
+              },
+            ]);
+            addSecretDataItem.mockClear();
+
+            await identify();
+
+            expect(controller.state.primarySrpRepairStatus).toBe(
+              PrimarySrpRepairStatus.None,
+            );
+            expect(addSecretDataItem).not.toHaveBeenCalled();
+
+            const fetchAllSecretDataItems =
+              toprfClient.fetchAllSecretDataItems as Mock;
+            fetchAllSecretDataItems.mockClear();
+
+            await identify();
+
+            expect(fetchAllSecretDataItems).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('saves FAIL when the repair write fails', async () => {
+        await withRepairScenario(
+          { remoteItems: MISSING_PRIMARY_REMOTE_ITEMS },
+          async ({ controller, addSecretDataItem, identify }) => {
+            addSecretDataItem.mockRejectedValueOnce(new Error('write failed'));
+
+            await identify();
+
+            expect(controller.state.primarySrpRepairStatus).toBe(
+              PrimarySrpRepairStatus.Fail,
+            );
+          },
+        );
+      });
     });
 
     it('should throw if identifyIncompleteMetadataBackup is called while locked', async () => {

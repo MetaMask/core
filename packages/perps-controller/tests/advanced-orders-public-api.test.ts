@@ -76,13 +76,9 @@ describe('@metamask/perps-controller advanced-order public API', () => {
     ]);
     expect(HYPERLIQUID_TWAP_LIMITS.SliceIntervalSeconds).toBe(30);
     expect(TWAP_ORDER_CONFIG).toStrictEqual({
-      RefreshIntervalMs: 5000,
       StreamCatchUpIntervalMs: 1000,
     });
-    expect(CHASE_ORDER_CONFIG).toMatchObject({
-      RefreshIntervalMs: 1000,
-      HistoryLimit: 50,
-    });
+    expect(CHASE_ORDER_CONFIG).toMatchObject({ HistoryLimit: 50 });
     expect(ORDER_PRICE_WARNING_CONFIG.FarFromMarketRatio).toBe(0.05);
   });
 

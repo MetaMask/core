@@ -7,9 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `isTrueExactOutput` to `TransactionConfig` so token transfers deliver exactly the required amount to the recipient, supported by `ServerStrategy` and `RelayStrategy` ([#11775](https://github.com/MetaMask/core/pull/11775))
+
 ### Changed
 
+- Support provider-specific timeouts reported by the server in `ServerStrategy` ([#11737](https://github.com/MetaMask/core/pull/11737))
+  - Send `elapsedMs` with each status request and stop polling when the server returns the new `TIMEOUT` status.
+  - Remove the local `confirmations_pay_extended.payStrategies.server.pollingTimeout` feature flag, as the server now owns the timeout.
+  - Sweep Polymarket deposit wallets before reporting a timed out intent, as is already done for failed and refunded intents.
 - Bump `@metamask/transaction-controller` from `^74.5.0` to `^74.5.1` ([#11789](https://github.com/MetaMask/core/pull/11789))
+- Bump `@metamask/utils` from `^12.0.2` to `^12.1.0` ([#11796](https://github.com/MetaMask/core/pull/11796))
+- Bump `@metamask/assets-controller` from `^22.0.0` to `^22.0.1` ([#11797](https://github.com/MetaMask/core/pull/11797))
+
+### Fixed
+
+- Send `metamask.executeVersion: 2` on every Relay quote request, not only gasless execute quotes, so quotes from chains without EIP-7702 support, such as Perps withdrawals from HyperCore, can still be subsidized ([#11781](https://github.com/MetaMask/core/pull/11781))
 
 ## [33.2.0]
 

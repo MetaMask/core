@@ -4,6 +4,8 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 
+import type { QuoteRequest } from '../types.js';
+
 /**
  * Transaction types whose quote must be priced as an exact output.
  *
@@ -44,6 +46,8 @@ export enum TradeType {
  * @param options - Options bag.
  * @param options.hasCalls - Whether the request bundles calls that consume a
  * specific amount of the target token.
+ * @param options.isTrueExactOutput - Whether the recipient must receive exactly
+ * the target amount.
  * @param options.sourceTokenAmount - Amount of the source token being spent.
  * @param options.targetAmountMinimum - Minimum amount of the target token the
  * transaction needs to receive.
@@ -52,19 +56,42 @@ export enum TradeType {
  */
 export function getQuotePricing({
   hasCalls,
+  isTrueExactOutput,
   sourceTokenAmount,
   targetAmountMinimum,
   transaction,
 }: {
   hasCalls: boolean;
+  isTrueExactOutput?: boolean;
   sourceTokenAmount: string;
   targetAmountMinimum: string;
   transaction?: TransactionMeta;
 }): { amount: string; tradeType: TradeType } {
   const requiresExactOutput =
-    hasCalls || hasTransactionType(transaction, EXACT_OUTPUT_TRANSACTION_TYPES);
+    hasCalls ||
+    Boolean(isTrueExactOutput) ||
+    hasTransactionType(transaction, EXACT_OUTPUT_TRANSACTION_TYPES);
 
   return requiresExactOutput
     ? { amount: targetAmountMinimum, tradeType: TradeType.ExactOutput }
     : { amount: sourceTokenAmount, tradeType: TradeType.ExactInput };
+}
+
+/**
+ * Whether every true exact output request can be quoted as one.
+ *
+ * A maximum amount fixes the input, so it cannot also fix the output. A
+ * non-atomic request delivers the funds to the execution account and relies
+ * on a second leg to run the transaction, which a plain transfer does not
+ * have, so the recipient would not be paid.
+ *
+ * @param requests - Quote requests for the transaction.
+ * @returns Whether the requests can be quoted.
+ */
+export function isTrueExactOutputSupported(requests: QuoteRequest[]): boolean {
+  return !requests.some(
+    (request) =>
+      request.isTrueExactOutput &&
+      (request.isMaxAmount === true || request.atomic === false),
+  );
 }

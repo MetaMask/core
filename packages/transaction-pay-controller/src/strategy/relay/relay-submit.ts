@@ -216,6 +216,16 @@ async function executeSingleQuote(
     }
   }
 
+  const settlementHash = getSettlementHash({
+    completion,
+    quote,
+    submittedSourceHash,
+  });
+
+  if (!settlementHash) {
+    throw new Error('Missing settlement hash');
+  }
+
   // Non-atomic flow: the quote bridged funds to `recipient` without embedding
   // the second leg. Now that Relay has settled, resolve the settled amount from
   // the on-chain Transfer log and submit the second-leg batch (approve + vault
@@ -244,7 +254,9 @@ async function executeSingleQuote(
     },
   );
 
-  return { transactionHash: secondLegHash ?? completion.targetHash };
+  return {
+    transactionHash: secondLegHash ?? settlementHash,
+  };
 }
 
 /**
@@ -259,8 +271,7 @@ async function executeSingleQuote(
  * @param options.messenger - Controller messenger.
  * @param options.quote - The Relay quote that was submitted.
  * @param options.submittedSourceHash - Hash of the submitted source
- * transaction, used as the settlement hash when Relay skips polling on
- * same-chain flows.
+ * transaction.
  * @param options.transaction - Original transaction meta.
  * @returns Hash of the final submitted child transaction, if available.
  */
@@ -351,9 +362,10 @@ async function buildPostQuoteDepositCalls({
  * recipient.
  *
  * Cross-chain relays surface the target-chain hash from polling. Same-chain
- * relays skip polling, but the submitted source transaction itself moved the
- * funds, so its hash is used instead. Relay execute submissions return
- * `FALLBACK_HASH` rather than a real hash, leaving nothing to read.
+ * relays have no separate fill transaction, so the submitted source transaction
+ * itself moved the funds and its hash is used instead. Relay execute
+ * submissions return `FALLBACK_HASH` rather than a real hash, leaving nothing
+ * to read.
  *
  * @param options - Resolution options.
  * @param options.completion - Outcome of `waitForRelayCompletion`.
@@ -417,14 +429,6 @@ async function waitForRelayCompletion(
     quote.details.currencyIn.currency.chainId ===
     quote.details.currencyOut.currency.chainId;
 
-  const isSingleDepositStep =
-    quote.steps.length === 1 && quote.steps[0].id === 'deposit';
-
-  if (isSameChain && !isSingleDepositStep) {
-    log('Skipping polling as same chain');
-    return { status: 'success', targetHash: FALLBACK_HASH };
-  }
-
   const { requestId } = quote.steps[0];
 
   const pollingInterval = getRelayPollingInterval(messenger);
@@ -457,7 +461,11 @@ async function waitForRelayCompletion(
 
       if (status.status === 'success') {
         const targetHash =
-          (status.txHashes?.slice(-1)[0] as Hex | undefined) ?? FALLBACK_HASH;
+          (status.txHashes?.slice(-1)[0] as Hex | undefined) ??
+          (isSameChain
+            ? (status.inTxHashes?.[0] as Hex | undefined)
+            : undefined) ??
+          FALLBACK_HASH;
         return { status: 'success', targetHash };
       }
 

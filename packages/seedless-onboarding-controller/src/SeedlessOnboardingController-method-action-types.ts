@@ -194,13 +194,14 @@ export type SeedlessOnboardingControllerSubmitPasswordAction = {
 };
 
 /**
- * Identify an incomplete or mismatched primary SRP backup.
+ * Identify an incomplete or mismatched primary SRP backup and repair it.
  *
- * This method must only be called after the controller has been unlocked.
+ * The call waits until the repair attempt finishes. A failed write is logged
+ * and the promise still resolves. Call this only after the controller is
+ * unlocked.
  *
  * @param password - The password used to export the local primary SRP.
- * @returns A promise that resolves after identification and telemetry have
- * completed.
+ * @returns A promise that resolves after the repair attempt finishes.
  */
 export type SeedlessOnboardingControllerIdentifyIncompleteMetadataBackupAction =
   {
@@ -279,10 +280,11 @@ export type SeedlessOnboardingControllerLoadKeyringEncryptionKeyAction = {
  *
  * Call this after the current Keyring encryption key has been synchronized
  * and all required local writes have succeeded. The controller clears the
- * lifecycle so the next unlock is normal.
+ * lifecycle and saves the outdated-password cache as in sync. The next
+ * password check reads this cache.
  *
  * This only completes a lifecycle that is at `KEY_SYNC_PENDING`; in any other
- * state it is a no-op.
+ * state it is a no-op and the cache stays as it is.
  *
  * @returns A promise that resolves once recovery has been completed.
  */

@@ -88,6 +88,12 @@ export const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControl
       includeInDebugSnapshot: true,
       usedInUi: false,
     },
+    primarySrpRepairStatus: {
+      includeInStateLogs: true,
+      persist: true,
+      includeInDebugSnapshot: true,
+      usedInUi: false,
+    },
     refreshToken: {
       includeInStateLogs: false,
       persist: true,

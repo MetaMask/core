@@ -7,9 +7,15 @@ import type { MutexInterface } from 'async-mutex';
 
 import type {
   AuthConnection,
+  PrimarySrpRepairFailureReason,
+  PrimarySrpRepairFailureStage,
+  PrimarySrpRepairPrimaryWrite,
+  PrimarySrpRepairStatus,
+  PrimarySrpRepairType,
   SecretType,
   SeedlessOperationLifecycle,
 } from './constants.js';
+import type { SecretMetadata } from './SecretMetadata.js';
 
 /**
  * The backup state of the secret data.
@@ -204,6 +210,12 @@ export type SeedlessOnboardingControllerState =
       passwordOutdatedCache?: { isExpiredPwd: boolean; timestamp: number };
 
       /**
+       * The last primary SRP backup check result. Absent until a check
+       * finishes. `NONE` skips later checks.
+       */
+      primarySrpRepairStatus?: PrimarySrpRepairStatus;
+
+      /**
        * The refresh token used to refresh expired nodeAuthTokens.
        * This is persisted in state.
        */
@@ -391,6 +403,68 @@ export type DecodedNodeAuthToken = {
   verifier_id: string;
   scope: string;
   signature: string;
+};
+
+/**
+ * The storage schema version of the remote secret metadata backup.
+ *
+ * - `v1`: every item is a legacy item, created before `dataType` existed.
+ * - `v2`: every item is stored with a `dataType`.
+ * - `mixed`: the items use both schema versions.
+ * - `none`: there are no items.
+ */
+export type MetadataSchemaVersion = 'v1' | 'v2' | 'mixed' | 'none';
+
+/**
+ * The result of comparing the remote primary SRP backup with the local primary
+ * SRP when they are not in sync.
+ *
+ * - `missing`: no remote mnemonic can be the primary secret.
+ * - `mismatch`: the remote primary SRP differs from the local one.
+ *
+ * `secretMetadata` is the parsed remote backup the result was derived from.
+ * `metadataSchemaVersion` is the schema version of that backup, which decides
+ * how the repair writes. `localPrimarySRP` is the local primary SRP read from
+ * the keyring.
+ */
+export type PrimarySrpRepairPlan = {
+  repairType: PrimarySrpRepairType;
+  secretMetadata: SecretMetadata[];
+  metadataSchemaVersion: MetadataSchemaVersion;
+  localPrimarySRP: Uint8Array;
+};
+
+/**
+ * The remote writes that make the local primary SRP the remote primary SRP.
+ *
+ * The metadata service has no delete, and re-adding an item creates a new item
+ * next to the old one, so existing items are kept and only their data type is
+ * changed. Applied in two steps:
+ *
+ * 1. `retag`: every existing secret item that is not the new primary becomes
+ * `ImportedSrp` or `ImportedPrivateKey`, which also demotes the old primary.
+ * It never sets `PrimarySrp`, because the service rejects a new primary while
+ * another primary item exists. An update stores the item as `v2`.
+ * 2. `primary`: the local primary SRP becomes the primary, either by promoting
+ * its existing remote copy (`promote`) or by adding it as a new `v2` item
+ * (`add`).
+ */
+export type PrimarySrpRepairWrites = {
+  retag: { itemId: string; dataType: EncAccountDataType }[];
+  primary:
+    | { type: PrimarySrpRepairPrimaryWrite.Promote; itemId: string }
+    | { type: PrimarySrpRepairPrimaryWrite.Add };
+};
+
+/**
+ * The outcome of a primary SRP repair. `primaryWrite` is set on success,
+ * `failureStage` and `failureReason` on failure.
+ */
+export type PrimarySrpRepairResult = {
+  primaryWrite?: PrimarySrpRepairPrimaryWrite;
+  numberOfRetaggedItems?: number;
+  failureStage?: PrimarySrpRepairFailureStage;
+  failureReason?: PrimarySrpRepairFailureReason;
 };
 
 export type DecodedBaseJWTToken = {

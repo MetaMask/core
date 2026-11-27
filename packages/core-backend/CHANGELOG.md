@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add optional `serviceProfile` parameter to `TokenSearchQueryOptions` for sending the `x-mm-service-profile` header
 - Export `TokenSearchResult`, `TokenSearchPageInfo`, `TokenSearchResponse`, and `TokenSearchQueryOptions` types ([#8822](https://github.com/MetaMask/core/pull/8822))
 
+### Changed
+
+- Bump `@metamask/utils` from `^12.0.2` to `^12.1.0` ([#11796](https://github.com/MetaMask/core/pull/11796))
+- Bump `@metamask/profile-sync-controller` from `^36.1.2` to `^36.1.3` ([#11800](https://github.com/MetaMask/core/pull/11800))
+
 ## [15.0.0]
 
 ### Added

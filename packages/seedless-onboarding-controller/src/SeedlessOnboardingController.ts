@@ -27,7 +27,8 @@ import {
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { Mutex } from 'async-mutex';
 
-import type { AuthConnection } from './constants.js';
+import { PrimarySrpBackupRepairService } from './backup-repair/PrimarySrpBackupRepairService.js';
+import type { AuthConnection, PrimarySrpRepairStatus } from './constants.js';
 import {
   controllerName,
   PASSWORD_OUTDATED_CACHE_TTL_MS,
@@ -107,7 +108,6 @@ import {
   findSocialBackupMetadata,
   getLatestAccessToken,
   encryptStringWithKey,
-  trackIncompleteMetadataBackupEvents,
   isAuthTokenError,
   isMaxKeyChainLengthError,
   isTokenNearExpiry,
@@ -223,6 +223,8 @@ export class SeedlessOnboardingController<
 
   readonly #recoverySession: RecoverySessionManager;
 
+  readonly #primarySrpBackupRepairService: PrimarySrpBackupRepairService;
+
   readonly #refreshJWTToken: RefreshJWTToken;
 
   readonly #revokeRefreshToken: RevokeRefreshToken;
@@ -318,6 +320,58 @@ export class SeedlessOnboardingController<
           delete draft.recoverySession;
         });
       },
+    });
+    this.#primarySrpBackupRepairService = new PrimarySrpBackupRepairService({
+      getToprfClient: (): ToprfSecureBackup => this.toprfClient,
+      fetchAllSecretData: (): Promise<FetchedSecretDataItem[]> => {
+        const vaultData = this.#cachedDecryptedVaultData;
+        // Safety net: the repair is only started while unlocked, and the keys
+        // are read synchronously when it starts, so this is unreachable in
+        // normal flow. It makes a locked or cleared controller fail loudly
+        // instead of destructuring `undefined`.
+        /* istanbul ignore if */
+        if (!this.#isUnlocked || !vaultData) {
+          throw new SeedlessOnboardingError(
+            SeedlessOnboardingControllerErrorMessage.VaultLocked,
+          );
+        }
+        const { toprfEncryptionKey, toprfAuthKeyPair } = vaultData;
+        return this.#executeWithTokenRefresh(
+          () =>
+            this.toprfClient.fetchAllSecretDataItems({
+              decKey: toprfEncryptionKey,
+              authKeyPair: toprfAuthKeyPair,
+            }),
+          'identifyIncompleteMetadataBackup',
+        );
+      },
+      exportPrimarySeedPhrase: (password): Promise<Uint8Array> =>
+        this.messenger.call('KeyringController:exportSeedPhrase', {
+          password,
+        }),
+      trackEvent: (event): void =>
+        this.messenger.call('AnalyticsController:trackEvent', event),
+      getIdentity: (): { userId?: string; authConnectionId?: string } => ({
+        userId: this.state.userId,
+        authConnectionId: this.state.authConnectionId,
+      }),
+      getPrimarySrpRepairStatus: (): PrimarySrpRepairStatus | undefined =>
+        this.state.primarySrpRepairStatus,
+      setPrimarySrpRepairStatus: (status): void => {
+        this.update((draft) => {
+          draft.primarySrpRepairStatus = status;
+        });
+      },
+      withRepairContext: (fn): Promise<void> =>
+        this.#withControllerLock(async () => {
+          this.#assertIsUnlocked();
+          await this.#assertPasswordInSync({ skipCache: true });
+          const vaultData = await this.#unlockVaultAndGetVaultData();
+          await this.#executeWithTokenRefresh(
+            () => fn(vaultData),
+            'repairMissingPrimarySrpBackup',
+          );
+        }),
     });
     this.#refreshJWTToken = refreshJWTToken;
     this.#revokeRefreshToken = revokeRefreshToken;
@@ -850,6 +904,7 @@ export class SeedlessOnboardingController<
               delete state.envelope;
             }
             delete state.passwordOutdatedCache;
+            delete state.primarySrpRepairStatus;
             delete state.seedlessOperationLifecycle;
           },
         });
@@ -1155,23 +1210,25 @@ export class SeedlessOnboardingController<
     return await this.#withControllerLock(async () => {
       await this.#unlockVaultAndReconcileAccessToken(password);
 
-      this.#identifyIncompleteMetadataBackup(password);
+      // Not awaited: the repair takes the controller lock held here.
+      this.#primarySrpBackupRepairService.run(password);
     });
   }
 
   /**
-   * Identify an incomplete or mismatched primary SRP backup.
+   * Identify an incomplete or mismatched primary SRP backup and repair it.
    *
-   * This method must only be called after the controller has been unlocked.
+   * The call waits until the repair attempt finishes. A failed write is logged
+   * and the promise still resolves. Call this only after the controller is
+   * unlocked.
    *
    * @param password - The password used to export the local primary SRP.
-   * @returns A promise that resolves after identification and telemetry have
-   * completed.
+   * @returns A promise that resolves after the repair attempt finishes.
    */
   async identifyIncompleteMetadataBackup(password: string): Promise<void> {
     this.#assertIsUnlocked();
 
-    await this.#identifyIncompleteMetadataBackup(password);
+    await this.#primarySrpBackupRepairService.run(password);
   }
 
   /**
@@ -2441,7 +2498,7 @@ export class SeedlessOnboardingController<
           operation,
           checkpoint,
         };
-        delete state.passwordOutdatedCache;
+        delete state.primarySrpRepairStatus;
         onStateUpdate?.(state);
       });
 
@@ -2590,10 +2647,11 @@ export class SeedlessOnboardingController<
    *
    * Call this after the current Keyring encryption key has been synchronized
    * and all required local writes have succeeded. The controller clears the
-   * lifecycle so the next unlock is normal.
+   * lifecycle and saves the outdated-password cache as in sync. The next
+   * password check reads this cache.
    *
    * This only completes a lifecycle that is at `KEY_SYNC_PENDING`; in any other
-   * state it is a no-op.
+   * state it is a no-op and the cache stays as it is.
    *
    * @returns A promise that resolves once recovery has been completed.
    */
@@ -2609,7 +2667,13 @@ export class SeedlessOnboardingController<
       ) {
         return;
       }
-      this.#writeSeedlessOperationLifecycle(undefined);
+      this.update((state) => {
+        state.seedlessOperationLifecycle = undefined;
+        state.passwordOutdatedCache = {
+          isExpiredPwd: false,
+          timestamp: Date.now(),
+        };
+      });
     });
   }
 
@@ -3460,6 +3524,7 @@ export class SeedlessOnboardingController<
             state.isLocalPassword = true;
             state.envelope = createEnvelopeState(vaultKeySet, authPubKey);
             delete state.passwordOutdatedCache;
+            delete state.primarySrpRepairStatus;
             delete state.seedlessOperationLifecycle;
           },
         });
@@ -4368,25 +4433,6 @@ export class SeedlessOnboardingController<
       trackEvent: (event) =>
         this.messenger.call('AnalyticsController:trackEvent', event),
       migrationVersion: this.state.migrationVersion,
-    });
-  }
-
-  async #identifyIncompleteMetadataBackup(password: string): Promise<void> {
-    const deserializedVaultData =
-      this.#cachedDecryptedVaultData as DeserializedVaultData;
-
-    await trackIncompleteMetadataBackupEvents({
-      fetchAllSecretDataFn: () =>
-        this.toprfClient.fetchAllSecretDataItems({
-          decKey: deserializedVaultData.toprfEncryptionKey,
-          authKeyPair: deserializedVaultData.toprfAuthKeyPair,
-        }),
-      getPrimaryKeyringSeedPhraseFn: () =>
-        this.messenger.call('KeyringController:exportSeedPhrase', {
-          password,
-        }),
-      trackEvent: (event) =>
-        this.messenger.call('AnalyticsController:trackEvent', event),
     });
   }
 }

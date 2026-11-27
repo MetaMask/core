@@ -2,17 +2,14 @@ import type {
   AnalyticsContext,
   AnalyticsTrackingEvent,
 } from '@metamask/analytics-controller';
-import type { FetchedSecretDataItem } from '@metamask/toprf-secure-backup';
-import {
-  areUint8ArraysEqual,
-  bytesToHex,
-  stringToBytes,
-} from '@metamask/utils';
+import { bytesToHex, stringToBytes } from '@metamask/utils';
 import { hmac } from '@noble/hashes/hmac';
 import { sha256 } from '@noble/hashes/sha256';
 
 import {
   controllerName,
+  PrimarySrpRepairEventStatus,
+  PrimarySrpRepairType,
   SecretType,
   SeedlessIdentityMismatchEventName,
   SeedlessIdentityMismatchReason,
@@ -20,25 +17,32 @@ import {
   SeedlessOnboardingMigrationVersion,
   SeedlessPrimarySrpMismatchEventName,
   SeedlessPrimarySrpMissingEventName,
+  SeedlessPrimarySrpRepairEventName,
 } from '../constants.js';
-import type { SeedlessIdentityMismatchSource } from '../constants.js';
+import type {
+  PrimarySrpRepairFailureReason,
+  PrimarySrpRepairFailureStage,
+  PrimarySrpRepairPrimaryWrite,
+  SeedlessIdentityMismatchSource,
+} from '../constants.js';
 import { createModuleLogger, projectLogger } from '../logger.js';
 import { SecretMetadata } from '../SecretMetadata.js';
+import type {
+  MetadataSchemaVersion,
+  PrimarySrpRepairPlan,
+  PrimarySrpRepairResult,
+} from '../types.js';
+import { isIdentityMismatchError } from './errors.js';
 import {
-  InvalidPrimarySecretDataTypeError,
-  isIdentityMismatchError,
-} from './errors.js';
-import {
+  getMetadataSchemaVersion,
   isPrimarySecretCandidate,
-  parseSecretMetadata,
-  validateSecretMetadataBackup,
 } from './secret-data-utils.js';
 
 export const SeedlessEnvelopeMigrationCheckpointEventName =
   'Seedless Onboarding Envelope Migration Checkpoint';
 
 export type IncompleteMetadataBackupEventProperties = {
-  metadata_schema_version: 'v1' | 'v2' | 'mixed' | 'none';
+  metadata_schema_version: MetadataSchemaVersion;
   number_of_imported_wallets: number;
   number_of_imported_accounts: number;
 };
@@ -81,34 +85,6 @@ export function getIncompleteMetadataBackupEventProperties(
 }
 
 /**
- * Report `v2` only when every stored item already uses the v2 schema.
- *
- * @param secretMetadata - Parsed secret metadata.
- * @returns The metadata schema version to include in analytics.
- */
-function getMetadataSchemaVersion(
-  secretMetadata: SecretMetadata[],
-):
-  | IncompleteMetadataBackupEventProperties['metadata_schema_version']
-  | 'mixed'
-  | 'none' {
-  if (secretMetadata.length === 0) {
-    // No secret metadata found.
-    return 'none';
-  }
-
-  if (secretMetadata.every((secret) => secret.storageVersion === 'v2')) {
-    return 'v2';
-  }
-
-  if (secretMetadata.every((secret) => secret.storageVersion === 'v1')) {
-    return 'v1';
-  }
-
-  return 'mixed';
-}
-
-/**
  * Map the controller migration version to the analytics schema version.
  *
  * @param migrationVersion - `state.migrationVersion`.
@@ -125,85 +101,128 @@ function getMetadataSchemaVersionFromMigration(
 const log = createModuleLogger(projectLogger, controllerName);
 
 /**
- * Identify whether the local primary SRP is missing from or differs from the
- * remote TOPRF metadata backup.
+ * Report a missing or mismatched primary SRP in the remote TOPRF metadata
+ * backup.
  *
- * Legacy metadata is ordered by the client-side timestamp and its first
- * mnemonic is treated as the remote primary candidate. Newer metadata uses
- * the explicit `PrimarySrp` data type. The candidate is compared with the
- * primary SRP supplied by the keyring callback.
+ * The comparison of the remote backup with the local primary SRP is done when
+ * the repair is planned. This function only maps the plan to a telemetry event
+ * and emits it. It does not read or modify local or remote backup data.
+ * Tracking failures are logged and never thrown.
  *
- * This function only reads the supplied data and emits telemetry. It does not
- * modify local or remote backup data. Fetch, parsing, keyring, and comparison
- * failures are logged and are not classified as affected users.
- *
- * @param params - Functions used to read the remote metadata and local primary
- * SRP, and emit telemetry.
- * @param params.fetchAllSecretDataFn - Fetches the decrypted remote secret
- * metadata items.
- * @param params.getPrimaryKeyringSeedPhraseFn - Returns the local primary SRP
- * bytes from the keyring.
+ * @param params - The repair plan and the function to emit telemetry.
+ * @param params.plan - The repair plan. Nothing is tracked when it is
+ * `undefined`.
  * @param params.trackEvent - Emits a non-sensitive analytics event.
- * @returns A promise that resolves after identification and best-effort
- * telemetry have completed.
+ * @returns A promise that resolves after the best-effort telemetry has
+ * completed.
  */
 export async function trackIncompleteMetadataBackupEvents({
-  fetchAllSecretDataFn,
-  getPrimaryKeyringSeedPhraseFn,
+  plan,
   trackEvent,
 }: {
-  fetchAllSecretDataFn: () => Promise<FetchedSecretDataItem[]>;
+  plan: PrimarySrpRepairPlan | undefined;
   trackEvent: TrackEvent;
-  getPrimaryKeyringSeedPhraseFn: () => Promise<Uint8Array>;
 }): Promise<void> {
-  const trackEventSafely = async (
-    event: AnalyticsTrackingEvent,
-  ): Promise<void> => {
-    try {
-      await trackEvent(event);
-    } catch (error) {
-      log('Error tracking incomplete metadata backup event', error);
-    }
-  };
-
-  let properties: IncompleteMetadataBackupEventProperties | undefined;
+  if (!plan) {
+    return;
+  }
 
   try {
-    const secretDataItems = await fetchAllSecretDataFn();
-    const secretMetadata = parseSecretMetadata(secretDataItems);
-    const eventProperties =
-      getIncompleteMetadataBackupEventProperties(secretMetadata);
-    properties = eventProperties;
-
-    const [primarySecretMetadata] =
-      validateSecretMetadataBackup(secretMetadata);
-    const localPrimarySrp = await getPrimaryKeyringSeedPhraseFn();
-
-    if (areUint8ArraysEqual(primarySecretMetadata.data, localPrimarySrp)) {
-      return;
-    }
-
-    await trackEventSafely({
-      name: SeedlessPrimarySrpMismatchEventName,
-      properties: eventProperties,
+    await trackEvent({
+      name:
+        plan.repairType === PrimarySrpRepairType.Missing
+          ? SeedlessPrimarySrpMissingEventName
+          : SeedlessPrimarySrpMismatchEventName,
+      properties: getIncompleteMetadataBackupEventProperties(
+        plan.secretMetadata,
+      ),
       sensitiveProperties: {},
       saveDataRecording: false,
       hasProperties: true,
     });
   } catch (error) {
-    if (error instanceof InvalidPrimarySecretDataTypeError && properties) {
-      await trackEventSafely({
-        name: SeedlessPrimarySrpMissingEventName,
-        properties,
-        sensitiveProperties: {},
-        saveDataRecording: false,
-        hasProperties: true,
-      });
+    log('Error tracking incomplete metadata backup event', error);
+  }
+}
 
-      return;
-    }
+/**
+ * Properties of the primary SRP repair event. Each status sends only the
+ * fields that apply to it.
+ */
+export type PrimarySrpRepairEventProperties = {
+  status: PrimarySrpRepairEventStatus;
+  repair_type?: PrimarySrpRepairType;
+  metadata_schema_version?: MetadataSchemaVersion;
+  number_of_imported_wallets?: number;
+  number_of_imported_accounts?: number;
+  primary_write?: PrimarySrpRepairPrimaryWrite;
+  number_of_retagged_items?: number;
+  failure_stage?: PrimarySrpRepairFailureStage;
+  failure_reason?: PrimarySrpRepairFailureReason;
+};
 
-    log('Error identifying incomplete metadata backup', error);
+/**
+ * Remove the fields that are `undefined`.
+ *
+ * @param value - The object to copy.
+ * @returns A copy of `value` without the `undefined` fields.
+ */
+function omitUndefined<Value extends object>(value: Value): Value {
+  const entries = Object.entries(value).filter(
+    ([, entry]) => entry !== undefined,
+  );
+  return Object.fromEntries(entries) as Value;
+}
+
+/**
+ * Report the start, success or failure of a primary SRP repair.
+ *
+ * A `started` event includes the backup summary from `plan`. Unset fields are
+ * not sent. Tracking failures are logged and never thrown.
+ *
+ * @param params - The repair status and the function to emit telemetry.
+ * @param params.status - Whether the repair started, succeeded or failed.
+ * @param params.plan - The repair plan.
+ * @param params.result - The repair outcome.
+ * @param params.trackEvent - Emits a non-sensitive analytics event.
+ * @returns A promise that resolves after the best-effort telemetry has
+ * completed.
+ */
+export async function trackPrimarySrpRepairEvent({
+  status,
+  plan,
+  result = {},
+  trackEvent,
+}: {
+  status: PrimarySrpRepairEventStatus;
+  plan?: PrimarySrpRepairPlan;
+  result?: PrimarySrpRepairResult;
+  trackEvent: TrackEvent;
+}): Promise<void> {
+  const backupSummary =
+    status === PrimarySrpRepairEventStatus.Started && plan
+      ? getIncompleteMetadataBackupEventProperties(plan.secretMetadata)
+      : {};
+  const properties = omitUndefined<PrimarySrpRepairEventProperties>({
+    status,
+    repair_type: plan?.repairType,
+    ...backupSummary,
+    primary_write: result.primaryWrite,
+    number_of_retagged_items: result.numberOfRetaggedItems,
+    failure_stage: result.failureStage,
+    failure_reason: result.failureReason,
+  });
+
+  try {
+    await trackEvent({
+      name: SeedlessPrimarySrpRepairEventName,
+      properties,
+      sensitiveProperties: {},
+      saveDataRecording: false,
+      hasProperties: true,
+    });
+  } catch (error) {
+    log('Error tracking primary SRP repair event', error);
   }
 }
 

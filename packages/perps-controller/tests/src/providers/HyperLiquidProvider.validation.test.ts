@@ -1613,6 +1613,8 @@ describe('HyperLiquidProvider', () => {
       ['no leverage', { leverage: 0 }],
       ['margin tiers missing from meta', { symbol: 'ETH' }],
       ['a market missing from meta', { symbol: 'DOGE' }],
+      ['a negative fee', { feeAmountUsd: -1 }],
+      ['a non-finite fee', { feeAmountUsd: Number.NaN }],
     ])(
       'is unavailable for missing inputs with %s',
       async (_name, overrides) => {
@@ -1623,6 +1625,14 @@ describe('HyperLiquidProvider', () => {
         ).toStrictEqual({ status: 'unavailable', reason: 'missing_inputs' });
       },
     );
+
+    it('prices a genuine zero fee as no fee', async () => {
+      liveContext();
+
+      expect(
+        await provider.estimateCrossLiquidation({ ...order, feeAmountUsd: 0 }),
+      ).toStrictEqual(await provider.estimateCrossLiquidation(order));
+    });
 
     it('is unavailable for missing inputs without a Cross maintenance figure', async () => {
       liveContext({ maintenanceMargin: '' });
