@@ -26,6 +26,18 @@ export const INTERVAL_MS_TO_TV: Readonly<Record<number, TVResolution>> = {
 const DEFAULT_RESOLUTION: TVResolution = '5';
 
 /**
+ * Normalize a TradingView resolution so equivalent spellings compare equal.
+ * TradingView may pass the shorthand `D`/`W`/`M`/`S` to `subscribeBars`,
+ * while the engine stores `1D`/`1W`/`1M`/`1S`.
+ *
+ * @param resolution - A TradingView resolution string.
+ * @returns The canonical form (e.g. `D` → `1D`).
+ */
+export function canonicalResolution(resolution: string): string {
+  return /^[SDWM]$/u.test(resolution) ? `1${resolution}` : resolution;
+}
+
+/**
  * Picks the closest matching TV resolution for an OHLCV bar series.
  * Uses the median diff over the first few bars so a single gap doesn't skew
  * the result (matches legacy chartLogic.js detectResolution semantics).
@@ -56,4 +68,30 @@ export function detectResolution(data: { time: number }[]): TVResolution {
     }
   }
   return best;
+}
+
+/**
+ * Resolves the resolution to plot a series at. A host-provided resolution is
+ * used when it is one the chart supports (shorthand like `D` is accepted as
+ * `1D`); otherwise it falls back to {@link detectResolution}, which misfires
+ * on low-liquidity series with irregular bar spacing (e.g. 5m detected as `30`).
+ *
+ * @param explicit - Resolution sent by the host, if any.
+ * @param data - The OHLCV bar series, used for the detection fallback.
+ * @returns The resolution to plot the series at.
+ */
+export function resolveResolution(
+  explicit: TVResolution | undefined,
+  data: { time: number }[],
+): TVResolution {
+  const canonical =
+    explicit === undefined ? undefined : canonicalResolution(explicit);
+  // Same set the datafeed advertises as `supported_resolutions`.
+  if (
+    canonical !== undefined &&
+    Object.values(INTERVAL_MS_TO_TV).includes(canonical)
+  ) {
+    return canonical;
+  }
+  return detectResolution(data);
 }

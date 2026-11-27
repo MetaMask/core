@@ -33,7 +33,7 @@ The monorepo uses a hierarchical configuration approach for different tools. For
 ### Contributing teams and codeowners
 
 - `CODEOWNERS` defines which GitHub teams own which packages in the monorepo.
-- `teams.json` instructs the `create-update-issues` GitHub workflow which labels to assign issues that are created when there are new major version releases of packages.
+- `teams.json` maps packages to teams and is kept in sync with the codeowners config (checked by `yarn lint:teams`).
 
 ### Yarn
 

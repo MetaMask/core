@@ -141,15 +141,6 @@ jobs:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
-  create-update-issues:
-    name: Create update issues
-    needs: [is-release, publish-release]
-    if: needs.is-release.outputs.IS_RELEASE == 'true'
-    uses: ./.github/workflows/create-update-issues.yml
-    permissions:
-      contents: read
-      id-token: write
-
   all-jobs-pass:
     name: All jobs pass
     if: ${{ always() }}

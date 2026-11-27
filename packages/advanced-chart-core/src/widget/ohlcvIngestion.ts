@@ -15,7 +15,7 @@
 
 import { postToRN, reportErrorToRN } from '../core/bridge.js';
 import { notifyDataLifecycle } from '../core/dataLifecycle.js';
-import { detectResolution } from '../core/resolution.js';
+import { resolveResolution } from '../core/resolution.js';
 import {
   appendOrReplaceLastBar,
   bumpHotReloadSeq,
@@ -119,7 +119,7 @@ export function handleSetOHLCVData(payload: SetOHLCVDataPayload): void {
   setVisibleFromMs(payload.visibleFromMs ?? null);
   setVisibleToMs(payload.visibleToMs ?? null);
 
-  const newResolution = detectResolution(payload.data);
+  const newResolution = resolveResolution(payload.resolution, payload.data);
   const previousResolution = getCurrentResolution();
   setCurrentResolution(newResolution);
 
@@ -141,6 +141,12 @@ export function handleSetOHLCVData(payload: SetOHLCVDataPayload): void {
         // naturally. TV calls getBars internally, the datafeed returns the
         // new bars (already stored via setOhlcvData above), and TV renders
         // them smoothly without a blank frame. No resetData needed.
+        //
+        // Reset TV's datafeed cache first: when switching back to a
+        // resolution it already loaded (e.g. 1h → 1m → 1h), TV otherwise
+        // serves its cached bars without calling getBars, so the series shows
+        // stale history instead of the bars the host just sent.
+        resetDatafeedCacheBeforeHotReload(widget);
         claimLegendSettleOwnership();
         const seq = bumpHotReloadSeq();
         chart.setResolution(newResolution, () => {
@@ -183,6 +189,16 @@ export function handleRealtimeUpdate(
   }
 
   const { bar } = payload;
+
+  // A realtime bar may only update the last bar or open a newer one. An
+  // older bar is out of order (e.g. a late tick for the previous interval
+  // after a switch) and would be appended after newer bars, corrupting the
+  // series that getBars and pagination read from.
+  const lastStoredBar = getOhlcvData().at(-1);
+  if (lastStoredBar !== undefined && bar.time < lastStoredBar.time) {
+    return;
+  }
+
   appendOrReplaceLastBar(bar);
 
   forwardRealtimeTick({
