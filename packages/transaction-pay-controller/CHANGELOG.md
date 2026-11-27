@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `isTrueExactOutput` to `TransactionConfig` so token transfers deliver exactly the required amount to the recipient, supported by `ServerStrategy` and `RelayStrategy` ([#11775](https://github.com/MetaMask/core/pull/11775))
 - Withdraw from Lighter through `ServerStrategy` when a required asset of the transaction has a Lighter `assetId` ([#11730](https://github.com/MetaMask/core/pull/11730))
   - The client declares the source with the new optional `assetId` on the transaction's `requiredAssets`, such as `lighter:mainnet/perps:usdc`. It is exposed as `TransactionPayRequiredToken.assetId` and becomes the `sourceAssetId` of the post-quote `QuoteRequest`, so no transaction config is needed.
   - The server quote uses that asset as the source asset and the Lighter account index as the sender.
@@ -19,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Support provider-specific timeouts reported by the server in `ServerStrategy` ([#11737](https://github.com/MetaMask/core/pull/11737))
+  - Send `elapsedMs` with each status request and stop polling when the server returns the new `TIMEOUT` status.
+  - Remove the local `confirmations_pay_extended.payStrategies.server.pollingTimeout` feature flag, as the server now owns the timeout.
+  - Sweep Polymarket deposit wallets before reporting a timed out intent, as is already done for failed and refunded intents.
 - Add `@metamask/perps-controller` as a dependency ([#11730](https://github.com/MetaMask/core/pull/11730))
 - Bump `@metamask/transaction-controller` from `^74.5.0` to `^74.5.1` ([#11789](https://github.com/MetaMask/core/pull/11789))
 - Bump `@metamask/utils` from `^12.0.2` to `^12.1.0` ([#11796](https://github.com/MetaMask/core/pull/11796))

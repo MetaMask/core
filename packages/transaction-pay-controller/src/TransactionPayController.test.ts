@@ -296,6 +296,36 @@ describe('TransactionPayController', () => {
       ).toBe(true);
     });
 
+    it('updates isTrueExactOutput in state', () => {
+      const controller = createController();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.isTrueExactOutput = true;
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].isTrueExactOutput,
+      ).toBe(true);
+    });
+
+    it('triggers a quotes update without a source amounts update when only isTrueExactOutput changes', () => {
+      const controller = createController();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, () => {
+        // no-op, just initializes
+      });
+
+      updateSourceAmountsMock.mockClear();
+      updateQuotesMock.mockClear();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.isTrueExactOutput = true;
+      });
+
+      expect(updateSourceAmountsMock).not.toHaveBeenCalled();
+      expect(updateQuotesMock).toHaveBeenCalledTimes(1);
+    });
+
     it('updates paymentOverride in state', () => {
       const controller = createController();
 
@@ -969,6 +999,26 @@ describe('TransactionPayController', () => {
         undefined,
         undefined,
       );
+    });
+
+    it('keeps the strategy order when isTrueExactOutput is set', async () => {
+      getStrategyOrderMock.mockReturnValue([
+        TransactionPayStrategy.Server,
+        TransactionPayStrategy.Relay,
+      ]);
+
+      const controller = createController();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.isTrueExactOutput = true;
+      });
+
+      const { getStrategies } = updateQuotesMock.mock.calls[0][0];
+
+      expect(getStrategies(TRANSACTION_META_MOCK)).toStrictEqual([
+        TransactionPayStrategy.Server,
+        TransactionPayStrategy.Relay,
+      ]);
     });
 
     it('passes fiat payment method ID into getStrategyOrder', async () => {

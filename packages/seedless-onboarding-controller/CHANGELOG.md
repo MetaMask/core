@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.0]
+
 ### Added
 
 - Add password envelope migration and MFA recovery methods and messenger actions: `authenticateForRecovery`, `migrateToEnvelope`, `recoverWithRecoverySecret`, `resetPasswordWithVaultKeys`, and `restoreVaultWithPassword` ([#11346](https://github.com/MetaMask/core/pull/11346))
@@ -40,6 +42,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `authenticate` validates that the first idToken belongs to the provided `userId` before making any network request. The token user id is derived the same way clients derive it: `sub`, then Telegram `user_id` when `sub` is nullish, then `email`
   - Token refreshes validate that the refreshed idTokens match the identity in state before re-authenticating
   - A missing idToken, an idToken that cannot be decoded, or an idToken with no `sub`, `user_id`, or `email` claim throws `IdentityMismatch` instead of being sent to the nodes
+- Repair a missing or mismatched primary SRP backup after `submitPassword` ([#11748](https://github.com/MetaMask/core/pull/11748), [#11766](https://github.com/MetaMask/core/pull/11766))
+  - When the remote primary SRP is missing, or it differs from the local primary SRP, the local primary SRP becomes the single remote `PrimarySrp`. The repair is best-effort, runs in the background, and never blocks unlock
+  - Existing items are kept. Every other secret is retagged as imported, which also migrates legacy items to v2 without changing the encrypted data. The local primary SRP is promoted from its remote copy, or added as a new v2 item
+  - Overlapping repairs for the same user share the in-flight run. The repair stops if the identity changes, and a failed write is logged and picked up on the next unlock
+  - `identifyIncompleteMetadataBackup` runs this same repair and waits until the attempt finishes. A failed write is logged and the returned promise still resolves ([#11766](https://github.com/MetaMask/core/pull/11766))
+- Emit a `Seedless Onboarding Primary SRP Repair` analytics event when a primary SRP repair starts, succeeds, or fails ([#11795](https://github.com/MetaMask/core/pull/11795))
+  - The `status` property is `started`, `succeeded`, or `failed`
+  - `started` includes `repair_type`, `metadata_schema_version`, `number_of_imported_wallets`, and `number_of_imported_accounts`
+  - `succeeded` includes `primary_write` (`promote` or `add`) and `number_of_retagged_items`
+  - `failed` includes `failure_stage` and `failure_reason`. Raw error messages are not sent
+- Add the optional persisted `primarySrpRepairStatus` state field and the `PrimarySrpRepairStatus` enum (`NONE` and `FAIL`) ([#11795](https://github.com/MetaMask/core/pull/11795))
+  - A healthy backup saves `NONE`, and later unlocks skip the backup check. A failed check or write saves `FAIL`, and the next unlock runs the check again
+  - `restoreVaultWithPassword`, password changes, and `recoverWithRecoverySecret` clear the field
 
 ### Changed
 
@@ -51,6 +66,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `clearState` now returns a promise and waits for in-flight controller operations before clearing state. It also clears the in-memory decrypted vault data to prevent a completed operation from restoring cleared state ([#10148](https://github.com/MetaMask/core/pull/10148))
 - Throw `SeedlessOnboardingControllerErrorMessage.UserAlreadyAuthenticated` from `authenticate` when `mfaFlag` is enabled and a different user or verifier is already in state; callers must call `clearState` before authenticating another user ([#11346](https://github.com/MetaMask/core/pull/11346))
 - Update `changePassword`, `resolvePasswordSyncState`, and `reconcilePassword` to support envelope-managed vaults ([#11346](https://github.com/MetaMask/core/pull/11346))
+- `completePasswordChange` now saves `passwordOutdatedCache` as in sync when it completes a `KEY_SYNC_PENDING` lifecycle ([#11795](https://github.com/MetaMask/core/pull/11795))
+  - The vault commit leaves the previous cache in place. A client does not need another `resolvePasswordSyncState` call after recovery. The next password check reads this cache.
 - `storeKeyringEncryptionKey` and `loadKeyringEncryptionKey` now acquire the controller lock, so they wait for any in-flight controller operation before reading or writing the Keyring encryption key ([#10148](https://github.com/MetaMask/core/pull/10148))
 - Bump `@metamask/analytics-controller` from `^4.3.1` to `^4.4.0` ([#11691](https://github.com/MetaMask/core/pull/11691))
 - Bump `@metamask/auth-network-utils` from `^0.4.0` to `^0.5.0` ([#11346](https://github.com/MetaMask/core/pull/11346))
@@ -552,7 +569,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `checkIsPasswordOutdated`: Check if the password is current device is outdated, i.e. user changed password in another device.
     - `clearState`: Reset the state of the controller to the defaults.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@12.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@13.0.0...HEAD
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@12.1.0...@metamask/seedless-onboarding-controller@13.0.0
 [12.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@12.0.0...@metamask/seedless-onboarding-controller@12.1.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@11.0.1...@metamask/seedless-onboarding-controller@12.0.0
 [11.0.1]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@11.0.0...@metamask/seedless-onboarding-controller@11.0.1

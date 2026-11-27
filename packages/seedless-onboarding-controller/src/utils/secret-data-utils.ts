@@ -7,7 +7,7 @@ import { parseControlRecord } from '../envelope/envelope-keys.js';
 import type { ControlRecord } from '../envelope/envelope-keys.js';
 import { createModuleLogger, projectLogger } from '../logger.js';
 import { SecretMetadata } from '../SecretMetadata.js';
-import type { SocialBackupsMetadata } from '../types.js';
+import type { MetadataSchemaVersion, SocialBackupsMetadata } from '../types.js';
 import { InvalidPrimarySecretDataTypeError } from './errors.js';
 
 const log = createModuleLogger(projectLogger, controllerName);
@@ -253,6 +253,34 @@ export function parseAndValidateSecretMetadataBackup(
   secretDataItems: FetchedSecretDataItem[],
 ): SecretMetadata[] {
   return validateSecretMetadataBackup(parseSecretMetadata(secretDataItems));
+}
+
+/**
+ * Get the storage schema version of a secret metadata backup.
+ *
+ * `v2` is only reported when every item is stored as v2, and `v1` when every
+ * item is stored as v1.
+ *
+ * @param secretMetadata - Parsed secret metadata.
+ * @returns The schema version of the backup.
+ */
+export function getMetadataSchemaVersion(
+  secretMetadata: SecretMetadata[],
+): MetadataSchemaVersion {
+  if (secretMetadata.length === 0) {
+    // No secret metadata found.
+    return 'none';
+  }
+
+  if (secretMetadata.every((secret) => secret.storageVersion === 'v2')) {
+    return 'v2';
+  }
+
+  if (secretMetadata.every((secret) => secret.storageVersion === 'v1')) {
+    return 'v1';
+  }
+
+  return 'mixed';
 }
 
 /**

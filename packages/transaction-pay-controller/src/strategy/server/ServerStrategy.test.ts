@@ -87,6 +87,64 @@ describe('ServerStrategy', () => {
       expect(new ServerStrategy().supports(SUPPORTS_REQUEST_MOCK)).toBe(false);
     });
 
+    it('returns false for a true exact output request when the flow is not allowlisted', () => {
+      getPayStrategiesConfigMock.mockReturnValue({
+        server: {
+          enabled: true,
+          enabledTransactionTypes: [] as TransactionType[],
+        },
+        relay: { enabled: false },
+      } as ReturnType<typeof getPayStrategiesConfig>);
+
+      expect(
+        new ServerStrategy().supports({
+          ...SUPPORTS_REQUEST_MOCK,
+          requests: [{ ...QUOTE_REQUEST_MOCK, isTrueExactOutput: true }],
+        }),
+      ).toBe(false);
+    });
+
+    it('returns true for a true exact output request when the flow is allowlisted', () => {
+      expect(
+        new ServerStrategy().supports({
+          ...SUPPORTS_REQUEST_MOCK,
+          requests: [{ ...QUOTE_REQUEST_MOCK, isTrueExactOutput: true }],
+        }),
+      ).toBe(true);
+    });
+
+    it('returns false for a true exact output request when server strategy is disabled', () => {
+      getPayStrategiesConfigMock.mockReturnValue({
+        server: {
+          enabled: false,
+          enabledTransactionTypes: [] as TransactionType[],
+        },
+        relay: { enabled: true },
+      } as ReturnType<typeof getPayStrategiesConfig>);
+
+      expect(
+        new ServerStrategy().supports({
+          ...SUPPORTS_REQUEST_MOCK,
+          requests: [{ ...QUOTE_REQUEST_MOCK, isTrueExactOutput: true }],
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false for a true exact output request with the maximum amount', () => {
+      expect(
+        new ServerStrategy().supports({
+          ...SUPPORTS_REQUEST_MOCK,
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              isTrueExactOutput: true,
+              isMaxAmount: true,
+            },
+          ],
+        }),
+      ).toBe(false);
+    });
+
     it('returns true when a request has a Lighter source asset', () => {
       expect(
         new ServerStrategy().supports({

@@ -24,10 +24,7 @@ import type {
   TransactionPayQuote,
 } from '../../types.js';
 import { accountSupports7702 } from '../../utils/account.js';
-import {
-  getServerPollingInterval,
-  getServerPollingTimeout,
-} from '../../utils/feature-flags.js';
+import { getServerPollingInterval } from '../../utils/feature-flags.js';
 import type { GasPayment } from '../../utils/gas-payment.js';
 import {
   GasPaymentMode,
@@ -106,7 +103,12 @@ type StepTransaction = {
 
 /** Terminal outcome of a server intent. */
 type ServerCompletion = {
-  status: ServerStatus.Confirmed | ServerStatus.Failed | ServerStatus.Refunded;
+  lastStatus?: ServerStatus;
+  status:
+    | ServerStatus.Confirmed
+    | ServerStatus.Failed
+    | ServerStatus.Refunded
+    | ServerStatus.Timeout;
   targetHash?: Hex;
 };
 
@@ -328,8 +330,19 @@ async function executeSingleServerQuote(
     });
   }
 
+  if (completion.status === ServerStatus.Timeout) {
+    const { lastStatus } = completion;
+    const statusDetail = lastStatus ? ` (last status: ${lastStatus})` : '';
+    throw new Error(`Server intent timed out${statusDetail}`);
+  }
+
   if (completion.status !== ServerStatus.Confirmed) {
     throw new Error(`Server intent ${completion.status.toLowerCase()}`);
+  }
+
+  // True exact output recipients reconcile the settlement by its hash.
+  if (quote.request.isTrueExactOutput && !completion.targetHash) {
+    throw new Error('Missing target hash for true exact output');
   }
 
   const targetHash = completion.targetHash ?? MISSING_TARGET_HASH;
@@ -1348,8 +1361,11 @@ function deriveEIP712DomainType(
 /**
  * Poll the server until the intent reaches a terminal status.
  *
- * Failures are returned rather than thrown so callers can clean up first, such
- * as sweeping a deposit wallet refund. Timeouts still throw.
+ * Failures and timeouts are returned rather than thrown so callers can clean
+ * up first, such as sweeping a deposit wallet refund.
+ *
+ * The server owns the provider-specific timeout and reports it as a `TIMEOUT`
+ * status, so there is no local polling timeout.
  *
  * @param quote - Server quote being polled.
  * @param messenger - Controller messenger.
@@ -1364,14 +1380,12 @@ async function waitForServerCompletion(
   statusId?: string,
 ): Promise<ServerCompletion> {
   const pollingInterval = getServerPollingInterval(messenger);
-  const pollingTimeout = getServerPollingTimeout(messenger);
-  const hasTimeout = pollingTimeout !== undefined && pollingTimeout > 0;
 
-  log('Server polling config', { pollingInterval, pollingTimeout });
+  log('Server polling config', { pollingInterval });
 
   const startTime = Date.now();
 
-  let lastStatus: string | undefined;
+  let lastStatus: ServerStatus | undefined;
   let sourceHashEmitted = false;
   let sourceLogs: ServerStatusLog[] | undefined;
 
@@ -1390,10 +1404,11 @@ async function waitForServerCompletion(
       sourceLogs ??= await getSourceLogs(hash, messenger);
 
       statusResponse = await getServerStatus(messenger, {
-        provider: quote.provider,
-        id: statusId ?? quote.id,
+        elapsedMs: Date.now() - startTime,
         hash,
+        id: statusId ?? quote.id,
         logs: sourceLogs,
+        provider: quote.provider,
       });
     } catch (error) {
       if (isClientError(error)) {
@@ -1404,7 +1419,6 @@ async function waitForServerCompletion(
     }
 
     if (statusResponse) {
-      lastStatus = statusResponse.status;
       log('Polled status', statusResponse.status, statusResponse);
 
       if (!sourceHashEmitted && statusResponse.sourceHash) {
@@ -1433,11 +1447,12 @@ async function waitForServerCompletion(
       ) {
         return { status, targetHash };
       }
-    }
 
-    if (hasTimeout && Date.now() - startTime >= pollingTimeout) {
-      const statusDetail = lastStatus ? ` (last status: ${lastStatus})` : '';
-      throw new Error(`Server polling timed out${statusDetail}`);
+      if (status === ServerStatus.Timeout) {
+        return { lastStatus, status };
+      }
+
+      lastStatus = status;
     }
 
     await new Promise((resolve) => setTimeout(resolve, pollingInterval));

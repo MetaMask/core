@@ -10,7 +10,11 @@ import { isObject } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import { DELEGATION_TYPES } from './constants.js';
-import { getExactExecutions, isVaultDeposit } from './executions.js';
+import {
+  getExactExecutions,
+  isRewardsClaim,
+  isVaultDeposit,
+} from './executions.js';
 import type { Caveat } from './executions.js';
 import type { MfaRequirement, MfaWhitelistConfig } from './types.js';
 import { isAddress, isSameHex, requireMfa, whitelisted } from './utils.js';
@@ -264,10 +268,10 @@ function getStandingDelegationRequirement(
 
 /**
  * Checks a single-use transaction delegation: exactly `LimitedCalls(1)`, one
- * exact-execution caveat pinning a vault deposit and, optionally, one
- * `Timestamp` deadline and one `Redeemer` allowlist, in any order. A deadline
- * and a redeemer allowlist only narrow when and by whom the delegation can be
- * redeemed.
+ * exact-execution caveat pinning a vault deposit or a Rewards claim and,
+ * optionally, one `Timestamp` deadline and one `Redeemer` allowlist, in any
+ * order. A deadline and a redeemer allowlist only narrow when and by whom the
+ * delegation can be redeemed.
  *
  * Withdrawals, payments and Card approvals use the same shape with other
  * calls, so they require MFA.
@@ -305,9 +309,14 @@ function getSingleUseDelegationRequirement(
     return requireMfa('Delegation does not pin its executions');
   }
 
-  return isVaultDeposit(executions, config)
-    ? whitelisted('vault-deposit-delegation')
-    : requireMfa('Delegation executions are not a vault deposit');
+  if (isVaultDeposit(executions, config)) {
+    return whitelisted('vault-deposit-delegation');
+  }
+  return isRewardsClaim(executions, delegator, config)
+    ? whitelisted('rewards-claim-delegation')
+    : requireMfa(
+        'Delegation executions are not a vault deposit or Rewards claim',
+      );
 }
 
 /**
@@ -315,8 +324,8 @@ function getSingleUseDelegationRequirement(
  *
  * The delegation must be a root delegation from the Money Account, parsed
  * with {@link parseDelegationTypedData}. Whitelisted are the standing vault
- * delegations to CHOMP's delegate, and single-use vault deposit delegations
- * redeemable by anyone.
+ * delegations to CHOMP's delegate, and single-use vault deposit and Rewards
+ * claim delegations redeemable by anyone.
  *
  * @param delegation - The delegation message.
  * @param context - The request context.

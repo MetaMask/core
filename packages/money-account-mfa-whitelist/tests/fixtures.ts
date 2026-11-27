@@ -197,6 +197,41 @@ export function buildDepositCalls({
   ];
 }
 
+const EIP3009 = new Interface([
+  'function receiveWithAuthorization(address from, address to, uint256 value, uint256 validAfter, uint256 validBefore, bytes32 nonce, bytes signature)',
+]);
+
+/**
+ * Builds the calls of a Rewards claim with the same ABI as Mobile's
+ * `submitClaimVoucher`: the EIP-3009 voucher on mUSD, then the vault deposit.
+ *
+ * @param options - Options.
+ * @param options.amount - The voucher and deposit amount.
+ * @param options.to - The voucher recipient.
+ * @returns The receive, approve and deposit calls.
+ */
+export function buildClaimCalls({
+  amount = 1_000_000n,
+  to = MONEY_ACCOUNT,
+}: { amount?: bigint; to?: Hex } = {}): Execution[] {
+  return [
+    {
+      target: MUSD,
+      value: 0n,
+      callData: EIP3009.encodeFunctionData('receiveWithAuthorization', [
+        RECIPIENT,
+        to,
+        amount,
+        0n,
+        1_800_000_000n,
+        `0x${'cd'.repeat(32)}`,
+        `0x${'ef'.repeat(65)}`,
+      ]) as Hex,
+    },
+    ...buildDepositCalls({ amount }),
+  ];
+}
+
 /**
  * Builds the vault withdraw calls with the same ABI as
  * `buildMoneyAccountWithdrawBatch` in `@metamask/money-account-utils`.

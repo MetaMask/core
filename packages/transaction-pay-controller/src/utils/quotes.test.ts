@@ -2789,6 +2789,31 @@ describe('Quotes Utils', () => {
       );
     });
 
+    it('passes isTrueExactOutput through to the quote request', async () => {
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          isTrueExactOutput: true,
+        },
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: [expect.objectContaining({ isTrueExactOutput: true })],
+        }),
+      );
+    });
+
+    it('omits isTrueExactOutput from the quote request when not set', async () => {
+      await run();
+
+      const [{ requests }] = getQuotesMock.mock.calls[0] as [
+        PayStrategyGetQuotesRequest,
+      ];
+
+      expect(requests[0]).not.toHaveProperty('isTrueExactOutput');
+    });
+
     it('passes isHyperliquidSource through to post-quote request', async () => {
       await run({
         transactionData: {

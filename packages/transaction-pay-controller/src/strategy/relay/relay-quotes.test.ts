@@ -51,7 +51,11 @@ import {
 } from '../../utils/token.js';
 import { getRelayQuotes } from './relay-quotes.js';
 import { validateRelayQuotes } from './relay-validation.js';
-import type { RelayQuote, RelayTransactionStep } from './types.js';
+import type {
+  RelayQuote,
+  RelayQuoteRequest,
+  RelayTransactionStep,
+} from './types.js';
 
 vi.mock(import('../../utils/token.js'), async (importOriginal) =>
   mockModuleExcept(await importOriginal(), [
@@ -552,6 +556,68 @@ describe('Relay Quotes Utils', () => {
         }),
       );
       expect(result[0].dust).toStrictEqual({ fiat: '0', usd: '0' });
+    });
+
+    it('sends a true exact output request to the transfer recipient when isTrueExactOutput is set', async () => {
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      });
+
+      const result = await getRelayQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, isTrueExactOutput: true }],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            data: TOKEN_TRANSFER_DATA_MOCK,
+            from: FROM_MOCK,
+          },
+          type: TransactionType.simpleSend,
+        },
+      });
+
+      const [, init] = successfulFetchMock.mock.calls[0] as [
+        string,
+        RequestInit,
+      ];
+      const body = JSON.parse(init.body as string) as RelayQuoteRequest;
+
+      expect(body).toStrictEqual(
+        expect.objectContaining({
+          amount: QUOTE_REQUEST_MOCK.targetAmountMinimum,
+          enableTrueExactOutput: true,
+          tradeType: 'EXACT_OUTPUT',
+        }),
+      );
+      expect(body.txs).toBeUndefined();
+      expect(result[0].isInputBased).toBe(false);
+      expect(result[0].dust).toStrictEqual({ fiat: '0', usd: '0' });
+    });
+
+    it('omits enableTrueExactOutput when isTrueExactOutput is not set', async () => {
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      });
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const [, init] = successfulFetchMock.mock.calls[0] as [
+        string,
+        RequestInit,
+      ];
+      const body = JSON.parse(init.body as string) as RelayQuoteRequest;
+
+      expect(body).not.toHaveProperty('enableTrueExactOutput');
     });
 
     it('sends request with EXACT_INPUT trade type for nested token transfers', async () => {

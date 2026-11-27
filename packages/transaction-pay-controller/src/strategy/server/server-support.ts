@@ -4,6 +4,9 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 
+import type { QuoteRequest } from '../../types.js';
+import { isTrueExactOutputSupported } from '../../utils/trade-type.js';
+
 /**
  * Parent transaction types enabled for the server strategy by default.
  *
@@ -19,6 +22,12 @@ export const DEFAULT_SERVER_ENABLED_TRANSACTION_TYPES: TransactionType[] = [];
 export enum ServerUnsupportedReason {
   /** The parent transaction type is not in the remote-flag allowlist. */
   DisabledTransactionType = 'disabledTransactionType',
+
+  /**
+   * A true exact output was requested together with the maximum amount or a
+   * non-atomic execution.
+   */
+  UnsupportedTrueExactOutput = 'unsupportedTrueExactOutput',
 }
 
 /**
@@ -29,20 +38,30 @@ export enum ServerUnsupportedReason {
  * types across its nested transactions, so the allowlist is matched against the
  * transaction and its nested transactions.
  *
+ * True exact output requests are also declined with a maximum amount or a
+ * non-atomic execution, see {@link isTrueExactOutputSupported}.
+ *
  * @param options - Options bag.
  * @param options.enabledTransactionTypes - Transaction types opted in via
  * remote feature flag.
+ * @param options.requests - Quote requests for the transaction.
  * @param options.transaction - Metadata of the original target transaction.
  * @returns The reason the transaction is unsupported, or `undefined` if it is
  * supported.
  */
 export function getServerUnsupportedReason({
   enabledTransactionTypes,
+  requests = [],
   transaction,
 }: {
   enabledTransactionTypes: TransactionType[];
+  requests?: QuoteRequest[];
   transaction?: TransactionMeta;
 }): ServerUnsupportedReason | undefined {
+  if (!isTrueExactOutputSupported(requests)) {
+    return ServerUnsupportedReason.UnsupportedTrueExactOutput;
+  }
+
   if (!hasTransactionType(transaction, enabledTransactionTypes)) {
     return ServerUnsupportedReason.DisabledTransactionType;
   }

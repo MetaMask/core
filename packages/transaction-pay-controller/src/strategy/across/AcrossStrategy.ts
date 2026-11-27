@@ -35,6 +35,12 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
       return false;
     }
 
+    if (
+      request.requests.some((singleRequest) => singleRequest.isTrueExactOutput)
+    ) {
+      return false;
+    }
+
     const actionableRequests = request.requests.filter(isAcrossQuoteRequest);
 
     if (actionableRequests.length === 0) {

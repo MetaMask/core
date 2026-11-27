@@ -14,6 +14,7 @@ export {
 export {
   trackIdentityMismatchEvent,
   trackIncompleteMetadataBackupEvents,
+  trackPrimarySrpRepairEvent,
 } from './analytics.js';
 export { decryptStringWithKey, encryptStringWithKey } from './encryption.js';
 export {
@@ -31,7 +32,11 @@ export {
   getDataTypeMigrationUpdates,
   getNewSocialBackupsMetadata,
   findSocialBackupMetadata,
+  getMetadataSchemaVersion,
+  isPrimarySecretCandidate,
   parseAndValidateSecretMetadataBackup,
+  parseSecretMetadata,
+  validateSecretMetadataBackup,
 } from './secret-data-utils.js';
 export {
   convertUrlSafeBase64StringToBase64String,
