@@ -44,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - When the remote primary SRP is missing, or it differs from the local primary SRP, the local primary SRP becomes the single remote `PrimarySrp`. The repair is best-effort, runs in the background, and never blocks unlock
   - Existing items are kept. Every other secret is retagged as imported, which also migrates legacy items to v2 without changing the encrypted data. The local primary SRP is promoted from its remote copy, or added as a new v2 item
   - Overlapping repairs for the same user share the in-flight run. The repair stops if the identity changes, and a failed write is logged and picked up on the next unlock
+  - `identifyIncompleteMetadataBackup` runs this same repair and waits until the attempt finishes. A failed write is logged and the returned promise still resolves ([#11766](https://github.com/MetaMask/core/pull/11766))
 
 ### Changed
 

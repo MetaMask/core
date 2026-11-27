@@ -1208,13 +1208,14 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Identify an incomplete or mismatched primary SRP backup.
+   * Identify an incomplete or mismatched primary SRP backup and repair it.
    *
-   * This method must only be called after the controller has been unlocked.
+   * The call waits until the repair attempt finishes. A failed write is logged
+   * and the promise still resolves. Call this only after the controller is
+   * unlocked.
    *
    * @param password - The password used to export the local primary SRP.
-   * @returns A promise that resolves after identification and telemetry have
-   * completed.
+   * @returns A promise that resolves after the repair attempt finishes.
    */
   async identifyIncompleteMetadataBackup(password: string): Promise<void> {
     this.#assertIsUnlocked();
