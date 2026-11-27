@@ -3636,7 +3636,7 @@
       "count": 7
     },
     "typescript/return-await": {
-      "count": 24
+      "count": 22
     }
   },
   "packages/keyring-controller/tests/mocks/mockEncryptor.ts": {
