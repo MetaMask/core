@@ -1411,7 +1411,7 @@ describe('VendorOnboardingController', () => {
   });
 
   describe('getPartnerEmail', () => {
-    it('reads the verified email from a token for the vendor without recording consent', async () => {
+    it('records the vendor consent, then reads the verified email from a token for the vendor', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getPartnerIdentityToken.mockResolvedValue(
           partnerTokenFor('ann@example.com'),
@@ -1420,15 +1420,36 @@ describe('VendorOnboardingController', () => {
         const email = await controller.getPartnerEmail({ vendor: 'kalshi' });
 
         expect(email).toBe('ann@example.com');
-        expect(handlers.putIdentitySharingConsent).not.toHaveBeenCalled();
+        expect(handlers.putIdentitySharingConsent).toHaveBeenCalledWith({
+          audience: 'kalshi',
+          granted: true,
+        });
         expect(handlers.getPartnerIdentityToken).toHaveBeenCalledWith(
           ['email'],
           'kalshi',
         );
+        expect(
+          handlers.putIdentitySharingConsent.mock.invocationCallOrder[0],
+        ).toBeLessThan(
+          handlers.getPartnerIdentityToken.mock.invocationCallOrder[0],
+        );
       });
     });
 
-    it('has no email before the user has granted identity sharing', async () => {
+    it('has no email when the consent cannot be recorded, and mints no token', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.putIdentitySharingConsent.mockRejectedValue(
+          new Error('offline'),
+        );
+
+        expect(
+          await controller.getPartnerEmail({ vendor: 'kalshi' }),
+        ).toBeUndefined();
+        expect(handlers.getPartnerIdentityToken).not.toHaveBeenCalled();
+      });
+    });
+
+    it('has no email when MetaMask Auth refuses the token', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getPartnerIdentityToken.mockRejectedValue(
           new Error('consent_required'),

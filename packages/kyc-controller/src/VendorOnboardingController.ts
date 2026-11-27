@@ -531,12 +531,13 @@ export class VendorOnboardingController extends BaseController<
   }
 
   /**
-   * The verified MetaMask email the vendor's session is opened with: the
-   * address a screen should start its email field with. Reads it from a
-   * partner identity token minted for the vendor.
+   * The verified MetaMask email the vendor's session is opened with, for a
+   * screen to show or start its email field with. Reads it from a partner
+   * identity token minted for the vendor.
    *
-   * It records no identity-sharing consent. Before the user has granted it,
-   * MetaMask Auth refuses the token and this returns `undefined`.
+   * Minting the token records the vendor's identity-sharing consent first,
+   * as every mint does, so call this only once the user has accepted the
+   * vendor's terms.
    *
    * @param params - The parameters.
    * @param params.vendor - The vendor.
@@ -549,13 +550,8 @@ export class VendorOnboardingController extends BaseController<
     vendor: OnboardingVendor;
   }): Promise<string | undefined> {
     try {
-      return getEmailFromPartnerIdentityToken(
-        await this.messenger.call(
-          'AuthenticationController:getPartnerIdentityToken',
-          ['email'],
-          vendor,
-        ),
-      );
+      const token = await this.#mintPartnerIdentityToken(vendor);
+      return getEmailFromPartnerIdentityToken(token);
     } catch {
       return undefined;
     }
