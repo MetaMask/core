@@ -27,6 +27,7 @@ import {
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { Mutex } from 'async-mutex';
 
+import { PrimarySrpBackupRepair } from './backup-repair/PrimarySrpBackupRepair.js';
 import type { AuthConnection } from './constants.js';
 import {
   controllerName,
@@ -107,7 +108,6 @@ import {
   findSocialBackupMetadata,
   getLatestAccessToken,
   encryptStringWithKey,
-  trackIncompleteMetadataBackupEvents,
   isAuthTokenError,
   isMaxKeyChainLengthError,
   isTokenNearExpiry,
@@ -223,6 +223,8 @@ export class SeedlessOnboardingController<
 
   readonly #recoverySession: RecoverySessionManager;
 
+  readonly #primarySrpBackupRepair: PrimarySrpBackupRepair;
+
   readonly #refreshJWTToken: RefreshJWTToken;
 
   readonly #revokeRefreshToken: RevokeRefreshToken;
@@ -318,6 +320,51 @@ export class SeedlessOnboardingController<
           delete draft.recoverySession;
         });
       },
+    });
+    this.#primarySrpBackupRepair = new PrimarySrpBackupRepair({
+      getToprfClient: (): ToprfSecureBackup => this.toprfClient,
+      fetchAllSecretData: (): Promise<FetchedSecretDataItem[]> => {
+        const vaultData = this.#cachedDecryptedVaultData;
+        // Safety net: the repair is only started while unlocked, and the keys
+        // are read synchronously when it starts, so this is unreachable in
+        // normal flow. It makes a locked or cleared controller fail loudly
+        // instead of destructuring `undefined`.
+        /* istanbul ignore if */
+        if (!this.#isUnlocked || !vaultData) {
+          throw new SeedlessOnboardingError(
+            SeedlessOnboardingControllerErrorMessage.VaultLocked,
+          );
+        }
+        const { toprfEncryptionKey, toprfAuthKeyPair } = vaultData;
+        return this.#executeWithTokenRefresh(
+          () =>
+            this.toprfClient.fetchAllSecretDataItems({
+              decKey: toprfEncryptionKey,
+              authKeyPair: toprfAuthKeyPair,
+            }),
+          'identifyIncompleteMetadataBackup',
+        );
+      },
+      exportPrimarySeedPhrase: (password): Promise<Uint8Array> =>
+        this.messenger.call('KeyringController:exportSeedPhrase', {
+          password,
+        }),
+      trackEvent: (event): void =>
+        this.messenger.call('AnalyticsController:trackEvent', event),
+      getIdentity: (): { userId?: string; authConnectionId?: string } => ({
+        userId: this.state.userId,
+        authConnectionId: this.state.authConnectionId,
+      }),
+      withRepairContext: (fn): Promise<void> =>
+        this.#withControllerLock(async () => {
+          this.#assertIsUnlocked();
+          await this.#assertPasswordInSync({ skipCache: true });
+          const vaultData = await this.#unlockVaultAndGetVaultData();
+          await this.#executeWithTokenRefresh(
+            () => fn(vaultData),
+            'repairMissingPrimarySrpBackup',
+          );
+        }),
     });
     this.#refreshJWTToken = refreshJWTToken;
     this.#revokeRefreshToken = revokeRefreshToken;
@@ -1155,7 +1202,8 @@ export class SeedlessOnboardingController<
     return await this.#withControllerLock(async () => {
       await this.#unlockVaultAndReconcileAccessToken(password);
 
-      this.#identifyIncompleteMetadataBackup(password);
+      // Not awaited: the repair takes the controller lock held here.
+      this.#primarySrpBackupRepair.run(password);
     });
   }
 
@@ -1171,7 +1219,7 @@ export class SeedlessOnboardingController<
   async identifyIncompleteMetadataBackup(password: string): Promise<void> {
     this.#assertIsUnlocked();
 
-    await this.#identifyIncompleteMetadataBackup(password);
+    await this.#primarySrpBackupRepair.run(password);
   }
 
   /**
@@ -4368,25 +4416,6 @@ export class SeedlessOnboardingController<
       trackEvent: (event) =>
         this.messenger.call('AnalyticsController:trackEvent', event),
       migrationVersion: this.state.migrationVersion,
-    });
-  }
-
-  async #identifyIncompleteMetadataBackup(password: string): Promise<void> {
-    const deserializedVaultData =
-      this.#cachedDecryptedVaultData as DeserializedVaultData;
-
-    await trackIncompleteMetadataBackupEvents({
-      fetchAllSecretDataFn: () =>
-        this.toprfClient.fetchAllSecretDataItems({
-          decKey: deserializedVaultData.toprfEncryptionKey,
-          authKeyPair: deserializedVaultData.toprfAuthKeyPair,
-        }),
-      getPrimaryKeyringSeedPhraseFn: () =>
-        this.messenger.call('KeyringController:exportSeedPhrase', {
-          password,
-        }),
-      trackEvent: (event) =>
-        this.messenger.call('AnalyticsController:trackEvent', event),
     });
   }
 }

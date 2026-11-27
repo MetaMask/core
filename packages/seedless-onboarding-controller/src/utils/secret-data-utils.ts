@@ -1,13 +1,22 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import type { FetchedSecretDataItem } from '@metamask/toprf-secure-backup';
 import { EncAccountDataType } from '@metamask/toprf-secure-backup';
+import { areUint8ArraysEqual } from '@metamask/utils';
 
-import { controllerName, SecretType } from '../constants.js';
+import {
+  controllerName,
+  PrimarySrpRepairType,
+  SecretType,
+} from '../constants.js';
 import { parseControlRecord } from '../envelope/envelope-keys.js';
 import type { ControlRecord } from '../envelope/envelope-keys.js';
 import { createModuleLogger, projectLogger } from '../logger.js';
 import { SecretMetadata } from '../SecretMetadata.js';
-import type { SocialBackupsMetadata } from '../types.js';
+import type {
+  MetadataSchemaVersion,
+  PrimarySrpRepairPlan,
+  SocialBackupsMetadata,
+} from '../types.js';
 import { InvalidPrimarySecretDataTypeError } from './errors.js';
 
 const log = createModuleLogger(projectLogger, controllerName);
@@ -253,6 +262,101 @@ export function parseAndValidateSecretMetadataBackup(
   secretDataItems: FetchedSecretDataItem[],
 ): SecretMetadata[] {
   return validateSecretMetadataBackup(parseSecretMetadata(secretDataItems));
+}
+
+/**
+ * Get the storage schema version of a secret metadata backup.
+ *
+ * `v2` is only reported when every item is stored as v2, and `v1` when every
+ * item is stored as v1.
+ *
+ * @param secretMetadata - Parsed secret metadata.
+ * @returns The schema version of the backup.
+ */
+export function getMetadataSchemaVersion(
+  secretMetadata: SecretMetadata[],
+): MetadataSchemaVersion {
+  if (secretMetadata.length === 0) {
+    // No secret metadata found.
+    return 'none';
+  }
+
+  if (secretMetadata.every((secret) => secret.storageVersion === 'v2')) {
+    return 'v2';
+  }
+
+  if (secretMetadata.every((secret) => secret.storageVersion === 'v1')) {
+    return 'v1';
+  }
+
+  return 'mixed';
+}
+
+/**
+ * Compare the remote primary SRP backup with the local primary SRP, and decide
+ * which repair applies.
+ *
+ * Legacy metadata is ordered by the client-side timestamp and its first
+ * mnemonic is treated as the remote primary candidate. Newer metadata uses the
+ * explicit `PrimarySrp` data type. When no mnemonic can be the primary the
+ * backup is `missing`, otherwise the candidate is compared with the local
+ * primary SRP and a difference is a `mismatch`. The plan also reports the
+ * schema version of the remote backup, so a repair can write the same schema.
+ *
+ * This only reads data. It does not modify local or remote backup data. Fetch,
+ * parsing, and keyring failures are logged and result in no plan.
+ *
+ * @param params - Functions used to read the remote metadata and the local
+ * primary SRP.
+ * @param params.fetchAllSecretDataFn - Fetches the decrypted remote secret
+ * metadata items.
+ * @param params.getPrimaryKeyringSeedPhraseFn - Returns the local primary SRP
+ * bytes from the keyring.
+ * @returns The repair plan, or `undefined` if the backup is in sync or could
+ * not be read.
+ */
+export async function planPrimarySrpRepair({
+  fetchAllSecretDataFn,
+  getPrimaryKeyringSeedPhraseFn,
+}: {
+  fetchAllSecretDataFn: () => Promise<FetchedSecretDataItem[]>;
+  getPrimaryKeyringSeedPhraseFn: () => Promise<Uint8Array>;
+}): Promise<PrimarySrpRepairPlan | undefined> {
+  let secretMetadata: SecretMetadata[] = [];
+  let localPrimarySRP: Uint8Array | undefined;
+  try {
+    const secretDataItems = await fetchAllSecretDataFn();
+    secretMetadata = parseSecretMetadata(secretDataItems);
+    // Read once up front, so both the mismatch and missing results reuse it.
+    localPrimarySRP = await getPrimaryKeyringSeedPhraseFn();
+
+    const [primarySecretMetadata] =
+      validateSecretMetadataBackup(secretMetadata);
+    if (areUint8ArraysEqual(primarySecretMetadata.data, localPrimarySRP)) {
+      return undefined;
+    }
+
+    return {
+      repairType: PrimarySrpRepairType.Mismatch,
+      secretMetadata,
+      metadataSchemaVersion: getMetadataSchemaVersion(secretMetadata),
+      localPrimarySRP,
+    };
+  } catch (error) {
+    // No mnemonic can be used as the primary secret, so the primary SRP is
+    // missing and the local primary SRP read above is the data to write.
+    if (error instanceof InvalidPrimarySecretDataTypeError && localPrimarySRP) {
+      return {
+        repairType: PrimarySrpRepairType.Missing,
+        secretMetadata,
+        metadataSchemaVersion: getMetadataSchemaVersion(secretMetadata),
+        localPrimarySRP,
+      };
+    }
+
+    log('Error planning primary SRP repair', error);
+    return undefined;
+  }
 }
 
 /**

@@ -191,6 +191,15 @@ export enum SeedlessOnboardingControllerErrorMessage {
   PasswordResetRequiresRecovery = `${controllerName} - The password can only be reset with the vault keys after a recovery with the Recovery Secret`,
 }
 
+/**
+ * Whether the remote primary SRP backup is missing or differs from the local
+ * primary SRP.
+ */
+export enum PrimarySrpRepairType {
+  Missing = 'missing',
+  Mismatch = 'mismatch',
+}
+
 export const SeedlessPrimarySrpMissingEventName =
   'Seedless Onboarding Primary SRP Missing';
 export const SeedlessPrimarySrpMismatchEventName =

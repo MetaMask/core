@@ -32,6 +32,7 @@ export {
   getNewSocialBackupsMetadata,
   findSocialBackupMetadata,
   parseAndValidateSecretMetadataBackup,
+  planPrimarySrpRepair,
 } from './secret-data-utils.js';
 export {
   convertUrlSafeBase64StringToBase64String,
