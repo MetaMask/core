@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/transaction-controller` from `^74.5.0` to `^74.5.1` ([#11789](https://github.com/MetaMask/core/pull/11789))
 - Bump `@metamask/utils` from `^12.0.2` to `^12.1.0` ([#11796](https://github.com/MetaMask/core/pull/11796))
+- Bump `@metamask/seedless-onboarding-controller` from `^12.1.0` to `^13.0.0` ([#11800](https://github.com/MetaMask/core/pull/11800))
 
 ## [16.0.0]
 
