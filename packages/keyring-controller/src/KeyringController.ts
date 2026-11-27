@@ -39,7 +39,6 @@ import { Mutex } from 'async-mutex';
 import type { MutexInterface } from 'async-mutex';
 import * as ethereumjsWallet from 'ethereumjs-wallet';
 import type { Patch } from 'immer';
-import { cloneDeep } from 'lodash-es';
 // When generating a ULID within the same millisecond, monotonicFactory provides some guarantees regarding sort order.
 import { ulid } from 'ulid';
 
@@ -53,6 +52,7 @@ import type {
   TypedMessageParams,
 } from './types.js';
 import { VaultTransaction } from './VaultTransaction.js';
+import type { VaultOperations, VaultSession } from './VaultTransaction.js';
 
 /**
  * `ethereumjs-wallet` is CommonJS, and Node cannot reliably detect its named
@@ -361,7 +361,7 @@ export type SerializedKeyring = {
 /**
  * Cached encryption key used to encrypt/decrypt the vault.
  */
-type CachedEncryptionKey = {
+export type CachedEncryptionKey = {
   /**
    * The serialized encryption key.
    */
@@ -378,26 +378,6 @@ type CachedEncryptionKey = {
 type SessionState = {
   keyrings: SerializedKeyring[];
   encryptionKey?: CachedEncryptionKey;
-};
-
-/**
- * A serialized keyring snapshot, with the keyring's position in the
- * keyrings array at the time the snapshot was taken, and the keyring
- * entry itself, resolving the snapshot back to its keyring by identity —
- * never by metadata id, which corrupted vaults may duplicate.
- */
-type KeyringSnapshot = SerializedKeyring & {
-  entry: KeyringEntry;
-  index: number;
-};
-
-/**
- * Pre-transaction snapshots of all keyrings. Unsupported keyrings hold no
- * keyring instances, so they are captured and restored wholesale.
- */
-type KeyringSnapshots = {
-  keyrings: KeyringSnapshot[];
-  unsupportedKeyrings: SerializedKeyring[];
 };
 
 export type EncryptionResultConstraint<SupportedKeyMetadata> = {
@@ -2771,204 +2751,6 @@ export class KeyringController<
   }
 
   /**
-   * Take snapshots of the current keyrings, to roll back to.
-   *
-   * @returns The keyring snapshots.
-   */
-  async #getKeyringSnapshots(): Promise<KeyringSnapshots> {
-    return {
-      keyrings: await Promise.all(
-        this.#keyrings.map((entry) => this.#getKeyringSnapshot(entry)),
-      ),
-      unsupportedKeyrings: cloneDeep(this.#unsupportedKeyrings),
-    };
-  }
-
-  /**
-   * Take a snapshot of the given keyring entry, to roll back to.
-   *
-   * @param entry - The keyring entry.
-   * @returns The keyring snapshot.
-   */
-  async #getKeyringSnapshot(entry: KeyringEntry): Promise<KeyringSnapshot> {
-    // Cloned, as keyrings may return aliased internal state from
-    // `serialize()`.
-    return {
-      entry,
-      index: this.#keyrings.indexOf(entry),
-      type: entry.keyring.type,
-      data: cloneDeep(await entry.keyring.serialize()),
-      metadata: { ...entry.metadata },
-    };
-  }
-
-  /**
-   * Reconcile the keyrings in memory with a pre-transaction snapshot, touching
-   * only the keyrings that the failed transaction changed.
-   *
-   * The snapshot is walked in order, preserving the keyring order: unchanged
-   * keyrings keep their instances, mutated keyrings are rebuilt in place,
-   * removed keyrings are recreated at their snapshot position, and keyrings
-   * created by the transaction are destroyed and dropped. A stale instance
-   * is always destroyed before its replacement is created, as it must
-   * release the resources shared with the replacement (e.g. the SDK
-   * singleton of hardware keyrings) before the replacement is initialized.
-   * Unsupported keyrings are plain data and are restored wholesale.
-   *
-   * Must be called while the controller mutex is held.
-   *
-   * @param transaction - The failed transaction.
-   * @param snapshots - The keyring snapshots taken before the transaction.
-   */
-  async #rollbackKeyrings(
-    transaction: VaultTransaction,
-    snapshots: KeyringSnapshots,
-  ): Promise<void> {
-    this.#assertControllerMutexIsLocked();
-
-    // The keyrings live at the time of the rollback, before the walk
-    // replaces the array below.
-    const oldKeyrings = this.#keyrings;
-
-    // Restored wholesale before the walk: this undoes any parking performed
-    // by the failed transaction, while keyrings the walk fails to recreate
-    // are parked on top.
-    this.#unsupportedKeyrings = snapshots.unsupportedKeyrings;
-
-    // Built in place, so that duplicate account checks during recreation
-    // only consider already reconciled keyrings.
-    const newKeyrings: KeyringEntry[] = [];
-    this.#keyrings = newKeyrings;
-
-    for (const snapshot of snapshots.keyrings) {
-      const old = snapshot.entry;
-
-      if (!oldKeyrings.includes(old)) {
-        // Removed and destroyed by the transaction: rebuilt from its
-        // snapshot, at its original position.
-        const newKeyring = await this.#recreateKeyring(
-          transaction,
-          undefined,
-          snapshot,
-        );
-        if (newKeyring) {
-          newKeyrings.push(newKeyring);
-        }
-        continue;
-      }
-
-      if (await this.#isKeyringUnchanged(transaction, old, snapshot)) {
-        // The transaction did not change the keyring: keep the old instance.
-        newKeyrings.push(old);
-        continue;
-      }
-
-      // The transaction mutated the keyring: rebuilt from its snapshot,
-      // the stale instance destroyed by the recreation itself.
-      const newKeyring = await this.#recreateKeyring(
-        transaction,
-        old,
-        snapshot,
-      );
-      if (newKeyring) {
-        newKeyrings.push(newKeyring);
-      }
-    }
-
-    // Whatever is left was created by the failed transaction: destroy and
-    // drop it.
-    const snapshotKeyrings = new Set(
-      snapshots.keyrings.map((snapshot) => snapshot.entry),
-    );
-    for (const leftoverKeyring of oldKeyrings.filter(
-      // Keyring entries that are not present in the snapshots, i.e., created
-      // by the failed transaction, so we need to destroy and drop them.
-      (oldKeyring) => !snapshotKeyrings.has(oldKeyring),
-    )) {
-      // Destruction failures must not mask the transaction's error.
-      await transaction.destroy(leftoverKeyring, { ignoreErrors: true });
-    }
-  }
-
-  /**
-   * Check whether the given old keyring entry's serialized state is unchanged
-   * relative to the given snapshot. A destroyed keyring — even one whose
-   * destruction failed partway — and a keyring that cannot be serialized
-   * anymore are treated as changed: destruction releases resources that
-   * `serialize()` does not capture.
-   *
-   * @param transaction - The transaction the keyring is checked against.
-   * @param old - The old keyring entry to check.
-   * @param snapshot - The keyring snapshot to check against.
-   * @returns Whether the keyring is unchanged.
-   */
-  async #isKeyringUnchanged(
-    transaction: VaultTransaction,
-    old: KeyringEntry,
-    snapshot: KeyringSnapshot,
-  ): Promise<boolean> {
-    if (transaction.isDestroyed(old)) {
-      return false;
-    }
-
-    try {
-      return (
-        JSON.stringify(await old.keyring.serialize()) ===
-        JSON.stringify(snapshot.data)
-      );
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Build a new keyring from a keyring snapshot, without updating the
-   * keyrings array. The old keyring entry, if any, is destroyed before
-   * the replacement is created, as it must release the resources shared
-   * with the replacement (e.g. the SDK singleton of hardware keyrings)
-   * before the replacement is initialized. On failure, mirrors
-   * `#restoreKeyring`: the error is logged and the serialized keyring is
-   * parked in the unsupported keyrings.
-   *
-   * @param transaction - The transaction recreating the keyring.
-   * @param old - The old keyring entry replaced by the recreated keyring,
-   *   or `undefined` if the transaction already destroyed it.
-   * @param snapshot - The keyring snapshot to recreate.
-   * @returns The new keyring, or `undefined` if it could not be recreated.
-   */
-  async #recreateKeyring(
-    transaction: VaultTransaction,
-    old: KeyringEntry | undefined,
-    snapshot: KeyringSnapshot,
-  ): Promise<KeyringEntry | undefined> {
-    try {
-      if (old) {
-        await transaction.destroy(old, { ignoreErrors: true });
-      }
-
-      const { keyring, keyringV2, metadata } = await this.#createKeyring(
-        snapshot.type,
-        snapshot.data,
-        snapshot.metadata,
-      );
-
-      await this.#assertNoDuplicateAccounts([keyring]);
-
-      return { keyring, keyringV2, metadata };
-    } catch (error) {
-      console.error(error);
-      // Only the serialized keyring is parked: the snapshot position must
-      // not leak into the vault.
-      this.#unsupportedKeyrings.push({
-        type: snapshot.type,
-        data: snapshot.data,
-        metadata: snapshot.metadata,
-      });
-      return undefined;
-    }
-  }
-
-  /**
    * Unlock Keyrings, decrypting the vault and deserializing all
    * keyrings contained in it, using a password or an encryption key with salt.
    *
@@ -3119,20 +2901,10 @@ export class KeyringController<
   async #getAccountsFromKeyrings(
     additionalKeyrings: EthKeyring[] = [],
   ): Promise<string[]> {
-    const keyrings = this.#keyrings.map(({ keyring }) => keyring);
-
-    const keyringArrays = await Promise.all(
-      [...keyrings, ...additionalKeyrings].map(async (keyring) =>
-        keyring.getAccounts(),
-      ),
-    );
-    const addresses = keyringArrays.reduce((res, arr) => {
-      return res.concat(arr);
-    }, []);
-
-    // Cast to `string[]` here is safe here because `addresses` has no nullish
-    // values, and `normalize` returns `string` unless given a nullish value
-    return addresses.map(normalize) as string[];
+    return getAccountsFromKeyrings([
+      ...this.#keyrings.map(({ keyring }) => keyring),
+      ...additionalKeyrings,
+    ]);
   }
 
   /**
@@ -3347,24 +3119,6 @@ export class KeyringController<
   }
 
   /**
-   * Remove the given keyring entry from the keyrings, destroying its
-   * instances, logging instead of throwing on destruction failure.
-   *
-   * @param transaction - The transaction removing the entry.
-   * @param entry - The keyring entry to remove.
-   */
-  async #removeKeyringEntryIgnoringErrors(
-    transaction: VaultTransaction,
-    entry: KeyringEntry,
-  ): Promise<void> {
-    try {
-      await this.#removeKeyringEntry(transaction, entry);
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
-  /**
    * Assert that there are no duplicate accounts in the keyrings.
    *
    * @param additionalKeyrings - Additional keyrings to include in the check.
@@ -3373,13 +3127,10 @@ export class KeyringController<
   async #assertNoDuplicateAccounts(
     additionalKeyrings: EthKeyring[] = [],
   ): Promise<void> {
-    const accounts = await this.#getAccountsFromKeyrings(additionalKeyrings);
-
-    if (new Set(accounts).size !== accounts.length) {
-      throw new KeyringControllerError(
-        KeyringControllerErrorMessage.DuplicatedAccount,
-      );
-    }
+    await assertNoDuplicateAccounts([
+      ...this.#keyrings.map(({ keyring }) => keyring),
+      ...additionalKeyrings,
+    ]);
   }
 
   /**
@@ -3479,20 +3230,17 @@ export class KeyringController<
         );
       }
 
-      // `undefined` when the transaction created the keyring; also serves
-      // as the "before" state for the change detection below. Computed
-      // before the transaction starts: a failure here leaves the controller
-      // untouched, and must not be mistaken for a rollback with no
-      // snapshot, which would destroy a pre-existing keyring.
-      const snapshot: KeyringSnapshot | undefined = selected
-        ? await this.#getKeyringSnapshot(entry)
-        : undefined;
-
-      const transaction = new VaultTransaction({
-        type: 'keyring',
-        entry,
-        created: !selected,
-      });
+      // The transaction owns the operated keyring, and snapshots it unless
+      // it created it. The snapshot is taken before the transaction
+      // starts: a failure here leaves the controller untouched, and must
+      // not be mistaken for a rollback with no snapshot, which would
+      // destroy a pre-existing keyring.
+      const transaction = new VaultTransaction(
+        { type: 'keyring', entry, created: !selected },
+        this.#vaultSession(),
+        this.#vaultOperations(),
+      );
+      await transaction.begin();
 
       try {
         // The drain cleanup below can only fire when the wallet holds
@@ -3520,14 +3268,14 @@ export class KeyringController<
         }
 
         // The vault is updated only if the operated keyring changed.
-        if (await this.#hasKeyringChanged(transaction, entry, snapshot)) {
+        if (await transaction.hasChanged()) {
           await this.#updateVault();
         }
 
         return result;
       } catch (error) {
-        const old = entry; // Rollback to the pre-operation state.
-        await this.#rollbackKeyring(transaction, old, snapshot);
+        // Rollback to the pre-operation state.
+        await transaction.rollback();
 
         throw error;
       }
@@ -3535,102 +3283,62 @@ export class KeyringController<
   }
 
   /**
-   * Check whether the keyring entry operated on by a scoped transaction has
-   * changed relative to its snapshot. The operated keyring is resolved by
-   * identity: another keyring sharing its id must not affect the decision.
+   * The vault session state, as the transactions see it: what they
+   * snapshot at `begin()`, mutate through, and restore on `rollback()`.
    *
-   * @param transaction - The transaction the keyring is checked against.
-   * @param entry - The operated keyring entry.
-   * @param snapshot - The pre-operation snapshot, or `undefined` if the
-   *   transaction created the keyring.
-   * @returns Whether the operated keyring has changed.
+   * @returns The vault session.
    */
-  async #hasKeyringChanged(
-    transaction: VaultTransaction,
-    entry: KeyringEntry,
-    snapshot: KeyringSnapshot | undefined,
-  ): Promise<boolean> {
-    const exists = this.#keyrings.includes(entry);
-
-    // A keyring created by the transaction is a change — unless the
-    // transaction drained it right away, leaving the session as it was
-    // before the keyring existed.
-    if (!snapshot) {
-      return exists;
-    }
-
-    // The operated keyring was removed by the drained-keyring cleanup.
-    if (!exists) {
-      return true;
-    }
-
-    return !(await this.#isKeyringUnchanged(transaction, entry, snapshot));
+  #vaultSession(): VaultSession {
+    return {
+      getKeyrings: () => [...this.#keyrings],
+      replaceKeyrings: (keyrings) => {
+        this.#keyrings = keyrings;
+      },
+      removeKeyring: (entry) => {
+        const index = this.#keyrings.indexOf(entry);
+        if (index !== -1) {
+          this.#keyrings.splice(index, 1);
+          return true;
+        }
+        return false;
+      },
+      insertKeyringAt: (index, entry) => {
+        this.#keyrings.splice(index, 0, entry);
+      },
+      getUnsupportedKeyrings: () => [...this.#unsupportedKeyrings],
+      setUnsupportedKeyrings: (keyrings) => {
+        this.#unsupportedKeyrings = keyrings;
+      },
+      parkUnsupportedKeyring: (keyring) => {
+        this.#unsupportedKeyrings.push(keyring);
+      },
+      getEncryptionKey: () => this.#encryptionKey,
+      setEncryptionKey: (key) => {
+        this.#encryptionKey = key;
+      },
+    };
   }
 
   /**
-   * Restore the keyring entry operated on by a failed scoped transaction
-   * from its snapshot, touching no other keyring: a keyring created by the
-   * transaction is destroyed and dropped, and an existing keyring is always
-   * rebuilt from its snapshot — whether or not the transaction changed or
-   * removed it — so that state `serialize()` does not capture is reset
-   * too, and the stale instance is detached from any of the operation's
-   * mutations still landing on it.
+   * The controller-owned primitives the transactions drive: building new
+   * keyring entries, and enforcing the no-duplicate-accounts invariant on
+   * an explicit list of keyrings.
    *
-   * Must be called while the controller mutex is held.
-   *
-   * @param transaction - The failed transaction.
-   * @param old - The operated keyring entry.
-   * @param snapshot - The pre-operation snapshot, or `undefined` if the
-   *   transaction created the keyring.
+   * @returns The vault operations.
    */
-  async #rollbackKeyring(
-    transaction: VaultTransaction,
-    old: KeyringEntry,
-    snapshot: KeyringSnapshot | undefined,
-  ): Promise<void> {
-    this.#assertControllerMutexIsLocked();
-
-    // `-1` when the transaction already removed the entry from the
-    // keyrings (e.g. the drained-keyring cleanup).
-    const index = this.#keyrings.indexOf(old);
-
-    if (!snapshot) {
-      // The failed transaction created the keyring: destroy it and drop it.
-      await this.#removeKeyringEntryIgnoringErrors(transaction, old);
-      return;
-    }
-
-    if (index === -1) {
-      // The transaction removed the keyring: rebuild it at its original
-      // position.
-      const newKeyring = await this.#recreateKeyring(
-        transaction,
-        undefined,
-        snapshot,
-      );
-      if (newKeyring) {
-        this.#keyrings.splice(snapshot.index, 0, newKeyring);
-      }
-      return;
-    }
-
-    // The keyring is always rebuilt on failure, even when its serialized
-    // state matches the snapshot: state that `serialize()` does not
-    // capture (e.g. the runtime-only state of hardware keyrings) is reset
-    // too, and the stale instance is detached from any of the operation's
-    // mutations still landing on it. The old entry is removed first, so
-    // that the duplicate account check during recreation only sees
-    // reconciled keyrings, then destroyed by the recreation itself.
-    this.#keyrings.splice(index, 1);
-    const newKeyring = await this.#recreateKeyring(transaction, old, snapshot);
-    if (newKeyring) {
-      this.#keyrings.splice(index, 0, newKeyring);
-    }
+  #vaultOperations(): VaultOperations {
+    return {
+      createKeyring: async (type, data, metadata) =>
+        this.#createKeyring(type, data, metadata),
+      assertNoDuplicateAccounts: async (keyrings) =>
+        assertNoDuplicateAccounts(keyrings),
+    };
   }
 
   /**
-   * Execute the given function after acquiring the controller lock
-   * and rollback keyrings and password states in case of error.
+   * Execute the given function inside a wallet-scoped transaction, after
+   * acquiring the controller lock, rolling back the keyrings, the
+   * unsupported keyrings, and the encryption key in case of error.
    *
    * @param callback - The function to execute atomically.
    * @returns The result of the function.
@@ -3639,16 +3347,20 @@ export class KeyringController<
     callback: RollbackCallback<Result>,
   ): Promise<Result> {
     return this.#withControllerLock(async ({ releaseLock }) => {
-      const currentKeyringSnapshots = await this.#getKeyringSnapshots();
-      const currentEncryptionKey = cloneDeep(this.#encryptionKey);
-      const transaction = new VaultTransaction({ type: 'wallet' });
+      const transaction = new VaultTransaction(
+        { type: 'wallet' },
+        this.#vaultSession(),
+        this.#vaultOperations(),
+      );
+      // The snapshot is taken before the transaction starts: a failure
+      // here leaves the controller untouched.
+      await transaction.begin();
 
       try {
         return await callback({ releaseLock, transaction });
       } catch (error) {
         // Keyrings and encryption credentials are restored to their previous state
-        this.#encryptionKey = currentEncryptionKey;
-        await this.#rollbackKeyrings(transaction, currentKeyringSnapshots);
+        await transaction.rollback();
 
         throw error;
       }
@@ -3772,6 +3484,45 @@ async function withLock<Result>(
  */
 function getDefaultKeyringMetadata(): KeyringMetadata {
   return { id: ulid(), name: '' };
+}
+
+/**
+ * Retrieves all the accounts held by the given keyrings.
+ *
+ * @param keyrings - The keyrings to read the accounts from.
+ * @returns A promise resolving to an array of accounts.
+ */
+async function getAccountsFromKeyrings(
+  keyrings: EthKeyring[],
+): Promise<string[]> {
+  const keyringArrays = await Promise.all(
+    keyrings.map(async (keyring) => keyring.getAccounts()),
+  );
+  const addresses = keyringArrays.reduce((res, arr) => {
+    return res.concat(arr);
+  }, []);
+
+  // Cast to `string[]` here is safe here because `addresses` has no nullish
+  // values, and `normalize` returns `string` unless given a nullish value
+  return addresses.map(normalize) as string[];
+}
+
+/**
+ * Assert that there are no duplicate accounts across the given keyrings.
+ *
+ * @param keyrings - The keyrings to check.
+ * @throws If there are duplicate accounts.
+ */
+async function assertNoDuplicateAccounts(
+  keyrings: EthKeyring[],
+): Promise<void> {
+  const accounts = await getAccountsFromKeyrings(keyrings);
+
+  if (new Set(accounts).size !== accounts.length) {
+    throw new KeyringControllerError(
+      KeyringControllerErrorMessage.DuplicatedAccount,
+    );
+  }
 }
 
 export default KeyringController;
