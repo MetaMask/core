@@ -140,6 +140,8 @@ export enum KnownCaipNamespace {
   Stellar = 'stellar',
   /** Tron compatible chains */
   Tron = 'tron',
+  /** XRPL compatible chains */
+  Xrpl = 'xrpl',
   /** EIP-155 compatible chains. */
   Eip155 = 'eip155',
   Wallet = 'wallet',

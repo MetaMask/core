@@ -75,6 +75,7 @@ const SOCIAL: Identifier = {
 
 const SEEDLESS_STATE = getDefaultSeedlessOnboardingControllerState({
   authConnection: AuthConnection.Google,
+  userId: SOCIAL.value,
   socialLoginEmail: 'user@example.com',
 });
 

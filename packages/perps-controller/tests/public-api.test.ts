@@ -22,6 +22,7 @@ import {
   HYPERLIQUID_L1_ACTION_DOMAIN_NAME,
   HYPERLIQUID_L1_ACTION_PRIMARY_TYPE,
   isPerpsErrorCode,
+  LIGHTER_ACCOUNT_DISCOVERY_CONFIG,
   PERPS_ERROR_CODES,
   PERPS_EVENT_PROPERTY,
   PERPS_EVENT_VALUE,
@@ -65,6 +66,9 @@ import type {
   DirectProviderOrderCapabilities,
   DirectProviderOrderCapabilitiesUnavailableReason,
   GetAccountSupportParams,
+  PerpsControllerGetExchangeAccountStatusAction,
+  GetExchangeAccountStatusParams,
+  ExchangeAccountStatus,
   UpdatePositionTPSLParams,
   ReplacePositionTPSLLegParams,
   MarketInfo,
@@ -159,6 +163,25 @@ describe('@metamask/perps-controller public API', () => {
     expect(action).toBe('PerpsController:getAccountSupport');
   });
 
+  it('exports the Lighter account discovery cadence for status polling', () => {
+    expect(LIGHTER_ACCOUNT_DISCOVERY_CONFIG).toStrictEqual({
+      InitialIntervalMs: 3_000,
+      MaxIntervalMs: 15_000,
+      DeadlineMs: 180_000,
+    });
+  });
+
+  it('exports the exchange account status method and messenger contract', () => {
+    const action: PerpsControllerGetExchangeAccountStatusAction['type'] =
+      'PerpsController:getExchangeAccountStatus';
+    const handler: (
+      params: GetExchangeAccountStatusParams,
+    ) => Promise<ExchangeAccountStatus> =
+      PerpsController.prototype.getExchangeAccountStatus;
+    expect(typeof handler).toBe('function');
+    expect(action).toBe('PerpsController:getExchangeAccountStatus');
+  });
+
   it('exports the withdrawal route resolution method and action', () => {
     expect(typeof PerpsController.prototype.resolveWithdrawalRoute).toBe(
       'function',
@@ -183,6 +206,10 @@ describe('@metamask/perps-controller public API', () => {
     expect(PERPS_ERROR_CODES.TPSL_LEG_REPLACE_UNSUPPORTED).toBe(
       'TPSL_LEG_REPLACE_UNSUPPORTED',
     );
+  });
+
+  it('exports the paused orders stream error code', () => {
+    expect(PERPS_ERROR_CODES.ORDERS_STREAM_PAUSED).toBe('ORDERS_STREAM_PAUSED');
   });
 
   it('exports the trading configuration constants', () => {

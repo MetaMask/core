@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 export const UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY = 'Unified SwapBridge';
 export const BATCH_SELL_EVENT_CATEGORY = 'Batch Sell';
+export const ADVANCED_ORDER_EVENT_CATEGORY = 'Advanced Order';
 
 /**
- * These event names map to events defined in the segment-schema: https://github.com/Consensys/segment-schema/tree/main/libraries/events/metamask-cross-chain-swaps
+ * These event names map to events defined in the segment-schema: https://github.com/Consensys/segment-schema/tree/main/libraries/events
  */
 export enum UnifiedSwapBridgeEventName {
   ButtonClicked = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Button Clicked`,
@@ -35,9 +36,18 @@ export enum BatchSellMetricsEventName {
   BatchSellReviewModalSubmitted = `${BATCH_SELL_EVENT_CATEGORY} Review Modal Submitted`,
 }
 
+export enum AdvancedOrderMetricsEventName {
+  QuotesRequested = `${ADVANCED_ORDER_EVENT_CATEGORY} Quotes Requested`,
+  QuotesReceived = `${ADVANCED_ORDER_EVENT_CATEGORY} Quotes Received`,
+}
+
 export type BridgeControllerMetricsEventName =
   | UnifiedSwapBridgeEventName
   | BatchSellMetricsEventName;
+
+export type BridgeControllerPublishedEventName =
+  | BridgeControllerMetricsEventName
+  | AdvancedOrderMetricsEventName;
 
 export enum PollingStatus {
   MaxPollingReached = 'max_polling_reached',

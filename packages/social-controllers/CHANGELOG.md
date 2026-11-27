@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.24.1]
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^14.1.0` to `^15.0.0` ([#11784](https://github.com/MetaMask/core/pull/11784))
+
 ## [3.24.0]
 
 ### Added
@@ -470,7 +476,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.24.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.24.1...HEAD
+[3.24.1]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.24.0...@metamask/social-controllers@3.24.1
 [3.24.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.23.0...@metamask/social-controllers@3.24.0
 [3.23.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.22.0...@metamask/social-controllers@3.23.0
 [3.22.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.21.0...@metamask/social-controllers@3.22.0

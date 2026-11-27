@@ -36,6 +36,16 @@ export const subscriptionDelegationService: InitializationConfiguration<
         'SubscriptionController:getSubscriptions',
         'SubscriptionController:isUserEligibleForTrial',
         'SubscriptionController:startSubscriptionWithCrypto',
+        'KeyringController:getState',
+        'AuthenticationController:isSignedIn',
+        'SubscriptionController:retryCryptoCharge',
+        'SubscriptionController:setChargeRetryInProgress',
+      ],
+      events: [
+        'TransactionController:transactionConfirmed',
+        'KeyringController:unlock',
+        'AuthenticationController:stateChanged',
+        'SubscriptionController:stateChanged',
       ],
     });
 

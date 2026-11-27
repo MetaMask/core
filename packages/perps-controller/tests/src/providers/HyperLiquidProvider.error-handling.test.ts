@@ -1388,6 +1388,51 @@ describe('HyperLiquidProvider', () => {
         );
       });
 
+      it('leaves a failed DEX out of the market list, and rejects when the list must be complete', async () => {
+        const hip3Provider = createTestProvider({
+          hip3Enabled: true,
+          allowlistMarkets: ['xyz:*'],
+        });
+        const { meta: baseMeta } = createMockInfoClient();
+        const mockInfoClient = createMockInfoClient({
+          perpDexs: vi
+            .fn()
+            .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+          meta: vi.fn(async (params?: { dex?: string }) => {
+            if (params?.dex === 'xyz') {
+              throw new Error('xyz DEX unavailable');
+            }
+            return await baseMeta(params);
+          }),
+        });
+        mockClientService.getInfoClient = vi
+          .fn()
+          .mockReturnValue(mockInfoClient);
+
+        const markets = await hip3Provider.getMarkets({ skipCache: true });
+        expect(markets.map(({ name }) => name)).toContain('BTC');
+
+        await expect(
+          hip3Provider.getMarkets({ skipCache: true, requireComplete: true }),
+        ).rejects.toThrow('xyz DEX unavailable');
+      });
+
+      it('rejects a list that must be complete when the DEX list cannot be read', async () => {
+        const hip3Provider = createTestProvider({
+          hip3Enabled: true,
+          allowlistMarkets: ['xyz:*'],
+        });
+        mockClientService.getInfoClient = vi.fn().mockReturnValue(
+          createMockInfoClient({
+            perpDexs: vi.fn().mockRejectedValue(new Error('no DEX list')),
+          }),
+        );
+
+        await expect(
+          hip3Provider.getMarkets({ skipCache: true, requireComplete: true }),
+        ).rejects.toThrow('PROVIDER_NOT_AVAILABLE');
+      });
+
       it('reports partial balances and rejects incomplete position reads when a DEX fails', async () => {
         const hip3Provider = createTestProvider({
           hip3Enabled: true,

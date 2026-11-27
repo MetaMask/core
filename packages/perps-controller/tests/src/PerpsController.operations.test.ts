@@ -701,6 +701,126 @@ describe('PerpsController', () => {
     });
   });
 
+  describe('submitLighterTransfer', () => {
+    const TRANSFER = {
+      accountIndex: 28,
+      eoa: '0x8D7f03FdE1A626223364E592740a233b72395235',
+      toAccountIndex: 723071,
+      assetIndex: 3,
+      fromRouteType: 0,
+      toRouteType: 0,
+      amount: 1000000,
+      usdcFee: 3000000,
+      memo: `0x${'ab'.repeat(32)}`,
+    };
+
+    const createLighterProvider = (): PerpsProvider & {
+      submitTransfer: Mock;
+    } =>
+      ({
+        ...createMockHyperLiquidProvider(),
+        protocolId: 'lighter',
+        submitTransfer: vi.fn().mockResolvedValue({ success: true }),
+      }) as unknown as PerpsProvider & { submitTransfer: Mock };
+
+    it('sends the transfer through the registered Lighter provider while another provider is active', async () => {
+      const lighterProvider = createLighterProvider();
+      markControllerAsInitialized();
+      controller.testSetProviders(
+        new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', mockProvider],
+          ['lighter', lighterProvider],
+        ]),
+      );
+
+      await expect(
+        controller.submitLighterTransfer(TRANSFER),
+      ).resolves.toStrictEqual({ success: true });
+
+      expect(lighterProvider.submitTransfer).toHaveBeenCalledExactlyOnceWith(
+        TRANSFER,
+      );
+    });
+
+    it('sends the transfer through the active provider when it is Lighter and unregistered', async () => {
+      const lighterProvider = createLighterProvider();
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map());
+      controller.testSetActiveProvider(lighterProvider);
+
+      await controller.submitLighterTransfer(TRANSFER);
+
+      expect(lighterProvider.submitTransfer).toHaveBeenCalledExactlyOnceWith(
+        TRANSFER,
+      );
+    });
+
+    it('exposes the transfer through the public messenger action', async () => {
+      const host = createKeyringlessMessenger();
+      host.rootMessenger.registerActionHandler(
+        'RemoteFeatureFlagController:getState',
+        () => ({ remoteFeatureFlags: {}, cacheTimestamp: 0 }),
+      );
+      host.rootMessenger.delegate({
+        actions: ['RemoteFeatureFlagController:getState'],
+        events: [
+          'RemoteFeatureFlagController:stateChange',
+          'AccountsController:selectedAccountChange',
+          'AccountTreeController:selectedAccountGroupChange',
+        ],
+        messenger: host.messenger,
+      });
+      const messengerController = new TestablePerpsController({
+        messenger: host.messenger,
+        state: getDefaultPerpsControllerState(),
+        infrastructure: createMockInfrastructure(),
+        deferEligibilityCheck: true,
+      });
+      const lighterProvider = createLighterProvider();
+      await messengerController.init();
+      messengerController.testSetProviders(
+        new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', mockProvider],
+          ['lighter', lighterProvider],
+        ]),
+      );
+
+      const result = await host.messenger.call(
+        'PerpsController:submitLighterTransfer',
+        TRANSFER,
+      );
+
+      expect(result).toStrictEqual({ success: true });
+      expect(lighterProvider.submitTransfer).toHaveBeenCalledExactlyOnceWith(
+        TRANSFER,
+      );
+    });
+
+    it('throws when no provider can send Lighter transfers', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(controller.submitLighterTransfer(TRANSFER)).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+      );
+    });
+
+    it('never sends the transfer through a non-Lighter provider that has submitTransfer', async () => {
+      const otherProvider = {
+        ...createMockHyperLiquidProvider(),
+        submitTransfer: vi.fn().mockResolvedValue({ success: true }),
+      } as unknown as PerpsProvider & { submitTransfer: Mock };
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', otherProvider]]));
+      controller.testSetActiveProvider(otherProvider);
+
+      await expect(controller.submitLighterTransfer(TRANSFER)).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+      );
+      expect(otherProvider.submitTransfer).not.toHaveBeenCalled();
+    });
+  });
+
   describe('withdrawal route resolution', () => {
     beforeEach(() => {
       mockAccountServiceInstance.withdraw.mockImplementation(

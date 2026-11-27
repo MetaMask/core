@@ -18,6 +18,14 @@ Key derivation, key storage and Mobile's env variables are in [metamask-mobile/d
 
 Code: `src/constants/lighterConfig.ts` `LIGHTER_DEFAULT_API_KEY_INDEX`, `LIGHTER_MIN_TRADING_API_KEY_INDEX`, `LIGHTER_MAX_TRADING_API_KEY_INDEX`; `src/types/index.ts` `LighterCredentials`; `src/providers/LighterProvider.ts` `#ensureAccountIndex`, `#assertStandardAccount`, `#assertAccountOwnership`.
 
+## Checking registration after a first deposit
+
+Keep `subscribeToAccount` open after a first deposit. A confirmed missing account emits a zero balance with `exchangeAccountStatus: { registered: false }`. Lighter retries discovery after 3 seconds, doubling the interval up to 15 seconds for at most 3 minutes (`LIGHTER_ACCOUNT_DISCOVERY_CONFIG`). Discovery stops when the account is found or the last account-scoped listener leaves. A timeout does not confirm a failed deposit.
+
+Once discovered, the existing stream delivers the venue balance and `exchangeAccountStatus: { registered: true, accountIndex }`, even for a zero balance. In a multi-venue aggregate, read the status from the available Lighter entry in `providerStates`. Recovery never registers a trading key. For a one-time registration check without a signature, call `PerpsController:getExchangeAccountStatus` with `{ providerId: 'lighter' }`. Venue and transport errors reject. The index identifies the master account, not a trading-key slot.
+
+Code: `src/providers/LighterProvider.ts` `getExchangeAccountStatus`, `#scheduleAccountDiscovery`, `#ensureAccountIndex`; `src/constants/lighterConfig.ts` `LIGHTER_ACCOUNT_DISCOVERY_CONFIG`.
+
 ## Slot selection
 
 `#signerCandidates` builds the ordered list of slots to try.

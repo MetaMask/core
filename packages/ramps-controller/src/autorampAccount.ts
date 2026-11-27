@@ -67,6 +67,9 @@ export type AutorampAccount = {
  */
 export type CreateAutorampRequest = Record<string, unknown>;
 
+/** Destination of every {@link buildMusdAutorampRequest} autoramp. */
+const MUSD_DESTINATION = { token: 'mUSD', blockchain: 'Monad' } as const;
+
 /**
  * Standing fiat → mUSD autoramp for a Money Account on Monad.
  *
@@ -86,14 +89,10 @@ export function buildMusdAutorampRequest(
 ): CreateAutorampRequest {
   return {
     source_currencies: [{ type: 'Fiat', code: sourceCurrencyCode }],
-    destination_currency: {
-      type: 'Crypto',
-      token: 'mUSD',
-      blockchain: 'Monad',
-    },
+    destination_currency: { type: 'Crypto', ...MUSD_DESTINATION },
     recipient_account: {
       type: 'Crypto',
-      chain: 'Monad',
+      chain: MUSD_DESTINATION.blockchain,
       address: walletAddress,
     },
   };
@@ -112,6 +111,55 @@ export function buildBrazilMusdAutorampRequest(
   walletAddress: string,
 ): CreateAutorampRequest {
   return buildMusdAutorampRequest(walletAddress, 'BRL');
+}
+
+/**
+ * Whether the customer may onramp into mUSD on Monad. MoonPay lists in
+ * `currencies` only what the customer's jurisdiction allows, and rejects a
+ * create for anything else. Fails open when `currencies` is missing.
+ *
+ * @param abilities - Customer abilities.
+ * @returns False only when `currencies` lacks mUSD on Monad with `Onramp`.
+ */
+function isMusdDestinationAvailable(
+  abilities: NeoBankCustomerAbilities,
+): boolean {
+  const { currencies } = abilities as { currencies?: unknown };
+  if (!Array.isArray(currencies)) {
+    return true;
+  }
+  return (currencies as NeoBankCustomerAbilities['currencies']).some(
+    ({ currency, flows }) =>
+      currency?.type === 'Crypto' &&
+      currency.token?.toLowerCase() === MUSD_DESTINATION.token.toLowerCase() &&
+      currency.blockchain?.toLowerCase() ===
+        MUSD_DESTINATION.blockchain.toLowerCase() &&
+      Array.isArray(flows) &&
+      flows.includes('Onramp'),
+  );
+}
+
+/**
+ * A create rejected because the destination token is not available in the
+ * customer's jurisdiction: neobank-proxy's error code, or MoonPay's own text
+ * when the proxy forwards the body as is.
+ */
+const TOKEN_UNAVAILABLE_IN_JURISDICTION =
+  /token_unavailable_in_jurisdiction|not available in the jurisdiction/iu;
+
+/**
+ * Whether a failed create was rejected because the destination token is not
+ * available in the customer's jurisdiction. The response body is only carried
+ * in the error message, so this matches it there.
+ *
+ * @param error - Error thrown by `RampsController.createAutoramp`.
+ * @returns True when the error message carries the jurisdiction rejection.
+ */
+export function isTokenUnavailableInJurisdictionError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    TOKEN_UNAVAILABLE_IN_JURISDICTION.test(error.message)
+  );
 }
 
 /**
@@ -135,28 +183,59 @@ const BLOCKED_ABILITY_STATUSES: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Whether the deposit rails a fiat → mUSD autoramp needs are usable.
+ * Whether a fiat → mUSD autoramp can be created now.
  *
- * - `active`: every required rail is Active, or the fiat has none.
+ * - `active`: every required rail is Active, or the fiat has none, and mUSD
+ * on Monad is available to the customer.
  * - `pending`: a required rail is not Active yet (Pending, Maintenance or
  * missing), so MoonPay would reject the create for now.
  * - `blocked`: a required rail is Unavailable or Blocked.
+ * - `unavailable`: the rails are ready, but mUSD on Monad is not available to
+ * the customer's jurisdiction (missing from abilities `currencies`, or
+ * without `Onramp`), so MoonPay would reject the create. It follows the
+ * customer's KYC region, so an immediate retry does not help, but a later
+ * check passes once MoonPay offers the token to that customer.
  */
-export type MusdAutorampDepositRailReadiness = 'active' | 'pending' | 'blocked';
+export type MusdAutorampDepositRailReadiness =
+  | 'active'
+  | 'pending'
+  | 'blocked'
+  | 'unavailable';
 
 /**
- * Reads the deposit rail readiness for a fiat → mUSD autoramp from the
- * customer's abilities.
+ * Reads whether a fiat → mUSD autoramp can be created from the customer's
+ * abilities: the deposit rails first, then the destination token. The token
+ * is only checked once the rails are ready, so a customer whose rails are
+ * still settling keeps waiting instead of failing on a partial `currencies`.
  *
  * @param abilities - Customer abilities, e.g. `vbaCustomerAbilities`.
  * @param sourceCurrencyCode - Fiat code passed to
  * {@link buildMusdAutorampRequest}.
- * @returns The rail readiness.
+ * @returns The autoramp readiness.
  */
 export function getMusdAutorampDepositRailReadiness(
   abilities: NeoBankCustomerAbilities,
   sourceCurrencyCode: string,
 ): MusdAutorampDepositRailReadiness {
+  const railReadiness = getDepositRailReadiness(abilities, sourceCurrencyCode);
+  if (railReadiness === 'active' && !isMusdDestinationAvailable(abilities)) {
+    return 'unavailable';
+  }
+  return railReadiness;
+}
+
+/**
+ * Reads the deposit rail readiness for a fiat → mUSD autoramp.
+ *
+ * @param abilities - Customer abilities.
+ * @param sourceCurrencyCode - Fiat code passed to
+ * {@link buildMusdAutorampRequest}.
+ * @returns The rail readiness.
+ */
+function getDepositRailReadiness(
+  abilities: NeoBankCustomerAbilities,
+  sourceCurrencyCode: string,
+): Exclude<MusdAutorampDepositRailReadiness, 'unavailable'> {
   const code = sourceCurrencyCode.toUpperCase();
   const rails = MUSD_AUTORAMP_REQUIRED_DEPOSIT_RAILS[code];
   if (!rails) {
