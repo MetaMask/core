@@ -6888,8 +6888,8 @@ describe('SeedlessOnboardingController', () => {
           await controller.storeKeyringEncryptionKey('keyring-key');
           await controller.resolvePasswordSyncState({ skipCache: true });
           expect(controller.state.passwordOutdatedCache).toBeDefined();
-          const passwordOutdatedCache = controller.state.passwordOutdatedCache;
-          const previousVault = controller.state.vault;
+          const { passwordOutdatedCache, vault: previousVault } =
+            controller.state;
 
           const snapshots: SeedlessOnboardingControllerState[] = [];
           baseMessenger.subscribe(
