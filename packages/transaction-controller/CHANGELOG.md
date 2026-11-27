@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `MetamaskPayMetadata.server` property to persist the pay controller's server intent (`id` and `provider`) for resume after a restart ([#11739](https://github.com/MetaMask/core/pull/11739))
+
 ### Changed
 
 - Bump `@metamask/utils` from `^12.0.2` to `^12.1.0` ([#11796](https://github.com/MetaMask/core/pull/11796))
@@ -40,7 +44,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add optional `isDirectMusd` property to `MetamaskPayMetadata.fiat` to record whether a fiat order on-ramps mUSD directly into the Money Account ([#11451](https://github.com/MetaMask/core/pull/11451))
-- Add optional `MetamaskPayMetadata.server` property to persist the pay controller's server intent (`id` and `provider`) for resume after a restart ([#11739](https://github.com/MetaMask/core/pull/11739))
 
 ### Changed
 
