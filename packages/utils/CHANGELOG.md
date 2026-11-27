@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [12.0.3]
 
-### Uncategorized
-
-- chore: add vite as a devDependency to packages using vitest ([#11661](https://github.com/MetaMask/core/pull/11661))
-- chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
-
 ### Added
 
 - Add XRPL CAIP namespace ([#11786](https://github.com/MetaMask/core/pull/11786))
