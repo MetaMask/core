@@ -44,7 +44,11 @@ import {
   submitServerIntent,
 } from './server-api.js';
 import { getServerQuotes } from './server-quotes.js';
-import { getServerSubmitParams, submitServerQuotes } from './server-submit.js';
+import {
+  getServerSubmitParams,
+  resumeServerQuote,
+  submitServerQuotes,
+} from './server-submit.js';
 import { ServerStatus } from './types.js';
 import type {
   ServerQuote,
@@ -537,6 +541,17 @@ describe('submitServerQuotes', () => {
         }),
       });
       expect(result).toStrictEqual({ transactionHash: SECOND_LEG_HASH_MOCK });
+    });
+
+    it('does not persist the server intent', async () => {
+      submitServerIntentMock.mockResolvedValue({
+        id: 'submitted-id-mock',
+        success: true,
+      });
+
+      await submitServerQuotes(request);
+
+      expect(currentTransaction.metamaskPay?.server).toBeUndefined();
     });
 
     it('submits from the quote recipient when set', async () => {
@@ -1114,6 +1129,12 @@ describe('submitServerQuotes', () => {
       await submitServerQuotes(request);
 
       expect(currentTransaction.metamaskPay?.sourceHash).toBe(SOURCE_HASH_MOCK);
+    });
+
+    it('does not persist the server intent', async () => {
+      await submitServerQuotes(request);
+
+      expect(currentTransaction.metamaskPay?.server).toBeUndefined();
     });
 
     it('sweeps leftover USDC.e after confirmation', async () => {
@@ -2183,6 +2204,149 @@ describe('submitServerQuotes', () => {
       await submitServerQuotes(req);
 
       expect(addTxMock).toHaveBeenCalled();
+    });
+  });
+
+  describe('resume', () => {
+    const getTransactionMock = vi.mocked(getTransaction);
+
+    it('persists the server intent for a single quote', async () => {
+      await submitServerQuotes(request);
+
+      expect(currentTransaction.metamaskPay?.server).toStrictEqual({
+        id: ORIGINAL_QUOTE_MOCK.id,
+        provider: ORIGINAL_QUOTE_MOCK.provider,
+      });
+    });
+
+    it('persists the server intent before submitting', async () => {
+      submitServerIntentMock.mockImplementation(async () => {
+        expect(currentTransaction.metamaskPay?.server).toBeDefined();
+        return { success: true };
+      });
+
+      await submitServerQuotes(request);
+
+      expect(submitServerIntentMock).toHaveBeenCalled();
+    });
+
+    it('persists the ID returned by submit', async () => {
+      submitServerIntentMock.mockResolvedValue({
+        id: 'submitted-id-mock',
+        success: true,
+      });
+
+      await submitServerQuotes(request);
+
+      expect(currentTransaction.metamaskPay?.server).toStrictEqual({
+        id: 'submitted-id-mock',
+        provider: ORIGINAL_QUOTE_MOCK.provider,
+      });
+    });
+
+    it('does not persist the server intent for multiple quotes', async () => {
+      request.quotes = [cloneDeep(QUOTE_MOCK), cloneDeep(QUOTE_MOCK)];
+
+      await submitServerQuotes(request);
+
+      expect(currentTransaction.metamaskPay?.server).toBeUndefined();
+    });
+
+    it('measures elapsed time from the parent submitted time', async () => {
+      const dateNowMock = vi.spyOn(Date, 'now').mockReturnValue(5000);
+
+      getTransactionMock.mockReturnValue({
+        ...TRANSACTION_META_MOCK,
+        submittedTime: 1000,
+      });
+
+      await submitServerQuotes(request);
+
+      expect(getServerStatusMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({ elapsedMs: 4000 }),
+      );
+
+      dateNowMock.mockRestore();
+    });
+  });
+
+  describe('resumeServerQuote', () => {
+    const getTransactionMock = vi.mocked(getTransaction);
+
+    let resumeTransaction: TransactionMeta;
+
+    beforeEach(() => {
+      resumeTransaction = {
+        ...cloneDeep(TRANSACTION_META_MOCK),
+        metamaskPay: { server: { id: 'resume-id', provider: 'm0' } },
+        status: TransactionStatus.approved,
+        submittedTime: 1000,
+      };
+
+      getTransactionMock.mockReturnValue(resumeTransaction);
+    });
+
+    it('throws when no server intent is persisted', async () => {
+      await expect(
+        resumeServerQuote({
+          messenger,
+          transaction: { ...resumeTransaction, metamaskPay: {} },
+        }),
+      ).rejects.toThrow('Missing server intent');
+
+      expect(getServerStatusMock).not.toHaveBeenCalled();
+    });
+
+    it('polls the persisted intent with elapsed time from the submitted time', async () => {
+      const dateNowMock = vi.spyOn(Date, 'now').mockReturnValue(61000);
+
+      await resumeServerQuote({ messenger, transaction: resumeTransaction });
+
+      expect(getServerStatusMock).toHaveBeenCalledWith(messenger, {
+        elapsedMs: 60000,
+        hash: undefined,
+        id: 'resume-id',
+        logs: undefined,
+        provider: 'm0',
+      });
+
+      dateNowMock.mockRestore();
+    });
+
+    it('returns the target hash and marks the intent complete', async () => {
+      const result = await resumeServerQuote({
+        messenger,
+        transaction: resumeTransaction,
+      });
+
+      expect(result).toStrictEqual({ transactionHash: TARGET_HASH_MOCK });
+      expect(currentTransaction.isIntentComplete).toBe(true);
+    });
+
+    it('returns a placeholder hash when no target hash is reported', async () => {
+      getServerStatusMock.mockResolvedValue({ status: ServerStatus.Confirmed });
+
+      const result = await resumeServerQuote({
+        messenger,
+        transaction: resumeTransaction,
+      });
+
+      expect(result).toStrictEqual({ transactionHash: '0x' });
+    });
+
+    it.each([
+      [ServerStatus.Failed, 'Server intent failed'],
+      [ServerStatus.Refunded, 'Server intent refunded'],
+      [ServerStatus.Timeout, 'Server intent timed out'],
+    ])('throws when the intent is %s', async (status, message) => {
+      getServerStatusMock.mockResolvedValue({ status });
+
+      await expect(
+        resumeServerQuote({ messenger, transaction: resumeTransaction }),
+      ).rejects.toThrow(message);
+
+      expect(currentTransaction.isIntentComplete).toBeUndefined();
     });
   });
 });

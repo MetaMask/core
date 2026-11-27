@@ -1,3 +1,4 @@
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import { createModuleLogger } from '@metamask/utils';
 
 import { projectLogger } from '../../logger.js';
@@ -6,13 +7,14 @@ import type {
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
   PayStrategyGetRefreshIntervalRequest,
+  PayStrategyResumeRequest,
   TransactionPayQuote,
 } from '../../types.js';
 import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
 import { getMaxAmountRefreshInterval } from '../../utils/max-quote.js';
 import { isEvmQuoteRequest } from '../../utils/token.js';
 import { getServerQuotes } from './server-quotes.js';
-import { submitServerQuotes } from './server-submit.js';
+import { resumeServerQuote, submitServerQuotes } from './server-submit.js';
 import { getServerUnsupportedReason } from './server-support.js';
 import type { ServerQuote } from './types.js';
 
@@ -79,6 +81,29 @@ export class ServerStrategy implements PayStrategy<ServerQuote> {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`Server submit: ${message}`);
+    }
+  }
+
+  /**
+   * Only transactions with a persisted server intent can be resumed, which is
+   * set when a single quote without a deposit wallet sweep or second leg is
+   * submitted.
+   *
+   * @param transaction - The transaction to check.
+   * @returns True if the transaction can be resumed.
+   */
+  canResume(transaction: TransactionMeta): boolean {
+    return Boolean(transaction.metamaskPay?.server);
+  }
+
+  async resume(
+    request: PayStrategyResumeRequest,
+  ): ReturnType<NonNullable<PayStrategy<ServerQuote>['resume']>> {
+    try {
+      return await resumeServerQuote(request);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Server resume: ${message}`);
     }
   }
 }

@@ -11,7 +11,7 @@ import type {
 import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
 import { getMaxAmountRefreshInterval } from '../../utils/max-quote.js';
 import { getServerQuotes } from './server-quotes.js';
-import { submitServerQuotes } from './server-submit.js';
+import { resumeServerQuote, submitServerQuotes } from './server-submit.js';
 import { ServerStrategy } from './ServerStrategy.js';
 import type { ServerQuote } from './types.js';
 
@@ -43,6 +43,7 @@ const SUPPORTS_REQUEST_MOCK = {
 
 describe('ServerStrategy', () => {
   const getServerQuotesMock = vi.mocked(getServerQuotes);
+  const resumeServerQuoteMock = vi.mocked(resumeServerQuote);
   const submitServerQuotesMock = vi.mocked(submitServerQuotes);
   const getPayStrategiesConfigMock = vi.mocked(getPayStrategiesConfig);
 
@@ -248,6 +249,54 @@ describe('ServerStrategy', () => {
           transaction: { txParams: { from: '0x1' } } as TransactionMeta,
         }),
       ).rejects.toThrow('Server submit: plain string error');
+    });
+  });
+
+  describe('canResume', () => {
+    it('returns true when a server intent is persisted', () => {
+      expect(
+        new ServerStrategy().canResume({
+          metamaskPay: { server: { id: 'id', provider: 'relay' } },
+        } as TransactionMeta),
+      ).toBe(true);
+    });
+
+    it('returns false when no server intent is persisted', () => {
+      expect(
+        new ServerStrategy().canResume({ metamaskPay: {} } as TransactionMeta),
+      ).toBe(false);
+    });
+  });
+
+  describe('resume', () => {
+    const RESUME_REQUEST_MOCK = {
+      messenger: {} as TransactionPayControllerMessenger,
+      transaction: { id: 'tx-1' } as TransactionMeta,
+    };
+
+    it('returns result from util', async () => {
+      resumeServerQuoteMock.mockResolvedValue({ transactionHash: '0xabc' });
+
+      const result = await new ServerStrategy().resume(RESUME_REQUEST_MOCK);
+
+      expect(result).toStrictEqual({ transactionHash: '0xabc' });
+      expect(resumeServerQuoteMock).toHaveBeenCalledWith(RESUME_REQUEST_MOCK);
+    });
+
+    it('wraps errors', async () => {
+      resumeServerQuoteMock.mockRejectedValue(new Error('boom'));
+
+      await expect(
+        new ServerStrategy().resume(RESUME_REQUEST_MOCK),
+      ).rejects.toThrow('Server resume: boom');
+    });
+
+    it('wraps non-Error throws using String()', async () => {
+      resumeServerQuoteMock.mockRejectedValue('plain string error');
+
+      await expect(
+        new ServerStrategy().resume(RESUME_REQUEST_MOCK),
+      ).rejects.toThrow('Server resume: plain string error');
     });
   });
 });

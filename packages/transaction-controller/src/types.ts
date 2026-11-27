@@ -2260,6 +2260,18 @@ export type MetamaskPayMetadata = {
    */
   resumeAttemptedAt?: number;
 
+  /**
+   * Intent submitted by the pay controller's server strategy, persisted so
+   * its status can be polled again after a restart.
+   * TC does not read this field.
+   */
+  server?: {
+    /** Provider quote ID. */
+    id: string;
+    /** Provider the intent was submitted to (e.g. "relay", "m0"). */
+    provider: string;
+  };
+
   /** Source chain transaction hash if no local transaction. */
   sourceHash?: Hex;
 

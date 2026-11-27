@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `isTrueExactOutput` to `TransactionConfig` so token transfers deliver exactly the required amount to the recipient, supported by `ServerStrategy` and `RelayStrategy` ([#11775](https://github.com/MetaMask/core/pull/11775))
+- Add resume support to `ServerStrategy` so Relay, Across and M0 intents continue polling after a restart, gated by `confirmations_pay_extended.resume.server` ([#11739](https://github.com/MetaMask/core/pull/11739))
+  - Persist the intent `id` and `provider` as `metamaskPay.server` before submitting a single quote, replacing the `id` with the one returned by the server submit when present. Polymarket deposit wallet withdraws and quotes requiring a second leg are not resumable.
+  - Measure the `elapsedMs` sent with status requests from the parent transaction's `submittedTime`, so the server timeout carries over a restart.
 
 ### Changed
 
