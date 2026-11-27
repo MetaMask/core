@@ -1,25 +1,18 @@
-import {
-  generateKeyPair,
-  getSharedSecret,
-} from '@metamask/cryptography/x25519';
-import { areUint8ArraysEqual, stringToBytes } from '@metamask/utils';
-import { hsalsa, xsalsa20poly1305 } from '@noble/ciphers/salsa';
-import { u8, u32 } from '@noble/ciphers/utils';
+import { generateKeyPair } from '@metamask/cryptography/x25519';
+import { areUint8ArraysEqual } from '@metamask/utils';
+import { xsalsa20poly1305 } from '@noble/ciphers/salsa';
 import { describe, expect, it } from 'vitest';
 
 import { base64UrlToBytes, toBase64Url } from '../encoding.js';
-import { wrapEncryptionKey } from './wrapEncryptionKey.js';
+import { deriveEncryptionKey, wrapEncryptionKey } from './wrapEncryptionKey.js';
 
 const DATA_ENCRYPTION_KEY = new Uint8Array(32).fill(7);
 
-// HSalsa20 sigma constant, used by NaCl's `crypto_box` to derive the
-// XSalsa20-Poly1305 secretbox key from the X25519 shared secret.
-const HSALSA_SIGMA = u32(stringToBytes('expand 32-byte k'));
-
 /**
  * Reverses {@link wrapEncryptionKey} from the server's perspective: derives
- * the `crypto_box` key with the server private key and the client public key
- * previously registered on `createUkycSession`, then decrypts the ciphertext.
+ * the `crypto_box` key via {@link deriveEncryptionKey} using the server private
+ * key and the client public key registered on `createUkycSession`, then
+ * decrypts the ciphertext.
  *
  * @param serverPrivateKey - The server's X25519 private key.
  * @param clientPublicKey - The client's X25519 public key from session creation.
@@ -33,10 +26,8 @@ async function unwrap(
   data: string,
   nonce: string,
 ): Promise<Uint8Array> {
-  const sharedSecret = await getSharedSecret(serverPrivateKey, clientPublicKey);
-  const key = new Uint32Array(8);
-  hsalsa(HSALSA_SIGMA, u32(sharedSecret), new Uint32Array(4), key);
-  return xsalsa20poly1305(u8(key), base64UrlToBytes(nonce)).decrypt(
+  const key = await deriveEncryptionKey(serverPrivateKey, clientPublicKey);
+  return xsalsa20poly1305(key, base64UrlToBytes(nonce)).decrypt(
     base64UrlToBytes(data),
   );
 }
