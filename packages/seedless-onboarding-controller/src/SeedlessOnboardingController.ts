@@ -324,8 +324,18 @@ export class SeedlessOnboardingController<
     this.#primarySrpBackupRepairService = new PrimarySrpBackupRepairService({
       getToprfClient: (): ToprfSecureBackup => this.toprfClient,
       fetchAllSecretData: (): Promise<FetchedSecretDataItem[]> => {
-        const { toprfEncryptionKey, toprfAuthKeyPair } =
-          this.#cachedDecryptedVaultData as DeserializedVaultData;
+        const vaultData = this.#cachedDecryptedVaultData;
+        // Safety net: the repair is only started while unlocked, and the keys
+        // are read synchronously when it starts, so this is unreachable in
+        // normal flow. It makes a locked or cleared controller fail loudly
+        // instead of destructuring `undefined`.
+        /* istanbul ignore if */
+        if (!this.#isUnlocked || !vaultData) {
+          throw new SeedlessOnboardingError(
+            SeedlessOnboardingControllerErrorMessage.VaultLocked,
+          );
+        }
+        const { toprfEncryptionKey, toprfAuthKeyPair } = vaultData;
         return this.#executeWithTokenRefresh(
           () =>
             this.toprfClient.fetchAllSecretDataItems({

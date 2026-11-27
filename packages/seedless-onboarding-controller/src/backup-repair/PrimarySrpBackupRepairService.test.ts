@@ -199,7 +199,7 @@ function setup({
     vi.fn<PrimarySrpBackupRepairServiceOptions['trackEvent']>();
   const withRepairContext = vi.fn<
     PrimarySrpBackupRepairServiceOptions['withRepairContext']
-  >(async (fn) => fn(VAULT_KEYS));
+  >(async (fn) => await fn(VAULT_KEYS));
 
   const service = new PrimarySrpBackupRepairService({
     getToprfClient: (): ToprfSecureBackup =>
