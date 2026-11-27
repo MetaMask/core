@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/utils` from `^12.0.2` to `^12.1.0` ([#11796](https://github.com/MetaMask/core/pull/11796))
 - Bump `@metamask/assets-controller` from `^22.0.0` to `^22.0.1` ([#11797](https://github.com/MetaMask/core/pull/11797))
 
+### Fixed
+
+- Send `metamask.executeVersion: 2` on every Relay quote request, not only gasless execute quotes, so quotes from chains without EIP-7702 support, such as Perps withdrawals from HyperCore, can still be subsidized ([#11781](https://github.com/MetaMask/core/pull/11781))
+
 ## [33.2.0]
 
 ### Changed
