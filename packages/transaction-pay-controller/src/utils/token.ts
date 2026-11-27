@@ -89,24 +89,6 @@ export function isEvmQuoteRequest(
 }
 
 /**
- * Check if the source asset of a quote request is an EVM asset that stands for
- * itself.
- *
- * A request with a `sourceAssetIdOverride`, such as a Lighter perps balance,
- * has an EVM `sourceAssetId` that only stands in for the declared asset. Only
- * strategies that read the override can quote it, so the others must reject it
- * rather than spend the stand-in token.
- *
- * @param request - Quote request to check.
- * @returns True if the source is an EVM asset with no declared override.
- */
-export function isDirectEvmQuoteRequest(
-  request: Pick<QuoteRequest, 'sourceAssetId' | 'sourceAssetIdOverride'>,
-): boolean {
-  return isEvmQuoteRequest(request) && !request.sourceAssetIdOverride;
-}
-
-/**
  * Get the Hex chain ID and token address of the EVM source asset of a quote
  * request, as used by the EVM quote and execution paths.
  *

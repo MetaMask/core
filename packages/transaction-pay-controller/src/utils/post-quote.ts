@@ -4,7 +4,11 @@ import { BigNumber } from 'bignumber.js';
 import { NATIVE_TOKEN_ADDRESS } from '../constants.js';
 import { projectLogger } from '../logger.js';
 import type { QuoteRequest, TransactionPayQuote } from '../types.js';
-import { getEvmQuoteSource, getNativeToken } from './token.js';
+import {
+  getEvmQuoteSource,
+  getNativeToken,
+  isEvmQuoteRequest,
+} from './token.js';
 
 const log = createModuleLogger(projectLogger, 'post-quote');
 
@@ -95,6 +99,11 @@ export async function reservePostQuoteGas<Original>({
 }
 
 function isNativeSource(request: QuoteRequest): boolean {
+  // A non-EVM source, such as a Lighter perps balance, is not a native token.
+  if (!isEvmQuoteRequest(request)) {
+    return false;
+  }
+
   const { chainId, tokenAddress } = getEvmQuoteSource(request);
   const sourceToken = tokenAddress.toLowerCase();
 

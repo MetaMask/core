@@ -11,6 +11,7 @@ import { BigNumber } from 'bignumber.js';
 import { CHAIN_ID_HYPERCORE, TransactionPayStrategy } from '../../constants.js';
 import { projectLogger } from '../../logger.js';
 import type {
+  FiatRates,
   PayStrategyGetQuotesRequest,
   QuoteRequest,
   TransactionPayControllerMessenger,
@@ -59,6 +60,7 @@ import { hasServerDepositStep } from './deposit-step.js';
 import {
   getLighterTransferFee,
   isLighterAsset,
+  isLighterSourceRequest,
   LighterNormalizer,
   processLighterRequest,
   SERVER_LIGHTER_CHAIN_ID,
@@ -298,8 +300,11 @@ async function buildServerQuoteRequest(
     targetChainId,
     targetTokenAddress,
   } = normalizedRequest;
-  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
-    getEvmQuoteSource(normalizedRequest);
+  // A Lighter balance is not an EVM token, so it has no source chain or token
+  // address.
+  const evmSource = isLighterSourceRequest(normalizedRequest)
+    ? undefined
+    : getEvmQuoteSource(normalizedRequest);
 
   const singleData = getSingleTransactionData(transaction);
   const isHypercore = targetChainId === CHAIN_ID_HYPERCORE;
@@ -343,24 +348,26 @@ async function buildServerQuoteRequest(
       transaction,
     }));
 
-  const isHypercoreSource = sourceChainId === CHAIN_ID_HYPERCORE;
+  const isHypercoreSource = evmSource?.chainId === CHAIN_ID_HYPERCORE;
 
   // Deposit wallet withdraws are broadcast by the Polymarket relayer rather
   // than as a gasless EIP-7702 batch, so the provider must not quote gasless.
   const supportsGasless =
     isServerGaslessEnabled(messenger) &&
     !isHypercoreSource &&
-    !lighter?.source &&
+    evmSource !== undefined &&
     !isPolymarketDepositWallet &&
     accountSupports7702 &&
-    isEIP7702Chain(messenger, sourceChainId);
+    isEIP7702Chain(messenger, evmSource.chainId);
 
   const body: ServerQuoteRequestDraft = {
-    sourceAsset: buildServerAsset(
-      sourceChainId,
-      sourceTokenAddress,
-      normalizedRequest,
-    ),
+    sourceAsset: evmSource
+      ? buildServerAsset(
+          evmSource.chainId,
+          evmSource.tokenAddress,
+          normalizedRequest,
+        )
+      : normalizedRequest.sourceAssetId,
     targetAsset: buildServerAsset(
       targetChainId,
       targetTokenAddress,
@@ -369,24 +376,27 @@ async function buildServerQuoteRequest(
     sender: from,
     recipient,
     slippage: Math.round(
-      getSlippage(messenger, sourceChainId, sourceTokenAddress) * 10000,
+      getSlippage(
+        messenger,
+        evmSource?.chainId ?? targetChainId,
+        evmSource?.tokenAddress ?? targetTokenAddress,
+      ) * 10000,
     ),
     supportsGasless,
   };
 
-  if (isPolymarketDepositWallet) {
+  if (isPolymarketDepositWallet && evmSource) {
     await applyDepositWalletOverrides(
       body,
       from,
-      sourceChainId,
+      evmSource.chainId,
       messenger,
       normalizedRequest,
     );
   }
 
-  if (lighter?.source) {
-    body.sourceAsset = lighter.source.asset;
-    body.sender = lighter.source.sender;
+  if (lighter?.sender) {
+    body.sender = lighter.sender;
   }
 
   const hasNoData = singleData === undefined || singleData === '0x';
@@ -719,23 +729,21 @@ async function normalizeQuote(
     transaction,
   });
 
-  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
-    getEvmQuoteSource(quoteRequest);
-  const sourceFiatRate = getTokenFiatRate(
-    messenger,
-    sourceTokenAddress,
-    sourceChainId,
-  );
-
-  const usdToFiatRate = sourceFiatRate
-    ? new BigNumber(sourceFiatRate.fiatRate).dividedBy(sourceFiatRate.usdRate)
-    : new BigNumber(1);
-
   const targetFiatRate = getTokenFiatRate(
     messenger,
     quoteRequest.targetTokenAddress,
     quoteRequest.targetChainId,
   );
+
+  const sourceFiatRate = getSourceFiatRate(
+    messenger,
+    quoteRequest,
+    targetFiatRate,
+  );
+
+  const usdToFiatRate = sourceFiatRate
+    ? new BigNumber(sourceFiatRate.fiatRate).dividedBy(sourceFiatRate.usdRate)
+    : new BigNumber(1);
 
   const metaMask = getFiatValueFromUsd(
     new BigNumber(quote.fees.metamask),
@@ -743,15 +751,14 @@ async function normalizeQuote(
   );
 
   // Any reserved HyperLiquid activation fee is withheld from the source send,
-  // so it is surfaced in the provider fee to keep the displayed amount intact.
+  // and Lighter debits its transfer fee on top of the amount sent. Both are
+  // surfaced in the provider fee, as they come out of what the user receives.
   const provider = getFiatValueFromUsd(
-    new BigNumber(quote.fees.provider).plus(
-      quoteRequest.hyperliquidActivationFeeUsd ?? '0',
-    ),
+    new BigNumber(quote.fees.provider)
+      .plus(quoteRequest.hyperliquidActivationFeeUsd ?? '0')
+      .plus(getLighterTransferFee(quote.steps)),
     usdToFiatRate,
   );
-
-  const lighterFee = getLighterTransferFee(quote.steps);
 
   return {
     dust: ZERO_FIAT_VALUE,
@@ -759,9 +766,6 @@ async function normalizeQuote(
     fees: {
       ...(sourceNetwork.isSourceGasFeeToken
         ? { isSourceGasFeeToken: true }
-        : {}),
-      ...(lighterFee.isGreaterThan(0)
-        ? { lighter: getFiatValueFromUsd(lighterFee, usdToFiatRate) }
         : {}),
       metaMask,
       provider,
@@ -825,6 +829,38 @@ async function normalizeQuote(
   };
 }
 
+/**
+ * Get the fiat rate of the source of a quote request.
+ *
+ * A Lighter balance is USDC, priced 1:1 with USD, so its rate is the USD to
+ * fiat rate, which any priced token gives, such as the target token.
+ *
+ * @param messenger - Controller messenger.
+ * @param quoteRequest - Quote request.
+ * @param targetFiatRate - Fiat rate of the target token, if priced.
+ * @returns The fiat rate of the source, or undefined if it is not priced.
+ */
+function getSourceFiatRate(
+  messenger: TransactionPayControllerMessenger,
+  quoteRequest: QuoteRequest,
+  targetFiatRate: FiatRates | undefined,
+): FiatRates | undefined {
+  if (isLighterSourceRequest(quoteRequest)) {
+    return (
+      targetFiatRate && {
+        fiatRate: new BigNumber(targetFiatRate.fiatRate)
+          .dividedBy(targetFiatRate.usdRate)
+          .toString(10),
+        usdRate: '1',
+      }
+    );
+  }
+
+  const { chainId, tokenAddress } = getEvmQuoteSource(quoteRequest);
+
+  return getTokenFiatRate(messenger, tokenAddress, chainId);
+}
+
 async function calculateSourceNetworkCost({
   accountSupports7702,
   gasless,
@@ -850,6 +886,11 @@ async function calculateSourceNetworkCost({
     maxFeePerGas: undefined,
     maxPriorityFeePerGas: undefined,
   };
+
+  // A Lighter withdrawal has no source chain transaction, so no network fee.
+  if (isLighterSourceRequest(quoteRequest)) {
+    return noFees;
+  }
 
   const { from, isPolymarketDepositWallet } = quoteRequest;
   const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =

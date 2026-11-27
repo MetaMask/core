@@ -673,15 +673,9 @@ export type QuoteRequest = {
   sourceAccountId: CaipAccountId;
 
   /**
-   * CAIP-19 asset type the client declared for the source, when it is not
-   * `sourceAssetId`, for example a Lighter perps balance. `sourceAssetId`
-   * then holds the EVM token that stands in for it.
-   */
-  sourceAssetIdOverride?: CaipAssetType;
-
-  /**
    * CAIP-19 asset type of the source token. The protocol of its chain selects
-   * the strategy execution path.
+   * the strategy execution path. A source the client declared by asset ID, such
+   * as a Lighter perps balance, is not an EVM asset.
    */
   sourceAssetId: CaipAssetType;
 
@@ -716,12 +710,6 @@ export type TransactionPayFees = {
 
   /** Whether a gas fee token is used to pay target network fees. */
   isTargetGasFeeToken?: boolean;
-
-  /**
-   * Fee Lighter charges for the withdrawal transfer, on top of the amount
-   * sent. Only set for Lighter withdrawals.
-   */
-  lighter?: FiatValue;
 
   /** Fee charged by MetaMask. */
   metaMask: FiatValue;

@@ -10,12 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Withdraw from Lighter through `ServerStrategy` when a required asset of the transaction has a Lighter `assetId` ([#11730](https://github.com/MetaMask/core/pull/11730))
-  - The client declares the source with the new optional `assetId` on the transaction's `requiredAssets`, such as `lighter:mainnet/perps:usdc`. It is exposed as `TransactionPayRequiredToken.assetId` and `QuoteRequest.sourceAssetIdOverride`, so no transaction config is needed.
+  - The client declares the source with the new optional `assetId` on the transaction's `requiredAssets`, such as `lighter:mainnet/perps:usdc`. It is exposed as `TransactionPayRequiredToken.assetId` and becomes the `sourceAssetId` of the post-quote `QuoteRequest`, so no transaction config is needed.
   - The server quote uses that asset as the source asset and the Lighter account index as the sender.
   - A `lighterTransfer` step is signed and sent through the `PerpsController:submitLighterTransfer` messenger action, which is now an allowed action of `TransactionPayControllerMessenger`.
   - A failed transfer stops the withdrawal before status polling.
-  - `RelayStrategy` and `AcrossStrategy` do not support a request with a declared source asset, so they never quote the EVM token that stands in for the Lighter balance.
-  - Return the flat Lighter transfer fee as `fees.lighter` on quotes and totals, and include it in the total.
+  - `RelayStrategy` and `AcrossStrategy` do not support the Lighter source asset, as it is not an EVM asset.
+  - Include the flat Lighter transfer fee in the provider fee.
 
 ### Changed
 

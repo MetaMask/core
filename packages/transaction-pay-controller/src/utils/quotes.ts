@@ -751,10 +751,15 @@ function buildPostQuoteRequests({
     return [];
   }
 
-  const sourceAssetId = buildCaipAssetType(
-    sourceAmount.sourceChainId,
-    sourceAmount.sourceTokenAddress,
-  );
+  // A source the client declared by asset ID, such as a Lighter perps balance,
+  // is the source of the quote. The EVM token on the source amount only
+  // stands in for it in balance and price lookups.
+  const sourceAssetId =
+    sourceAmount.sourceAssetId ??
+    buildCaipAssetType(
+      sourceAmount.sourceChainId,
+      sourceAmount.sourceTokenAddress,
+    );
 
   const request: QuoteRequest = {
     accountOverride,
@@ -768,7 +773,6 @@ function buildPostQuoteRequests({
     refundTo,
     sourceAccountId: getCaipAccountId(sourceAssetId, from),
     sourceAssetId,
-    sourceAssetIdOverride: sourceAmount.sourceAssetId,
     sourceBalanceRaw: sourceAmount.sourceBalanceRaw,
     sourceTokenAmount: sourceAmount.sourceAmountRaw,
     targetAmountMinimum: '0',

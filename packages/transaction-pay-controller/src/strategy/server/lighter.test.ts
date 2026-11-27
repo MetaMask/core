@@ -119,14 +119,14 @@ describe('Lighter assets', () => {
   describe('isLighterSourceRequest', () => {
     it('is true when the client declared a Lighter source asset', () => {
       expect(
-        isLighterSourceRequest({
-          sourceAssetIdOverride: 'lighter:mainnet/perps:usdc',
-        }),
+        isLighterSourceRequest({ sourceAssetId: 'lighter:mainnet/perps:usdc' }),
       ).toBe(true);
     });
 
-    it('is false without a declared source asset', () => {
-      expect(isLighterSourceRequest({})).toBe(false);
+    it('is false for an EVM source asset', () => {
+      expect(
+        isLighterSourceRequest({ sourceAssetId: 'eip155:1/slip44:60' }),
+      ).toBe(false);
     });
   });
 });

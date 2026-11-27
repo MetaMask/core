@@ -28,7 +28,6 @@ import {
   getTokenInfo,
   getTokenFiatRate,
   getNativeToken,
-  isDirectEvmQuoteRequest,
   isEvmQuoteRequest,
   isNonEvmPaymentToken,
   isSameToken,
@@ -1684,29 +1683,6 @@ describe('Token Utils', () => {
       expect(isEvmQuoteRequest({ sourceAssetId: SOLANA_ASSET_ID_MOCK })).toBe(
         false,
       );
-    });
-  });
-
-  describe('isDirectEvmQuoteRequest', () => {
-    it('returns true for an EVM source asset with no override', () => {
-      expect(
-        isDirectEvmQuoteRequest({ sourceAssetId: 'eip155:1/slip44:60' }),
-      ).toBe(true);
-    });
-
-    it('returns false for an EVM source asset that stands in for an override', () => {
-      expect(
-        isDirectEvmQuoteRequest({
-          sourceAssetId: 'eip155:1/slip44:60',
-          sourceAssetIdOverride: 'lighter:mainnet/perps:usdc',
-        }),
-      ).toBe(false);
-    });
-
-    it('returns false for a non-EVM source asset', () => {
-      expect(
-        isDirectEvmQuoteRequest({ sourceAssetId: SOLANA_ASSET_ID_MOCK }),
-      ).toBe(false);
     });
   });
 

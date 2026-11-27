@@ -2809,7 +2809,7 @@ describe('Quotes Utils', () => {
       );
     });
 
-    it('passes the declared source asset through to post-quote request', async () => {
+    it('uses the declared source asset as the source of the post-quote request', async () => {
       await run({
         transactionData: {
           ...POST_QUOTE_TRANSACTION_DATA,
@@ -2827,7 +2827,8 @@ describe('Quotes Utils', () => {
           requests: [
             expect.objectContaining({
               isPostQuote: true,
-              sourceAssetIdOverride: 'lighter:mainnet/perps:usdc',
+              sourceAccountId: `lighter:mainnet:${TRANSACTION_META_MOCK.txParams.from}`,
+              sourceAssetId: 'lighter:mainnet/perps:usdc',
             }),
           ],
         }),

@@ -122,22 +122,6 @@ describe('RelayStrategy', () => {
     ).toBe(false);
   });
 
-  it('returns false when a request declares a source asset override', () => {
-    const strategy = new RelayStrategy();
-
-    expect(
-      strategy.supports({
-        ...request,
-        requests: [
-          {
-            ...request.requests[0],
-            sourceAssetIdOverride: 'lighter:mainnet/perps:usdc',
-          },
-        ],
-      }),
-    ).toBe(false);
-  });
-
   it('delegates getRefreshInterval', async () => {
     const getMaxAmountRefreshIntervalMock = vi.mocked(
       getMaxAmountRefreshInterval,

@@ -122,22 +122,6 @@ describe('AcrossStrategy', () => {
     ).toBe(false);
   });
 
-  it('returns false when a request declares a source asset override', () => {
-    const strategy = new AcrossStrategy();
-
-    expect(
-      strategy.supports({
-        ...baseRequest,
-        requests: [
-          {
-            ...baseRequest.requests[0],
-            sourceAssetIdOverride: 'lighter:mainnet/perps:usdc',
-          },
-        ],
-      }),
-    ).toBe(false);
-  });
-
   it('returns false when across is disabled', () => {
     getPayStrategiesConfigMock.mockReturnValue({
       across: {

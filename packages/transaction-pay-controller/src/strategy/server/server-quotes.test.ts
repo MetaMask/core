@@ -401,7 +401,8 @@ describe('server-quotes', () => {
         {
           ...QUOTE_REQUEST_MOCK,
           isPostQuote: true,
-          sourceAssetIdOverride: 'lighter:mainnet/perps:usdc',
+          sourceAccountId: `lighter:mainnet:${FROM_MOCK}`,
+          sourceAssetId: 'lighter:mainnet/perps:usdc',
         },
       ],
       transaction: TRANSACTION_META_MOCK,
@@ -422,6 +423,39 @@ describe('server-quotes', () => {
       expect.stringContaining(
         `l1_address=${TRANSACTION_META_MOCK.txParams.from}`,
       ),
+    );
+  });
+
+  it('prices a Lighter source as USDC using the USD to fiat rate of the target token', async () => {
+    mockLighterAccountIndex('770167');
+    vi.mocked(getTokenFiatRate).mockReturnValue({
+      fiatRate: '3',
+      usdRate: '1.5',
+    });
+
+    const result = await getServerQuotes({
+      accountSupports7702: true,
+      from: FROM_MOCK,
+      messenger,
+      requests: [
+        {
+          ...QUOTE_REQUEST_MOCK,
+          isPostQuote: true,
+          sourceAccountId: `lighter:mainnet:${FROM_MOCK}`,
+          sourceAssetId: 'lighter:mainnet/perps:usdc',
+        },
+      ],
+      transaction: TRANSACTION_META_MOCK,
+    });
+
+    expect(getTokenFiatRate).toHaveBeenCalledTimes(1);
+    expect(getTokenFiatRate).toHaveBeenCalledWith(
+      messenger,
+      QUOTE_REQUEST_MOCK.targetTokenAddress,
+      QUOTE_REQUEST_MOCK.targetChainId,
+    );
+    expect(result[0].sourceAmount).toStrictEqual(
+      expect.objectContaining({ fiat: '2', usd: '1' }),
     );
   });
 
@@ -458,7 +492,8 @@ describe('server-quotes', () => {
           {
             ...QUOTE_REQUEST_MOCK,
             isPostQuote: true,
-            sourceAssetIdOverride: 'lighter:mainnet/perps:usdc',
+            sourceAccountId: `lighter:mainnet:${FROM_MOCK}`,
+            sourceAssetId: 'lighter:mainnet/perps:usdc',
           },
         ],
         transaction: TRANSACTION_META_MOCK,
@@ -467,10 +502,16 @@ describe('server-quotes', () => {
       return quotes[0].fees;
     }
 
-    it('returns the transfer fee in USD', async () => {
+    it('adds the transfer fee to the provider fee', async () => {
       const fees = await getQuoteFees([LIGHTER_STEP_MOCK]);
 
-      expect(fees.lighter?.usd).toBe('1');
+      expect(fees.provider.usd).toBe('1.25');
+    });
+
+    it('has no source network fee', async () => {
+      const fees = await getQuoteFees([LIGHTER_STEP_MOCK]);
+
+      expect(fees.sourceNetwork.estimate.raw).toBe('0');
     });
 
     it('keeps the sender of the quote request for the transfer', async () => {
@@ -495,7 +536,8 @@ describe('server-quotes', () => {
           {
             ...QUOTE_REQUEST_MOCK,
             isPostQuote: true,
-            sourceAssetIdOverride: 'lighter:mainnet/perps:usdc',
+            sourceAccountId: `lighter:mainnet:${FROM_MOCK}`,
+            sourceAssetId: 'lighter:mainnet/perps:usdc',
           },
         ],
         transaction: TRANSACTION_META_MOCK,
@@ -504,10 +546,10 @@ describe('server-quotes', () => {
       expect(quotes[0].original.sender).toBe('770167');
     });
 
-    it('omits the Lighter fee when there is no transfer step', async () => {
+    it('leaves the provider fee unchanged when there is no transfer step', async () => {
       const fees = await getQuoteFees([DEPOSIT_STEP_MOCK]);
 
-      expect(fees.lighter).toBeUndefined();
+      expect(fees.provider.usd).toBe('0.25');
     });
   });
 
