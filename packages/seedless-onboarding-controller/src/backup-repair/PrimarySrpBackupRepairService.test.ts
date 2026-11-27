@@ -19,7 +19,12 @@ import {
   SRP2,
 } from '../../tests/__fixtures__/secret-metadata.js';
 import {
+  PrimarySrpRepairEventStatus,
+  PrimarySrpRepairFailureReason,
+  PrimarySrpRepairFailureStage,
+  PrimarySrpRepairPrimaryWrite,
   PrimarySrpRepairStatus,
+  PrimarySrpRepairType,
   SecretType,
   SeedlessPrimarySrpMismatchEventName,
   SeedlessPrimarySrpMissingEventName,
@@ -249,6 +254,28 @@ function setup({
 }
 
 /**
+ * The primary SRP repair analytics event for the given properties.
+ *
+ * @param properties - The non-sensitive event properties.
+ * @returns The event passed to `trackEvent`.
+ */
+function primarySrpRepairEvent(properties: Record<string, string | number>): {
+  name: string;
+  properties: Record<string, string | number>;
+  sensitiveProperties: Record<string, never>;
+  saveDataRecording: boolean;
+  hasProperties: boolean;
+} {
+  return {
+    name: SeedlessPrimarySrpRepairEventName,
+    properties,
+    sensitiveProperties: {},
+    saveDataRecording: false,
+    hasProperties: true,
+  };
+}
+
+/**
  * Assert that nothing was written to the metadata service.
  *
  * @param writes - The write mocks of the metadata service.
@@ -347,20 +374,42 @@ describe('PrimarySrpBackupRepairService', () => {
 
         await service.run(PASSWORD);
 
-        expect(trackEvent).toHaveBeenCalledWith(
+        expect(trackEvent).toHaveBeenNthCalledWith(
+          1,
           expect.objectContaining({ name: SeedlessPrimarySrpMissingEventName }),
+        );
+        expect(trackEvent).toHaveBeenNthCalledWith(
+          2,
+          primarySrpRepairEvent({
+            status: PrimarySrpRepairEventStatus.Started,
+            repair_type: PrimarySrpRepairType.Missing,
+            metadata_schema_version: 'none',
+            number_of_imported_wallets: 0,
+            number_of_imported_accounts: 0,
+          }),
+        );
+        expect(trackEvent).toHaveBeenNthCalledWith(
+          3,
+          primarySrpRepairEvent({
+            status: PrimarySrpRepairEventStatus.Succeeded,
+            repair_type: PrimarySrpRepairType.Missing,
+            primary_write: PrimarySrpRepairPrimaryWrite.Add,
+            number_of_retagged_items: 0,
+          }),
         );
         expect(withRepairContext).toHaveBeenCalledTimes(1);
         expect(updateSecretDataItem).not.toHaveBeenCalled();
         expect(batchUpdateSecretDataItems).not.toHaveBeenCalled();
         expect(addSecretDataItem).toHaveBeenCalledWith({
           encKey: VAULT_KEYS.toprfEncryptionKey,
-          secretData: expect.any(Uint8Array),
+          secretData: expect.any(Uint8Array) as Uint8Array,
           authKeyPair: VAULT_KEYS.toprfAuthKeyPair,
           dataType: EncAccountDataType.PrimarySrp,
           version: 'v2',
         });
-        const { secretData } = addSecretDataItem.mock.calls[0][0];
+        const { secretData } = addSecretDataItem.mock.calls[0][0] as {
+          secretData: Uint8Array;
+        };
         const metadata = SecretMetadata.fromRawMetadata(secretData, {
           dataType: EncAccountDataType.PrimarySrp,
         });
@@ -453,9 +502,29 @@ describe('PrimarySrpBackupRepairService', () => {
 
         await service.run(PASSWORD);
 
-        expect(trackEvent).toHaveBeenCalledWith(
+        expect(trackEvent).toHaveBeenNthCalledWith(
+          1,
           expect.objectContaining({
             name: SeedlessPrimarySrpMismatchEventName,
+          }),
+        );
+        expect(trackEvent).toHaveBeenNthCalledWith(
+          2,
+          primarySrpRepairEvent({
+            status: PrimarySrpRepairEventStatus.Started,
+            repair_type: PrimarySrpRepairType.Mismatch,
+            metadata_schema_version: 'v2',
+            number_of_imported_wallets: 0,
+            number_of_imported_accounts: 0,
+          }),
+        );
+        expect(trackEvent).toHaveBeenNthCalledWith(
+          3,
+          primarySrpRepairEvent({
+            status: PrimarySrpRepairEventStatus.Succeeded,
+            repair_type: PrimarySrpRepairType.Mismatch,
+            primary_write: PrimarySrpRepairPrimaryWrite.Add,
+            number_of_retagged_items: 1,
           }),
         );
         expect(batchUpdateSecretDataItems).not.toHaveBeenCalled();
@@ -479,6 +548,7 @@ describe('PrimarySrpBackupRepairService', () => {
       it('retags several items in one batch and then promotes the remote copy of the local primary SRP', async () => {
         const {
           service,
+          trackEvent,
           addSecretDataItem,
           updateSecretDataItem,
           batchUpdateSecretDataItems,
@@ -516,6 +586,25 @@ describe('PrimarySrpBackupRepairService', () => {
         expect(
           batchUpdateSecretDataItems.mock.invocationCallOrder[0],
         ).toBeLessThan(updateSecretDataItem.mock.invocationCallOrder[0]);
+        expect(trackEvent).toHaveBeenNthCalledWith(
+          2,
+          primarySrpRepairEvent({
+            status: PrimarySrpRepairEventStatus.Started,
+            repair_type: PrimarySrpRepairType.Mismatch,
+            metadata_schema_version: 'mixed',
+            number_of_imported_wallets: 1,
+            number_of_imported_accounts: 1,
+          }),
+        );
+        expect(trackEvent).toHaveBeenNthCalledWith(
+          3,
+          primarySrpRepairEvent({
+            status: PrimarySrpRepairEventStatus.Succeeded,
+            repair_type: PrimarySrpRepairType.Mismatch,
+            primary_write: PrimarySrpRepairPrimaryWrite.Promote,
+            number_of_retagged_items: 2,
+          }),
+        );
       });
 
       it('never demotes the old primary and promotes the new one in the same request', async () => {
@@ -545,15 +634,26 @@ describe('PrimarySrpBackupRepairService', () => {
       });
 
       it('does not set the primary SRP when the retag fails', async () => {
-        const { service, addSecretDataItem, updateSecretDataItem } = setup({
-          remoteItems: [createFetchedSecretDataItem(PrimarySRP2)],
-        });
+        const { service, trackEvent, addSecretDataItem, updateSecretDataItem } =
+          setup({
+            remoteItems: [createFetchedSecretDataItem(PrimarySRP2)],
+          });
         const error = new Error('update failed');
         updateSecretDataItem.mockRejectedValue(error);
 
         expect(await service.run(PASSWORD)).toBeUndefined();
 
         expect(addSecretDataItem).not.toHaveBeenCalled();
+        expect(trackEvent).toHaveBeenNthCalledWith(
+          3,
+          primarySrpRepairEvent({
+            status: PrimarySrpRepairEventStatus.Failed,
+            repair_type: PrimarySrpRepairType.Mismatch,
+            failure_stage: PrimarySrpRepairFailureStage.Retag,
+            failure_reason: PrimarySrpRepairFailureReason.WriteFailed,
+            number_of_retagged_items: 1,
+          }),
+        );
         expect(logMock).toHaveBeenCalledWith(
           'Error repairing primary SRP backup',
           error,
@@ -768,6 +868,18 @@ describe('PrimarySrpBackupRepairService', () => {
           // One set of events: the Missing or Mismatch event, then started and
           // succeeded.
           expect(trackEvent).toHaveBeenCalledTimes(3);
+          expect(trackEvent.mock.calls[1][0].name).toBe(
+            SeedlessPrimarySrpRepairEventName,
+          );
+          expect(trackEvent.mock.calls[1][0].properties.status).toBe(
+            PrimarySrpRepairEventStatus.Started,
+          );
+          expect(trackEvent.mock.calls[2][0].name).toBe(
+            SeedlessPrimarySrpRepairEventName,
+          );
+          expect(trackEvent.mock.calls[2][0].properties.status).toBe(
+            PrimarySrpRepairEventStatus.Succeeded,
+          );
           expect(logMock).not.toHaveBeenCalled();
         },
       );
@@ -1066,7 +1178,13 @@ describe('PrimarySrpBackupRepairService', () => {
 
     describe('when the repair cannot be applied', () => {
       it('does not write anything when the identity changed after planning', async () => {
-        const { service, identity, exportPrimarySeedPhrase, ...mocks } = setup({
+        const {
+          service,
+          identity,
+          exportPrimarySeedPhrase,
+          trackEvent,
+          ...mocks
+        } = setup({
           remoteItems: [createFetchedSecretDataItem(PrimarySRP2)],
         });
         exportPrimarySeedPhrase.mockImplementation(async () => {
@@ -1076,6 +1194,16 @@ describe('PrimarySrpBackupRepairService', () => {
 
         expect(await service.run(PASSWORD)).toBeUndefined();
 
+        expect(trackEvent).toHaveBeenNthCalledWith(
+          3,
+          primarySrpRepairEvent({
+            status: PrimarySrpRepairEventStatus.Failed,
+            repair_type: PrimarySrpRepairType.Mismatch,
+            failure_stage: PrimarySrpRepairFailureStage.IdentityChanged,
+            failure_reason: PrimarySrpRepairFailureReason.IdentityMismatch,
+            number_of_retagged_items: 1,
+          }),
+        );
         expectNoWrites(mocks);
         expect(logMock).toHaveBeenCalledWith(
           'Error repairing primary SRP backup',
@@ -1084,12 +1212,22 @@ describe('PrimarySrpBackupRepairService', () => {
       });
 
       it('logs and resolves when the repair context fails', async () => {
-        const { service, withRepairContext, ...mocks } = setup();
+        const { service, withRepairContext, trackEvent, ...mocks } = setup();
         const error = new Error('locked');
         withRepairContext.mockRejectedValue(error);
 
         expect(await service.run(PASSWORD)).toBeUndefined();
 
+        expect(trackEvent).toHaveBeenNthCalledWith(
+          3,
+          primarySrpRepairEvent({
+            status: PrimarySrpRepairEventStatus.Failed,
+            repair_type: PrimarySrpRepairType.Missing,
+            failure_stage: PrimarySrpRepairFailureStage.ControllerLocked,
+            failure_reason: PrimarySrpRepairFailureReason.Locked,
+            number_of_retagged_items: 0,
+          }),
+        );
         expectNoWrites(mocks);
         expect(logMock).toHaveBeenCalledWith(
           'Error repairing primary SRP backup',
