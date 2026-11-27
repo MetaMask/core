@@ -161,6 +161,33 @@ describe('ServerStrategy', () => {
       ).toBe(true);
     });
 
+    it('returns true for a Perps withdraw to a Perps balance when the flow is not allowlisted', () => {
+      getPayStrategiesConfigMock.mockReturnValue({
+        server: {
+          enabled: true,
+          enabledTransactionTypes: [] as TransactionType[],
+        },
+        relay: { enabled: true },
+      } as ReturnType<typeof getPayStrategiesConfig>);
+
+      expect(
+        new ServerStrategy().supports({
+          ...SUPPORTS_REQUEST_MOCK,
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              isPostQuote: true,
+              targetAssetIdOverride: 'lighter:mainnet/perps:usdc',
+            },
+          ],
+          transaction: {
+            nestedTransactions: [{ type: TransactionType.perpsWithdraw }],
+            type: TransactionType.batch,
+          } as TransactionMeta,
+        }),
+      ).toBe(true);
+    });
+
     it('returns false when a request has a non-EVM source asset', () => {
       expect(
         new ServerStrategy().supports({

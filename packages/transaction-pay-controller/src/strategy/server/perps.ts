@@ -1,11 +1,13 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
+import { CHAIN_ID_HYPERCORE } from '../../constants.js';
 import type { QuoteRequest } from '../../types.js';
 import {
   normalizePerpsDepositRequest,
   normalizePerpsWithdrawRequest,
 } from '../../utils/perps.js';
+import { isHyperliquidAsset } from '../../utils/token.js';
 
 /**
  * Placeholder token address for the Hyperliquid perps margin account on
@@ -27,6 +29,20 @@ export function normalizeServerPerpsRequest(
   request: QuoteRequest,
   transaction: Pick<TransactionMeta, 'txParams' | 'nestedTransactions'>,
 ): QuoteRequest {
+  // A post-quote flow whose destination is the Hyperliquid balance, such as a
+  // Lighter withdrawal into Hyperliquid. The declared target stands in for
+  // HyperCore, so it is sent as the Hyperliquid perps asset.
+  if (
+    request.isPostQuote &&
+    isHyperliquidAsset(request.targetAssetIdOverride)
+  ) {
+    return {
+      ...request,
+      targetChainId: CHAIN_ID_HYPERCORE,
+      targetTokenAddress: SERVER_HYPERCORE_USDC_PERPS_ADDRESS,
+    };
+  }
+
   if (request.isHyperliquidSource) {
     return normalizePerpsWithdrawRequest(
       request,

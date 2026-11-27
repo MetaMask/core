@@ -6,7 +6,6 @@ import { createModuleLogger, parseCaipAssetType } from '@metamask/utils';
 
 import { PaymentOverride, TransactionPayStrategy } from '../constants.js';
 import { projectLogger } from '../logger.js';
-import { isLighterAsset } from '../strategy/server/lighter.js';
 import type {
   EvmPaymentToken,
   QuoteRequest,
@@ -45,8 +44,12 @@ import {
   getAssetFiatRate,
   getEvmPaymentToken,
   getLiveTokenBalance,
+  getPostQuoteDestinationToken,
   getTokenFiatRate,
+  HYPERLIQUID_USDC_STAND_IN_ASSET_ID,
+  isHyperliquidAsset,
   isNonEvmPaymentToken,
+  isPerpsBalanceAsset,
 } from './token.js';
 import { calculateTotals } from './totals.js';
 import { getTransaction, updateTransaction } from './transaction.js';
@@ -207,12 +210,12 @@ export async function updateQuotes(
   });
 
   try {
-    // A Lighter balance is held by the EVM account that owns the Lighter
-    // account, so it has no account of its own to resolve.
+    // A perps balance is held by the EVM account that owns the perps account,
+    // so it has no account of its own to resolve.
     const sourceAccount =
       originalPaymentToken &&
       isNonEvmPaymentToken(originalPaymentToken) &&
-      !isLighterAsset(originalPaymentToken.assetId)
+      !isPerpsBalanceAsset(originalPaymentToken.assetId)
         ? getAssetAccount(messenger, {
             accountOverride,
             assetId: originalPaymentToken.assetId,
@@ -587,8 +590,8 @@ function getSourceAmounts(
  * Requests are built the same way for every payment token, identifying the
  * source by its CAIP-19 asset type and the CAIP-10 account holding it.
  * Strategies support or reject them based on the protocol of the source
- * asset. Post-quote flows with a non-EVM destination token are not supported
- * and return no requests.
+ * asset. Post-quote flows with a destination token that is neither an EVM
+ * token nor a perps balance are not supported and return no requests.
  *
  * @param request - Request parameters.
  * @param request.accountOverride - Optional account receiving post-quote output.
@@ -646,7 +649,7 @@ function buildQuoteRequests({
   }
 
   if (isPostQuote) {
-    const evmPaymentToken = getEvmPaymentToken(paymentToken);
+    const evmPaymentToken = getPostQuoteDestinationToken(paymentToken);
 
     if (!evmPaymentToken) {
       return [];
@@ -667,7 +670,13 @@ function buildQuoteRequests({
     });
   }
 
-  const sourceAccountId = getCaipAccountId(paymentToken.assetId, sourceAddress);
+  // A Hyperliquid balance is stood in for by the USDC it is bridged from, which
+  // `isHyperliquidSource` marks. A Lighter balance is the source itself.
+  const isHyperliquidSource = isHyperliquidAsset(paymentToken.assetId);
+  const sourceAssetId = isHyperliquidSource
+    ? HYPERLIQUID_USDC_STAND_IN_ASSET_ID
+    : paymentToken.assetId;
+  const sourceAccountId = getCaipAccountId(sourceAssetId, sourceAddress);
 
   // Standard flow: source = paymentToken, target = required tokens
   const requests = (sourceAmounts ?? []).map((sourceAmount) => {
@@ -678,12 +687,13 @@ function buildQuoteRequests({
     return {
       atomic,
       from,
+      ...(isHyperliquidSource ? { isHyperliquidSource } : {}),
       ...(isTrueExactOutput ? { isTrueExactOutput } : {}),
       isMaxAmount,
       paymentOverride,
       refundTo,
       sourceAccountId,
-      sourceAssetId: paymentToken.assetId,
+      sourceAssetId,
       sourceBalanceRaw: paymentToken.balanceRaw,
       sourceTokenAmount: sourceAmount.sourceAmountRaw,
       targetAmountMinimum: token.allowUnderMinimum ? '0' : token.amountRaw,
@@ -788,6 +798,11 @@ function buildPostQuoteRequests({
     sourceBalanceRaw: sourceAmount.sourceBalanceRaw,
     sourceTokenAmount: sourceAmount.sourceAmountRaw,
     targetAmountMinimum: '0',
+    // A perps balance destination is stood in for by an EVM token, so the
+    // declared asset tells the strategy where the output goes.
+    ...(isPerpsBalanceAsset(destinationToken.assetId)
+      ? { targetAssetIdOverride: destinationToken.assetId }
+      : {}),
     targetChainId: destinationToken.chainId,
     targetTokenAddress: destinationToken.address,
   };
@@ -820,8 +835,8 @@ async function refreshPaymentTokenBalance({
     return undefined;
   }
 
-  // The Lighter balance cannot be read here, so the client supplies it.
-  if (isLighterAsset(paymentToken.assetId)) {
+  // A perps balance cannot be read here, so the client supplies it.
+  if (isPerpsBalanceAsset(paymentToken.assetId)) {
     return paymentToken;
   }
 

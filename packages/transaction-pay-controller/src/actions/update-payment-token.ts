@@ -3,10 +3,7 @@ import type { CaipAssetType, Hex } from '@metamask/utils';
 
 import type { TransactionPayControllerMessenger } from '../index.js';
 import { projectLogger } from '../logger.js';
-import {
-  isLighterAsset,
-  LIGHTER_USDC_DECIMALS,
-} from '../strategy/server/lighter.js';
+import { LIGHTER_USDC_DECIMALS } from '../strategy/server/lighter.js';
 import type {
   TransactionPaymentToken,
   UpdatePaymentTokenRequest,
@@ -19,6 +16,7 @@ import {
   getAssetFiatRate,
   getAssetInfo,
   getEvmAsset,
+  isPerpsBalanceAsset,
 } from '../utils/token.js';
 import { getTransaction } from '../utils/transaction.js';
 
@@ -53,8 +51,8 @@ export function updatePaymentToken(
   const accountOverride = transactionPayData?.accountOverride;
   const from = transaction.txParams.from as Hex;
 
-  const paymentToken = isLighterAsset(assetId)
-    ? getLighterPaymentToken(assetId)
+  const paymentToken = isPerpsBalanceAsset(assetId)
+    ? getPerpsBalancePaymentToken(assetId)
     : getPaymentToken({
         accountId: getAssetAccountId({
           accountOverride,
@@ -150,15 +148,15 @@ function getPaymentToken({
 }
 
 /**
- * Get the payment token for a Lighter perps balance.
+ * Get the payment token for a Lighter or Hyperliquid perps balance.
  *
  * `AssetsController` does not track the balance, so it is zero here and the
  * client supplies it through `getBalance` where Pay needs it.
  *
- * @param assetId - CAIP-19 asset type of the Lighter perps balance.
+ * @param assetId - CAIP-19 asset type of the perps balance.
  * @returns The payment token.
  */
-function getLighterPaymentToken(
+function getPerpsBalancePaymentToken(
   assetId: CaipAssetType,
 ): TransactionPaymentToken {
   return {

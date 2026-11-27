@@ -1,3 +1,4 @@
+import type { CaipAssetType } from '@metamask/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getMessengerMock } from '../../tests/messenger-mock.js';
@@ -790,6 +791,42 @@ describe('Source Amounts Utils', () => {
           },
         ]);
       });
+
+      it.each([
+        {
+          assetId: 'lighter:mainnet/perps:usdc',
+          targetTokenAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        },
+        {
+          assetId: 'hyperliq:mainnet/perps:usdc',
+          targetTokenAddress: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+        },
+      ])(
+        'targets the stand-in token of the $assetId destination',
+        ({ assetId, targetTokenAddress }) => {
+          const transactionData: TransactionData = {
+            isLoading: false,
+            isPostQuote: true,
+            paymentToken: {
+              ...DESTINATION_TOKEN_MOCK,
+              assetId: assetId as CaipAssetType,
+              decimals: 6,
+            },
+            tokens: [
+              {
+                ...TRANSACTION_TOKEN_MOCK,
+                skipIfBalance: false,
+              },
+            ],
+          };
+
+          updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+          expect(transactionData.sourceAmounts).toStrictEqual([
+            expect.objectContaining({ targetTokenAddress }),
+          ]);
+        },
+      );
 
       it('filters out skipIfBalance tokens in post-quote flow', () => {
         const transactionData: TransactionData = {

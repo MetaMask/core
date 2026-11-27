@@ -5,6 +5,7 @@ import {
 } from '@metamask/transaction-controller';
 
 import type { QuoteRequest } from '../../types.js';
+import { isPerpsBalanceAsset } from '../../utils/token.js';
 import { isTrueExactOutputSupported } from '../../utils/trade-type.js';
 
 /**
@@ -44,7 +45,7 @@ export enum ServerUnsupportedReason {
  * @param options - Options bag.
  * @param options.enabledTransactionTypes - Transaction types opted in via
  * remote feature flag.
- * @param options.requests - Quote requests for the transaction.
+ * @param options.requests - Quote requests of the transaction.
  * @param options.transaction - Metadata of the original target transaction.
  * @returns The reason the transaction is unsupported, or `undefined` if it is
  * supported.
@@ -62,9 +63,58 @@ export function getServerUnsupportedReason({
     return ServerUnsupportedReason.UnsupportedTrueExactOutput;
   }
 
-  if (!hasTransactionType(transaction, enabledTransactionTypes)) {
-    return ServerUnsupportedReason.DisabledTransactionType;
+  if (hasTransactionType(transaction, enabledTransactionTypes)) {
+    return undefined;
   }
 
-  return undefined;
+  if (isPerpsAccountTransfer({ requests, transaction })) {
+    return undefined;
+  }
+
+  return ServerUnsupportedReason.DisabledTransactionType;
+}
+
+/**
+ * Whether a Perps deposit or withdraw moves funds between the Perps accounts,
+ * such as Hyperliquid to Lighter: a withdraw to a Perps balance, or a deposit
+ * paid from one. Only the server strategy can quote a Perps balance, so these
+ * transfers are supported without the allowlist. Other Perps deposits and
+ * withdraws still need it.
+ *
+ * @param options - Options bag.
+ * @param options.requests - Quote requests of the transaction.
+ * @param options.transaction - Metadata of the original target transaction.
+ * @returns Whether every request moves funds between Perps balances.
+ */
+function isPerpsAccountTransfer({
+  requests,
+  transaction,
+}: {
+  requests: QuoteRequest[];
+  transaction?: TransactionMeta;
+}): boolean {
+  if (hasTransactionType(transaction, [TransactionType.perpsWithdraw])) {
+    return (
+      requests.length > 0 &&
+      requests.every(
+        (request) =>
+          request.isPostQuote === true &&
+          isPerpsBalanceAsset(request.targetAssetIdOverride),
+      )
+    );
+  }
+
+  if (hasTransactionType(transaction, [TransactionType.perpsDeposit])) {
+    return (
+      requests.length > 0 &&
+      requests.every(
+        (request) =>
+          !request.isPostQuote &&
+          (isPerpsBalanceAsset(request.sourceAssetId) ||
+            request.isHyperliquidSource === true),
+      )
+    );
+  }
+
+  return false;
 }
