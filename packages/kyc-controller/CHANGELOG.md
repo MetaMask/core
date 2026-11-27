@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Replace `tweetnacl` with `@metamask/cryptography` and `@noble/ciphers` for UKYC encryption-key wrapping ([#11794](https://github.com/MetaMask/core/pull/11794))
 - **BREAKING:** `generateKeyPair`, `decryptCredentials`, `deriveClientMaterial`, `signStorageAccessToken` and `mintUkycTestToken` are now async ([#10798](https://github.com/MetaMask/core/pull/10798))
 - Replace the JS cryptography with `@metamask/cryptography` ([#10798](https://github.com/MetaMask/core/pull/10798))
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.2` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419), [#11474](https://github.com/MetaMask/core/pull/11474))
