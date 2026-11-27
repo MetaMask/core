@@ -25,9 +25,9 @@ And that's it!
 
 Along with this documentation, `create-package` is intended to be the source of truth for the process of adding new packages to the monorepo. Consequently, to change that process, you will want to change `create-package`.
 
-The `create-package` directory contains a [template package](../../scripts/create-package/package-template/). The CLI is not aware of the contents of the template, only that its files have [placeholder values](../../scripts/create-package/constants.ts). When a new package is created, the template files are read from disk, the placeholder values are replaced with real ones, and the updated files are added to a new directory in `/packages`. To modify the template package:
+`create-package` uses a [template package](../../packages/package-template/). The CLI is not aware of the contents of the template, only that its files have [placeholder values](../../scripts/create-package/constants.ts). When a new package is created, the template files are read from disk, the placeholder values are replaced with real ones, and the updated files are added to a new directory in `/packages`. To modify the template package:
 
-- If you need to add or modify any files or folders, just go ahead and make your changes in [`/scripts/create-package/package-template`](../../scripts/create-package/package-template/). The CLI will read whatever's in that directory and write it to disk.
+- If you need to add or modify any files or folders, just go ahead and make your changes in [`/packages/package-template`](../../packages/package-template/). The CLI will read whatever's in that directory and write it to disk.
 - If you need to add or modify any placeholders, make sure that your desired values are added to both the relevant file(s) and [`/scripts/create-package/constants.ts`](../../scripts/create-package/constants.ts). Then, update the implementation of the CLI accordingly.
 - As with placeholders, updating the monorepo files that the CLI interacts with begins by updating [`/scripts/create-package/constants.ts`](../../scripts/create-package/constants.ts).
 
