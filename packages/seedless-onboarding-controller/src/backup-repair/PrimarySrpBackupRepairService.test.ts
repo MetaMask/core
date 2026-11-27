@@ -22,6 +22,7 @@ import {
   SecretType,
   SeedlessPrimarySrpMismatchEventName,
   SeedlessPrimarySrpMissingEventName,
+  SeedlessPrimarySrpRepairEventName,
 } from '../constants.js';
 import { SecretMetadata } from '../SecretMetadata.js';
 import { parseSecretMetadata } from '../utils/secret-data-utils.js';
@@ -748,7 +749,9 @@ describe('PrimarySrpBackupRepairService', () => {
           });
           expect(fetchAllSecretData).toHaveBeenCalledTimes(1);
           expect(exportPrimarySeedPhrase).toHaveBeenCalledTimes(1);
-          expect(trackEvent).toHaveBeenCalledTimes(1);
+          // One set of events: the Missing or Mismatch event, then started and
+          // succeeded.
+          expect(trackEvent).toHaveBeenCalledTimes(3);
           expect(logMock).not.toHaveBeenCalled();
         },
       );
@@ -840,14 +843,24 @@ describe('PrimarySrpBackupRepairService', () => {
     });
 
     describe('when the backup cannot be read', () => {
-      it('does nothing when the remote backup cannot be fetched', async () => {
+      it('reports a failed plan and writes nothing when the remote backup cannot be fetched', async () => {
         const { service, fetchAllSecretData, trackEvent, ...mocks } = setup();
         const error = new Error('fetch failed');
         fetchAllSecretData.mockRejectedValue(error);
 
         expect(await service.run(PASSWORD)).toBeUndefined();
 
-        expect(trackEvent).not.toHaveBeenCalled();
+        expect(trackEvent).toHaveBeenCalledTimes(1);
+        expect(trackEvent).toHaveBeenCalledWith(
+          expect.objectContaining({
+            name: SeedlessPrimarySrpRepairEventName,
+            properties: {
+              status: 'failed',
+              failure_stage: 'plan',
+              failure_reason: 'backup_unreadable',
+            },
+          }),
+        );
         expect(mocks.withRepairContext).not.toHaveBeenCalled();
         expectNoWrites(mocks);
         expect(logMock).toHaveBeenCalledWith(
@@ -856,7 +869,7 @@ describe('PrimarySrpBackupRepairService', () => {
         );
       });
 
-      it('does nothing when a remote item cannot be parsed', async () => {
+      it('reports a failed plan and writes nothing when a remote item cannot be parsed', async () => {
         const { service, fetchAllSecretData, trackEvent, ...mocks } = setup();
         fetchAllSecretData.mockResolvedValue([
           {
@@ -868,7 +881,17 @@ describe('PrimarySrpBackupRepairService', () => {
 
         expect(await service.run(PASSWORD)).toBeUndefined();
 
-        expect(trackEvent).not.toHaveBeenCalled();
+        expect(trackEvent).toHaveBeenCalledTimes(1);
+        expect(trackEvent).toHaveBeenCalledWith(
+          expect.objectContaining({
+            name: SeedlessPrimarySrpRepairEventName,
+            properties: {
+              status: 'failed',
+              failure_stage: 'plan',
+              failure_reason: 'backup_unreadable',
+            },
+          }),
+        );
         expectNoWrites(mocks);
         expect(logMock).toHaveBeenCalledWith(
           'Error planning primary SRP repair',
@@ -883,7 +906,7 @@ describe('PrimarySrpBackupRepairService', () => {
           remoteItems: [createFetchedSecretDataItem(SRP1)],
         },
       ])(
-        'does nothing when the local primary SRP cannot be exported and the remote primary SRP is $description',
+        'reports a failed plan and writes nothing when the local primary SRP cannot be exported and the remote primary SRP is $description',
         async ({ remoteItems }) => {
           const { service, exportPrimarySeedPhrase, trackEvent, ...mocks } =
             setup({ remoteItems });
@@ -892,7 +915,17 @@ describe('PrimarySrpBackupRepairService', () => {
 
           expect(await service.run(PASSWORD)).toBeUndefined();
 
-          expect(trackEvent).not.toHaveBeenCalled();
+          expect(trackEvent).toHaveBeenCalledTimes(1);
+          expect(trackEvent).toHaveBeenCalledWith(
+            expect.objectContaining({
+              name: SeedlessPrimarySrpRepairEventName,
+              properties: {
+                status: 'failed',
+                failure_stage: 'plan',
+                failure_reason: 'export_failed',
+              },
+            }),
+          );
           expectNoWrites(mocks);
           expect(logMock).toHaveBeenCalledWith(
             'Error planning primary SRP repair',

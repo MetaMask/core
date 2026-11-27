@@ -372,14 +372,19 @@ describe('trackPrimarySrpRepairEvent', () => {
 
   it('tracks the started status with the backup summary', async () => {
     const trackEvent = vi.fn();
+    const secretMetadata = parseSecretMetadata([
+      createFetchedSecretDataItem(PrivateKey1),
+      createFetchedSecretDataItem(SRP2),
+      createFetchedSecretDataItem(SRP1),
+    ]);
 
     await trackPrimarySrpRepairEvent({
-      properties: {
-        status: PrimarySrpRepairEventStatus.Started,
-        repair_type: PrimarySrpRepairType.Mismatch,
-        metadata_schema_version: 'v1',
-        number_of_imported_wallets: 2,
-        number_of_imported_accounts: 1,
+      status: PrimarySrpRepairEventStatus.Started,
+      plan: {
+        repairType: PrimarySrpRepairType.Mismatch,
+        secretMetadata,
+        metadataSchemaVersion: 'v1',
+        localPrimarySRP: stringToBytes(SRP1.data),
       },
       trackEvent,
     });
@@ -390,7 +395,7 @@ describe('trackPrimarySrpRepairEvent', () => {
         status: 'started',
         repair_type: 'mismatch',
         metadata_schema_version: 'v1',
-        number_of_imported_wallets: 2,
+        number_of_imported_wallets: 1,
         number_of_imported_accounts: 1,
       },
       sensitiveProperties: {},
@@ -403,11 +408,16 @@ describe('trackPrimarySrpRepairEvent', () => {
     const trackEvent = vi.fn();
 
     await trackPrimarySrpRepairEvent({
-      properties: {
-        status: PrimarySrpRepairEventStatus.Succeeded,
-        repair_type: PrimarySrpRepairType.Missing,
-        primary_write: PrimarySrpRepairPrimaryWrite.Add,
-        number_of_retagged_items: 0,
+      status: PrimarySrpRepairEventStatus.Succeeded,
+      plan: {
+        repairType: PrimarySrpRepairType.Missing,
+        secretMetadata: [],
+        metadataSchemaVersion: 'none',
+        localPrimarySRP: stringToBytes(SRP1.data),
+      },
+      result: {
+        primaryWrite: PrimarySrpRepairPrimaryWrite.Add,
+        numberOfRetaggedItems: 0,
       },
       trackEvent,
     });
@@ -430,12 +440,17 @@ describe('trackPrimarySrpRepairEvent', () => {
     const trackEvent = vi.fn();
 
     await trackPrimarySrpRepairEvent({
-      properties: {
-        status: PrimarySrpRepairEventStatus.Failed,
-        failure_stage: PrimarySrpRepairFailureStage.Primary,
-        failure_reason: PrimarySrpRepairFailureReason.WriteRejected,
-        repair_type: PrimarySrpRepairType.Mismatch,
-        number_of_retagged_items: 3,
+      status: PrimarySrpRepairEventStatus.Failed,
+      plan: {
+        repairType: PrimarySrpRepairType.Mismatch,
+        secretMetadata: [],
+        metadataSchemaVersion: 'v2',
+        localPrimarySRP: stringToBytes(SRP1.data),
+      },
+      result: {
+        failureStage: PrimarySrpRepairFailureStage.Primary,
+        failureReason: PrimarySrpRepairFailureReason.WriteFailed,
+        numberOfRetaggedItems: 3,
       },
       trackEvent,
     });
@@ -445,7 +460,7 @@ describe('trackPrimarySrpRepairEvent', () => {
       properties: {
         status: 'failed',
         failure_stage: 'primary',
-        failure_reason: 'write_rejected',
+        failure_reason: 'write_failed',
         repair_type: 'mismatch',
         number_of_retagged_items: 3,
       },
@@ -459,10 +474,10 @@ describe('trackPrimarySrpRepairEvent', () => {
     const trackEvent = vi.fn();
 
     await trackPrimarySrpRepairEvent({
-      properties: {
-        status: PrimarySrpRepairEventStatus.Failed,
-        failure_stage: PrimarySrpRepairFailureStage.Plan,
-        failure_reason: PrimarySrpRepairFailureReason.BackupUnreadable,
+      status: PrimarySrpRepairEventStatus.Failed,
+      result: {
+        failureStage: PrimarySrpRepairFailureStage.Plan,
+        failureReason: PrimarySrpRepairFailureReason.BackupUnreadable,
       },
       trackEvent,
     });
@@ -481,10 +496,10 @@ describe('trackPrimarySrpRepairEvent', () => {
     const trackError = new Error('analytics unavailable');
 
     await trackPrimarySrpRepairEvent({
-      properties: {
-        status: PrimarySrpRepairEventStatus.Failed,
-        failure_stage: PrimarySrpRepairFailureStage.Retag,
-        failure_reason: PrimarySrpRepairFailureReason.Unknown,
+      status: PrimarySrpRepairEventStatus.Failed,
+      result: {
+        failureStage: PrimarySrpRepairFailureStage.Retag,
+        failureReason: PrimarySrpRepairFailureReason.Unknown,
       },
       trackEvent: vi.fn().mockRejectedValue(trackError),
     });

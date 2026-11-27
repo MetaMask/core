@@ -251,7 +251,7 @@ export enum PrimarySrpRepairFailureReason {
   ExportFailed = 'export_failed',
   IdentityMismatch = 'identity_mismatch',
   Locked = 'locked',
-  WriteRejected = 'write_rejected',
+  WriteFailed = 'write_failed',
   Unknown = 'unknown',
 }
 

@@ -14,6 +14,7 @@ export {
 export {
   trackIdentityMismatchEvent,
   trackIncompleteMetadataBackupEvents,
+  trackPrimarySrpRepairEvent,
 } from './analytics.js';
 export { decryptStringWithKey, encryptStringWithKey } from './encryption.js';
 export {

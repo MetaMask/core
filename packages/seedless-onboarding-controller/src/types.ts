@@ -7,6 +7,9 @@ import type { MutexInterface } from 'async-mutex';
 
 import type {
   AuthConnection,
+  PrimarySrpRepairFailureReason,
+  PrimarySrpRepairFailureStage,
+  PrimarySrpRepairPrimaryWrite,
   PrimarySrpRepairType,
   SecretType,
   SeedlessOperationLifecycle,
@@ -441,7 +444,20 @@ export type PrimarySrpRepairPlan = {
  */
 export type PrimarySrpRepairWrites = {
   retag: { itemId: string; dataType: EncAccountDataType }[];
-  primary: { type: 'promote'; itemId: string } | { type: 'add' };
+  primary:
+    | { type: PrimarySrpRepairPrimaryWrite.Promote; itemId: string }
+    | { type: PrimarySrpRepairPrimaryWrite.Add };
+};
+
+/**
+ * The outcome of a primary SRP repair. `primaryWrite` is set on success,
+ * `failureStage` and `failureReason` on failure.
+ */
+export type PrimarySrpRepairResult = {
+  primaryWrite?: PrimarySrpRepairPrimaryWrite;
+  numberOfRetaggedItems?: number;
+  failureStage?: PrimarySrpRepairFailureStage;
+  failureReason?: PrimarySrpRepairFailureReason;
 };
 
 export type DecodedBaseJWTToken = {

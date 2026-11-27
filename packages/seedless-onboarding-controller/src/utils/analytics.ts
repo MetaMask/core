@@ -25,7 +25,11 @@ import {
 import type { SeedlessIdentityMismatchSource } from '../constants.js';
 import { createModuleLogger, projectLogger } from '../logger.js';
 import { SecretMetadata } from '../SecretMetadata.js';
-import type { MetadataSchemaVersion, PrimarySrpRepairPlan } from '../types.js';
+import type {
+  MetadataSchemaVersion,
+  PrimarySrpRepairPlan,
+  PrimarySrpRepairResult,
+} from '../types.js';
 import { isIdentityMismatchError } from './errors.js';
 import {
   getMetadataSchemaVersion,
@@ -156,25 +160,57 @@ export type PrimarySrpRepairEventProperties = {
 };
 
 /**
+ * Remove the fields that are `undefined`.
+ *
+ * @param value - The object to copy.
+ * @returns A copy of `value` without the `undefined` fields.
+ */
+function omitUndefined<Value extends object>(value: Value): Value {
+  const entries = Object.entries(value).filter(
+    ([, entry]) => entry !== undefined,
+  );
+  return Object.fromEntries(entries) as Value;
+}
+
+/**
  * Report the start, success or failure of a primary SRP repair.
  *
- * The properties are non-sensitive: they hold counts, schema versions and
- * failure categories, never secret values, item ids or user ids. Tracking
- * failures are logged and never thrown, so the repair is never blocked.
+ * A `started` event includes the backup summary from `plan`. Unset fields are
+ * not sent. Tracking failures are logged and never thrown.
  *
- * @param params - The event properties and the function to emit telemetry.
- * @param params.properties - The properties for the event's status.
+ * @param params - The repair status and the function to emit telemetry.
+ * @param params.status - Whether the repair started, succeeded or failed.
+ * @param params.plan - The repair plan.
+ * @param params.result - The repair outcome.
  * @param params.trackEvent - Emits a non-sensitive analytics event.
  * @returns A promise that resolves after the best-effort telemetry has
  * completed.
  */
 export async function trackPrimarySrpRepairEvent({
-  properties,
+  status,
+  plan,
+  result = {},
   trackEvent,
 }: {
-  properties: PrimarySrpRepairEventProperties;
+  status: PrimarySrpRepairEventStatus;
+  plan?: PrimarySrpRepairPlan;
+  result?: PrimarySrpRepairResult;
   trackEvent: TrackEvent;
 }): Promise<void> {
+  const backupSummary =
+    status === PrimarySrpRepairEventStatus.Started && plan
+      ? getIncompleteMetadataBackupEventProperties(plan.secretMetadata)
+      : {};
+  const properties = omitUndefined<PrimarySrpRepairEventProperties>({
+    status,
+    repair_type: plan?.repairType,
+    ...backupSummary,
+    primary_write: result.primaryWrite,
+    number_of_retagged_items: result.numberOfRetaggedItems,
+    failure_stage: result.failureStage,
+    failure_reason: result.failureReason,
+  });
+
   try {
     await trackEvent({
       name: SeedlessPrimarySrpRepairEventName,
