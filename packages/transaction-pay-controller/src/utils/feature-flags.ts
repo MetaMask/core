@@ -238,7 +238,6 @@ type FeatureFlagsExtendedRaw = {
       baseUrl?: string;
       gaslessEnabled?: boolean;
       pollingInterval?: number;
-      pollingTimeout?: number;
       validationEnabled?: ServerValidationEnabledConfig;
     };
   };
@@ -257,7 +256,6 @@ export type PayStrategiesConfig = {
     enabledTransactionTypes: TransactionType[];
     baseUrl: string;
     pollingInterval: number;
-    pollingTimeout?: number;
   };
   relay: {
     enabled: boolean;
@@ -701,7 +699,6 @@ export function getPayStrategiesConfig(
     ),
     baseUrl: serverRaw.baseUrl ?? DEFAULT_SERVER_BASE_URL,
     pollingInterval: serverRaw.pollingInterval ?? SERVER_POLLING_INTERVAL,
-    pollingTimeout: serverRaw.pollingTimeout,
   };
 
   const relay = {
@@ -949,18 +946,6 @@ export function getServerPollingInterval(
   messenger: TransactionPayControllerMessenger,
 ): number {
   return getPayStrategiesConfig(messenger).server.pollingInterval;
-}
-
-/**
- * Get the server strategy status polling timeout in milliseconds.
- *
- * @param messenger - Controller messenger.
- * @returns Polling timeout in milliseconds, or undefined when not configured.
- */
-export function getServerPollingTimeout(
-  messenger: TransactionPayControllerMessenger,
-): number | undefined {
-  return getPayStrategiesConfig(messenger).server.pollingTimeout;
 }
 
 /**

@@ -294,6 +294,21 @@ describe('server-api', () => {
       });
     });
 
+    it('includes elapsedMs in the body when provided', async () => {
+      mockOkResponse(STATUS_RESPONSE_MOCK);
+
+      await getServerStatus(MESSENGER_MOCK, {
+        ...STATUS_PARAMS_MOCK,
+        elapsedMs: 0,
+      });
+
+      expect(fetchMock).toHaveBeenCalledWith(`${BASE_URL_MOCK}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: 'relay', id: '0xabc', elapsedMs: 0 }),
+      });
+    });
+
     it('throws a ServerApiError with the response status on non-OK', async () => {
       mockErrorResponse(400, { message: 'Missing logs' });
 
