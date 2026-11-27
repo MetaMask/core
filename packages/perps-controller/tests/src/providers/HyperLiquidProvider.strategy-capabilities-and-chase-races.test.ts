@@ -129,6 +129,7 @@ const hyperLiquidMarketLimits = (
       maxDurationMinutes: 1440,
       minNotionalUsd: 100,
     },
+    maxOraclePriceDeviation: 0.95,
   },
 });
 
@@ -176,6 +177,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -214,9 +216,56 @@ describe('HyperLiquidProvider - strategy order types', () => {
             maxDurationMinutes: 1440,
             minNotionalUsd: 100,
           },
+          maxOraclePriceDeviation: 0.95,
         },
       });
       expect(capabilities).not.toHaveProperty('orderLimits.minOrderSize');
+    });
+
+    it('reports the market margin tiers from the venue meta', async () => {
+      const { infoClient } = useStrategyClients();
+      infoClient.meta.mockResolvedValue({
+        universe: [
+          { name: 'ETH', szDecimals: 4, maxLeverage: 25, marginTableId: 55 },
+        ],
+        marginTables: [
+          [
+            55,
+            {
+              description: 'tiered 25x',
+              marginTiers: [
+                { lowerBound: '0.0', maxLeverage: 25 },
+                { lowerBound: '100000000.0', maxLeverage: 15 },
+              ],
+            },
+          ],
+        ],
+      });
+
+      const capabilities = await provider.getOrderCapabilities({
+        symbol: 'ETH',
+      });
+
+      expect(capabilities).toMatchObject({
+        status: 'ready',
+        marginTiers: [
+          { lowerBound: 0, maxLeverage: 25 },
+          { lowerBound: 100000000, maxLeverage: 15 },
+        ],
+      });
+    });
+
+    it('reports the configured oracle price deviation limit', async () => {
+      useStrategyClients();
+      const configured = createTestProvider({ priceDeviationLimit: 0.5 });
+
+      const capabilities = await configured.getOrderCapabilities({
+        symbol: 'ETH',
+      });
+
+      expect(capabilities).toMatchObject({
+        orderLimits: { maxOraclePriceDeviation: 0.5 },
+      });
     });
 
     it.each([-1, 1.5, 7, Number.NaN])(
@@ -261,6 +310,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -295,6 +345,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -387,6 +438,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
               recovery: 'provider-default',
             },
           },
+          attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
           supportedTriggerOrderTypes: [
             'stop_market',
             'stop_limit',
@@ -518,6 +570,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -649,6 +702,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -686,6 +740,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -779,6 +834,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -814,6 +870,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -872,6 +929,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
               recovery: 'provider-default',
             },
           },
+          attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
           supportedTriggerOrderTypes: [
             'stop_market',
             'stop_limit',
@@ -899,6 +957,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
               recovery: 'provider-default',
             },
           },
+          attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
           supportedTriggerOrderTypes: [
             'stop_market',
             'stop_limit',
@@ -1010,6 +1069,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -1150,6 +1210,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -1227,6 +1288,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -1278,6 +1340,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -1336,6 +1399,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -1583,6 +1647,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -1758,6 +1823,73 @@ describe('HyperLiquidProvider - strategy order types', () => {
         0.0006,
       );
       expect(infoClient.userFees).toHaveBeenCalledTimes(2);
+    });
+
+    it('reads cached user fee rates again when asked to', async () => {
+      const userFees = vi
+        .fn()
+        .mockResolvedValueOnce(mainnetFees)
+        .mockResolvedValueOnce(testnetFees);
+      useStrategyClients({ info: { userFees } });
+      const params = {
+        orderType: 'market' as const,
+        amount: '1000',
+        symbol: 'ETH',
+      };
+
+      await provider.calculateFees(params);
+      expect((await provider.calculateFees(params)).protocolFeeRate).toBe(
+        0.0003,
+      );
+      expect(
+        (await provider.calculateFees({ ...params, skipCache: true }))
+          .protocolFeeRate,
+      ).toBe(0.0006);
+      // The cache holds what that read returned.
+      expect((await provider.calculateFees(params)).protocolFeeRate).toBe(
+        0.0006,
+      );
+      expect(userFees).toHaveBeenCalledTimes(2);
+    });
+
+    it('rejects rather than quote base rates when a fresh read fails, and keeps the cached ones', async () => {
+      const userFees = vi
+        .fn()
+        .mockResolvedValueOnce(mainnetFees)
+        .mockRejectedValueOnce(new Error('429'));
+      useStrategyClients({ info: { userFees } });
+      const params = {
+        orderType: 'market' as const,
+        amount: '1000',
+        symbol: 'ETH',
+      };
+      await provider.calculateFees(params);
+
+      await expect(
+        provider.calculateFees({ ...params, skipCache: true }),
+      ).rejects.toThrow('429');
+      expect((await provider.calculateFees(params)).protocolFeeRate).toBe(
+        0.0003,
+      );
+    });
+
+    it('shares one venue read between fresh quotes asked for at once', async () => {
+      const userFees = vi.fn().mockResolvedValue(mainnetFees);
+      useStrategyClients({ info: { userFees } });
+      const params = {
+        orderType: 'market' as const,
+        amount: '1000',
+        symbol: 'ETH',
+        skipCache: true,
+      };
+
+      await Promise.all([
+        provider.calculateFees(params),
+        provider.calculateFees(params),
+      ]);
+      expect(userFees).toHaveBeenCalledTimes(1);
+      await provider.calculateFees(params);
+      expect(userFees).toHaveBeenCalledTimes(2);
     });
 
     it('does not cache user fee rates that resolve after a network change', async () => {

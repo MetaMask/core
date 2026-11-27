@@ -196,9 +196,12 @@ DataSource calls: messenger.call('AssetsController:assetsUpdate', response, sour
         │
         └── Publish events:
             ├── AssetsController:stateChange
-            ├── AssetsController:balanceChanged (when a balance changes)
-            └── AssetsController:priceChanged (when a price changes)
+            └── AssetsController:balanceChanged (when a balance changes)
 ```
+
+Live socket ticks are not written to `assetsPrice`. The UI reads
+`MarketStatsService:pricesUpdated`. See
+[Market stats](../docs/decisions/2026-11-05-market-stats.md).
 
 #### 3.3 Chain Assignment Algorithm
 
@@ -590,32 +593,6 @@ messenger.subscribe('AssetsController:balanceChanged', (event) => {
 
 ---
 
-#### `AssetsController:priceChanged`
-
-Emitted when asset prices are updated. Includes full price data for easy access.
-
-```typescript
-messenger.subscribe('AssetsController:priceChanged', (event) => {
-  console.log('Prices updated:', event.prices);
-  // Access specific price: event.prices['eip155:1/slip44:60']
-});
-```
-
-**Payload:**
-
-```typescript
-{
-  prices: Record<Caip19AssetId, AssetPrice>;
-  // Example:
-  // {
-  //   "eip155:1/slip44:60": { price: 2500, priceChange24h: 2.5, lastUpdated: 1234567890 },
-  //   "eip155:1/erc20:0x...": { price: 1, priceChange24h: 0.01, lastUpdated: 1234567890 }
-  // }
-}
-```
-
----
-
 ### Type Definitions
 
 #### Identifier Types
@@ -916,11 +893,6 @@ const state = messenger.call('AssetsController:getState');
 // Balance changes (real-time updates)
 messenger.subscribe('AssetsController:balanceChanged', (event) => {
   console.log(`${event.assetId}: ${event.previousAmount} → ${event.newAmount}`);
-});
-
-// Price updates (includes full price data)
-messenger.subscribe('AssetsController:priceChanged', ({ prices }) => {
-  refreshPriceDisplay(prices);
 });
 ```
 

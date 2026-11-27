@@ -1,5 +1,8 @@
 import { successfulFetch } from '@metamask/controller-utils';
-import { TransactionStatus } from '@metamask/transaction-controller';
+import {
+  generateEIP7702BatchTransaction,
+  TransactionStatus,
+} from '@metamask/transaction-controller';
 import type {
   TransactionMeta,
   TransactionType,
@@ -24,6 +27,7 @@ import {
   submitPolymarketWithdraw,
   sweepPolymarketDepositWallet,
 } from '../../utils/polymarket/withdraw.js';
+import { rpcRequest } from '../../utils/provider.js';
 import { submitSecondLeg } from '../../utils/second-leg.js';
 import {
   buildCaipAssetType,
@@ -37,19 +41,32 @@ import {
 import {
   fetchServerQuote,
   getServerStatus,
+  ServerApiError,
   submitServerIntent,
 } from './server-api.js';
 import { getServerQuotes } from './server-quotes.js';
 import { getServerSubmitParams, submitServerQuotes } from './server-submit.js';
 import { ServerStatus } from './types.js';
-import type { ServerQuote, ServerSignatureStep } from './types.js';
+import type {
+  ServerQuote,
+  ServerSignatureStep,
+  ServerTransactionStep,
+} from './types.js';
 
 vi.mock(import('@metamask/controller-utils'), async (importOriginal) => ({
   ...(await importOriginal()),
   successfulFetch: vi.fn(),
 }));
+vi.mock(import('@metamask/transaction-controller'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  generateEIP7702BatchTransaction: vi.fn(),
+}));
 vi.mock(import('../../utils/feature-flags.js'));
 vi.mock(import('../../utils/polymarket/withdraw.js'));
+vi.mock(import('../../utils/provider.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  rpcRequest: vi.fn(),
+}));
 vi.mock(import('../../utils/second-leg.js'));
 vi.mock(import('../../utils/token.js'), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -62,7 +79,12 @@ vi.mock(import('../../utils/transaction.js'), async (importOriginal) => ({
   getTransaction: vi.fn(),
   waitForTransactionConfirmed: vi.fn(),
 }));
-vi.mock(import('./server-api.js'));
+vi.mock(import('./server-api.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  fetchServerQuote: vi.fn(),
+  getServerStatus: vi.fn(),
+  submitServerIntent: vi.fn(),
+}));
 
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 const ORIGINAL_TRANSACTION_ID_MOCK = 'original-transaction-id';
@@ -123,6 +145,13 @@ const ORIGINAL_QUOTE_MOCK: ServerQuote = {
   ],
 };
 
+const SOURCE_STEP_MOCK = ORIGINAL_QUOTE_MOCK.steps[0] as ServerTransactionStep;
+
+const BATCH_PARAMS_MOCK = {
+  data: '0xbatchdata' as Hex,
+  to: QUOTE_FROM_MOCK,
+};
+
 const QUOTE_MOCK = {
   dust: { fiat: '0', usd: '0' },
   estimatedDuration: 30,
@@ -173,6 +202,9 @@ describe('submitServerQuotes', () => {
   const getServerPollingTimeoutMock = vi.mocked(getServerPollingTimeout);
   const getServerStatusMock = vi.mocked(getServerStatus);
   const submitServerIntentMock = vi.mocked(submitServerIntent);
+  const generateEIP7702BatchTransactionMock = vi.mocked(
+    generateEIP7702BatchTransaction,
+  );
 
   const {
     addTransactionMock: addTxMock,
@@ -214,6 +246,7 @@ describe('submitServerQuotes', () => {
     });
 
     findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
+    generateEIP7702BatchTransactionMock.mockReturnValue(BATCH_PARAMS_MOCK);
     getDelegationTransactionMock.mockResolvedValue(DELEGATION_MOCK);
     getLiveTokenBalanceMock.mockResolvedValue('999999999999999999');
     getServerPollingIntervalMock.mockReturnValue(0);
@@ -254,6 +287,49 @@ describe('submitServerQuotes', () => {
     });
   });
 
+  it('includes the quote signature in the submit request', async () => {
+    request.quotes[0].original.signature = 'signature-mock';
+
+    await submitServerQuotes(request);
+
+    expect(submitServerIntentMock).toHaveBeenCalledWith(
+      messenger,
+      expect.objectContaining({ signature: 'signature-mock' }),
+    );
+  });
+
+  it('omits signature when the quote has no signature', async () => {
+    await submitServerQuotes(request);
+
+    expect(submitServerIntentMock).toHaveBeenCalledWith(
+      messenger,
+      expect.not.objectContaining({ signature: expect.anything() }),
+    );
+  });
+
+  it('polls status with the ID returned by submit', async () => {
+    submitServerIntentMock.mockResolvedValue({
+      id: 'submitted-id-mock',
+      success: true,
+    });
+
+    await submitServerQuotes(request);
+
+    expect(getServerStatusMock).toHaveBeenCalledWith(
+      messenger,
+      expect.objectContaining({ id: 'submitted-id-mock' }),
+    );
+  });
+
+  it('polls status with the quote ID when submit returns no ID', async () => {
+    await submitServerQuotes(request);
+
+    expect(getServerStatusMock).toHaveBeenCalledWith(
+      messenger,
+      expect.objectContaining({ id: ORIGINAL_QUOTE_MOCK.id }),
+    );
+  });
+
   it('omits authorizationList when delegation has no authorization entries', async () => {
     getDelegationTransactionMock.mockResolvedValue({
       ...DELEGATION_MOCK,
@@ -272,6 +348,7 @@ describe('submitServerQuotes', () => {
     await submitServerQuotes(request);
 
     expect(getDelegationTransactionMock).toHaveBeenCalledWith({
+      isSubsidized: false,
       transaction: expect.objectContaining({
         chainId: SOURCE_CHAIN_ID_MOCK,
         nestedTransactions: [
@@ -285,6 +362,74 @@ describe('submitServerQuotes', () => {
         txParams: expect.objectContaining({ from: QUOTE_FROM_MOCK }),
       }),
     });
+  });
+
+  it('builds subsidized delegation caveats for subsidized quotes', async () => {
+    request.quotes[0].original.fees.subsidized = true;
+
+    await submitServerQuotes(request);
+
+    expect(getDelegationTransactionMock).toHaveBeenCalledWith(
+      expect.objectContaining({ isSubsidized: true }),
+    );
+  });
+
+  it('uses the single source call as the delegation transaction params', async () => {
+    await submitServerQuotes(request);
+
+    expect(getDelegationTransactionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        transaction: expect.objectContaining({
+          txParams: expect.objectContaining({
+            data: SOURCE_STEP_MOCK.data,
+            from: QUOTE_FROM_MOCK,
+            to: SOURCE_STEP_MOCK.to,
+            value: SOURCE_STEP_MOCK.value,
+          }),
+        }),
+      }),
+    );
+  });
+
+  it('wraps multiple source calls into a batch for the delegation transaction params', async () => {
+    const secondStep: ServerTransactionStep = {
+      chainId: 137,
+      data: '0xseconddata',
+      to: '0x7777777777777777777777777777777777777777',
+      type: 'transaction',
+      value: '0x0',
+    };
+
+    request.quotes[0].original.steps = [
+      ...ORIGINAL_QUOTE_MOCK.steps,
+      secondStep,
+    ];
+
+    await submitServerQuotes(request);
+
+    expect(generateEIP7702BatchTransactionMock).toHaveBeenCalledWith(
+      QUOTE_FROM_MOCK,
+      [
+        {
+          data: SOURCE_STEP_MOCK.data,
+          to: SOURCE_STEP_MOCK.to,
+          value: SOURCE_STEP_MOCK.value,
+        },
+        { data: secondStep.data, to: secondStep.to, value: secondStep.value },
+      ],
+    );
+    expect(getDelegationTransactionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        transaction: expect.objectContaining({
+          txParams: expect.objectContaining({
+            data: BATCH_PARAMS_MOCK.data,
+            from: QUOTE_FROM_MOCK,
+            to: BATCH_PARAMS_MOCK.to,
+            value: '0x0',
+          }),
+        }),
+      }),
+    );
   });
 
   it('throws when the submit response is unsuccessful', async () => {
@@ -671,6 +816,178 @@ describe('submitServerQuotes', () => {
     await submitServerQuotes(request);
 
     expect(getServerStatusMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops polling and throws when getServerStatus returns a client error', async () => {
+    getServerStatusMock
+      .mockRejectedValueOnce(new ServerApiError(400, '400 - Missing logs'))
+      .mockResolvedValue({ status: ServerStatus.Confirmed });
+
+    await expect(submitServerQuotes(request)).rejects.toThrow(
+      '400 - Missing logs',
+    );
+
+    expect(getServerStatusMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([408, 429])(
+    'continues polling when getServerStatus returns retryable client error %s',
+    async (status) => {
+      getServerStatusMock
+        .mockRejectedValueOnce(new ServerApiError(status, String(status)))
+        .mockResolvedValue({ status: ServerStatus.Confirmed });
+
+      await submitServerQuotes(request);
+
+      expect(getServerStatusMock).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it('continues polling when getServerStatus returns a server error', async () => {
+    getServerStatusMock
+      .mockRejectedValueOnce(new ServerApiError(500, '500 - Internal error'))
+      .mockResolvedValue({ status: ServerStatus.Confirmed });
+
+    await submitServerQuotes(request);
+
+    expect(getServerStatusMock).toHaveBeenCalledTimes(2);
+  });
+
+  describe('status logs', () => {
+    const getTransactionMock = vi.mocked(getTransaction);
+    const rpcRequestMock = vi.mocked(rpcRequest);
+
+    const LOG_MOCK = {
+      address: '0x9999999999999999999999999999999999999999',
+      data: '0xlogdata' as Hex,
+      topics: ['0xtopic1', '0xtopic2'],
+    };
+
+    beforeEach(() => {
+      getTransactionMock.mockReturnValue({
+        ...TRANSACTION_META_MOCK,
+        metamaskPay: { sourceHash: SOURCE_HASH_MOCK },
+      });
+    });
+
+    it('sends trimmed receipt logs from the transaction matching the source hash', async () => {
+      currentTransaction = {
+        ...currentTransaction,
+        hash: SOURCE_HASH_MOCK.toUpperCase(),
+        txReceipt: {
+          logs: [
+            {
+              ...LOG_MOCK,
+              blockNumber: '0x1',
+              logIndex: '0x0',
+              transactionHash: SOURCE_HASH_MOCK,
+            } as never,
+          ],
+        },
+      };
+
+      await submitServerQuotes(request);
+
+      expect(getServerStatusMock).toHaveBeenCalledWith(messenger, {
+        hash: SOURCE_HASH_MOCK,
+        id: ORIGINAL_QUOTE_MOCK.id,
+        logs: [LOG_MOCK],
+        provider: 'relay',
+      });
+    });
+
+    it('omits logs when no transaction matches the source hash', async () => {
+      currentTransaction = { ...currentTransaction, hash: '0xother' };
+
+      await submitServerQuotes(request);
+
+      expect(getServerStatusMock).toHaveBeenCalledWith(messenger, {
+        hash: SOURCE_HASH_MOCK,
+        id: ORIGINAL_QUOTE_MOCK.id,
+        logs: undefined,
+        provider: 'relay',
+      });
+    });
+
+    it('fetches receipt logs from the network when the matching transaction has none', async () => {
+      currentTransaction = {
+        ...currentTransaction,
+        hash: SOURCE_HASH_MOCK,
+        txReceipt: {},
+      };
+
+      rpcRequestMock.mockResolvedValue({
+        logs: [{ ...LOG_MOCK, logIndex: '0x0' }],
+      });
+
+      await submitServerQuotes(request);
+
+      expect(rpcRequestMock).toHaveBeenCalledWith({
+        messenger,
+        chainId: currentTransaction.chainId,
+        method: 'eth_getTransactionReceipt',
+        params: [SOURCE_HASH_MOCK],
+      });
+
+      expect(getServerStatusMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({ logs: [LOG_MOCK] }),
+      );
+    });
+
+    it('reuses fetched logs across polls', async () => {
+      currentTransaction = { ...currentTransaction, hash: SOURCE_HASH_MOCK };
+
+      rpcRequestMock.mockResolvedValue({ logs: [LOG_MOCK] });
+
+      getServerStatusMock
+        .mockResolvedValueOnce({ status: ServerStatus.Pending })
+        .mockResolvedValue({ status: ServerStatus.Confirmed });
+
+      await submitServerQuotes(request);
+
+      expect(getServerStatusMock).toHaveBeenCalledTimes(2);
+      expect(rpcRequestMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('omits logs when the network receipt is unavailable', async () => {
+      currentTransaction = { ...currentTransaction, hash: SOURCE_HASH_MOCK };
+
+      rpcRequestMock.mockResolvedValue(null);
+
+      await submitServerQuotes(request);
+
+      expect(getServerStatusMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({ logs: undefined }),
+      );
+    });
+
+    it('omits logs when fetching the network receipt fails', async () => {
+      currentTransaction = { ...currentTransaction, hash: SOURCE_HASH_MOCK };
+
+      rpcRequestMock.mockRejectedValue(new Error('rpc error'));
+
+      await submitServerQuotes(request);
+
+      expect(getServerStatusMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({ logs: undefined }),
+      );
+    });
+
+    it('omits logs when there is no source hash', async () => {
+      getTransactionMock.mockReturnValue(undefined);
+
+      await submitServerQuotes(request);
+
+      expect(getServerStatusMock).toHaveBeenCalledWith(messenger, {
+        hash: undefined,
+        id: ORIGINAL_QUOTE_MOCK.id,
+        logs: undefined,
+        provider: 'relay',
+      });
+    });
   });
 
   describe('Polymarket deposit wallet', () => {

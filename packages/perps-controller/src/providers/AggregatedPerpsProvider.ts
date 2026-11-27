@@ -52,11 +52,14 @@ import type {
   Funding,
   GetAccountStateParams,
   GetAccountSupportParams,
+  GetExchangeAccountStatusParams,
+  ExchangeAccountStatus,
   GetAvailableDexsParams,
   GetFundingParams,
   GetHistoricalPortfolioParams,
   GetMarketsParams,
   GetOrderCapabilitiesParams,
+  GetMarginAdjustmentLimitsParams,
   GetMarginModeLockParams,
   GetScalePriceLadderParams,
   GetOrderFillsParams,
@@ -75,6 +78,8 @@ import type {
   MaintenanceMarginParams,
   PositionModifyPreviewParams,
   PositionModifyPreviewResult,
+  CrossLiquidationEstimate,
+  EstimateCrossLiquidationParams,
   MarginResult,
   MarketInfo,
   Order,
@@ -85,6 +90,7 @@ import type {
   PerpsMarketData,
   PerpsAccountSupport,
   PerpsOrderCapabilities,
+  MarginAdjustmentLimits,
   PerpsMarginModeLock,
   PerpsScalePriceLadder,
   PerpsPendingManualRecovery,
@@ -99,8 +105,13 @@ import type {
   ReadyToTradeResult,
   SubscribeAccountParams,
   SubscribeCandlesParams,
+  SubscribeChaseOrderChangesParams,
+  SubscribeMarketChangesParams,
   SubscribeOICapsParams,
   SubscribeAvailableToTradeParams,
+  SubscribeConnectionLatencyParams,
+  SubscribeMarginAdjustmentLimitsParams,
+  SubscribeTradingAgentValidityParams,
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
@@ -128,6 +139,15 @@ import { resolveCloseSelection } from '../utils/closePositions.js';
 import { carryProviderErrorCause } from '../utils/errorContext.js';
 import { ensureError } from '../utils/errorUtils.js';
 import { hasFeeSetter } from '../utils/feeSupport.js';
+
+/** A venue read whose price or metadata can expire before it reaches the caller. */
+export type VenueMarketData =
+  | PerpsMarketData[]
+  | {
+      markets: PerpsMarketData[];
+      expiresAt: number;
+      getFallback: () => Promise<PerpsMarketData[]>;
+    };
 
 /** Error returned when only some providers suspend their Chase orders. */
 export class ChaseOrderSuspensionError extends Error {
@@ -562,6 +582,23 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   }
 
   /**
+   * @param params - Explicit venue to check, independent of the default route.
+   * @returns The venue's registration status.
+   */
+  async getExchangeAccountStatus(
+    params: GetExchangeAccountStatusParams,
+  ): Promise<ExchangeAccountStatus> {
+    const provider = this.#providers.get(params.providerId);
+    if (!provider) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+    if (!provider.getExchangeAccountStatus) {
+      return { registered: true };
+    }
+    return await provider.getExchangeAccountStatus(params);
+  }
+
+  /**
    * Resolve capabilities with the same explicit-provider/default-provider
    * selection used by order placement. Unknown routes return a typed
    * unavailable result instead of throwing a placement error.
@@ -661,6 +698,38 @@ export class AggregatedPerpsProvider implements PerpsProvider {
         providerId,
         reason: 'provider_unavailable',
       };
+    }
+  }
+
+  /**
+   * Resolve margin adjustment limits with the same explicit-provider/default-
+   * provider selection used by order placement.
+   *
+   * @param params - Market and optional provider route.
+   * @returns The limits reported by the selected provider.
+   */
+  async getMarginAdjustmentLimits(
+    params: GetMarginAdjustmentLimitsParams,
+  ): Promise<MarginAdjustmentLimits> {
+    const providerId = params.providerId ?? this.#defaultProvider;
+    const provider = this.#providers.get(providerId);
+    if (!provider?.getMarginAdjustmentLimits) {
+      return { status: 'unavailable', reason: 'provider' };
+    }
+    try {
+      return await provider.getMarginAdjustmentLimits({
+        ...params,
+        providerId,
+      });
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        '[AggregatedPerpsProvider] Margin adjustment limits unavailable',
+        {
+          providerId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
+      return { status: 'unavailable', reason: 'provider' };
     }
   }
 
@@ -828,6 +897,28 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return account;
   }
 
+  /**
+   * Read one venue's markets, stamped with its id. Unlike `getMarkets`, a
+   * failed venue read rejects instead of leaving a short list.
+   *
+   * @param providerId - Registered venue to read.
+   * @param params - Market filter passed to the venue.
+   * @returns The venue's markets.
+   * @throws `PROVIDER_NOT_FOUND` when the venue is not registered, or the
+   * venue's own error.
+   */
+  async getProviderMarkets(
+    providerId: PerpsProviderType,
+    params?: GetMarketsParams,
+  ): Promise<MarketInfo[]> {
+    const provider = this.#providers.get(providerId);
+    if (!provider) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+    const markets = await provider.getMarkets(params);
+    return markets.map((market) => ({ ...market, providerId }));
+  }
+
   async getMarkets(params?: GetMarketsParams): Promise<MarketInfo[]> {
     const results = await Promise.allSettled(
       this.#getActiveProviders().map(async ([id, provider]) => {
@@ -854,18 +945,70 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     });
   }
 
-  async getMarketDataWithPrices(): Promise<PerpsMarketData[]> {
+  /**
+   * Read market data from every venue and stamp each row with its venue.
+   *
+   * @param readVenue - Per-venue read, such as one that applies the venue's
+   * own Terminal snapshot. Defaults to the venue's `getMarketDataWithPrices`.
+   * @returns Rows from every venue whose read succeeded.
+   */
+  async getMarketDataWithPrices(
+    readVenue: (
+      providerId: PerpsProviderType,
+      provider: PerpsProvider,
+    ) => Promise<VenueMarketData> = async (_providerId, provider) =>
+      provider.getMarketDataWithPrices(),
+  ): Promise<PerpsMarketData[]> {
     const results = await Promise.allSettled(
-      this.#getActiveProviders().map(async ([id, provider]) => {
-        const data = await provider.getMarketDataWithPrices();
-        return data.map((item) => ({ ...item, providerId: id }));
-      }),
+      this.#getActiveProviders().map(async ([id, provider]) => ({
+        providerId: id,
+        data: await readVenue(id, provider),
+      })),
     );
+
+    // A sibling read or fallback may outlast another venue's snapshot.
+    // Each expired read is replaced by live rows or a rejection once.
+    while (true) {
+      const now = Date.now();
+      const fallbacks = results.flatMap((result, index) => {
+        if (result.status === 'rejected') {
+          return [];
+        }
+        const { providerId, data } = result.value;
+        if (Array.isArray(data) || data.expiresAt > now) {
+          return [];
+        }
+        return [
+          Promise.resolve()
+            .then(data.getFallback)
+            .then(
+              (markets) => {
+                results[index] = {
+                  status: 'fulfilled',
+                  value: { providerId, data: markets },
+                };
+              },
+              (reason: unknown) => {
+                results[index] = { status: 'rejected', reason };
+              },
+            ),
+        ];
+      });
+      if (fallbacks.length === 0) {
+        break;
+      }
+      await Promise.all(fallbacks);
+    }
 
     return this.#extractSuccessfulResults(
       results,
       'getMarketDataWithPrices',
-    ).flat();
+    ).flatMap(({ providerId, data }) =>
+      (Array.isArray(data) ? data : data.markets).map((item) => ({
+        ...item,
+        providerId,
+      })),
+    );
   }
 
   async getOrderFills(
@@ -1398,6 +1541,20 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       failureCount: results.length - successCount,
       results,
     };
+  }
+
+  /**
+   * Account index to enroll for notifications. Only Lighter keys its events by
+   * account index, so this delegates to that venue.
+   *
+   * @returns The Lighter account index.
+   */
+  async getNotificationAccountIndex(): Promise<number> {
+    const [, provider] = this.#getProviderOrDefault('lighter');
+    if (!provider.getNotificationAccountIndex) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+    return await provider.getNotificationAccountIndex();
   }
 
   async closePosition(params: ClosePositionParams): Promise<OrderResult> {
@@ -2014,6 +2171,21 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return provider.previewPositionModify(params);
   }
 
+  async estimateCrossLiquidation(
+    params: EstimateCrossLiquidationParams,
+  ): Promise<CrossLiquidationEstimate> {
+    let provider: PerpsProvider;
+    try {
+      [, provider] = this.#getProviderOrDefault(params.providerId);
+    } catch {
+      // An unregistered route has no estimate; this method never rejects.
+      return { status: 'unavailable', reason: 'provider' };
+    }
+    return provider.estimateCrossLiquidation
+      ? provider.estimateCrossLiquidation(params)
+      : { status: 'unavailable', reason: 'provider' };
+  }
+
   // ============================================================================
   // Subscriptions (Multiplex via SubscriptionMultiplexer)
   // ============================================================================
@@ -2121,19 +2293,30 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     // `providerStates` and strip the top-level venue identity.
     if (this.#providers.size === 1) {
       const [[providerId, provider]] = this.#getActiveProviders();
-      return provider.subscribeToAccount({
-        ...(params.accountId !== undefined && {
-          accountId: params.accountId,
-        }),
-        callback: (account) => {
-          if (account === null) {
-            // Same semantics as the read path: no venue data is no data,
-            // never a zero-valued total.
+      return this.#subscriptionMux.openVenue<[AccountState | null]>({
+        method: 'subscribeToAccount',
+        providerId,
+        provider,
+        onError: (error) => {
+          // As from the provider itself: a venue that cannot open the
+          // account's wallet has no data for it.
+          if (error.message === PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE) {
             params.callback(null);
-            return;
           }
-          params.callback({ ...account, providerId });
+          params.onError?.(error);
         },
+        open: (emit, fail) =>
+          provider.subscribeToAccount({
+            ...(params.accountId !== undefined && {
+              accountId: params.accountId,
+            }),
+            onError: fail,
+            callback: (account) => emit(account),
+          }),
+        // Same semantics as the read path: no venue data is no data, never a
+        // zero-valued total.
+        callback: (account) =>
+          params.callback(account === null ? null : { ...account, providerId }),
       });
     }
     // A null before the first snapshot leaves the venue pending. After a
@@ -2146,8 +2329,9 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       ...(params.accountId !== undefined && { accountId: params.accountId }),
       requireCompleteAccount: true,
       providers: this.#getActiveProviders(),
-      onError: (_error, providerId) => {
+      onError: (error, providerId) => {
         unavailable.add(providerId);
+        params.onError?.(error);
       },
       callback: (accounts) => {
         const entries: PerpsProviderAccountStateEntry[] =
@@ -2173,6 +2357,58 @@ export class AggregatedPerpsProvider implements PerpsProvider {
         );
       },
     });
+  }
+
+  /**
+   * Call back when a chase on any venue may have changed.
+   *
+   * @param params - Subscription parameters.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToChaseOrderChanges(
+    params: SubscribeChaseOrderChangesParams,
+  ): () => void {
+    const stops: (() => void)[] = [];
+    const stopAll = (): void => {
+      stops.splice(0).forEach((stop) => stop());
+    };
+    try {
+      for (const [, provider] of this.#getActiveProviders()) {
+        if (provider.subscribeToChaseOrderChanges) {
+          stops.push(provider.subscribeToChaseOrderChanges(params));
+        }
+      }
+    } catch (error) {
+      // A retry opens every venue again: keep none of this attempt's.
+      stopAll();
+      throw error;
+    }
+    return stopAll;
+  }
+
+  /**
+   * Call back when the markets of the named provider, else the default
+   * provider, changed, rebinding when the default changes.
+   *
+   * @param params - Optional route, callback and error handler.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToMarketChanges(params: SubscribeMarketChangesParams): () => void {
+    if (params.providerId === undefined) {
+      return this.#trackDefaultRoutedSubscription({
+        open: (provider) =>
+          provider.subscribeToMarketChanges?.({
+            ...params,
+            providerId: this.#defaultProvider,
+          }) ?? ((): void => undefined),
+        // The new venue's markets replace the old one's.
+        onInvalidate: () => params.callback(),
+      });
+    }
+    const provider = this.#providers.get(params.providerId);
+    return (
+      provider?.subscribeToMarketChanges?.(params) ?? ((): void => undefined)
+    );
   }
 
   subscribeToOICaps(params: SubscribeOICapsParams): () => void {
@@ -2341,6 +2577,103 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       };
     }
     return provider.subscribeToAvailableToTrade({ ...params, providerId });
+  }
+
+  /**
+   * Stream margin adjustment limits through the provider that would adjust
+   * the margin: the named route, else the default provider, rebinding when
+   * the default changes.
+   *
+   * @param params - Market, optional route, callback and error handler.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToMarginAdjustmentLimits(
+    params: SubscribeMarginAdjustmentLimitsParams,
+  ): () => void {
+    const unsupported = (): (() => void) => {
+      params.callback({ status: 'unavailable', reason: 'provider' });
+      return () => undefined;
+    };
+    if (params.providerId === undefined) {
+      return this.#trackDefaultRoutedSubscription({
+        open: (provider) =>
+          provider.subscribeToMarginAdjustmentLimits?.({
+            ...params,
+            providerId: this.#defaultProvider,
+          }) ?? unsupported(),
+        // The old venue's limits no longer apply until the new one reports.
+        onInvalidate: () =>
+          params.callback({ status: 'unavailable', reason: 'account_unknown' }),
+      });
+    }
+    const { providerId } = params;
+    const provider = this.#providers.get(providerId);
+    if (!provider?.subscribeToMarginAdjustmentLimits) {
+      return unsupported();
+    }
+    return provider.subscribeToMarginAdjustmentLimits({
+      ...params,
+      providerId,
+    });
+  }
+
+  /**
+   * Stream the keepalive round trip of the named provider, else the default
+   * provider, rebinding when the default changes.
+   *
+   * @param params - Optional route, callback and error handler.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToConnectionLatency(
+    params: SubscribeConnectionLatencyParams,
+  ): () => void {
+    if (params.providerId === undefined) {
+      return this.#trackDefaultRoutedSubscription({
+        open: (provider) =>
+          provider.subscribeToConnectionLatency?.({
+            ...params,
+            providerId: this.#defaultProvider,
+          }) ?? ((): void => undefined),
+      });
+    }
+    const { providerId } = params;
+    const provider = this.#providers.get(providerId);
+    return (
+      provider?.subscribeToConnectionLatency?.({ ...params, providerId }) ??
+      ((): void => undefined)
+    );
+  }
+
+  /**
+   * Stream the trading-agent validity of the named provider, else the default
+   * provider, rebinding when the default changes. A venue without an agent
+   * step reports `not_required`.
+   *
+   * @param params - Optional account and route, callback and error handler.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToTradingAgentValidity(
+    params: SubscribeTradingAgentValidityParams,
+  ): () => void {
+    const notRequired = (): (() => void) => {
+      params.callback({ status: 'not_required' });
+      return () => undefined;
+    };
+    if (params.providerId === undefined) {
+      return this.#trackDefaultRoutedSubscription({
+        open: (provider) =>
+          provider.subscribeToTradingAgentValidity?.({
+            ...params,
+            providerId: this.#defaultProvider,
+          }) ?? notRequired(),
+      });
+    }
+    const { providerId } = params;
+    const provider = this.#providers.get(providerId);
+    if (!provider?.subscribeToTradingAgentValidity) {
+      return notRequired();
+    }
+    return provider.subscribeToTradingAgentValidity({ ...params, providerId });
   }
 
   // ============================================================================

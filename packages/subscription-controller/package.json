@@ -1,6 +1,6 @@
 {
   "name": "@metamask/subscription-controller",
-  "version": "15.3.0",
+  "version": "16.0.0",
   "description": "Handle user subscription",
   "keywords": [
     "Ethereum",
@@ -62,8 +62,9 @@
     "@metamask/delegation-core": "^2.2.1",
     "@metamask/delegation-deployments": "^1.4.0",
     "@metamask/geolocation-controller": "^2.0.0",
+    "@metamask/keyring-controller": "^28.2.2",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/money-account-balance-service": "^3.2.1",
+    "@metamask/money-account-balance-service": "^3.2.2",
     "@metamask/money-account-upgrade-controller": "^7.0.0",
     "@metamask/money-account-utils": "^2.2.1",
     "@metamask/polling-controller": "^17.0.0",
@@ -71,7 +72,7 @@
     "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/seedless-onboarding-controller": "^12.1.0",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/transaction-controller": "^74.3.0",
+    "@metamask/transaction-controller": "^74.5.1",
     "@metamask/utils": "^12.0.2",
     "@tanstack/query-core": "^5.107.1",
     "bignumber.js": "^9.1.2",

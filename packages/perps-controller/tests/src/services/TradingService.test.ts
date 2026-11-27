@@ -929,6 +929,52 @@ describe('TradingService', () => {
       }
     });
 
+    it('tracks trackingData without a fee or market price', async () => {
+      const orderParams: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        leverage: 10,
+        trackingData: { source: 'trending' },
+      };
+      mockProvider.placeOrder.mockResolvedValue({
+        success: true,
+        orderId: 'order-123',
+        filledSize: '0.1',
+      });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params: orderParams,
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      const executedCall = (
+        mockDeps.metrics.trackPerpsEvent as Mock<
+          (...args: [PerpsAnalyticsEvent, Record<string, unknown>]) => void
+        >
+      ).mock.calls.find(
+        (call) =>
+          call[0] === PerpsAnalyticsEvent.TradeTransaction &&
+          call[1][PERPS_EVENT_PROPERTY.STATUS] ===
+            PERPS_EVENT_VALUE.STATUS.EXECUTED,
+      );
+      expect(executedCall?.[1]).toStrictEqual(
+        expect.objectContaining({
+          [PERPS_EVENT_PROPERTY.SOURCE]: 'trending',
+        }),
+      );
+      expect(executedCall?.[1]).not.toHaveProperty(PERPS_EVENT_PROPERTY.FEES);
+      expect(executedCall?.[1]).not.toHaveProperty(
+        PERPS_EVENT_PROPERTY.ASSET_PRICE,
+      );
+    });
+
     it('tracks accepted Scale size and weighted limit price separately from execution price', async () => {
       const orderParams: OrderParams = {
         symbol: 'ETH',
@@ -1260,10 +1306,56 @@ describe('TradingService', () => {
       expect(mockReportOrderToDataLake).toHaveBeenCalledWith({
         action: 'open',
         symbol: 'BTC',
+        providerId: 'hyperliquid',
         slPrice: 45000,
         tpPrice: 55000,
       });
     });
+
+    it.each([
+      [
+        'the result venue',
+        { providerId: 'lighter' as const },
+        {},
+        'aggregated',
+      ],
+      [
+        'the requested venue',
+        {},
+        { providerId: 'lighter' as const },
+        'aggregated',
+      ],
+      ['a direct provider', {}, {}, 'lighter'],
+    ])(
+      'passes the lighter venue to the report from %s',
+      async (_case, resultExtra, paramsExtra, protocolId) => {
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'order-123',
+          ...resultExtra,
+        });
+        mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+          undefined,
+        );
+
+        await tradingService.placeOrder({
+          provider: { ...mockProvider, protocolId } as Mocked<PerpsProvider>,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.1',
+            orderType: 'market',
+            ...paramsExtra,
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        expect(mockReportOrderToDataLake).toHaveBeenCalledWith(
+          expect.objectContaining({ action: 'open', providerId: 'lighter' }),
+        );
+      },
+    );
 
     it('does not throw when data lake reporting fails', async () => {
       const orderParams: OrderParams = {
@@ -3052,6 +3144,32 @@ describe('TradingService', () => {
       expect(mockReportOrderToDataLake).toHaveBeenCalledWith({
         action: 'close',
         symbol: 'BTC',
+        providerId: 'hyperliquid',
+      });
+    });
+
+    it('passes the lighter venue to the report on successful close', async () => {
+      mockGetPositions.mockResolvedValue([mockPosition]);
+      mockProvider.closePosition.mockResolvedValue({
+        success: true,
+        orderId: 'close-123',
+        providerId: 'lighter',
+      });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      await tradingService.closePosition({
+        provider: mockProvider,
+        params: { symbol: 'BTC' },
+        context: { ...mockContext, getPositions: mockGetPositions },
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(mockReportOrderToDataLake).toHaveBeenCalledWith({
+        action: 'close',
+        symbol: 'BTC',
+        providerId: 'lighter',
       });
     });
 

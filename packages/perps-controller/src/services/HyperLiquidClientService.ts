@@ -41,6 +41,9 @@ import { getPerpsConnectionAttemptContext } from '../utils/perpsConnectionAttemp
  */
 const maxReconnectionAttempts = 10;
 
+// The frame the SDK's keepalive sends; the venue answers it with a `pong`.
+const KEEPALIVE_PING_FRAME = '{"method":"ping"}';
+
 /**
  * Valid time intervals for historical candle data
  * Uses CandlePeriod enum for type safety
@@ -134,6 +137,11 @@ export class HyperLiquidClientService {
 
   // Platform dependencies for logging
   readonly #deps: PerpsPlatformDependencies;
+
+  // Round trip of the last answered keepalive ping, in whole milliseconds.
+  #lastLatencyMs?: number;
+
+  readonly #latencyListeners = new Set<(latencyMs: number) => void>();
 
   /**
    * @param deps - Platform dependencies.
@@ -328,6 +336,9 @@ export class HyperLiquidClientService {
       );
     });
 
+    this.#lastLatencyMs = undefined;
+    this.#measureKeepalive(owningTransport);
+
     // Listen for WebSocket termination (fired when SDK exhausts all reconnection attempts)
     this.#wsTransport.socket.addEventListener('terminate', (event: Event) => {
       const customEvent = event as CustomEvent;
@@ -353,8 +364,86 @@ export class HyperLiquidClientService {
   }
 
   /**
-   * Create all SDK clients using the current transports.
-   * Shared by initialize() and #handleConnectionDrop() to avoid drift.
+   * Time the SDK's keepalive: its `{"method":"ping"}` frame to the venue's
+   * `pong`. It adds no timer and sends nothing; it only notes when the
+   * transport sends the ping it already sends.
+   *
+   * @param transport - The transport whose keepalive is timed.
+   */
+  #measureKeepalive(transport: WebSocketTransport): void {
+    const { socket } = transport;
+    let pingSentAt: number | undefined;
+    const send = socket.send.bind(socket);
+    socket.send = (data): void => {
+      if (data === KEEPALIVE_PING_FRAME) {
+        pingSentAt = this.#deps.performance.now();
+      }
+      send(data);
+    };
+    socket.addEventListener('close', () => {
+      pingSentAt = undefined;
+      // A closed connection's round trip says nothing of the next one.
+      if (this.#wsTransport === transport) {
+        this.#lastLatencyMs = undefined;
+      }
+    });
+    socket.addEventListener('message', (event: MessageEvent) => {
+      if (
+        pingSentAt === undefined ||
+        typeof event.data !== 'string' ||
+        this.#wsTransport !== transport
+      ) {
+        return;
+      }
+      let frame: unknown;
+      try {
+        frame = JSON.parse(event.data);
+      } catch {
+        return;
+      }
+      if (
+        frame === null ||
+        typeof frame !== 'object' ||
+        !('channel' in frame) ||
+        frame.channel !== 'pong'
+      ) {
+        return;
+      }
+      const latencyMs = Math.round(this.#deps.performance.now() - pingSentAt);
+      pingSentAt = undefined;
+      this.#lastLatencyMs = latencyMs;
+      for (const listener of this.#latencyListeners) {
+        try {
+          listener(latencyMs);
+        } catch (error) {
+          this.#deps.debugLogger.log('HyperLiquid: latency listener threw', {
+            error: ensureError(error, 'HyperLiquidClientService.latency')
+              .message,
+          });
+        }
+      }
+    });
+  }
+
+  /**
+   * Receive each keepalive round trip, in whole milliseconds, starting with
+   * the last one when there is one.
+   *
+   * @param listener - Receives each round trip.
+   * @returns A function that stops the calls.
+   */
+  subscribeToLatency(listener: (latencyMs: number) => void): () => void {
+    this.#latencyListeners.add(listener);
+    if (this.#lastLatencyMs !== undefined) {
+      listener(this.#lastLatencyMs);
+    }
+    return () => {
+      this.#latencyListeners.delete(listener);
+    };
+  }
+
+  /**
+   * Ensure SDK clients use the current transports and signing wallet.
    *
    * @param wallet - Optional wallet params. Uses stored #walletParams when omitted (reconnection path).
    */
@@ -363,8 +452,10 @@ export class HyperLiquidClientService {
       throw new Error('Transports must be created before clients');
     }
 
-    this.#infoClient = new InfoClient({ transport: this.#wsTransport });
-    this.#subscriptionClient = new SubscriptionClient({
+    this.#infoClient ??= new InfoClient({ transport: this.#wsTransport });
+    // A stream can initialize before the first provider read. Keep its
+    // client on the same transport so its listeners remain current.
+    this.#subscriptionClient ??= new SubscriptionClient({
       transport: this.#wsTransport,
     });
     this.#createHttpClients(wallet);
@@ -924,6 +1015,16 @@ export class HyperLiquidClientService {
           callback(trades);
         }
       },
+      {
+        // A confirmed subscription the venue did not take back.
+        onError: (error) => {
+          if (!isUnsubscribed && !this.isConnectionTerminated()) {
+            onError?.(
+              ensureError(error, 'HyperLiquidClientService.subscribeToTrades'),
+            );
+          }
+        },
+      },
     );
     subscriptionPromise.catch((error: unknown) => {
       if (!isUnsubscribed) {
@@ -1102,6 +1203,19 @@ export class HyperLiquidClientService {
             }
 
             callback(currentCandleData);
+          },
+          {
+            // A confirmed subscription the venue did not take back.
+            onError: (error) => {
+              if (!isUnsubscribed && !this.isConnectionTerminated()) {
+                onError?.(
+                  ensureError(
+                    error,
+                    'HyperLiquidClientService.subscribeToCandles',
+                  ),
+                );
+              }
+            },
           },
         );
 
@@ -1353,6 +1467,16 @@ export class HyperLiquidClientService {
    */
   public getConnectionState(): WebSocketConnectionState {
     return this.#connectionState;
+  }
+
+  /**
+   * Whether the WebSocket connection ended for good, so that a reconnect opens
+   * a new one. Every subscription on it fails with it.
+   *
+   * @returns True once the connection is terminated.
+   */
+  public isConnectionTerminated(): boolean {
+    return this.#wsTransport?.socket.terminationSignal.aborted === true;
   }
 
   /**

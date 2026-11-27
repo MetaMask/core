@@ -4,6 +4,7 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
+import { generateEIP7702BatchTransaction } from '@metamask/transaction-controller';
 import type {
   AuthorizationList,
   BatchTransactionParams,
@@ -37,7 +38,7 @@ import {
   submitPolymarketWithdraw,
   sweepPolymarketDepositWallet,
 } from '../../utils/polymarket/withdraw.js';
-import { getNetworkClientId } from '../../utils/provider.js';
+import { getNetworkClientId, rpcRequest } from '../../utils/provider.js';
 import { submitSecondLeg } from '../../utils/second-leg.js';
 import {
   getEvmQuoteSource,
@@ -53,12 +54,17 @@ import {
 } from '../../utils/transaction.js';
 import { RELAY_DEPOSIT_TYPES } from '../relay/constants.js';
 import { getServerDepositData } from './deposit-step.js';
-import { getServerStatus, submitServerIntent } from './server-api.js';
+import {
+  getServerStatus,
+  ServerApiError,
+  submitServerIntent,
+} from './server-api.js';
 import type {
   ServerAuthorization,
   ServerQuote,
   ServerSignatureStep,
   ServerTransactionStep,
+  ServerStatusLog,
   ServerStatusResponse,
   ServerSubmitRequest,
 } from './types.js';
@@ -73,6 +79,8 @@ const log = createModuleLogger(projectLogger, 'server-strategy');
  */
 const MISSING_TARGET_HASH = '0x' as Hex;
 
+const RETRYABLE_CLIENT_ERROR_STATUSES = [408, 429];
+
 const DOMAIN_FIELD_MAP: Record<string, { name: string; type: string }> = {
   name: { name: 'name', type: 'string' },
   version: { name: 'version', type: 'string' },
@@ -80,6 +88,8 @@ const DOMAIN_FIELD_MAP: Record<string, { name: string; type: string }> = {
   verifyingContract: { name: 'verifyingContract', type: 'address' },
   salt: { name: 'salt', type: 'bytes32' },
 };
+
+type ReceiptLog = { address: string; data: string; topics: string[] };
 
 /**
  * A transaction to submit for a single quote step.
@@ -212,6 +222,13 @@ export async function getServerExecuteDelegation(
     value: (param.value ?? '0x0') as Hex,
   }));
 
+  // Subsidized caveats are built from `txParams.data`, so it must match the
+  // calls being redeemed rather than the original transaction.
+  const batchParams =
+    nestedTransactions.length === 1
+      ? nestedTransactions[0]
+      : generateEIP7702BatchTransaction(from, nestedTransactions);
+
   const sourceCallTransaction = {
     ...transaction,
     chainId: sourceChainId,
@@ -219,13 +236,19 @@ export async function getServerExecuteDelegation(
     nestedTransactions,
     txParams: {
       ...transaction.txParams,
+      data: batchParams.data,
       from,
+      to: batchParams.to,
+      value: batchParams.value ?? '0x0',
     },
   } as TransactionMeta;
 
   const delegation = await messenger.call(
     'TransactionPayController:getDelegationTransaction',
-    { transaction: sourceCallTransaction },
+    {
+      isSubsidized: quote.original.fees.subsidized,
+      transaction: sourceCallTransaction,
+    },
   );
 
   log('Delegation result for server source calls', delegation);
@@ -264,6 +287,7 @@ async function executeSingleServerQuote(
   // Phase 2: on-chain transaction steps (if any). A deposit wallet withdraw
   // replaces them with an unwrap straight to the provider deposit address.
   let preSubmitUsdceBalance: bigint | undefined;
+  let statusId: string | undefined;
 
   if (isDepositWallet) {
     preSubmitUsdceBalance = await submitDepositWalletWithdraw(
@@ -272,7 +296,7 @@ async function executeSingleServerQuote(
       transaction,
     );
   } else {
-    await submitTransactionSteps(quote, messenger, transaction);
+    statusId = await submitTransactionSteps(quote, messenger, transaction);
   }
 
   // Phase 3: poll until the intent settles on the target chain.
@@ -280,6 +304,7 @@ async function executeSingleServerQuote(
     quote.original,
     messenger,
     transaction.id,
+    statusId,
   );
 
   log('Server request completed', completion);
@@ -454,12 +479,13 @@ async function submitDepositWalletWithdraw(
  * @param quote - Server quote.
  * @param messenger - Controller messenger.
  * @param transaction - Original transaction meta.
+ * @returns ID to poll status with, if returned by the server submit.
  */
 async function submitTransactionSteps(
   quote: TransactionPayQuote<ServerQuote>,
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
-): Promise<void> {
+): Promise<string | undefined> {
   const transactionSteps = quote.original.steps.filter(isTransactionStep);
 
   if (transactionSteps.length === 0) {
@@ -469,7 +495,7 @@ async function submitTransactionSteps(
     if (!quote.original.gasless && !hasSignatureSteps) {
       throw new Error('Server quote has no steps to submit');
     }
-    return;
+    return undefined;
   }
 
   const { isHyperliquidSource, isPostQuote, paymentOverride } = quote.request;
@@ -491,21 +517,23 @@ async function submitTransactionSteps(
   const gasPayment = getServerGasPayment(quote, messenger, transaction);
 
   if (gasPayment.mode === GasPaymentMode.Delegation) {
-    await submitViaServerExecute(
+    return await submitViaServerExecute(
       quote,
       stepTransactions,
       messenger,
       transaction,
-    );
-  } else {
-    await submitViaTransactionController(
-      quote,
-      stepTransactions,
-      messenger,
-      transaction,
-      gasPayment,
     );
   }
+
+  await submitViaTransactionController(
+    quote,
+    stepTransactions,
+    messenger,
+    transaction,
+    gasPayment,
+  );
+
+  return undefined;
 }
 
 /**
@@ -918,7 +946,7 @@ async function submitViaServerExecute(
   stepTransactions: StepTransaction[],
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
-): Promise<void> {
+): Promise<string | undefined> {
   const { chainId: sourceChainId } = getEvmQuoteSource(quote.request);
 
   const delegation = await getServerExecuteDelegation(
@@ -935,6 +963,9 @@ async function submitViaServerExecute(
     to: delegation.to,
     data: delegation.data,
     value: new BigNumber(delegation.value).toFixed(),
+    ...(quote.original.signature
+      ? { signature: quote.original.signature }
+      : {}),
     ...(delegation.authorizationList?.length
       ? {
           authorizationList: delegation.authorizationList.map((auth) => ({
@@ -956,6 +987,8 @@ async function submitViaServerExecute(
       `Server submit failed: ${submitResponse.error ?? 'unknown'}`,
     );
   }
+
+  return submitResponse.id;
 }
 
 async function submitViaTransactionController(
@@ -1310,12 +1343,14 @@ function deriveEIP712DomainType(
  * @param quote - Server quote being polled.
  * @param messenger - Controller messenger.
  * @param transactionId - ID of the parent transaction.
+ * @param statusId - ID returned by the server submit, used instead of the quote ID when set.
  * @returns The terminal status and the target-chain hash when reported.
  */
 async function waitForServerCompletion(
   quote: ServerQuote,
   messenger: TransactionPayControllerMessenger,
   transactionId: string,
+  statusId?: string,
 ): Promise<ServerCompletion> {
   const pollingInterval = getServerPollingInterval(messenger);
   const pollingTimeout = getServerPollingTimeout(messenger);
@@ -1327,19 +1362,28 @@ async function waitForServerCompletion(
 
   let lastStatus: string | undefined;
   let sourceHashEmitted = false;
+  let sourceLogs: ServerStatusLog[] | undefined;
 
   while (true) {
     let statusResponse: ServerStatusResponse | undefined;
 
     try {
       const tx = getTransaction(transactionId, messenger);
+      const hash = tx?.metamaskPay?.sourceHash ?? tx?.hash;
+
+      sourceLogs ??= await getSourceLogs(hash, messenger);
 
       statusResponse = await getServerStatus(messenger, {
         provider: quote.provider,
-        id: quote.id,
-        hash: tx?.metamaskPay?.sourceHash ?? tx?.hash,
+        id: statusId ?? quote.id,
+        hash,
+        logs: sourceLogs,
       });
     } catch (error) {
+      if (isClientError(error)) {
+        throw error;
+      }
+
       log('Polling network error', error);
     }
 
@@ -1382,4 +1426,95 @@ async function waitForServerCompletion(
 
     await new Promise((resolve) => setTimeout(resolve, pollingInterval));
   }
+}
+
+/**
+ * Retrieve the receipt logs of the local transaction with the given hash.
+ *
+ * Falls back to fetching the receipt from the network when the local
+ * transaction has none, such as when a publish hook marks it as intent
+ * complete without the receipt being tracked.
+ *
+ * @param hash - Hash of the source transaction.
+ * @param messenger - Controller messenger.
+ * @returns The receipt logs, or undefined if no matching receipt is found.
+ */
+async function getSourceLogs(
+  hash: string | undefined,
+  messenger: TransactionPayControllerMessenger,
+): Promise<ServerStatusLog[] | undefined> {
+  if (!hash) {
+    return undefined;
+  }
+
+  const { transactions } = messenger.call('TransactionController:getState');
+
+  const sourceTransaction = transactions.find(
+    (tx) => tx.hash?.toLowerCase() === hash.toLowerCase(),
+  );
+
+  if (!sourceTransaction) {
+    return undefined;
+  }
+
+  const localLogs = sourceTransaction.txReceipt?.logs as
+    | ReceiptLog[]
+    | undefined;
+
+  const logs = localLogs?.length
+    ? localLogs
+    : await getNetworkReceiptLogs(hash, sourceTransaction.chainId, messenger);
+
+  if (!logs?.length) {
+    return undefined;
+  }
+
+  return logs.map(({ address, data, topics }) => ({
+    address: address as Hex,
+    data: data as Hex,
+    topics: topics as Hex[],
+  }));
+}
+
+/**
+ * Fetch the receipt logs of a transaction from the network.
+ *
+ * @param hash - Hash of the transaction.
+ * @param chainId - Chain ID of the transaction.
+ * @param messenger - Controller messenger.
+ * @returns The receipt logs, or undefined if the receipt is unavailable.
+ */
+async function getNetworkReceiptLogs(
+  hash: string,
+  chainId: Hex,
+  messenger: TransactionPayControllerMessenger,
+): Promise<ReceiptLog[] | undefined> {
+  try {
+    const receipt = await rpcRequest<{ logs?: ReceiptLog[] } | null>({
+      messenger,
+      chainId,
+      method: 'eth_getTransactionReceipt',
+      params: [hash],
+    });
+
+    return receipt?.logs;
+  } catch (error) {
+    log('Failed to fetch source receipt', { error, hash });
+    return undefined;
+  }
+}
+
+/**
+ * Determine if an error is a client error response from the server.
+ *
+ * @param error - Error thrown when fetching the status.
+ * @returns True if the server responded with a non-retryable 4xx status.
+ */
+function isClientError(error: unknown): boolean {
+  return (
+    error instanceof ServerApiError &&
+    error.status >= 400 &&
+    error.status < 500 &&
+    !RETRYABLE_CLIENT_ERROR_STATUSES.includes(error.status)
+  );
 }

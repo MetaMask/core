@@ -22,6 +22,10 @@ import {
   SubscriptionDelegationServiceErrorMessage,
 } from './constants.js';
 import { createModuleLogger, projectLogger } from './logger.js';
+import {
+  getSubscriptionByProduct,
+  selectIsActiveSubscriber,
+} from './selectors.js';
 import type { SubscriptionControllerMethodActions } from './SubscriptionController-method-action-types.js';
 import type {
   SubscriptionServiceAssignUserToCohortAction,
@@ -39,6 +43,8 @@ import type {
   SubscriptionServiceUnCancelSubscriptionAction,
   SubscriptionServiceUpdatePaymentMethodCardAction,
   SubscriptionServiceUpdatePaymentMethodCryptoAction,
+  SubscriptionServicePayLastInvoiceAction,
+  SubscriptionServiceVerifyPaymentMethodAction,
 } from './SubscriptionService-method-action-types.js';
 import {
   CRYPTO_AUTH_METHODS,
@@ -104,6 +110,11 @@ export type SubscriptionControllerState = {
   lastSelectedPaymentMethod?: Partial<
     Record<ProductType, CachedLastSelectedPaymentMethod>
   >;
+  /**
+   * Whether `SubscriptionDelegationService` is sending a stuck Money Account
+   * Plus charge and refreshing subscriptions afterwards.
+   */
+  isChargeRetryInProgress?: boolean;
 };
 
 export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
@@ -125,6 +136,8 @@ type AllowedActions =
   | SubscriptionServiceStartSubscriptionWithCryptoAction
   | SubscriptionServiceUpdatePaymentMethodCardAction
   | SubscriptionServiceUpdatePaymentMethodCryptoAction
+  | SubscriptionServicePayLastInvoiceAction
+  | SubscriptionServiceVerifyPaymentMethodAction
   | SubscriptionServiceGetBillingPortalUrlAction
   | SubscriptionServiceSubmitSponsorshipIntentsAction
   | SubscriptionServiceSubmitUserEventAction
@@ -245,6 +258,12 @@ const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState>
       includeInDebugSnapshot: false,
       usedInUi: true,
     },
+    isChargeRetryInProgress: {
+      includeInStateLogs: true,
+      persist: false,
+      includeInDebugSnapshot: true,
+      usedInUi: true,
+    },
   };
 
 const MESSENGER_EXPOSED_METHODS = [
@@ -264,9 +283,11 @@ const MESSENGER_EXPOSED_METHODS = [
   'submitSubscriptionCryptoApproval',
   'getCryptoApproveTransactionParams',
   'updatePaymentMethod',
+  'retryCryptoCharge',
   'getBillingPortalUrl',
   'cacheLastSelectedPaymentMethod',
   'clearLastSelectedPaymentMethod',
+  'setChargeRetryInProgress',
   'submitSponsorshipIntents',
   'submitUserEvent',
   'assignUserToCohort',
@@ -465,6 +486,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       state.benefits = benefits.eligible
         ? {
             billingPeriodId: benefits.billingPeriodId,
+            benefitPeriodId: benefits.benefitPeriodId,
+            benefitPeriodStart: benefits.benefitPeriodStart,
+            benefitPeriodEnd: benefits.benefitPeriodEnd,
             ...benefits.products,
           }
         : undefined;
@@ -480,9 +504,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * @returns The subscription.
    */
   getSubscriptionByProduct(productType: ProductType): Subscription | undefined {
-    return this.state.subscriptions.find((subscription) =>
-      subscription.products.some((product) => product.name === productType),
-    );
+    return getSubscriptionByProduct(this.state, productType);
   }
 
   /**
@@ -894,6 +916,45 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   }
 
   /**
+   * Retries a failed crypto charge with the stored payment method: verifies
+   * the payment method of a paused subscription, otherwise pays the last
+   * invoice. The charged subscription from the response replaces the one in
+   * the refreshed subscriptions.
+   *
+   * @param request - The retry request.
+   * @param request.subscriptionId - The subscription to retry.
+   * @returns The refreshed subscriptions.
+   */
+  async retryCryptoCharge(request: {
+    subscriptionId: string;
+  }): Promise<Subscription[]> {
+    const subscription = this.state.subscriptions.find(
+      ({ id }) => id === request.subscriptionId,
+    );
+    if (!subscription) {
+      throw new Error(SubscriptionControllerErrorMessage.UserNotSubscribed);
+    }
+    const chargedSubscription =
+      subscription.status === SUBSCRIPTION_STATUSES.paused
+        ? await this.messenger.call('SubscriptionService:verifyPaymentMethod', {
+            subscriptionId: request.subscriptionId,
+          })
+        : await this.messenger.call('SubscriptionService:payLastInvoice', {
+            subscriptionId: request.subscriptionId,
+          });
+    await this.#getSubscriptions();
+    // Applied after the refresh: the GET can be served from cache before the
+    // charge lands.
+    this.update((state) => {
+      state.subscriptions = state.subscriptions.map((sub) =>
+        sub.id === request.subscriptionId ? chargedSubscription : sub,
+      );
+    });
+    this.triggerAccessTokenRefresh();
+    return this.state.subscriptions;
+  }
+
+  /**
    * Gets the billing portal URL.
    *
    * @returns The billing portal URL
@@ -944,6 +1005,18 @@ export class SubscriptionController extends StaticIntervalPollingController()<
         const { [product]: _, ...rest } = state.lastSelectedPaymentMethod;
         state.lastSelectedPaymentMethod = rest;
       }
+    });
+  }
+
+  /**
+   * Sets whether `SubscriptionDelegationService` is retrying a stuck Money
+   * Account Plus charge.
+   *
+   * @param isChargeRetryInProgress - Whether the charge retry is in progress.
+   */
+  setChargeRetryInProgress(isChargeRetryInProgress: boolean): void {
+    this.update((state) => {
+      state.isChargeRetryInProgress = isChargeRetryInProgress;
     });
   }
 
@@ -1299,11 +1372,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   }
 
   #hasActiveMoneyAccountPlusSubscription(): boolean {
-    return this.state.subscriptions.some(
-      (subscription) =>
-        subscription.products.some(
-          (product) => product.name === PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
-        ) && ACTIVE_SUBSCRIPTION_STATUSES.includes(subscription.status),
+    return selectIsActiveSubscriber(
+      this.state,
+      PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
     );
   }
 

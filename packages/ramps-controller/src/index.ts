@@ -89,6 +89,9 @@ export type {
   RampsControllerTransakCancelOrderAction,
   RampsControllerTransakCancelAllActiveOrdersAction,
   RampsControllerTransakGetActiveOrdersAction,
+  RampsControllerTransakSubmitMicaConsentAction,
+  RampsControllerTransakSubmitSourceOfIncomeAction,
+  RampsControllerTransakSubmitAdditionalDetailsNationalityAction,
   RampsControllerSyncOrdersWithUserStorageAction,
 } from './RampsController-method-action-types.js';
 export {
@@ -270,6 +273,12 @@ export type {
   TransakUserLimits,
   TransakIdProofStatus,
   PatchUserRequestBody as TransakPatchUserRequestBody,
+  SubmitMicaConsentRequest,
+  SubmitMicaConsentResponse,
+  SubmitSourceOfIncomeRequest,
+  SubmitSourceOfIncomeResponse,
+  SubmitAdditionalDetailsNationalityRequest,
+  SubmitAdditionalDetailsNationalityResponse,
 } from './TransakService.js';
 export {
   TransakApiError,
@@ -312,6 +321,7 @@ export {
   buildMusdAutorampRequest,
   buildBrazilMusdAutorampRequest,
   getMusdAutorampDepositRailReadiness,
+  isTokenUnavailableInJurisdictionError,
 } from './autorampAccount.js';
 export { buildOwnershipMessage } from './ownership-message.js';
 export type {

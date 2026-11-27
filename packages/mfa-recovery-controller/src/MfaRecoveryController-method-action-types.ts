@@ -23,6 +23,41 @@ export type MfaRecoveryControllerReleaseLockAction = {
 };
 
 /**
+ * Records a passkey the device just created. `register` and
+ * `updateIdentifiers` only accept recorded passkeys and the device's social
+ * login, so a compromised Auth API cannot add its own.
+ *
+ * @param witness - What the device saw.
+ */
+export type MfaRecoveryControllerTrustIdentifierAction = {
+  type: `MfaRecoveryController:trustIdentifier`;
+  handler: MfaRecoveryController['trustIdentifier'];
+};
+
+/**
+ * Returns whether writes accept the identifier: a user device saw it, or it
+ * is SIWE. Use it to pick from the identifiers Auth returns.
+ *
+ * @param identifier - An identifier from Auth.
+ * @returns Whether the identifier is trusted.
+ */
+export type MfaRecoveryControllerIsTrustedAction = {
+  type: `MfaRecoveryController:isTrusted`;
+  handler: MfaRecoveryController['isTrusted'];
+};
+
+/**
+ * Stops trusting a passkey, so a later approval cannot add it back. Call it
+ * before removing the passkey from Auth.
+ *
+ * @param credentialId - The passkey's base64url WebAuthn credential ID.
+ */
+export type MfaRecoveryControllerUntrustPasskeyAction = {
+  type: `MfaRecoveryController:untrustPasskey`;
+  handler: MfaRecoveryController['untrustPasskey'];
+};
+
+/**
  * Creates version 1 of a recovery record.
  *
  * @param recoverySecret - Secret replicated in full to every escrow.
@@ -111,8 +146,17 @@ export type MfaRecoveryControllerGetIdentifiersAction = {
  * `MutationRejectedError`, once its approval expired more than 5 minutes ago
  * and no escrow applied it.
  *
- * @param identifier - Enrolled identifier that authorizes the repair, or
- * replaces the one authorizing a pending update (e.g. if it was lost).
+ * The recovery secret of a pending `register` or `updateRecoverySecret` is
+ * held only in memory. After a restart, a `writing` one reads it back from an
+ * escrow that applied it, with the update's identifier or, for `register`,
+ * `identifier`. Without such an escrow it throws
+ * `recovery_secret_unavailable` until the approval expires. An
+ * `authorizing` one reached no escrow, so it is cleared, throwing
+ * `MutationRejectedError`.
+ *
+ * @param identifier - Enrolled identifier that authorizes the repair,
+ * replaces the one authorizing a pending update (e.g. if it was lost), or
+ * reads back the recovery secret of a pending `register`.
  */
 export type MfaRecoveryControllerResumeAction = {
   type: `MfaRecoveryController:resume`;
@@ -143,6 +187,9 @@ export type MfaRecoveryControllerGetPhaseAction = {
 export type MfaRecoveryControllerMethodActions =
   | MfaRecoveryControllerAcquireLockAction
   | MfaRecoveryControllerReleaseLockAction
+  | MfaRecoveryControllerTrustIdentifierAction
+  | MfaRecoveryControllerIsTrustedAction
+  | MfaRecoveryControllerUntrustPasskeyAction
   | MfaRecoveryControllerRegisterAction
   | MfaRecoveryControllerUpdateRecoverySecretAction
   | MfaRecoveryControllerUpdateIdentifiersAction

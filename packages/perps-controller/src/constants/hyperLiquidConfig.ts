@@ -259,6 +259,8 @@ export const HYPERLIQUID_ORDER_CAPABILITIES = Object.freeze({
       recovery: 'provider-default',
     }),
   }),
+  // A normalTpsl group carries one take profit and one stop loss.
+  attachedTpslGroupLimit: Object.freeze({ takeProfit: 1, stopLoss: 1 }),
 }) satisfies DirectProviderOrderCapabilities;
 
 // Referral code configuration
@@ -679,8 +681,9 @@ export const TESTNET_HIP3_CONFIG = {
    * Allowed DEX names for testnet
    * Empty array = main DEX only (no HIP-3 DEXs)
    * Add specific DEX names to test with particular HIP-3 DEXs: ['testdex1', 'testdex2']
+   * `ignp` is the partner's permissioned dex used for US perps testing.
    */
-  EnabledDexs: ['xyz'] as string[],
+  EnabledDexs: ['xyz', 'ignp'] as string[],
 
   /**
    * Set to true to enable full HIP-3 discovery on testnet (not recommended)
@@ -732,6 +735,24 @@ export function isUnrestrictedMarginMode(
   return (
     marginMode === undefined || marginMode === null || marginMode === 'normal'
   );
+}
+
+/**
+ * Whether the venue accepts Cross margin for a market, main DEX or HIP-3.
+ * An absent `marginMode` or `normal` allows Cross; strictIsolated, noCross
+ * and any future restriction value prohibit it, as does the deprecated
+ * `onlyIsolated` flag.
+ *
+ * @param market - Venue margin metadata for the market.
+ * @param market.onlyIsolated - Whether the market only allows isolated margin.
+ * @param market.marginMode - Venue margin-mode restriction, if any.
+ * @returns True when Cross margin orders are accepted.
+ */
+export function isCrossMarginSupported(market: {
+  onlyIsolated?: boolean;
+  marginMode?: string | null;
+}): boolean {
+  return !market.onlyIsolated && isUnrestrictedMarginMode(market.marginMode);
 }
 
 /**

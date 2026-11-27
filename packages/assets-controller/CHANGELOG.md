@@ -9,11 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/transaction-controller` from `^74.5.0` to `^74.5.1` ([#11789](https://github.com/MetaMask/core/pull/11789))
+
+## [22.0.0]
+
+### Added
+
+- Poll `/v3/spot-prices` for every tracked asset, and also stream prices over `market-stats.v1` when the spot price reports `wssSupport`. An open channel does not take that asset off the poll. Without a registered `MarketStatsService`, every asset stays on the poll ([#11193](https://github.com/MetaMask/core/pull/11193))
+
+### Changed
+
+- **BREAKING:** `AssetsControllerMessenger` now includes `MarketStatsService:subscribe`, `unsubscribe`, `getSubscriptions`, and `getChainStatuses`. Delegate them from the root messenger ([#11193](https://github.com/MetaMask/core/pull/11193))
+- **BREAKING:** `PriceDataSource` requires `messenger` ([#11193](https://github.com/MetaMask/core/pull/11193))
+- The price stream subscribes as the `assets-controller` caller and sends the assets it wants on each reconcile. `MarketStatsService` keeps the callers on each channel, so a screen watching the same asset stays subscribed when the price set changes ([#11193](https://github.com/MetaMask/core/pull/11193))
 - Bump `@ethersproject/abi` from `^5.7.0` to `^5.8.0` ([#11645](https://github.com/MetaMask/core/pull/11645))
-- Bump `@metamask/assets-controllers` from `^113.3.2` to `^113.3.3` ([#11669](https://github.com/MetaMask/core/pull/11669))
+- Bump `@metamask/assets-controllers` from `^113.3.2` to `^113.3.4` ([#11669](https://github.com/MetaMask/core/pull/11669), [#11784](https://github.com/MetaMask/core/pull/11784))
 - Bump `@metamask/network-enablement-controller` from `^7.1.3` to `^7.1.4` ([#11669](https://github.com/MetaMask/core/pull/11669))
 - Bump `@metamask/phishing-controller` from `^18.3.1` to `^18.3.2` ([#11669](https://github.com/MetaMask/core/pull/11669))
-- Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.3.0` ([#11669](https://github.com/MetaMask/core/pull/11669))
+- Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.5.0` ([#11669](https://github.com/MetaMask/core/pull/11669), [#11732](https://github.com/MetaMask/core/pull/11732), [#11761](https://github.com/MetaMask/core/pull/11761), [#11784](https://github.com/MetaMask/core/pull/11784))
+- Bump `@metamask/core-backend` from `^14.1.0` to `^15.0.0` ([#11784](https://github.com/MetaMask/core/pull/11784))
+- Bump `@metamask/multichain-transactions-controller` from `^8.0.0` to `^9.0.0` ([#11784](https://github.com/MetaMask/core/pull/11784))
+
+### Removed
+
+- **BREAKING:** Remove `AssetsController:priceChanged`. Socket prices are not written to `assetsPrice`. Subscribe to `MarketStatsService:pricesUpdated` ([#11193](https://github.com/MetaMask/core/pull/11193))
 
 ## [21.0.0]
 
@@ -1335,7 +1354,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@21.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@22.0.0...HEAD
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@21.0.0...@metamask/assets-controller@22.0.0
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.4.1...@metamask/assets-controller@21.0.0
 [20.4.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.4.0...@metamask/assets-controller@20.4.1
 [20.4.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.3.1...@metamask/assets-controller@20.4.0

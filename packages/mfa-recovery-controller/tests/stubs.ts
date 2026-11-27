@@ -37,15 +37,15 @@ import type {
   Mutation,
   MutationPayload,
   MutationReceipt,
-  PendingOperation,
-  PendingOperationEncryptor,
   PoPChallenge,
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
   RecoveryLockProvider,
+  RecoveryTrustedIdentifierStore,
   GetRecoverySecretResponse,
   RegisterPayload,
   SeedlessAuthData,
+  TrustedIdentifier,
   UpdateIdentifiersPayload,
   UpdateRecoverySecretPayload,
   WrappedSecret,
@@ -163,6 +163,29 @@ export class StubRecoveryLockProvider implements RecoveryLockProvider {
       throw new MfaRecoveryError('Lock conflict', 'recovery_lock_conflict');
     }
     this.lockId = null;
+  }
+}
+
+/**
+ * In-memory trusted identifier list.
+ */
+export class StubTrustedIdentifierStore implements RecoveryTrustedIdentifierStore {
+  trusted: TrustedIdentifier[];
+
+  constructor(trusted: TrustedIdentifier[] = []) {
+    this.trusted = trusted;
+  }
+
+  async get(): Promise<TrustedIdentifier[]> {
+    return this.trusted;
+  }
+
+  async add(entry: TrustedIdentifier): Promise<void> {
+    this.trusted.push(entry);
+  }
+
+  async remove(entry: TrustedIdentifier): Promise<void> {
+    this.trusted = this.trusted.filter((item) => item !== entry);
   }
 }
 
@@ -861,18 +884,6 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     );
   }
 }
-
-/**
- * JSON round-trip encryptor for tests. Production uses wallet secure storage.
- */
-export const passthroughEncryptor: PendingOperationEncryptor = {
-  async encrypt(operation: PendingOperation): Promise<string> {
-    return JSON.stringify(operation);
-  },
-  async decrypt(ciphertext: string): Promise<PendingOperation> {
-    return JSON.parse(ciphertext) as PendingOperation;
-  },
-};
 
 /**
  * @param identifier - Identifier to canonicalize.

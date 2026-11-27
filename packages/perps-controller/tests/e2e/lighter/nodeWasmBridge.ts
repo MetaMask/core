@@ -10,6 +10,7 @@
  * global returns a curried function; invoking that returns a Promise.
  */
 
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { runInThisContext } from 'node:vm';
@@ -44,6 +45,12 @@ type NodeWasmBridgeOptions = {
   clientSeed: string;
 };
 
+// Match the v1.0.13 artifact pins in build-wasm.sh.
+const WASM_SHA256 =
+  '6caf0765a6f993bff0bd25ff4553ba8ea5657d0a6b85c767aae44ac5dcf17de9';
+const RUNTIME_SHA256 =
+  '0c949f4996f9a89698e4b5c586de32249c3b69b7baadb64d220073cc04acba14';
+
 /**
  * Wait until a predicate holds or time out.
  *
@@ -66,7 +73,7 @@ async function waitFor(
 }
 
 /**
- * Instantiate the WASM signer and return a bridge over its globals.
+ * Verify and instantiate the WASM signer, then return a bridge over its globals.
  *
  * @param wasmDir - Directory holding `main.wasm` + `wasm_exec.js`
  * (produced by build-wasm.sh).
@@ -77,20 +84,30 @@ export async function createNodeWasmBridge(
   wasmDir: string,
   options: NodeWasmBridgeOptions,
 ): Promise<LighterSignerBridge> {
-  const globals = globalThis as Record<string, unknown>;
-
-  if (typeof globals.Go !== 'function') {
-    const execSource = await readFile(join(wasmDir, 'wasm_exec.js'), 'utf8');
-    // wasm_exec.js attaches the Go class to globalThis when evaluated in
-    // global scope; vm.runInThisContext keeps that scope.
-    runInThisContext(execSource, { filename: 'wasm_exec.js' });
+  const wasmPath = join(wasmDir, 'main.wasm');
+  const runtimePath = join(wasmDir, 'wasm_exec.js');
+  const [wasmBytes, runtimeBytes] = await Promise.all([
+    readFile(wasmPath),
+    readFile(runtimePath),
+  ]);
+  for (const [path, bytes, expected] of [
+    [wasmPath, wasmBytes, WASM_SHA256],
+    [runtimePath, runtimeBytes, RUNTIME_SHA256],
+  ] as const) {
+    if (createHash('sha256').update(bytes).digest('hex') !== expected) {
+      throw new Error(
+        `${path} SHA-256 mismatch. Rebuild this directory with build-wasm.sh.`,
+      );
+    }
   }
 
+  // Evaluate the verified runtime even if the process already has a Go global.
+  runInThisContext(runtimeBytes.toString('utf8'), { filename: runtimePath });
+  const globals = globalThis as Record<string, unknown>;
   const GoClass = globals.Go as GoRuntime;
   const go = new GoClass();
-  const wasmBytes = new Uint8Array(await readFile(join(wasmDir, 'main.wasm')));
   const { instance } = await globalThis.WebAssembly.instantiate(
-    wasmBytes,
+    new Uint8Array(wasmBytes),
     go.importObject,
   );
   // The Go program blocks on a channel forever; run() resolves only on exit.

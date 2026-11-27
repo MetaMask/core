@@ -444,6 +444,9 @@ describe('HyperLiquidProvider', () => {
       getCachedPositions: vi.fn().mockReturnValue([]),
       getFreshPositionsForAllDexs: vi.fn().mockReturnValue(null),
       getCachedPositionsForDex: vi.fn().mockReturnValue(null),
+      getCachedOpenOrdersForDex: vi.fn().mockReturnValue(null),
+      getCachedActiveTwapOrders: vi.fn().mockReturnValue(null),
+      getCachedActiveAssetLeverage: vi.fn().mockReturnValue(null),
       updateFeatureFlags: vi.fn().mockResolvedValue(undefined),
       // Cache methods used by buildAssetMapping optimization
       setDexMetaCache: vi.fn(),
@@ -1285,6 +1288,7 @@ describe('HyperLiquidProvider', () => {
           mockStandaloneInfoClient.clearinghouseState,
         ).toHaveBeenCalledWith({ user: mockUserAddress });
         expect(accountState.totalBalance).toBeDefined();
+        expect(accountState.accountMode).toBe('unifiedAccount');
       });
 
       it('uses testnet endpoint when provider is in testnet mode', async () => {
@@ -2003,6 +2007,36 @@ describe('HyperLiquidProvider', () => {
           mockStandaloneInfoClient.clearinghouseState,
         ).toHaveBeenCalledTimes(2);
         // Restore
+        (mockClientService.isTestnetMode as Mock).mockReturnValue(false);
+      });
+
+      it('keeps the permissioned ignp dex on testnet', async () => {
+        (mockClientService.isTestnetMode as Mock).mockReturnValue(true);
+        const testnetProvider = createTestProvider({
+          hip3Enabled: true,
+          isTestnet: true,
+        });
+        mockStandaloneInfoClient.perpDexs.mockResolvedValue([
+          null,
+          { name: 'otherdex' },
+          { name: 'ignp' },
+        ]);
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [],
+          marginSummary: { totalMarginUsed: '0', accountValue: '0' },
+        });
+
+        await testnetProvider.getPositions({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+
+        expect(
+          mockStandaloneInfoClient.clearinghouseState,
+        ).toHaveBeenCalledTimes(2);
+        expect(
+          mockStandaloneInfoClient.clearinghouseState,
+        ).toHaveBeenCalledWith({ user: mockUserAddress, dex: 'ignp' });
         (mockClientService.isTestnetMode as Mock).mockReturnValue(false);
       });
 

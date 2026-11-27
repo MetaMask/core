@@ -10,6 +10,7 @@ import type {
   TwapHistoryResponse,
   UserFillsWsEvent,
   UserTwapHistoryWsEvent,
+  UserTwapSliceFillsWsEvent,
 } from '@nktkas/hyperliquid';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked } from 'vitest';
@@ -17,6 +18,7 @@ import type { Mock, Mocked } from 'vitest';
 import { ABSTRACTION_MODE_REFRESH_THROTTLE_MS } from '../../../src/constants/perpsConfig.js';
 import type { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
 import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
+import type { TwapOrderAdapter } from '../../../src/services/HyperLiquidSubscriptionService.js';
 import type { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
 import type {
   OrderFill,
@@ -382,6 +384,12 @@ describe('HyperLiquidSubscriptionService', () => {
           return Promise.resolve(mockSubscription);
         },
       ),
+      userTwapSliceFills: vi.fn(
+        (
+          _params: { user: `0x${string}` },
+          _callback: (event: UserTwapSliceFillsWsEvent) => void,
+        ) => Promise.resolve(mockSubscription),
+      ),
       l2Book: vi.fn((_params: any, callback: any) => {
         // Simulate l2Book data
         setTimeout(() => {
@@ -536,10 +544,12 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(mockSubscriptionClient.activeAssetCtx).toHaveBeenCalledWith(
         { coin: 'BTC' },
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
       expect(mockSubscriptionClient.activeAssetCtx).toHaveBeenCalledWith(
         { coin: 'ETH' },
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
 
       // Advance timers to trigger async callbacks
@@ -719,6 +729,7 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(mockSubscriptionClient.fastAssetCtxs).toHaveBeenCalledTimes(1);
       expect(mockSubscriptionClient.fastAssetCtxs).toHaveBeenCalledWith(
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
 
       unsubscribe();
@@ -999,6 +1010,32 @@ describe('HyperLiquidSubscriptionService', () => {
       );
       expect(callback).toHaveBeenCalledTimes(1);
       expect(callback).toHaveBeenCalledWith(frame);
+    });
+
+    it("serves the market's streamed leverage only for that wallet, market and connection", async () => {
+      const { emit } = captureListener();
+
+      const cleanup = service.subscribeToActiveAssetData({
+        symbol: 'BTC',
+        callback: vi.fn(),
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(service.getCachedActiveAssetLeverage('BTC', '0x123')).toBeNull();
+
+      emit(frame);
+
+      expect(
+        service.getCachedActiveAssetLeverage('BTC', '0x123'),
+      ).toStrictEqual(frame.leverage);
+      expect(service.getCachedActiveAssetLeverage('ETH', '0x123')).toBeNull();
+      expect(service.getCachedActiveAssetLeverage('BTC', '0x456')).toBeNull();
+
+      mockClientService.getConnectionEpoch.mockReturnValue(2);
+      expect(service.getCachedActiveAssetLeverage('BTC', '0x123')).toBeNull();
+      mockClientService.getConnectionEpoch.mockReturnValue(1);
+
+      cleanup();
+      expect(service.getCachedActiveAssetLeverage('BTC', '0x123')).toBeNull();
     });
 
     it('stops streaming and unsubscribes on cleanup', async () => {
@@ -1515,6 +1552,245 @@ describe('HyperLiquidSubscriptionService', () => {
     });
   });
 
+  it.each(['positions', 'orders'])(
+    'waits for the %s channel before publishing its initial empty snapshot',
+    async (delayedChannel) => {
+      await service.updateFeatureFlags(true, [], [], []);
+      const subscription = {
+        unsubscribe: vi.fn().mockResolvedValue(undefined),
+      };
+      mockSubscriptionClient.clearinghouseState.mockResolvedValue(subscription);
+      mockSubscriptionClient.openOrders.mockResolvedValue(subscription);
+      const onPositions = vi.fn();
+      const onOrders = vi.fn();
+      service.subscribeToPositions({
+        callback: onPositions,
+        includeSnapshotStatus: true,
+      });
+      service.subscribeToOrders({
+        callback: onOrders,
+        includeSnapshotStatus: true,
+      });
+      await vi.runAllTimersAsync();
+
+      const publishPositions = () =>
+        mockSubscriptionClient.clearinghouseState.mock.calls[0][1]({
+          dex: '',
+          clearinghouseState: {
+            assetPositions: [],
+            marginSummary: { accountValue: '0', totalMarginUsed: '0' },
+            withdrawable: '0',
+          },
+        });
+      const publishOrders = () =>
+        mockSubscriptionClient.openOrders.mock.calls[0][1]({
+          dex: '',
+          orders: [],
+        });
+      if (delayedChannel === 'positions') {
+        publishOrders();
+        expect(onOrders).toHaveBeenCalledExactlyOnceWith([], undefined, true);
+        expect(onPositions).not.toHaveBeenCalled();
+        publishPositions();
+      } else {
+        publishPositions();
+        expect(onPositions).toHaveBeenCalledExactlyOnceWith([], true);
+        expect(onOrders).not.toHaveBeenCalled();
+        publishOrders();
+      }
+      expect(onPositions).toHaveBeenCalledExactlyOnceWith([], true);
+      expect(onOrders).toHaveBeenCalledExactlyOnceWith([], undefined, true);
+
+      mockClientService.getConnectionEpoch.mockReturnValue(2);
+      publishPositions();
+      expect(onPositions).toHaveBeenCalledTimes(2);
+      expect(onOrders).toHaveBeenCalledTimes(1);
+      publishOrders();
+      expect(onOrders).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it('removes an order subscriber whose synchronous complete replay throws', async () => {
+    await service.updateFeatureFlags(false, [], [], []);
+    const unsubscribe = service.subscribeToOrders({
+      includeSnapshotStatus: true,
+      callback: vi.fn(),
+    });
+    await vi.runAllTimersAsync();
+    const error = new Error('order callback failed');
+    const replay = vi.fn().mockImplementation(() => {
+      throw error;
+    });
+
+    expect(() =>
+      service.subscribeToOrders({
+        includeSnapshotStatus: true,
+        callback: replay,
+      }),
+    ).toThrow(error);
+    mockSubscriptionClient.openOrders.mock.calls[0][1]({ dex: '', orders: [] });
+    expect(replay).toHaveBeenCalledOnce();
+
+    unsubscribe();
+    expect(service.getOrdersCacheIfInitialized(true)).toBeNull();
+  });
+
+  it('publishes a reverted order list to a complete subscriber that joined after the opt-in set emptied', async () => {
+    await service.updateFeatureFlags(false, [], [], []);
+    const unsubscribeLegacy = service.subscribeToOrders({ callback: vi.fn() });
+    const first = vi.fn();
+    const unsubscribeFirst = service.subscribeToOrders({
+      includeSnapshotStatus: true,
+      callback: first,
+    });
+    await vi.runAllTimersAsync();
+    const publish = mockSubscriptionClient.openOrders.mock.calls[0][1];
+    publish({ dex: '', orders: [] });
+    expect(first).toHaveBeenLastCalledWith([], undefined, true);
+
+    unsubscribeFirst();
+    publish({
+      dex: '',
+      orders: [{ oid: 1, coin: 'BTC', side: 'B', sz: '1', limitPx: '50000' }],
+    });
+    const second = vi.fn();
+    const unsubscribeSecond = service.subscribeToOrders({
+      includeSnapshotStatus: true,
+      callback: second,
+    });
+    expect(second).toHaveBeenLastCalledWith(
+      [expect.objectContaining({ orderId: '1' })],
+      undefined,
+      true,
+    );
+    publish({ dex: '', orders: [] });
+
+    expect(second).toHaveBeenLastCalledWith([], undefined, true);
+    unsubscribeSecond();
+    unsubscribeLegacy();
+  });
+
+  it('publishes a reverted position list to a complete subscriber that joined after the opt-in set emptied', async () => {
+    await service.updateFeatureFlags(false, [], [], []);
+    const unsubscribeLegacy = service.subscribeToPositions({
+      callback: vi.fn(),
+    });
+    const first = vi.fn();
+    const unsubscribeFirst = service.subscribeToPositions({
+      includeSnapshotStatus: true,
+      callback: first,
+    });
+    await vi.runAllTimersAsync();
+    const publish = (assetPositions: unknown[]): void =>
+      mockSubscriptionClient.clearinghouseState.mock.calls[0][1]({
+        dex: '',
+        clearinghouseState: {
+          assetPositions,
+          marginSummary: { accountValue: '1000', totalMarginUsed: '0' },
+          withdrawable: '1000',
+        },
+      });
+    publish([]);
+    expect(first).toHaveBeenLastCalledWith([], true);
+
+    unsubscribeFirst();
+    publish([
+      {
+        type: 'oneWay',
+        position: {
+          coin: 'BTC',
+          szi: '0.1',
+          entryPx: '50000',
+          positionValue: '5000',
+          unrealizedPnl: '0',
+          returnOnEquity: '0',
+          leverage: { type: 'cross', value: 5 },
+          liquidationPx: '40000',
+          marginUsed: '1000',
+          maxLeverage: 50,
+          cumFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
+        },
+      },
+    ]);
+    const second = vi.fn();
+    const unsubscribeSecond = service.subscribeToPositions({
+      includeSnapshotStatus: true,
+      callback: second,
+    });
+    expect(second).toHaveBeenLastCalledWith(
+      [expect.objectContaining({ symbol: 'BTC' })],
+      true,
+    );
+    publish([]);
+
+    expect(second).toHaveBeenLastCalledWith([], true);
+    unsubscribeSecond();
+    unsubscribeLegacy();
+  });
+
+  it('restores user-data streams after a reconnect when only complete-snapshot subscribers remain', async () => {
+    await service.updateFeatureFlags(false, [], [], []);
+    const unsubscribePositions = service.subscribeToPositions({
+      includeSnapshotStatus: true,
+      callback: vi.fn(),
+    });
+    const unsubscribeOrders = service.subscribeToOrders({
+      includeSnapshotStatus: true,
+      callback: vi.fn(),
+    });
+    await vi.runAllTimersAsync();
+    const clearinghouseOpens =
+      mockSubscriptionClient.clearinghouseState.mock.calls.length;
+    const openOrdersOpens = mockSubscriptionClient.openOrders.mock.calls.length;
+
+    await service.restoreSubscriptions();
+    await vi.runAllTimersAsync();
+
+    expect(
+      mockSubscriptionClient.clearinghouseState.mock.calls.length,
+    ).toBeGreaterThan(clearinghouseOpens);
+    expect(mockSubscriptionClient.openOrders.mock.calls.length).toBeGreaterThan(
+      openOrdersOpens,
+    );
+    unsubscribePositions();
+    unsubscribeOrders();
+  });
+
+  it('publishes replacements with a new order ID on the complete stream', async () => {
+    await service.updateFeatureFlags(false, [], [], []);
+    const subscription = { unsubscribe: vi.fn().mockResolvedValue(undefined) };
+    mockSubscriptionClient.openOrders.mockResolvedValue(subscription);
+    const complete = vi.fn();
+    const legacy = vi.fn();
+    const unsubscribeComplete = service.subscribeToOrders({
+      includeSnapshotStatus: true,
+      callback: complete,
+    });
+    const unsubscribeLegacy = service.subscribeToOrders({ callback: legacy });
+    await vi.runAllTimersAsync();
+
+    const publishOrder = (oid: number): void => {
+      mockSubscriptionClient.openOrders.mock.calls[0][1]({
+        dex: '',
+        orders: [{ oid, coin: 'BTC', side: 'B', sz: '1', limitPx: '50000' }],
+      });
+    };
+    publishOrder(1);
+    publishOrder(2);
+
+    expect(complete).toHaveBeenCalledTimes(2);
+    expect(complete).toHaveBeenLastCalledWith(
+      [expect.objectContaining({ orderId: '2' })],
+      undefined,
+      true,
+    );
+    expect(legacy).toHaveBeenLastCalledWith([
+      expect.objectContaining({ orderId: '1' }),
+    ]);
+    unsubscribeLegacy();
+    unsubscribeComplete();
+  });
+
   describe('Position Subscriptions', () => {
     it('should subscribe to position updates successfully', async () => {
       const mockCallback = vi.fn();
@@ -1541,14 +1817,17 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(mockSubscriptionClient.clearinghouseState).toHaveBeenCalledWith(
         { user: '0x123', dex: undefined },
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
       expect(mockSubscriptionClient.openOrders).toHaveBeenCalledWith(
         { user: '0x123', dex: undefined },
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
       expect(mockSubscriptionClient.webData3).toHaveBeenCalledWith(
         { user: '0x123' },
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
       expect(mockCallback).toHaveBeenCalled();
       expect(typeof unsubscribe).toBe('function');
@@ -1660,6 +1939,7 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(mockSubscriptionClient.userFills).toHaveBeenCalledWith(
         { user: '0x123' },
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
       expect(mockCallback).toHaveBeenCalled();
       expect(typeof unsubscribe).toBe('function');
@@ -2544,14 +2824,17 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(mockSubscriptionClient.clearinghouseState).toHaveBeenCalledWith(
         expect.objectContaining({ user: '0x123' }),
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
       expect(mockSubscriptionClient.openOrders).toHaveBeenCalledWith(
         expect.objectContaining({ user: '0x123' }),
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
       expect(mockSubscriptionClient.webData3).toHaveBeenCalledWith(
         { user: '0x123' },
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
 
       expect(positionCallback).toHaveBeenCalledWith(
@@ -2580,6 +2863,27 @@ describe('HyperLiquidSubscriptionService', () => {
       );
 
       expect(oiCapCallback).toHaveBeenCalledWith(['BTC', 'DOGE']);
+
+      // A mode-only frame needs to invalidate the quote's account context.
+      const publishWebData = mockSubscriptionClient.webData3.mock.calls[0][1];
+      const previousAccount = accountCallback.mock.lastCall?.[0];
+      for (const abstraction of ['unifiedAccount', 'disabled']) {
+        publishWebData({
+          userState: { user: '0x123', abstraction },
+          perpDexStates: [],
+        });
+        // The first frame folded with the REST mode (Unified). Standard adds
+        // the ledgers instead, so only the Unified total matches it.
+        expect(accountCallback).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            totalBalance:
+              abstraction === 'unifiedAccount'
+                ? previousAccount.totalBalance
+                : expect.any(String),
+            accountMode: abstraction,
+          }),
+        );
+      }
 
       // Cleanup
       unsubscribePositions();
@@ -2651,6 +2955,22 @@ describe('HyperLiquidSubscriptionService', () => {
         fills: [],
       }));
 
+    const adaptSliceFills: TwapOrderAdapter['sliceFills'] = (sliceFills) =>
+      sliceFills.map(({ twapId, fill }) => ({
+        orderId: String(twapId),
+        fill: {
+          fillId: String(fill.tid),
+          orderId: String(fill.oid),
+          side: 'buy',
+          price: fill.px,
+          size: fill.sz,
+          fee: fill.fee,
+          feeToken: fill.feeToken,
+          timestamp: fill.time,
+          transactionHash: fill.hash,
+        },
+      }));
+
     it('delivers adapted schedules from the venue push channel', async () => {
       // Arrange
       const callback = vi.fn();
@@ -2658,7 +2978,7 @@ describe('HyperLiquidSubscriptionService', () => {
       // Act
       const unsubscribe = service.subscribeToTwapOrders({
         callback,
-        adapt: adaptStub,
+        adapt: { history: adaptStub, sliceFills: adaptSliceFills },
       });
       await vi.runAllTimersAsync();
 
@@ -2678,12 +2998,12 @@ describe('HyperLiquidSubscriptionService', () => {
       // Act
       const unsubscribeFirst = service.subscribeToTwapOrders({
         callback: first,
-        adapt: adaptStub,
+        adapt: { history: adaptStub, sliceFills: adaptSliceFills },
       });
       await vi.runAllTimersAsync();
       const unsubscribeSecond = service.subscribeToTwapOrders({
         callback: second,
-        adapt: adaptStub,
+        adapt: { history: adaptStub, sliceFills: adaptSliceFills },
       });
       await vi.runAllTimersAsync();
 
@@ -2699,11 +3019,11 @@ describe('HyperLiquidSubscriptionService', () => {
       const second = vi.fn();
       const unsubscribeFirst = service.subscribeToTwapOrders({
         callback: first,
-        adapt: adaptStub,
+        adapt: { history: adaptStub, sliceFills: adaptSliceFills },
       });
       const unsubscribeSecond = service.subscribeToTwapOrders({
         callback: second,
-        adapt: adaptStub,
+        adapt: { history: adaptStub, sliceFills: adaptSliceFills },
       });
       await vi.runAllTimersAsync();
 
@@ -2724,7 +3044,7 @@ describe('HyperLiquidSubscriptionService', () => {
       const callback = vi.fn();
       const unsubscribe = service.subscribeToTwapOrders({
         callback,
-        adapt: adaptStub,
+        adapt: { history: adaptStub, sliceFills: adaptSliceFills },
       });
       await vi.runAllTimersAsync();
 
@@ -2770,7 +3090,7 @@ describe('HyperLiquidSubscriptionService', () => {
       // Act
       const unsubscribe = service.subscribeToTwapOrders({
         callback,
-        adapt: adaptStub,
+        adapt: { history: adaptStub, sliceFills: adaptSliceFills },
       });
       await vi.runAllTimersAsync();
 
@@ -2817,7 +3137,7 @@ describe('HyperLiquidSubscriptionService', () => {
       // Act
       const unsubscribe = service.subscribeToTwapOrders({
         callback,
-        adapt: adaptStub,
+        adapt: { history: adaptStub, sliceFills: adaptSliceFills },
       });
       await vi.runAllTimersAsync();
 
@@ -2841,12 +3161,12 @@ describe('HyperLiquidSubscriptionService', () => {
       const unsubscribeA = service.subscribeToTwapOrders({
         callback: callbackA,
         accountId: accountA,
-        adapt: adaptStub,
+        adapt: { history: adaptStub, sliceFills: adaptSliceFills },
       });
       const unsubscribeB = service.subscribeToTwapOrders({
         callback: callbackB,
         accountId: accountB,
-        adapt: adaptStub,
+        adapt: { history: adaptStub, sliceFills: adaptSliceFills },
       });
       await vi.runAllTimersAsync();
       // Act: account A's only subscriber leaves
@@ -2863,7 +3183,7 @@ describe('HyperLiquidSubscriptionService', () => {
       service.subscribeToTwapOrders({
         callback: vi.fn(),
         accountId: accountB,
-        adapt: adaptStub,
+        adapt: { history: adaptStub, sliceFills: adaptSliceFills },
       })();
       expect(mockSubscriptionClient.userTwapHistory).toHaveBeenCalledTimes(
         subscribeCallCount,
@@ -2876,7 +3196,7 @@ describe('HyperLiquidSubscriptionService', () => {
       const callback = vi.fn();
       const unsubscribe = service.subscribeToTwapOrders({
         callback,
-        adapt: adaptStub,
+        adapt: { history: adaptStub, sliceFills: adaptSliceFills },
       });
       await vi.runAllTimersAsync();
       expect(mockSubscriptionClient.userTwapHistory).toHaveBeenCalledTimes(1);
@@ -2929,7 +3249,7 @@ describe('HyperLiquidSubscriptionService', () => {
       // Act
       const unsubscribe = service.subscribeToTwapOrders({
         callback,
-        adapt: statusAwareAdapt,
+        adapt: { history: statusAwareAdapt, sliceFills: adaptSliceFills },
       });
       await vi.runAllTimersAsync();
 
@@ -2953,7 +3273,7 @@ describe('HyperLiquidSubscriptionService', () => {
       const callback = vi.fn();
       const unsubscribe = service.subscribeToTwapOrders({
         callback,
-        adapt: adaptStub,
+        adapt: { history: adaptStub, sliceFills: adaptSliceFills },
       });
       await vi.runAllTimersAsync();
       const deliveredWhileSubscribed = callback.mock.calls.length;
@@ -2964,6 +3284,77 @@ describe('HyperLiquidSubscriptionService', () => {
 
       // Assert
       expect(callback).toHaveBeenCalledTimes(deliveredWhileSubscribed);
+    });
+
+    describe('getCachedActiveTwapOrders', () => {
+      it('returns the active schedules once the snapshot arrived on this connection', async () => {
+        const unsubscribe = service.subscribeToTwapOrders({
+          callback: vi.fn(),
+          adapt: { history: statusAwareAdapt, sliceFills: adaptSliceFills },
+        });
+        await vi.runAllTimersAsync();
+
+        expect(service.getCachedActiveTwapOrders('0x123')).toStrictEqual([
+          expect.objectContaining({ orderId: '77', symbol: 'BTC' }),
+        ]);
+        unsubscribe();
+      });
+
+      it('leaves out terminal schedules', async () => {
+        mockSubscriptionClient.userTwapHistory.mockImplementation(
+          (
+            params: { user: `0x${string}` },
+            listener: (event: UserTwapHistoryWsEvent) => void,
+          ) => {
+            setTimeout(() => {
+              listener({
+                user: params.user,
+                history: [
+                  {
+                    ...buildHistoryEntry(77, 'BTC'),
+                    state: {
+                      ...buildHistoryEntry(77, 'BTC').state,
+                      stopPx: null,
+                      trigger: null,
+                    },
+                    status: { status: 'finished' },
+                  },
+                ],
+                isSnapshot: true,
+              });
+            }, 0);
+            return Promise.resolve({
+              unsubscribe: vi.fn().mockResolvedValue(undefined),
+            });
+          },
+        );
+        const unsubscribe = service.subscribeToTwapOrders({
+          callback: vi.fn(),
+          adapt: { history: statusAwareAdapt, sliceFills: adaptSliceFills },
+        });
+        await vi.runAllTimersAsync();
+
+        expect(service.getCachedActiveTwapOrders('0x123')).toStrictEqual([]);
+        unsubscribe();
+      });
+
+      it('returns null for another wallet, before the snapshot, after a reconnect and after unsubscribing', async () => {
+        expect(service.getCachedActiveTwapOrders('0x123')).toBeNull();
+        const unsubscribe = service.subscribeToTwapOrders({
+          callback: vi.fn(),
+          adapt: { history: statusAwareAdapt, sliceFills: adaptSliceFills },
+        });
+        await vi.runAllTimersAsync();
+
+        expect(service.getCachedActiveTwapOrders('0x456')).toBeNull();
+        mockClientService.getConnectionEpoch.mockReturnValue(2);
+        expect(service.getCachedActiveTwapOrders('0x123')).toBeNull();
+        mockClientService.getConnectionEpoch.mockReturnValue(1);
+        expect(service.getCachedActiveTwapOrders('0x123')).not.toBeNull();
+
+        unsubscribe();
+        expect(service.getCachedActiveTwapOrders('0x123')).toBeNull();
+      });
     });
   });
 });

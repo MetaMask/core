@@ -247,6 +247,66 @@ export const PERPS_EVENT_PROPERTY = {
 
   // Time-on-screen for abandon tracking
   TIME_ON_SCREEN_MS: 'time_on_screen_ms',
+
+  // Search funnel properties. The query text itself is `SEARCH_QUERY`.
+  /** Queries sent in the search session, reported when it is abandoned. */
+  QUERY_COUNT: 'query_count',
+  TIME_IN_SEARCH_MS: 'time_in_search_ms',
+  TIME_TO_TAP_MS: 'time_to_tap_ms',
+  QUERY_LENGTH: 'query_length',
+  HAS_RESULTS: 'has_results',
+  /** Filter chips active when this query event was sent. */
+  ACTIVE_CHIPS: 'active_chips',
+
+  // Chase termination properties
+  FILL_PCT_AT_TERMINATE: 'fill_pct_at_terminate',
+
+  // Related-markets interaction properties. The tapped market is `ASSET` and
+  // its one-based slot in the list is `RESULT_RANK`.
+  /** Market whose page listed the related market. */
+  SOURCE_MARKET: 'source_market',
+  /**
+   * Collection the related markets were drawn from. Not `MARKET_CATEGORY`
+   * (the tapped market's own category) or `FILTER_CATEGORY` (a list filter).
+   */
+  CATEGORY: 'category',
+
+  // Chart interaction properties (interaction `CHART_INTERACTED`). Existing
+  // keys carry the rest: the environment is `ENVIRONMENT_TYPE`, the candle
+  // period `CANDLE_PERIOD` (the new period on a timeframe change), the
+  // number of open positions and orders `OPEN_POSITION` and `OPEN_ORDER`
+  // (counts, not booleans), a position's side `DIRECTION`, and the time the
+  // chart was shown `TIME_ON_SCREEN_MS` (milliseconds, not seconds). Entering
+  // or leaving fullscreen is a `CHART_INTERACTION` value, not a `STATUS`.
+  /** What the trader did on the chart, a `PERPS_EVENT_VALUE.CHART_INTERACTION`. */
+  CHART_INTERACTION: 'chart_interaction',
+  /** The chart style, such as `candles` or `line`. */
+  CHART_TYPE: 'chart_type',
+  /** The perps venue the event belongs to, a `PerpsProviderType`. */
+  PROVIDER: 'provider',
+  /** The venue order the event is about. */
+  ORDER_ID: 'order_id',
+  /** The order price's signed distance from the mark price, in percent. */
+  PRICE_DISTANCE_PCT: 'price_distance_pct',
+  /** An order or trigger price before the trader moved it. */
+  OLD_PRICE: 'old_price',
+  /** An order or trigger price after the trader moved it. */
+  NEW_PRICE: 'new_price',
+  /** `PERPS_EVENT_VALUE.ACTION.TP` or `PERPS_EVENT_VALUE.ACTION.SL`. */
+  TP_SL_TYPE: 'tp_sl_type',
+  INDICATOR_NAME: 'indicator_name',
+  /** Indicators on the chart after the change. */
+  INDICATOR_COUNT: 'indicator_count',
+  DRAWING_NAME: 'drawing_name',
+  /** Drawings on the chart after the change. */
+  DRAWING_COUNT: 'drawing_count',
+  /**
+   * The candle period before a timeframe change; the new one is
+   * `CANDLE_PERIOD`. Named like `PREVIOUS_LEVERAGE`.
+   */
+  PREVIOUS_CANDLE_PERIOD: 'previous_candle_period',
+  /** The chart style before a chart type change; the new one is `CHART_TYPE`. */
+  PREVIOUS_CHART_TYPE: 'previous_chart_type',
 } as const;
 
 /**
@@ -279,6 +339,21 @@ export const PERPS_EVENT_VALUE = {
     LIGHTWEIGHT: 'lightweight',
     ADVANCED: 'advanced',
   },
+  /** Values of `chart_interaction` on a `chart_interacted` interaction. */
+  CHART_INTERACTION: {
+    PLACE_ORDER: 'place_order',
+    EDIT_ORDER: 'edit_order',
+    CANCEL_ORDER: 'cancel_order',
+    CLOSE_POSITION: 'close_position',
+    TP_SL: 'tp_sl',
+    INDICATOR: 'indicator',
+    DRAWING: 'drawing',
+    TIMEFRAME_CHANGED: 'timeframe_changed',
+    CHART_TYPE_CHANGED: 'chart_type_changed',
+    FULLSCREEN_ENTERED: 'fullscreen_entered',
+    FULLSCREEN_EXITED: 'fullscreen_exited',
+    CHART_VIEWED: 'chart_viewed',
+  },
   ASSET_TYPE: {
     SPOT: 'spot',
     PERP: 'perp',
@@ -299,6 +374,13 @@ export const PERPS_EVENT_VALUE = {
     DEEPLINK: 'deeplink',
     TUTORIAL: 'tutorial',
     TRADE_SCREEN: 'trade_screen',
+    /**
+     * A trade, cancel or close the trader started by acting on a trading
+     * chart itself (an order line or chart menu), inline or fullscreen.
+     * `FULL_SCREEN_CHART` is a flow opened from the controls of a fullscreen
+     * chart screen, as Mobile's fullscreen chart.
+     */
+    CHART: 'chart',
     HOMESCREEN_TAB: 'homescreen_tab',
     PERP_ASSET_SCREEN: 'perp_asset_screen',
     PERP_MARKET: 'perp_market',
@@ -366,6 +448,7 @@ export const PERPS_EVENT_VALUE = {
     // Geo-block sources for bulk actions
     CLOSE_ALL_POSITIONS_BUTTON: 'close_all_positions_button',
     CANCEL_ALL_ORDERS_BUTTON: 'cancel_all_orders_button',
+    RELATED_MARKETS: 'related_markets',
   },
   WARNING_TYPE: {
     MINIMUM_DEPOSIT: 'minimum_deposit',
@@ -444,6 +527,9 @@ export const PERPS_EVENT_VALUE = {
     SEARCH_CLICKED: 'search_clicked',
     ORDER_TYPE_VIEWED: 'order_type_viewed',
     ORDER_TYPE_SELECTED: 'order_type_selected',
+    // Lite market page: opening the Trade on sheet and saving a new venue.
+    TRADE_ON_SHEET_OPENED: 'trade_on_sheet_opened',
+    TRADE_ON_VENUE_CHANGED: 'trade_on_venue_changed',
     /** @deprecated Use LEVERAGE_CHANGED instead for clarity */
     SETTING_CHANGED: 'setting_changed',
     /**
@@ -492,6 +578,23 @@ export const PERPS_EVENT_VALUE = {
     // Chase interactions
     CHASE_BACKGROUNDED_CONVERTED: 'chase_backgrounded_converted',
     CHASE_TERMINATED: 'chase_terminated',
+    CHASE_CONCURRENCY_LIMIT_HIT: 'chase_concurrency_limit_hit',
+    CHASE_MAX_DISTANCE_HIT: 'chase_max_distance_hit',
+    CHASE_REPRICE: 'chase_reprice',
+    // Close-all interactions
+    CLOSE_ALL_TAPPED: 'close_all_tapped',
+    CLOSE_ALL_CONFIRMED: 'close_all_confirmed',
+    CLOSE_ALL_CANCELLED: 'close_all_cancelled',
+    // Chart and order-book panel interactions
+    CHART_OPENED: 'chart_opened',
+    CHART_CLOSED: 'chart_closed',
+    ORDER_BOOK_OPENED: 'order_book_opened',
+    ORDER_BOOK_CLOSED: 'order_book_closed',
+    // A trader's action on a trading chart; `chart_interaction` says which.
+    CHART_INTERACTED: 'chart_interacted',
+    // Related-markets interactions
+    RELATED_MARKET_CLICKED: 'related_market_clicked',
+    RELATED_MARKETS_HEADER_TAPPED: 'related_markets_header_tapped',
     // Search interactions
     SEARCH_RESULT_TAPPED: 'search_result_tapped',
     SEARCH_CHIP_TAPPED: 'search_chip_tapped',
@@ -546,6 +649,13 @@ export const PERPS_EVENT_VALUE = {
     // (e.g. the user has no Hyperliquid account yet — nothing to migrate).
     // Distinguishes expected no-ops from real failures in dashboards.
     NOT_APPLICABLE: 'not_applicable',
+    // Chart order and drawing statuses (Terminal `chart_interacted`)
+    CRAFTED: 'crafted',
+    DRAGGED: 'dragged',
+    DROPPED: 'dropped',
+    CANCELLED: 'cancelled',
+    MODIFIED: 'modified',
+    TAPPED: 'tapped',
   },
   SCREEN_TYPE: {
     MARKETS: 'markets',
@@ -625,6 +735,12 @@ export const PERPS_EVENT_VALUE = {
     FLIP_SHORT_TO_LONG: 'flip_short_to_long',
     // Order funnel abandonment
     ABANDON_ORDER: 'abandon_order',
+    // Chart indicator, drawing and favorite actions (Terminal `chart_interacted`)
+    ADD: 'add',
+    REMOVE: 'remove',
+    EDIT: 'edit',
+    FAVORITE: 'favorite',
+    UNFAVORITE: 'unfavorite',
   },
   // Risk management sources
   RISK_MANAGEMENT_SOURCE: {

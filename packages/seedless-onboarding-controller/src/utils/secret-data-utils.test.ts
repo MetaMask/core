@@ -1,6 +1,7 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
+import type { FetchedSecretDataItem } from '@metamask/toprf-secure-backup';
 import { EncAccountDataType } from '@metamask/toprf-secure-backup';
-import { stringToBytes } from '@metamask/utils';
+import { bigIntToHex, stringToBytes } from '@metamask/utils';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -14,13 +15,71 @@ import {
   SRP2,
 } from '../../tests/__fixtures__/secret-metadata.js';
 import { SecretType } from '../constants.js';
-import { InvalidPrimarySecretDataTypeError } from '../errors.js';
+import { serializeControlRecord } from '../envelope/envelope-keys.js';
+import type { ControlRecord } from '../envelope/envelope-keys.js';
+import { InvalidPrimarySecretDataTypeError } from './errors.js';
 import {
+  findSocialBackupMetadata,
+  getCreatedAtMs,
   getDataTypeMigrationUpdates,
   getNewSocialBackupsMetadata,
+  isSecretDataType,
   parseAndValidateSecretMetadataBackup,
   parseSecretMetadata,
+  sortNewestFirst,
+  splitVaultItems,
 } from './secret-data-utils.js';
+
+/**
+ * @param overrides - The fields to set on the item.
+ * @returns A fetched item with a default item id and version.
+ */
+function createVaultItem(
+  overrides: Partial<FetchedSecretDataItem> & { itemId: string },
+): FetchedSecretDataItem {
+  return {
+    data: stringToBytes('secret'),
+    version: 'v2',
+    ...overrides,
+  };
+}
+
+/**
+ * @param seq - The record sequence number.
+ * @returns A well-formed control record.
+ */
+function createRecord(seq: number): ControlRecord {
+  return {
+    v: 1,
+    seq,
+    passwordNamespace: {
+      verifier: 'verifier',
+      verifierId: 'user',
+      authSk: bigIntToHex(11n),
+      keyIndex: seq,
+    },
+    migratedAt: 1,
+  };
+}
+
+/**
+ * @param seq - The record sequence number.
+ * @param createdAt - The creation time of the item.
+ * @param itemId - The item id.
+ * @returns A fetched control record item.
+ */
+function createControlItem(
+  seq: number,
+  createdAt: string,
+  itemId: string,
+): FetchedSecretDataItem {
+  return createVaultItem({
+    itemId,
+    data: serializeControlRecord(createRecord(seq)),
+    dataType: EncAccountDataType.EnvelopeControl,
+    createdAt,
+  });
+}
 
 describe('secret data utilities', () => {
   describe('parseSecretMetadata', () => {
@@ -175,6 +234,279 @@ describe('secret data utilities', () => {
           keyringId: 'new-keyring',
         },
       ]);
+    });
+  });
+
+  describe('isSecretDataType', () => {
+    it.each([
+      ['PrimarySrp', EncAccountDataType.PrimarySrp, true],
+      ['ImportedSrp', EncAccountDataType.ImportedSrp, true],
+      ['ImportedPrivateKey', EncAccountDataType.ImportedPrivateKey, true],
+      ['KeyEnvelope', EncAccountDataType.KeyEnvelope, false],
+      ['EnvelopeControl', EncAccountDataType.EnvelopeControl, false],
+      ['an unknown value', 99 as EncAccountDataType, false],
+      ['undefined (legacy item)', undefined, true],
+    ])('returns the expected result for %s', (_name, dataType, expected) => {
+      expect(isSecretDataType(dataType)).toBe(expected);
+    });
+  });
+
+  describe('getCreatedAtMs', () => {
+    it('returns 0 when the creation time is unknown', () => {
+      expect(getCreatedAtMs(createVaultItem({ itemId: 'a' }))).toBe(0);
+    });
+
+    it('parses a numeric string as milliseconds', () => {
+      expect(
+        getCreatedAtMs(
+          createVaultItem({ itemId: 'a', createdAt: '1700000000000' }),
+        ),
+      ).toBe(1700000000000);
+    });
+
+    it('parses an ISO date string', () => {
+      expect(
+        getCreatedAtMs(
+          createVaultItem({
+            itemId: 'a',
+            createdAt: '2026-01-01T00:00:00.000Z',
+          }),
+        ),
+      ).toBe(Date.parse('2026-01-01T00:00:00.000Z'));
+    });
+
+    it('parses a Cassandra TIMEUUID (UUIDv1) string as milliseconds', () => {
+      expect(
+        getCreatedAtMs(
+          createVaultItem({
+            itemId: 'a',
+            createdAt: 'c14cc4a0-d1cd-11f0-9878-3be4d8d3a8a0',
+          }),
+        ),
+      ).toBe(Date.parse('2025-12-05T11:30:09.002Z'));
+    });
+
+    it('returns 0 for a non-v1 UUID', () => {
+      expect(
+        getCreatedAtMs(
+          createVaultItem({
+            itemId: 'a',
+            createdAt: '550e8400-e29b-41d4-a716-446655440000',
+          }),
+        ),
+      ).toBe(0);
+    });
+
+    it('returns 0 for an empty or whitespace-only creation time', () => {
+      expect(
+        getCreatedAtMs(createVaultItem({ itemId: 'a', createdAt: '   ' })),
+      ).toBe(0);
+    });
+
+    it('returns 0 for an unparseable creation time', () => {
+      expect(
+        getCreatedAtMs(createVaultItem({ itemId: 'a', createdAt: 'garbage' })),
+      ).toBe(0);
+    });
+  });
+
+  describe('sortNewestFirst', () => {
+    it('sorts by creation time descending and breaks ties by later index first', () => {
+      const items = [
+        createVaultItem({ itemId: 'old', createdAt: '1000' }),
+        createVaultItem({ itemId: 'tie-first', createdAt: '3000' }),
+        createVaultItem({ itemId: 'tie-second', createdAt: '3000' }),
+        createVaultItem({ itemId: 'unknown' }),
+      ];
+      const original = [...items];
+
+      const sorted = sortNewestFirst(items);
+
+      expect(sorted.map((item) => item.itemId)).toStrictEqual([
+        'tie-second',
+        'tie-first',
+        'old',
+        'unknown',
+      ]);
+      expect(sorted).not.toBe(items);
+      expect(items).toStrictEqual(original);
+    });
+
+    it('sorts Cassandra TIMEUUIDs by 60-bit timestamp descending rather than input or lexicographical order', () => {
+      // Chronological order: t1 < t1Plus100ns < t2 < t3 (note t1 > t2 lexicographically).
+      const t1 = 'c14cc4a0-d1cd-11f0-9878-3be4d8d3a8a0';
+      const t1Plus100ns = 'c14cc4a1-d1cd-11f0-9878-3be4d8d3a8a0';
+      const t2 = '04e72250-d1ce-11f0-9878-3be4d8d3a8a0';
+      const t3 = 'B2649610-D1CE-11F0-9878-3BE4D8D3A8A0';
+
+      const sorted = sortNewestFirst([
+        createVaultItem({ itemId: 't2', createdAt: t2 }),
+        createVaultItem({ itemId: 'unknown' }),
+        createVaultItem({ itemId: 't3', createdAt: t3 }),
+        createVaultItem({ itemId: 't1', createdAt: t1 }),
+        createVaultItem({ itemId: 't1-plus-100ns', createdAt: t1Plus100ns }),
+      ]);
+
+      expect(sorted.map((item) => item.itemId)).toStrictEqual([
+        't3',
+        't2',
+        't1-plus-100ns',
+        't1',
+        'unknown',
+      ]);
+    });
+
+    it('sorts synthetic pre-1970 TIMEUUIDs ahead of unknown creation times', () => {
+      const sorted = sortNewestFirst([
+        createVaultItem({
+          itemId: 'older',
+          createdAt: '00000001-0000-1000-8000-000000000001',
+        }),
+        createVaultItem({ itemId: 'unknown' }),
+        createVaultItem({
+          itemId: 'newer',
+          createdAt: '00000002-0000-1000-8000-000000000002',
+        }),
+      ]);
+
+      expect(sorted.map((item) => item.itemId)).toStrictEqual([
+        'newer',
+        'older',
+        'unknown',
+      ]);
+    });
+  });
+
+  describe('splitVaultItems', () => {
+    it('splits secret items from control records and drops key envelopes', () => {
+      const { secretItems, controlRecords } = splitVaultItems([
+        createVaultItem({
+          itemId: 'primary',
+          data: stringToBytes('primary secret'),
+          dataType: EncAccountDataType.PrimarySrp,
+          createdAt: '1',
+        }),
+        createVaultItem({
+          itemId: 'envelope',
+          data: stringToBytes('{}'),
+          dataType: EncAccountDataType.KeyEnvelope,
+          createdAt: '2',
+        }),
+        createControlItem(1, '100', 'control-old'),
+        createVaultItem({
+          itemId: 'malformed',
+          data: stringToBytes('{"v":1}'),
+          dataType: EncAccountDataType.EnvelopeControl,
+          createdAt: '300',
+        }),
+        createControlItem(2, '200', 'control-new'),
+        createVaultItem({
+          itemId: 'legacy',
+          data: stringToBytes('legacy secret'),
+          createdAt: '4',
+        }),
+      ]);
+
+      expect(secretItems.map((item) => item.itemId)).toStrictEqual([
+        'primary',
+        'legacy',
+      ]);
+      expect(controlRecords.map((record) => record.seq)).toStrictEqual([2, 1]);
+    });
+
+    it('skips a control record whose auth key is not a valid private key', () => {
+      const record = createRecord(3);
+      record.passwordNamespace.authSk = 'zz';
+
+      const { controlRecords } = splitVaultItems([
+        createControlItem(1, '100', 'control-valid'),
+        createVaultItem({
+          itemId: 'control-bad-auth-key',
+          data: serializeControlRecord(record),
+          dataType: EncAccountDataType.EnvelopeControl,
+          createdAt: '300',
+        }),
+      ]);
+
+      expect(controlRecords.map(({ seq }) => seq)).toStrictEqual([1]);
+    });
+
+    it('returns empty lists for empty input', () => {
+      expect(splitVaultItems([])).toStrictEqual({
+        secretItems: [],
+        controlRecords: [],
+      });
+    });
+  });
+
+  describe('control items in secret data processing', () => {
+    it('parseSecretMetadata ignores control items', () => {
+      const results = parseSecretMetadata([
+        createFetchedSecretDataItem({
+          ...ImportedSRP1,
+          itemId: 'imported-srp',
+        }),
+        createControlItem(1, '100', 'control'),
+        createVaultItem({
+          itemId: 'envelope',
+          data: stringToBytes('{}'),
+          dataType: EncAccountDataType.KeyEnvelope,
+        }),
+      ]);
+
+      expect(results.map((result) => result.itemId)).toStrictEqual([
+        'imported-srp',
+      ]);
+    });
+  });
+
+  describe('findSocialBackupMetadata', () => {
+    it('finds a backup by its data hash and type', () => {
+      const data = stringToBytes('seed phrase');
+      const backup = {
+        hash: keccak256AndHexify(data),
+        type: SecretType.Mnemonic,
+        keyringId: 'keyring-id',
+      };
+
+      expect(
+        findSocialBackupMetadata([backup], data, SecretType.Mnemonic),
+      ).toBe(backup);
+    });
+
+    it('finds a backup by its data hash and `Mnemonic` type without specifying the type', () => {
+      const data = stringToBytes('seed phrase');
+      const backup = {
+        hash: keccak256AndHexify(data),
+        type: SecretType.Mnemonic,
+        keyringId: 'keyring-id',
+      };
+
+      expect(findSocialBackupMetadata([backup], data)).toBe(backup);
+    });
+
+    it('finds a private key backup when the type is specified', () => {
+      const data = stringToBytes('private key');
+      const backup = {
+        hash: keccak256AndHexify(data),
+        type: SecretType.PrivateKey,
+      };
+
+      expect(
+        findSocialBackupMetadata([backup], data, SecretType.PrivateKey),
+      ).toBe(backup);
+    });
+
+    it('returns undefined when the type does not match', () => {
+      const data = stringToBytes('same bytes');
+      const backup = {
+        hash: keccak256AndHexify(data),
+        type: SecretType.Mnemonic,
+      };
+
+      expect(
+        findSocialBackupMetadata([backup], data, SecretType.PrivateKey),
+      ).toBeUndefined();
     });
   });
 });

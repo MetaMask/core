@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import {
-  CHASE_ORDER_CONFIG,
+  STREAM_RETRY_CONFIG,
   TWAP_ORDER_CONFIG,
 } from '../../../src/constants/perpsConfig.js';
 import type {
@@ -121,14 +121,9 @@ describe('createLiveTwapOrderList', () => {
     vi.useRealTimers();
   });
 
-  it('raises execution totals with each read while a TWAP runs', async () => {
-    const { source, getTwapOrders } = twapSource([
+  it('raises execution totals from pushed slice fills, with no read and no timer while a TWAP runs', async () => {
+    const { source, getTwapOrders, push } = twapSource([
       [twap({ fills: [fill('1', '0.001', '100000')] })],
-      [
-        twap({
-          fills: [fill('1', '0.001', '100000'), fill('2', '0.001', '101000')],
-        }),
-      ],
     ]);
     const callback = vi.fn();
 
@@ -138,10 +133,16 @@ describe('createLiveTwapOrderList', () => {
     expect(callback).toHaveBeenLastCalledWith([
       expect.objectContaining({ executedSize: '0.001', fillProgressBps: 3333 }),
     ]);
+    expect(vi.getTimerCount()).toBe(0);
 
-    await vi.advanceTimersByTimeAsync(TWAP_ORDER_CONFIG.RefreshIntervalMs);
+    push([
+      twap({
+        fills: [fill('1', '0.001', '100000'), fill('2', '0.001', '101000')],
+      }),
+    ]);
 
-    expect(getTwapOrders).toHaveBeenCalledTimes(2);
+    expect(getTwapOrders).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
     expect(callback).toHaveBeenLastCalledWith([
       expect.objectContaining({
         executedSize: '0.002',
@@ -153,13 +154,13 @@ describe('createLiveTwapOrderList', () => {
     stop();
   });
 
-  it('stops re-reading once no schedule runs, and emits only changes', async () => {
+  it('reads once, whether or not a schedule runs, and emits only changes', async () => {
     const ended = [twap({ status: 'completed' })];
     const { source, getTwapOrders } = twapSource([ended]);
     const callback = vi.fn();
 
     createLiveTwapOrderList({ source, callback });
-    await vi.advanceTimersByTimeAsync(TWAP_ORDER_CONFIG.RefreshIntervalMs * 3);
+    await vi.advanceTimersByTimeAsync(60_000);
 
     expect(getTwapOrders).toHaveBeenCalledTimes(1);
     expect(callback).toHaveBeenCalledTimes(1);
@@ -220,7 +221,6 @@ describe('createLiveTwapOrderList', () => {
     createLiveTwapOrderList({
       source,
       callback,
-      refreshIntervalMs: 60_000,
       catchUpIntervalMs: 10,
     });
     await vi.advanceTimersByTimeAsync(0);
@@ -287,29 +287,37 @@ describe('createLiveTwapOrderList', () => {
     ]);
   });
 
-  it('reports a failed read, keeps its state and retries while a TWAP runs', async () => {
-    const { source, getTwapOrders } = twapSource([
+  it('reports a failed read, keeps its state and retries a bounded number of times', async () => {
+    const { source, getTwapOrders, push } = twapSource([
       [twap()],
       new Error('venue down'),
-      [twap({ fills: [fill('1', '0.001', '100000')] })],
     ]);
     const callback = vi.fn();
     const onError = vi.fn();
 
-    createLiveTwapOrderList({ source, callback, onError });
-    await vi.advanceTimersByTimeAsync(TWAP_ORDER_CONFIG.RefreshIntervalMs);
+    createLiveTwapOrderList({
+      source,
+      callback,
+      onError,
+      catchUpIntervalMs: 10,
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    push([], true);
+    await vi.advanceTimersByTimeAsync(10);
 
     expect(onError).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'venue down' }),
     );
     expect(callback).toHaveBeenCalledTimes(1);
 
-    await vi.advanceTimersByTimeAsync(TWAP_ORDER_CONFIG.RefreshIntervalMs);
+    await vi.advanceTimersByTimeAsync(3_600_000);
 
-    expect(getTwapOrders).toHaveBeenCalledTimes(3);
-    expect(callback).toHaveBeenLastCalledWith([
-      expect.objectContaining({ executedSize: '0.001' }),
-    ]);
+    // The first read, the failed catch-up and its retries.
+    expect(getTwapOrders).toHaveBeenCalledTimes(
+      2 + STREAM_RETRY_CONFIG.MaxAttempts,
+    );
+    expect(vi.getTimerCount()).toBe(0);
+    expect(callback).toHaveBeenCalledTimes(1);
   });
 
   it('retries a failed first read even with no schedule running', async () => {
@@ -320,7 +328,7 @@ describe('createLiveTwapOrderList', () => {
     const callback = vi.fn();
 
     createLiveTwapOrderList({ source, callback, onError: vi.fn() });
-    await vi.advanceTimersByTimeAsync(TWAP_ORDER_CONFIG.RefreshIntervalMs * 3);
+    await vi.advanceTimersByTimeAsync(60_000);
 
     expect(getTwapOrders).toHaveBeenCalledTimes(2);
     expect(callback).toHaveBeenCalledWith([
@@ -334,7 +342,7 @@ describe('createLiveTwapOrderList', () => {
     createLiveTwapOrderList({ source, callback: vi.fn() });
     await vi.advanceTimersByTimeAsync(0);
     push([twap({ orderId: 'never-read', status: 'completed' })]);
-    await vi.advanceTimersByTimeAsync(TWAP_ORDER_CONFIG.RefreshIntervalMs * 3);
+    await vi.advanceTimersByTimeAsync(60_000);
 
     expect(getTwapOrders).toHaveBeenCalledTimes(2);
   });
@@ -361,8 +369,8 @@ describe('createLiveTwapOrderList', () => {
 
     createLiveTwapOrderList({ source, callback: vi.fn() });
     await vi.advanceTimersByTimeAsync(0);
-    // A refresh is due in RefreshIntervalMs; the first push asks for an
-    // earlier read, and a second push half a delay later does not defer it.
+    // The first push asks for a read; a second push half a delay later does
+    // not defer it.
     const half = TWAP_ORDER_CONFIG.StreamCatchUpIntervalMs / 2;
     push([twap({ status: 'canceled', lastUpdated: 5_000 })]);
     await vi.advanceTimersByTimeAsync(half);
@@ -435,6 +443,7 @@ describe('createLiveTwapOrderList', () => {
 
   it('clears the old context at once while the next read is pending', async () => {
     let context = 'a';
+    let notify: (() => void) | undefined;
     const getTwapOrders = vi
       .fn()
       .mockResolvedValueOnce([twap()])
@@ -448,12 +457,17 @@ describe('createLiveTwapOrderList', () => {
         getTwapOrders,
         subscribeToTwapOrders: (): (() => void) => () => undefined,
         getContextKey: (): string => context,
+        subscribeToContextChanges: (listener): (() => void) => {
+          notify = listener;
+          return () => undefined;
+        },
       },
       callback,
     });
     await vi.advanceTimersByTimeAsync(0);
     context = 'b';
-    await vi.advanceTimersByTimeAsync(TWAP_ORDER_CONFIG.RefreshIntervalMs);
+    notify?.();
+    await vi.advanceTimersByTimeAsync(0);
 
     expect(getTwapOrders).toHaveBeenCalledTimes(2);
     expect(callback).toHaveBeenLastCalledWith([]);
@@ -503,6 +517,7 @@ describe('createLiveTwapOrderList', () => {
 
   it('clears at once when the context changes during a later read', async () => {
     let context = 'a';
+    let push: SubscribeTwapOrdersParams['callback'] | undefined;
     let notify: (() => void) | undefined;
     let release: ((orders: TwapOrder[]) => void) | undefined;
     const getTwapOrders = vi
@@ -520,7 +535,10 @@ describe('createLiveTwapOrderList', () => {
     createLiveTwapOrderList({
       source: {
         getTwapOrders,
-        subscribeToTwapOrders: (): (() => void) => () => undefined,
+        subscribeToTwapOrders: (params): (() => void) => {
+          push = params.callback;
+          return () => undefined;
+        },
         getContextKey: (): string => context,
         subscribeToContextChanges: (listener): (() => void) => {
           notify = listener;
@@ -528,8 +546,11 @@ describe('createLiveTwapOrderList', () => {
         },
       },
       callback,
+      catchUpIntervalMs: 0,
     });
-    await vi.advanceTimersByTimeAsync(TWAP_ORDER_CONFIG.RefreshIntervalMs);
+    await vi.advanceTimersByTimeAsync(0);
+    push?.([], true);
+    await vi.advanceTimersByTimeAsync(0);
     // The second read is pending when the account switches.
     context = 'b';
     notify?.();
@@ -582,7 +603,7 @@ describe('createLiveTwapOrderList', () => {
 
     // Account A's stream still pushes after the switch to B.
     streams[0].push([twap({ orderId: 'a-order' })]);
-    await vi.advanceTimersByTimeAsync(TWAP_ORDER_CONFIG.RefreshIntervalMs * 2);
+    await vi.advanceTimersByTimeAsync(10_000);
 
     expect(callback).not.toHaveBeenCalledWith([
       expect.objectContaining({ orderId: 'a-order' }),
@@ -671,7 +692,7 @@ describe('createLiveTwapOrderList', () => {
 
     const stop = createLiveTwapOrderList({ source, callback });
     stop();
-    await vi.advanceTimersByTimeAsync(TWAP_ORDER_CONFIG.RefreshIntervalMs * 2);
+    await vi.advanceTimersByTimeAsync(10_000);
     push([twap({ orderId: 'after' })]);
 
     expect(unsubscribe).toHaveBeenCalledTimes(1);
@@ -681,8 +702,32 @@ describe('createLiveTwapOrderList', () => {
 });
 
 describe('createLiveChaseOrderList', () => {
+  // The source's change stream, driven by the test.
+  let listeners: Set<() => void>;
+  const subscribeToChaseOrderChanges = (listener: () => void): (() => void) => {
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
+  };
+
+  /**
+   * Let the read in flight settle, then report a chase change and let its read
+   * settle, once per change.
+   *
+   * @param times - Changes to report.
+   */
+  const change = async (times = 1): Promise<void> => {
+    await vi.advanceTimersByTimeAsync(0);
+    for (let index = 0; index < times; index += 1) {
+      listeners.forEach((listener) => listener());
+      await vi.advanceTimersByTimeAsync(0);
+    }
+  };
+
   beforeEach(() => {
     vi.useFakeTimers();
+    listeners = new Set();
   });
 
   afterEach(() => {
@@ -697,10 +742,10 @@ describe('createLiveChaseOrderList', () => {
     const lists: ChaseOrderLists[] = [];
 
     const stop = createLiveChaseOrderList({
-      source: { getChaseOrders },
+      source: { getChaseOrders, subscribeToChaseOrderChanges },
       callback: (next) => lists.push(next),
     });
-    await vi.advanceTimersByTimeAsync(CHASE_ORDER_CONFIG.RefreshIntervalMs * 2);
+    await change(2);
     stop();
 
     expect(getChaseOrders).toHaveBeenCalledTimes(3);
@@ -718,15 +763,15 @@ describe('createLiveChaseOrderList', () => {
     const lists: ChaseOrderLists[] = [];
 
     createLiveChaseOrderList({
-      source: { getChaseOrders },
+      source: { getChaseOrders, subscribeToChaseOrderChanges },
       callback: (next) => lists.push(next),
     });
-    await vi.advanceTimersByTimeAsync(CHASE_ORDER_CONFIG.RefreshIntervalMs);
+    await change();
 
     expect(getChaseOrders).toHaveBeenCalledTimes(2);
     expect(lists).toHaveLength(1);
 
-    await vi.advanceTimersByTimeAsync(CHASE_ORDER_CONFIG.RefreshIntervalMs);
+    await change();
 
     expect(lists.at(-1)).toStrictEqual({ running: [], history: [] });
   });
@@ -740,8 +785,11 @@ describe('createLiveChaseOrderList', () => {
       .mockResolvedValue([]);
     const callback = vi.fn();
 
-    createLiveChaseOrderList({ source: { getChaseOrders }, callback });
-    await vi.advanceTimersByTimeAsync(CHASE_ORDER_CONFIG.RefreshIntervalMs * 3);
+    createLiveChaseOrderList({
+      source: { getChaseOrders, subscribeToChaseOrderChanges },
+      callback,
+    });
+    await change(3);
 
     expect(getChaseOrders).toHaveBeenCalledTimes(4);
     expect(callback).toHaveBeenCalledTimes(1);
@@ -756,12 +804,16 @@ describe('createLiveChaseOrderList', () => {
     const callback = vi.fn();
 
     createLiveChaseOrderList({
-      source: { getChaseOrders, getContextKey: (): string => context },
+      source: {
+        getChaseOrders,
+        subscribeToChaseOrderChanges,
+        getContextKey: (): string => context,
+      },
       callback,
     });
     await vi.advanceTimersByTimeAsync(0);
     context = 'hyperliquid:mainnet:0xb';
-    await vi.advanceTimersByTimeAsync(CHASE_ORDER_CONFIG.RefreshIntervalMs);
+    await change();
 
     expect(callback).toHaveBeenLastCalledWith({ running: [], history: [] });
   });
@@ -777,12 +829,16 @@ describe('createLiveChaseOrderList', () => {
     const callback = vi.fn();
 
     createLiveChaseOrderList({
-      source: { getChaseOrders, getContextKey: (): string => context },
+      source: {
+        getChaseOrders,
+        subscribeToChaseOrderChanges,
+        getContextKey: (): string => context,
+      },
       callback,
     });
     await vi.advanceTimersByTimeAsync(0);
     context = 'b';
-    await vi.advanceTimersByTimeAsync(CHASE_ORDER_CONFIG.RefreshIntervalMs);
+    await change();
 
     expect(getChaseOrders).toHaveBeenCalledTimes(2);
     expect(callback).toHaveBeenLastCalledWith({ running: [], history: [] });
@@ -803,7 +859,11 @@ describe('createLiveChaseOrderList', () => {
     const callback = vi.fn();
 
     createLiveChaseOrderList({
-      source: { getChaseOrders, getContextKey: (): string => context },
+      source: {
+        getChaseOrders,
+        subscribeToChaseOrderChanges,
+        getContextKey: (): string => context,
+      },
       callback,
     });
     context = 'b';
@@ -858,6 +918,7 @@ describe('createLiveChaseOrderList', () => {
       createLiveChaseOrderList({
         source: {
           getChaseOrders,
+          subscribeToChaseOrderChanges,
           getContextKey: (): string => context,
           subscribeToContextChanges: (listener): (() => void) => {
             notify = listener;
@@ -867,7 +928,7 @@ describe('createLiveChaseOrderList', () => {
         callback,
         onError,
       });
-      await vi.advanceTimersByTimeAsync(CHASE_ORDER_CONFIG.RefreshIntervalMs);
+      await change();
       context = 'b';
       notify?.();
 
@@ -910,6 +971,7 @@ describe('createLiveChaseOrderList', () => {
       createLiveChaseOrderList({
         source: {
           getChaseOrders,
+          subscribeToChaseOrderChanges,
           subscribeToChaseCancellations: (listener): (() => void) => {
             report = listener;
             return () => undefined;
@@ -944,9 +1006,7 @@ describe('createLiveChaseOrderList', () => {
         history: [ended(chase('h1', 'active'))],
       });
 
-      await vi.advanceTimersByTimeAsync(
-        CHASE_ORDER_CONFIG.RefreshIntervalMs * 3,
-      );
+      await change(3);
 
       expect(callback).toHaveBeenLastCalledWith({
         running: [],
@@ -964,9 +1024,7 @@ describe('createLiveChaseOrderList', () => {
       );
       await vi.advanceTimersByTimeAsync(0);
       cancel(filled);
-      await vi.advanceTimersByTimeAsync(
-        CHASE_ORDER_CONFIG.RefreshIntervalMs * 2,
-      );
+      await change(2);
 
       expect(callback).toHaveBeenLastCalledWith({
         running: [],
@@ -981,9 +1039,7 @@ describe('createLiveChaseOrderList', () => {
       await vi.advanceTimersByTimeAsync(0);
       cancel(ended(chase('h1', 'active')));
       callback.mockClear();
-      await vi.advanceTimersByTimeAsync(
-        CHASE_ORDER_CONFIG.RefreshIntervalMs * 2,
-      );
+      await change(2);
 
       // The read that still lists it as active changes nothing visible.
       expect(callback).not.toHaveBeenCalled();
@@ -1004,9 +1060,7 @@ describe('createLiveChaseOrderList', () => {
       cancel(ended(chase('h1', 'active')));
       // The held read was taken before the cancel and still lists it active.
       release?.([chase('h1', 'active')]);
-      await vi.advanceTimersByTimeAsync(
-        CHASE_ORDER_CONFIG.RefreshIntervalMs * 3,
-      );
+      await change(3);
 
       expect(callback).not.toHaveBeenCalledWith(
         expect.objectContaining({ running: [chase('h1', 'active')] }),
@@ -1023,9 +1077,7 @@ describe('createLiveChaseOrderList', () => {
       );
       await vi.advanceTimersByTimeAsync(0);
       cancel(ended(chase('h1', 'active')));
-      await vi.advanceTimersByTimeAsync(
-        CHASE_ORDER_CONFIG.RefreshIntervalMs * 3,
-      );
+      await change(3);
 
       expect(callback).toHaveBeenLastCalledWith({
         running: [],
@@ -1038,7 +1090,7 @@ describe('createLiveChaseOrderList', () => {
       const { callback, cancel } = startList(reads([stopped], []));
       await vi.advanceTimersByTimeAsync(0);
       cancel(ended(stopped, 'max_distance_reached'));
-      await vi.advanceTimersByTimeAsync(CHASE_ORDER_CONFIG.RefreshIntervalMs);
+      await change();
 
       expect(callback).toHaveBeenLastCalledWith({
         running: [],
@@ -1062,13 +1114,11 @@ describe('createLiveChaseOrderList', () => {
       const { callback, cancel } = startList(getChaseOrders);
       await vi.advanceTimersByTimeAsync(0);
       // The second read is held with the child still resting.
-      await vi.advanceTimersByTimeAsync(CHASE_ORDER_CONFIG.RefreshIntervalMs);
+      await change();
       cancel(ended(stopped, 'max_distance_reached'));
       callback.mockClear();
       release?.([stopped]);
-      await vi.advanceTimersByTimeAsync(
-        CHASE_ORDER_CONFIG.RefreshIntervalMs * 3,
-      );
+      await change(3);
 
       expect(getChaseOrders.mock.calls.length).toBeGreaterThan(2);
       // The late snapshot and the omissions after it change nothing visible.
@@ -1083,7 +1133,7 @@ describe('createLiveChaseOrderList', () => {
       const { callback, cancel } = startList(reads([lighterChase]));
       await vi.advanceTimersByTimeAsync(0);
       cancel(ended(chase('h1', 'active')), 'hyperliquid');
-      await vi.advanceTimersByTimeAsync(CHASE_ORDER_CONFIG.RefreshIntervalMs);
+      await change();
 
       expect(callback).toHaveBeenLastCalledWith({
         running: [lighterChase],
@@ -1100,6 +1150,7 @@ describe('createLiveChaseOrderList', () => {
       createLiveChaseOrderList({
         source: {
           getChaseOrders: reads([chase('h1', 'active')]),
+          subscribeToChaseOrderChanges,
           getContextKey: (): string => context,
           subscribeToChaseCancellations: (listener): (() => void) => {
             report = listener;
@@ -1111,7 +1162,7 @@ describe('createLiveChaseOrderList', () => {
       await vi.advanceTimersByTimeAsync(0);
       report?.({ handle: 'h1', chaseOrder: ended(chase('h1', 'active')) });
       context = 'b';
-      await vi.advanceTimersByTimeAsync(CHASE_ORDER_CONFIG.RefreshIntervalMs);
+      await change();
 
       // The new context's h1 is a different chase and is still running.
       expect(callback).toHaveBeenLastCalledWith({
@@ -1121,7 +1172,7 @@ describe('createLiveChaseOrderList', () => {
     });
   });
 
-  it('bounds history, reports failed reads and keeps polling', async () => {
+  it('bounds history, and retries a failed read a bounded number of times', async () => {
     const getChaseOrders = vi
       .fn()
       .mockRejectedValueOnce(new Error('offline'))
@@ -1134,9 +1185,8 @@ describe('createLiveChaseOrderList', () => {
       callback,
       onError,
       historyLimit: 1,
-      refreshIntervalMs: 100,
     });
-    await vi.advanceTimersByTimeAsync(100);
+    await vi.advanceTimersByTimeAsync(STREAM_RETRY_CONFIG.BaseDelayMs);
 
     expect(onError).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'offline' }),
@@ -1145,6 +1195,50 @@ describe('createLiveChaseOrderList', () => {
       running: [],
       history: [chase('a', 'filled')],
     });
+
+    getChaseOrders.mockReset().mockRejectedValue(new Error('offline'));
+    createLiveChaseOrderList({ source: { getChaseOrders }, callback, onError });
+    await vi.advanceTimersByTimeAsync(3_600_000);
+    expect(getChaseOrders).toHaveBeenCalledTimes(
+      1 + STREAM_RETRY_CONFIG.MaxAttempts,
+    );
+  });
+
+  it('reads on changes only, with no timer while a chase runs', async () => {
+    const getChaseOrders = vi.fn().mockResolvedValue([chase('h1', 'active')]);
+
+    const stop = createLiveChaseOrderList({
+      source: { getChaseOrders, subscribeToChaseOrderChanges },
+      callback: vi.fn(),
+    });
+    await vi.advanceTimersByTimeAsync(3_600_000);
+    expect(getChaseOrders).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+
+    await change();
+    expect(getChaseOrders).toHaveBeenCalledTimes(2);
+    stop();
+    await change();
+    expect(getChaseOrders).toHaveBeenCalledTimes(2);
+  });
+
+  it('settles a chase a read omits without another change', async () => {
+    const getChaseOrders = vi
+      .fn()
+      .mockResolvedValueOnce([chase('h1', 'active')])
+      .mockResolvedValue([]);
+    const callback = vi.fn();
+    createLiveChaseOrderList({
+      source: { getChaseOrders, subscribeToChaseOrderChanges },
+      callback,
+    });
+
+    await change();
+    await vi.advanceTimersByTimeAsync(3_600_000);
+
+    expect(callback).toHaveBeenLastCalledWith({ running: [], history: [] });
+    expect(getChaseOrders).toHaveBeenCalledTimes(3);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('stops reading on cleanup, including a read in flight', async () => {
@@ -1158,12 +1252,12 @@ describe('createLiveChaseOrderList', () => {
     const callback = vi.fn();
 
     const stop = createLiveChaseOrderList({
-      source: { getChaseOrders },
+      source: { getChaseOrders, subscribeToChaseOrderChanges },
       callback,
     });
     stop();
     resolveRead?.([chase('h1', 'active')]);
-    await vi.advanceTimersByTimeAsync(CHASE_ORDER_CONFIG.RefreshIntervalMs * 2);
+    await change(2);
 
     expect(getChaseOrders).toHaveBeenCalledTimes(1);
     expect(callback).not.toHaveBeenCalled();

@@ -11,7 +11,6 @@ permissions:
   contents: read
 
 env:
-  # Deliberately not `metamask-ci[bot]`: that is the identity Renovate commits under, and Renovate only leaves a branch alone once it sees a commit from someone else.
   REPAIR_COMMIT_NAME: 'github-actions[bot]'
   REPAIR_COMMIT_EMAIL: '41898282+github-actions[bot]@users.noreply.github.com'
 
@@ -22,7 +21,7 @@ concurrency:
 jobs:
   check:
     name: Check whether the last commit was a repair
-    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' || (github.event.pull_request.user.login == 'metamask-ci[bot]' && startsWith(github.event.pull_request.head.ref, 'renovate/')) }}
+    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
     runs-on: ubuntu-latest
     outputs:
       needed: ${{ steps.last-author.outputs.needed }}

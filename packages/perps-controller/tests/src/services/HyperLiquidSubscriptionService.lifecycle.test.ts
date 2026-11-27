@@ -506,6 +506,7 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(mockSubscriptionClient.clearinghouseState).toHaveBeenCalledWith(
         { user: '0x123', dex: 'xyz' },
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
       expect(mockDeps.debugLogger.log).not.toHaveBeenCalledWith(
         'DEX discovery wait timed out, proceeding with main DEX only',
@@ -909,6 +910,7 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(mockSubscriptionClient.activeAssetCtx).toHaveBeenCalledWith(
         { coin: 'BTC' },
         expect.any(Function),
+        { onError: expect.any(Function) },
       );
 
       // Wait for data

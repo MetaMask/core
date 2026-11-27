@@ -33,11 +33,13 @@ import type { PerpsControllerState } from '../../src/PerpsController.js';
 import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from '../../src/providers/AggregatedPerpsProvider.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
+import * as lighterNotificationEnrollmentServiceModule from '../../src/services/LighterNotificationEnrollmentService.js';
 import { RewardsIntegrationService } from '../../src/services/RewardsIntegrationService.js';
 import type {
   OrderParams,
   GetAvailableDexsParams,
   GetScalePriceLadderParams,
+  MarketInfo,
   PerpsProvider,
   PerpsPlatformDependencies,
   PerpsProviderType,
@@ -174,6 +176,16 @@ const mockDataLakeServiceInstance = {
 vi.mock('../../src/services/DataLakeService', () => ({
   DataLakeService: vi.fn().mockImplementation(function () {
     return mockDataLakeServiceInstance;
+  }),
+}));
+
+// Mock LighterNotificationEnrollmentService as a class with instance methods
+const mockLighterNotificationEnrollmentServiceInstance = {
+  enroll: vi.fn(),
+};
+vi.mock('../../src/services/LighterNotificationEnrollmentService', () => ({
+  LighterNotificationEnrollmentService: vi.fn().mockImplementation(function () {
+    return mockLighterNotificationEnrollmentServiceInstance;
   }),
 }));
 
@@ -361,9 +373,13 @@ class TestablePerpsController extends PerpsController {
    * Test accessor for protected method reportOrderToDataLake.
    * Wrapper is necessary because protected methods can't be called from test code.
    * @param data
+   * @param provider
    */
-  public testReportOrderToDataLake(data: any): Promise<any> {
-    return this.reportOrderToDataLake(data);
+  public testReportOrderToDataLake(
+    data: any,
+    provider: PerpsProvider,
+  ): Promise<any> {
+    return this.reportOrderToDataLake(data, provider);
   }
 
   public testHasStandaloneProvider(): boolean {
@@ -419,6 +435,16 @@ describe('PerpsController', () => {
         .DataLakeService as Mock
     ).mockImplementation(function () {
       return mockDataLakeServiceInstance;
+    });
+    (
+      (
+        lighterNotificationEnrollmentServiceModule as unknown as Record<
+          string,
+          Mock
+        >
+      ).LighterNotificationEnrollmentService as Mock
+    ).mockImplementation(function () {
+      return mockLighterNotificationEnrollmentServiceInstance;
     });
     (
       (featureFlagConfigurationServiceModule as unknown as Record<string, Mock>)
@@ -672,6 +698,126 @@ describe('PerpsController', () => {
       const result = await controller.getAccountSupport();
 
       expect(result).toEqual({ isSupported: true });
+    });
+  });
+
+  describe('submitLighterTransfer', () => {
+    const TRANSFER = {
+      accountIndex: 28,
+      eoa: '0x8D7f03FdE1A626223364E592740a233b72395235',
+      toAccountIndex: 723071,
+      assetIndex: 3,
+      fromRouteType: 0,
+      toRouteType: 0,
+      amount: 1000000,
+      usdcFee: 3000000,
+      memo: `0x${'ab'.repeat(32)}`,
+    };
+
+    const createLighterProvider = (): PerpsProvider & {
+      submitTransfer: Mock;
+    } =>
+      ({
+        ...createMockHyperLiquidProvider(),
+        protocolId: 'lighter',
+        submitTransfer: vi.fn().mockResolvedValue({ success: true }),
+      }) as unknown as PerpsProvider & { submitTransfer: Mock };
+
+    it('sends the transfer through the registered Lighter provider while another provider is active', async () => {
+      const lighterProvider = createLighterProvider();
+      markControllerAsInitialized();
+      controller.testSetProviders(
+        new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', mockProvider],
+          ['lighter', lighterProvider],
+        ]),
+      );
+
+      await expect(
+        controller.submitLighterTransfer(TRANSFER),
+      ).resolves.toStrictEqual({ success: true });
+
+      expect(lighterProvider.submitTransfer).toHaveBeenCalledExactlyOnceWith(
+        TRANSFER,
+      );
+    });
+
+    it('sends the transfer through the active provider when it is Lighter and unregistered', async () => {
+      const lighterProvider = createLighterProvider();
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map());
+      controller.testSetActiveProvider(lighterProvider);
+
+      await controller.submitLighterTransfer(TRANSFER);
+
+      expect(lighterProvider.submitTransfer).toHaveBeenCalledExactlyOnceWith(
+        TRANSFER,
+      );
+    });
+
+    it('exposes the transfer through the public messenger action', async () => {
+      const host = createKeyringlessMessenger();
+      host.rootMessenger.registerActionHandler(
+        'RemoteFeatureFlagController:getState',
+        () => ({ remoteFeatureFlags: {}, cacheTimestamp: 0 }),
+      );
+      host.rootMessenger.delegate({
+        actions: ['RemoteFeatureFlagController:getState'],
+        events: [
+          'RemoteFeatureFlagController:stateChange',
+          'AccountsController:selectedAccountChange',
+          'AccountTreeController:selectedAccountGroupChange',
+        ],
+        messenger: host.messenger,
+      });
+      const messengerController = new TestablePerpsController({
+        messenger: host.messenger,
+        state: getDefaultPerpsControllerState(),
+        infrastructure: createMockInfrastructure(),
+        deferEligibilityCheck: true,
+      });
+      const lighterProvider = createLighterProvider();
+      await messengerController.init();
+      messengerController.testSetProviders(
+        new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', mockProvider],
+          ['lighter', lighterProvider],
+        ]),
+      );
+
+      const result = await host.messenger.call(
+        'PerpsController:submitLighterTransfer',
+        TRANSFER,
+      );
+
+      expect(result).toStrictEqual({ success: true });
+      expect(lighterProvider.submitTransfer).toHaveBeenCalledExactlyOnceWith(
+        TRANSFER,
+      );
+    });
+
+    it('throws when no provider can send Lighter transfers', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(controller.submitLighterTransfer(TRANSFER)).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+      );
+    });
+
+    it('never sends the transfer through a non-Lighter provider that has submitTransfer', async () => {
+      const otherProvider = {
+        ...createMockHyperLiquidProvider(),
+        submitTransfer: vi.fn().mockResolvedValue({ success: true }),
+      } as unknown as PerpsProvider & { submitTransfer: Mock };
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', otherProvider]]));
+      controller.testSetActiveProvider(otherProvider);
+
+      await expect(controller.submitLighterTransfer(TRANSFER)).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+      );
+      expect(otherProvider.submitTransfer).not.toHaveBeenCalled();
     });
   });
 
@@ -1472,6 +1618,219 @@ describe('PerpsController', () => {
         status: 'unavailable',
         reason: 'provider_unavailable',
       });
+    });
+  });
+
+  describe('margin adjustment limits', () => {
+    it('returns the limits from the active provider', async () => {
+      mockProvider.getMarginAdjustmentLimits = vi.fn().mockResolvedValue({
+        status: 'available',
+        maxAdd: '271.427458',
+        maxRemove: '0.31',
+      });
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+      ).resolves.toStrictEqual({
+        status: 'available',
+        maxAdd: '271.427458',
+        maxRemove: '0.31',
+      });
+      expect(mockProvider.getMarginAdjustmentLimits).toHaveBeenCalledWith({
+        symbol: 'ETH',
+      });
+    });
+
+    it('reports provider when the provider omits the hook, the route conflicts or the read throws', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      const unavailable = { status: 'unavailable', reason: 'provider' };
+
+      // The shared provider mock has no limits hook.
+      expect(
+        await controller.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+      ).toStrictEqual(unavailable);
+
+      mockProvider.getMarginAdjustmentLimits = vi
+        .fn()
+        .mockRejectedValue(new Error('offline'));
+      expect(
+        await controller.getMarginAdjustmentLimits({
+          symbol: 'ETH',
+          providerId: 'lighter',
+        }),
+      ).toStrictEqual(unavailable);
+      expect(mockProvider.getMarginAdjustmentLimits).not.toHaveBeenCalled();
+      expect(
+        await controller.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+      ).toStrictEqual(unavailable);
+    });
+
+    it('reports provider while no provider is ready', async () => {
+      await expect(
+        controller.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+      ).resolves.toStrictEqual({ status: 'unavailable', reason: 'provider' });
+    });
+  });
+
+  describe('market meta', () => {
+    const tiers = [
+      { lowerBound: 0, maxLeverage: 40 },
+      { lowerBound: 10000, maxLeverage: 25 },
+    ];
+    const markets: MarketInfo[] = [
+      {
+        name: 'BTC',
+        szDecimals: 5,
+        maxLeverage: 40,
+        marginTableId: 56,
+        marginTiers: tiers,
+      },
+      {
+        name: 'OLD',
+        szDecimals: 0,
+        maxLeverage: 3,
+        marginTableId: 3,
+        isDelisted: true,
+        onlyIsolated: true,
+      },
+      {
+        name: 'xyz:NVDA',
+        szDecimals: 3,
+        maxLeverage: 10,
+        marginTableId: 10,
+        marginMode: 'strictIsolated',
+      },
+    ];
+
+    it("reads one market's venue meta from the provider's own market list", async () => {
+      mockProvider.getMarkets = vi.fn().mockResolvedValue([markets[0]]);
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.getMarketMeta({ symbol: 'BTC' }),
+      ).resolves.toStrictEqual({
+        symbol: 'BTC',
+        marginTiers: tiers,
+        isDelisted: false,
+        maxLeverage: 40,
+        onlyIsolated: false,
+      });
+      expect(mockProvider.getMarkets).toHaveBeenCalledWith({
+        symbols: ['BTC'],
+      });
+    });
+
+    it('lists every market, with delisted and isolated-only markets flagged', async () => {
+      mockProvider.getMarkets = vi.fn().mockResolvedValue(markets);
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(controller.getMarketMeta()).resolves.toStrictEqual([
+        {
+          symbol: 'BTC',
+          marginTiers: tiers,
+          isDelisted: false,
+          maxLeverage: 40,
+          onlyIsolated: false,
+        },
+        {
+          symbol: 'OLD',
+          marginTiers: null,
+          isDelisted: true,
+          maxLeverage: 3,
+          onlyIsolated: true,
+        },
+        {
+          symbol: 'xyz:NVDA',
+          marginTiers: null,
+          isDelisted: false,
+          maxLeverage: 10,
+          onlyIsolated: true,
+        },
+      ]);
+      expect(mockProvider.getMarkets).toHaveBeenCalledWith(undefined);
+    });
+
+    describe('in aggregated mode', () => {
+      const lighterProvider: PerpsProvider = {
+        ...createMockHyperLiquidProvider(),
+        protocolId: 'lighter',
+      };
+      const setAggregated = (
+        providers = new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', mockProvider],
+          ['lighter', lighterProvider],
+        ]),
+      ): void => {
+        markControllerAsInitialized();
+        controller.testUpdate((state) => {
+          state.activeProvider = 'aggregated';
+        });
+        controller.testSetProviders(providers);
+        controller.testSetActiveProvider(
+          new AggregatedPerpsProvider({
+            providers,
+            defaultProvider: 'hyperliquid',
+            infrastructure: mockInfrastructure,
+          }),
+        );
+      };
+
+      it('reads only the routed venue, or the default one', async () => {
+        mockProvider.getMarkets = vi.fn().mockResolvedValue([markets[0]]);
+        lighterProvider.getMarkets = vi
+          .fn()
+          .mockResolvedValue([{ ...markets[0], marginTiers: undefined }]);
+        setAggregated();
+
+        await expect(
+          controller.getMarketMeta({ symbol: 'BTC', providerId: 'lighter' }),
+        ).resolves.toMatchObject({ symbol: 'BTC', marginTiers: null });
+        await expect(
+          controller.getMarketMeta({ symbol: 'BTC' }),
+        ).resolves.toMatchObject({ symbol: 'BTC', marginTiers: tiers });
+        expect(lighterProvider.getMarkets).toHaveBeenCalledTimes(1);
+        expect(mockProvider.getMarkets).toHaveBeenCalledTimes(1);
+      });
+
+      it('rejects with the venue error when the routed venue read fails', async () => {
+        mockProvider.getMarkets = vi
+          .fn()
+          .mockRejectedValue(new Error('venue offline'));
+        setAggregated();
+
+        await expect(
+          controller.getMarketMeta({ symbol: 'BTC' }),
+        ).rejects.toThrow('venue offline');
+        await expect(controller.getMarketMeta()).rejects.toThrow(
+          'venue offline',
+        );
+      });
+
+      it('throws PROVIDER_NOT_FOUND for an unregistered venue', async () => {
+        setAggregated(new Map([['hyperliquid', mockProvider]]));
+
+        await expect(
+          controller.getMarketMeta({ symbol: 'BTC', providerId: 'lighter' }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+      });
+    });
+
+    it('throws MARKET_NOT_FOUND for an unknown symbol and PROVIDER_NOT_FOUND for a conflicting route', async () => {
+      mockProvider.getMarkets = vi.fn().mockResolvedValue([]);
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.getMarketMeta({ symbol: 'NOPE' }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.MARKET_NOT_FOUND);
+      await expect(
+        controller.getMarketMeta({ symbol: 'BTC', providerId: 'lighter' }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
     });
   });
 
@@ -2789,7 +3148,10 @@ describe('PerpsController', () => {
         tpPrice: 55000,
       };
 
-      const result = await controller.testReportOrderToDataLake(orderParams);
+      const result = await controller.testReportOrderToDataLake(
+        orderParams,
+        mockProvider,
+      );
 
       expect(result).toEqual(mockReportResult);
       expect(mockDataLakeServiceInstance.reportOrder).toHaveBeenCalledWith({
@@ -2807,6 +3169,112 @@ describe('PerpsController', () => {
         }),
         retryCount: undefined,
         _traceId: undefined,
+      });
+    });
+
+    describe('lighter', () => {
+      const mockLighterProvider = {
+        getNotificationAccountIndex: vi.fn().mockResolvedValue(9828),
+      } as unknown as PerpsProvider;
+      const lighterOrder = {
+        action: 'open' as const,
+        symbol: 'BTC',
+        providerId: 'lighter' as const,
+      };
+
+      beforeEach(() => {
+        (
+          mockLighterProvider.getNotificationAccountIndex as Mock
+        ).mockResolvedValue(9828);
+        mockDataLakeServiceInstance.reportOrder.mockClear();
+        mockLighterNotificationEnrollmentServiceInstance.enroll.mockReset();
+        mockLighterNotificationEnrollmentServiceInstance.enroll.mockResolvedValue(
+          {
+            success: true,
+          },
+        );
+      });
+
+      it('enrolls the account instead of reporting to the orders endpoint', async () => {
+        const result = await controller.testReportOrderToDataLake(
+          lighterOrder,
+          mockLighterProvider,
+        );
+
+        expect(result).toEqual({ success: true });
+        expect(mockDataLakeServiceInstance.reportOrder).not.toHaveBeenCalled();
+        const { isTestnet, getAccountIndex } =
+          mockLighterNotificationEnrollmentServiceInstance.enroll.mock
+            .calls[0][0];
+        expect(isTestnet).toBe(controller.state.isTestnet);
+        await expect(getAccountIndex()).resolves.toBe(9828);
+      });
+
+      it('enrolls the account of the provider that executed the order, not the active one', async () => {
+        const activeProvider = {
+          getNotificationAccountIndex: vi.fn().mockResolvedValue(1),
+        } as unknown as PerpsProvider;
+        controller.testSetProviders(new Map([['lighter', activeProvider]]));
+
+        await controller.testReportOrderToDataLake(
+          lighterOrder,
+          mockLighterProvider,
+        );
+
+        const { getAccountIndex } =
+          mockLighterNotificationEnrollmentServiceInstance.enroll.mock
+            .calls[0][0];
+        await expect(getAccountIndex()).resolves.toBe(9828);
+        expect(
+          activeProvider.getNotificationAccountIndex,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('keeps reporting hyperliquid orders to the orders endpoint', async () => {
+        mockDataLakeServiceInstance.reportOrder.mockResolvedValue({
+          success: true,
+        });
+
+        await controller.testReportOrderToDataLake(
+          { ...lighterOrder, providerId: 'hyperliquid' },
+          mockProvider,
+        );
+
+        expect(mockDataLakeServiceInstance.reportOrder).toHaveBeenCalledTimes(
+          1,
+        );
+        expect(
+          mockLighterNotificationEnrollmentServiceInstance.enroll,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('keeps reporting orders without a venue to the orders endpoint', async () => {
+        mockDataLakeServiceInstance.reportOrder.mockResolvedValue({
+          success: true,
+        });
+
+        await controller.testReportOrderToDataLake(
+          { action: 'open', symbol: 'BTC' },
+          mockProvider,
+        );
+
+        expect(mockDataLakeServiceInstance.reportOrder).toHaveBeenCalledTimes(
+          1,
+        );
+        expect(
+          mockLighterNotificationEnrollmentServiceInstance.enroll,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('fails the account index lookup when the executing provider cannot enroll', async () => {
+        await controller.testReportOrderToDataLake(lighterOrder, mockProvider);
+
+        const { getAccountIndex } =
+          mockLighterNotificationEnrollmentServiceInstance.enroll.mock
+            .calls[0][0];
+        await expect(getAccountIndex()).rejects.toThrow(
+          'Provider does not support notification enrollment',
+        );
       });
     });
   });

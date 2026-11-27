@@ -42,7 +42,11 @@ import * as featureFlagConfigurationServiceModule from '../../src/services/Featu
 import * as marketDataServiceModule from '../../src/services/MarketDataService.js';
 import * as tradingServiceModule from '../../src/services/TradingService.js';
 import { PerpsAnalyticsEvent } from '../../src/types/index.js';
-import type { SubscribeAccountParams } from '../../src/types/index.js';
+import type {
+  PerpsMarketData,
+  PerpsProvider,
+  SubscribeAccountParams,
+} from '../../src/types/index.js';
 
 vi.mock('../../src/providers/HyperLiquidProvider');
 
@@ -277,8 +281,8 @@ class TestablePerpsController extends PerpsController {
     this.refreshEligibilityOnFeatureFlagChange(remoteFlags);
   }
 
-  testReportOrderToDataLake(data) {
-    return this.reportOrderToDataLake(data);
+  testReportOrderToDataLake(data, provider: PerpsProvider) {
+    return this.reportOrderToDataLake(data, provider);
   }
 
   testHasStandaloneProvider() {
@@ -796,8 +800,11 @@ describe('PerpsController', () => {
 
       const unsubscribe = controller.subscribeToOrderFills(params);
 
-      expect(unsubscribe).toBe(mockUnsubscribe);
-      expect(mockProvider.subscribeToOrderFills).toHaveBeenCalledWith(params);
+      expect(mockProvider.subscribeToOrderFills).toHaveBeenCalledWith(
+        expect.objectContaining({ callback: expect.any(Function) }),
+      );
+      unsubscribe();
+      expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
     });
 
     it('sets live data configuration', () => {
@@ -1210,6 +1217,81 @@ describe('PerpsController', () => {
       );
     });
 
+    it('saves a grouped row by its symbol and writes no market keys to AUS', async () => {
+      const call = vi.fn().mockImplementation((action: string) => {
+        if (
+          action ===
+          'AuthenticatedUserStorageService:getNotificationPreferences'
+        ) {
+          return Promise.resolve({
+            ...MOCK_PREFS_BASE,
+            perps: {
+              ...MOCK_PREFS_BASE.perps,
+              watchlistMarkets: {
+                hyperliquid: { testnet: [], mainnet: [] },
+              },
+            },
+          });
+        }
+        return Promise.resolve(undefined);
+      });
+      const state = getDefaultPerpsControllerState();
+      state.isTestnet = false;
+      state.activeProvider = 'hyperliquid';
+      state.watchlistMarkets.mainnet = [
+        'market-key:ETH-USD',
+        'venue:lighter:SOL',
+      ];
+      const controller = new PerpsController({
+        messenger: createMockMessenger({ call }),
+        state,
+        infrastructure: createMockInfrastructure(),
+      });
+      const venues = [
+        {
+          symbol: 'BTC',
+          name: 'Bitcoin',
+          price: '1',
+          maxLeverage: '40x',
+          change24h: '0',
+          change24hPercent: '0%',
+          volume: '10',
+          marketKey: 'BTC-USD',
+          priceScale: 1,
+        },
+      ];
+
+      await controller.toggleWatchlistMarket('BTC', 'BTC-USD', venues);
+
+      expect(controller.getWatchlistMarkets()).toStrictEqual([
+        'market-key:ETH-USD',
+        'venue:lighter:SOL',
+        'BTC',
+      ]);
+      expect(controller.isWatchlistMarket('BTC')).toBe(true);
+      expect(controller.isWatchlistMarket('BTC', 'BTC-USD', venues)).toBe(true);
+      expect(call).toHaveBeenCalledWith(
+        'AuthenticatedUserStorageService:putNotificationPreferences',
+        expect.objectContaining({
+          perps: expect.objectContaining({
+            watchlistMarkets: {
+              hyperliquid: { testnet: [], mainnet: ['BTC'] },
+            },
+          }),
+        }),
+      );
+
+      await controller.toggleWatchlistMarket('BTC', 'BTC-USD', venues);
+
+      expect(controller.isWatchlistMarket('BTC', 'BTC-USD', venues)).toBe(
+        false,
+      );
+      expect(controller.getWatchlistMarkets()).toStrictEqual([
+        'market-key:ETH-USD',
+        'venue:lighter:SOL',
+      ]);
+    });
+
     it('reverts local state when AUS PUT fails', async () => {
       const existingPrefs = {
         ...MOCK_PREFS_BASE,
@@ -1368,6 +1450,56 @@ describe('PerpsController', () => {
         expect(ausController.state.watchlistMarkets.mainnet).toEqual(['SOL']);
       });
 
+      it('keeps local market-key and venue entries when hydrating from AUS', async () => {
+        const call = vi.fn().mockImplementation((action: string) => {
+          if (action === 'RemoteFeatureFlagController:getState') {
+            return {
+              remoteFeatureFlags: {
+                perpsPerpTradingGeoBlockedCountriesV2: { blockedRegions: [] },
+              },
+            };
+          }
+          if (
+            action ===
+            'AuthenticatedUserStorageService:getNotificationPreferences'
+          ) {
+            return Promise.resolve({
+              ...MOCK_PREFS_BASE,
+              perps: {
+                ...MOCK_PREFS_BASE.perps,
+                watchlistMarkets: {
+                  hyperliquid: { testnet: [], mainnet: ['SOL', 'BTC'] },
+                },
+              },
+            });
+          }
+          return undefined;
+        });
+        const state = getDefaultPerpsControllerState();
+        state.activeProvider = 'hyperliquid';
+        state.watchlistMarkets.mainnet = [
+          'market-key:ETH-USD',
+          'BTC',
+          'DOGE',
+          'venue:lighter:SOL',
+        ];
+        const controller = new PerpsController({
+          messenger: createMockMessenger({ call }),
+          state,
+          infrastructure: createMockInfrastructure(),
+        });
+
+        await controller.init();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(controller.state.watchlistMarkets.mainnet).toStrictEqual([
+          'SOL',
+          'BTC',
+          'market-key:ETH-USD',
+          'venue:lighter:SOL',
+        ]);
+      });
+
       it('hydrates (clears) local watchlist when remote entry exists with empty arrays', async () => {
         // Remote blob has the hyperliquid key present but both arrays are empty —
         // this represents an intentional clear by another device.  The controller
@@ -1454,8 +1586,12 @@ describe('PerpsController', () => {
 
         // Local state has some markets saved before AUS was introduced.
         const initialState = getDefaultPerpsControllerState();
-        initialState.watchlistMarkets.testnet = ['BTC'];
-        initialState.watchlistMarkets.mainnet = ['ETH', 'SOL'];
+        initialState.watchlistMarkets.testnet = ['BTC', 'venue:lighter:BTC'];
+        initialState.watchlistMarkets.mainnet = [
+          'ETH',
+          'market-key:BTC-USD',
+          'SOL',
+        ];
         initialState.activeProvider = 'hyperliquid';
 
         const migrationController = new TestablePerpsController({
@@ -2021,6 +2157,71 @@ describe('PerpsController', () => {
         },
       );
 
+      it.each([
+        ['starred then unstarred', [], 2, []],
+        ['unstarred, starred and unstarred again', ['BTC'], 3, ['BTC']],
+      ])(
+        'does not restore a star that never reached remote storage when a market is %s and every write fails',
+        async (_case, initial, toggleCount, expected) => {
+          const store = createAusStore({
+            mainnet: initial,
+            failingWrites: toggleCount,
+          });
+          const { controller } = buildController({
+            mainnetWatchlist: initial,
+            handlers: store.handlers,
+          });
+
+          const toggles = Promise.all(
+            Array.from({ length: toggleCount }, () =>
+              controller.toggleWatchlistMarket('BTC'),
+            ),
+          );
+          await store.drain();
+          await toggles;
+
+          expect(controller.state.watchlistMarkets.mainnet).toStrictEqual(
+            expected,
+          );
+          expect(store.remote().mainnet).toStrictEqual(expected);
+        },
+      );
+
+      it('does not save a keyed market twice after three overlapping failed toggles', async () => {
+        const store = createAusStore({ mainnet: ['BTC'], failingWrites: 3 });
+        const { controller } = buildController({
+          mainnetWatchlist: ['BTC'],
+          handlers: store.handlers,
+        });
+        const venues: PerpsMarketData[] = [
+          {
+            symbol: 'BTC',
+            name: 'Bitcoin',
+            price: '1',
+            maxLeverage: '40x',
+            change24h: '0',
+            change24hPercent: '0%',
+            volume: '10',
+            marketKey: 'K',
+            priceScale: 1,
+            providerId: 'hyperliquid',
+          },
+        ];
+
+        const toggles = Promise.all([
+          controller.toggleWatchlistMarket('BTC', 'K', venues),
+          controller.toggleWatchlistMarket('BTC', 'K'),
+          controller.toggleWatchlistMarket('BTC', 'K', venues),
+        ]);
+        await store.drain();
+        await toggles;
+
+        expect(controller.state.watchlistMarkets.mainnet).toStrictEqual([
+          'BTC',
+        ]);
+        expect(store.remote().mainnet).toStrictEqual(['BTC']);
+      });
+
       it('undoes a failed star on one network when the same market is starred on the other', async () => {
         const store = createAusStore({ mainnet: [], failingWrites: 1 });
         const { controller } = buildController({ handlers: store.handlers });
@@ -2095,8 +2296,11 @@ describe('PerpsController', () => {
 
       const unsubscribe = controller.subscribeToOrders(params);
 
-      expect(unsubscribe).toBe(mockUnsubscribe);
-      expect(mockProvider.subscribeToOrders).toHaveBeenCalledWith(params);
+      expect(mockProvider.subscribeToOrders).toHaveBeenCalledWith(
+        expect.objectContaining({ callback: expect.any(Function) }),
+      );
+      unsubscribe();
+      expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
     });
 
     it('subscribes to account updates', () => {
@@ -2111,11 +2315,12 @@ describe('PerpsController', () => {
 
       const unsubscribe = controller.subscribeToAccount(params);
 
-      expect(unsubscribe).toBe(mockUnsubscribe);
       // Controller wraps callback to update state, so expect a function rather than exact params
       expect(mockProvider.subscribeToAccount).toHaveBeenCalledWith(
         expect.objectContaining({ callback: expect.any(Function) }),
       );
+      unsubscribe();
+      expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
     });
 
     it('updates accountState with live snapshots and invalidation', () => {

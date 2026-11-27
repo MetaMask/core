@@ -13,6 +13,7 @@ export { geolocationApiService } from './geolocation-api-service/geolocation-api
 export { geolocationController } from './geolocation-controller/geolocation-controller.js';
 export { keyringController } from './keyring-controller/keyring-controller.js';
 export { loggingController } from './logging-controller/logging-controller.js';
+export { marketStatsService } from './market-stats-service/market-stats-service.js';
 export { networkController } from './network-controller/network-controller.js';
 export { networkEnablementController } from './network-enablement-controller/network-enablement-controller.js';
 export { passkeyController } from './passkey-controller/passkey-controller.js';
@@ -23,6 +24,7 @@ export { seedlessOnboardingController } from './seedless-onboarding-controller/s
 export { selectedNetworkController } from './selected-network-controller/selected-network-controller.js';
 export { shieldApiService } from './shield-api-service/shield-api-service.js';
 export { shieldController } from './shield-controller/shield-controller.js';
+export { signatureController } from './signature-controller/signature-controller.js';
 export { storageService } from './storage-service/storage-service.js';
 export { subscriptionController } from './subscription-controller/subscription-controller.js';
 export { subscriptionDelegationService } from './subscription-delegation-service/subscription-delegation-service.js';

@@ -7,6 +7,7 @@ import {
   AggregatedOrderBookConnection,
   processAggregatedOrderBook,
 } from '../../../src/services/AggregatedOrderBookConnection.js';
+import { calculateOrderBookSpread } from '../../../src/utils/orderBookGrouping.js';
 
 /**
  * Mirrors the reconnecting socket: a `terminationSignal` plus a helper that
@@ -223,6 +224,33 @@ describe('processAggregatedOrderBook', () => {
 
     expect(result.bids).toHaveLength(2);
     expect(result.asks).toHaveLength(2);
+  });
+
+  it('formats the shared spread helper result', () => {
+    const result = processAggregatedOrderBook(
+      {
+        coin: 'BTC',
+        time: 1,
+        levels: [[l2Level('0.3', '1')], [l2Level('0.7', '1')]],
+      },
+      10,
+    );
+    const top = calculateOrderBookSpread({ bestBid: '0.3', bestAsk: '0.7' });
+
+    expect(result.spread).toBe(top?.spread.toFixed(5));
+    expect(result.spreadPercentage).toBe(top?.spreadPercentage.toFixed(4));
+    expect(result.midPrice).toBe(top?.midPrice.toFixed(5));
+    expect(result.spreadPercentage).toBe('80.0000');
+  });
+
+  it('reports a zero spread when only one side has levels', () => {
+    const result = processAggregatedOrderBook(
+      { coin: 'BTC', time: 1, levels: [[], [l2Level('0.7', '1')]] },
+      10,
+    );
+    expect(result.spread).toBe('0.00000');
+    expect(result.spreadPercentage).toBe('0');
+    expect(result.midPrice).toBe('0.00000');
   });
 
   it('reports a zero spread when a side is empty', () => {

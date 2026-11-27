@@ -27,6 +27,7 @@ import type {
   ChartType,
   OHLCVBar,
   OHLCVPaginationConfig,
+  TVResolution,
 } from '../core/types.js';
 
 /** Inbound — React Native → WebView IIFE. */
@@ -109,6 +110,35 @@ export type SetOHLCVDataPayload = {
    * 4. else -> noData: true
    */
   slbMode?: boolean;
+  /**
+   * Opt-in. Bounds each interval's data load to its own visible window
+   * (`visibleFromMs`) instead of a window inherited from another interval:
+   *
+   * - The initial window is applied once the widget is ready rather than
+   * passed to the widget constructor as `timeframe`. TradingView keeps a
+   * constructor `timeframe` and sizes later interval switches from it, so a
+   * coarse first load (e.g. 1D, ~1 month) would make a later fine switch
+   * (e.g. 1m) request tens of thousands of bars and page backwards until
+   * rate-limited.
+   * - On every interval switch the new window is applied as soon as the new
+   * resolution is loaded.
+   * - The window start is clamped so it never predates the oldest loaded bar,
+   * keeping framing inside the bars already in memory.
+   *
+   * Off by default: when absent or false the constructor `timeframe` and the
+   * unclamped start are used, exactly like today. Social Leaderboard (`slbMode`)
+   * is never affected.
+   */
+  boundedIntervalWindow?: boolean;
+  /**
+   * TradingView resolution the bars are sampled at, e.g. `'5'`, `'60'`,
+   * `'240'`, `'1D'`, `'1W'` (minutes as numbers; `D`/`W`/`M` shorthand is
+   * accepted). When supported it is used instead of inferring the resolution
+   * from bar spacing, which misfires on low-liquidity tokens with irregular
+   * candles (e.g. 5m detected as `'30'`). Absent or unsupported values fall
+   * back to inference, so existing consumers are unaffected.
+   */
+  resolution?: TVResolution;
 };
 
 export type RealtimeUpdateMessage = {

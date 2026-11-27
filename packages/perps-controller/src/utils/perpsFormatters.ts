@@ -1267,6 +1267,64 @@ export const formatLiquidationDistance = (
   });
 };
 
+/**
+ * Options for `formatLeverage`.
+ */
+export type PerpsLeverageFormatOptions = Pick<
+  PerpsDisplayFormatOptions,
+  'formatters'
+> & {
+  /** Fraction digits always shown (default 0). */
+  minimumFractionDigits?: number;
+  /**
+   * Fraction digits at most shown (default
+   * `PERPS_DISPLAY_PRECISION.Leverage`, 2). Raised to `minimumFractionDigits`
+   * when lower.
+   */
+  maximumFractionDigits?: number;
+};
+
+/**
+ * Formats a leverage multiplier, such as account or position leverage, with
+ * an `x` suffix and locale separators.
+ *
+ * @param value - The leverage multiplier (`0.2` for 0.2x).
+ * @param options - `formatters` (default `en-US`), `minimumFractionDigits`
+ * (default 0) and `maximumFractionDigits` (default
+ * `PERPS_DISPLAY_PRECISION.Leverage`, 2).
+ * @returns Format: "X.XXx", or `PERPS_CONSTANTS.FallbackDataDisplay` (`--`)
+ * for a missing or negative value.
+ * @example formatLeverage(0.2) => "0.2x"
+ * @example formatLeverage(0.2, { minimumFractionDigits: 2 }) => "0.20x"
+ * @example formatLeverage(1.2149) => "1.21x"
+ * @example formatLeverage(2.5, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) => "2.5x"
+ * @example formatLeverage(1.2149, { formatters: createFormatters({ locale: 'de' }) }) => "1,21x"
+ * @example formatLeverage(undefined) => "--"
+ */
+export const formatLeverage = (
+  value: string | number | null | undefined,
+  options: PerpsLeverageFormatOptions = {},
+): string => {
+  const {
+    formatters = _fallbackFormatters,
+    minimumFractionDigits = 0,
+    maximumFractionDigits = PERPS_DISPLAY_PRECISION.Leverage,
+  } = options;
+  const parsed = _parseDisplayNumber(value);
+  if (parsed === undefined || parsed < 0) {
+    return PERPS_CONSTANTS.FallbackDataDisplay;
+  }
+
+  const maximum = Math.max(minimumFractionDigits, maximumFractionDigits);
+  return `${_formatDecimal(
+    formatters,
+    _roundedMagnitude(parsed, maximum),
+    minimumFractionDigits,
+    maximum,
+    true,
+  )}x`;
+};
+
 /** Each magnitude scale is this many times the next smaller one. */
 const SCALE_STEP = 1000;
 

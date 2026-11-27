@@ -9,7 +9,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked, MockedClass } from 'vitest';
 
-import { createMockHyperLiquidProvider } from '../helpers/providerMocks.js';
+import {
+  createMockHyperLiquidProvider,
+  createMockOrder,
+} from '../helpers/providerMocks.js';
 import {
   createDeferred,
   createMockInfrastructure,
@@ -19,7 +22,7 @@ import {
 vi.mock('@nktkas/hyperliquid', () => ({}));
 
 import {
-  CHASE_ORDER_CONFIG,
+  STREAM_RETRY_CONFIG,
   TWAP_ORDER_CONFIG,
 } from '../../src/constants/perpsConfig.js';
 import {
@@ -345,9 +348,13 @@ class TestablePerpsController extends PerpsController {
    * Test accessor for protected method reportOrderToDataLake.
    * Wrapper is necessary because protected methods can't be called from test code.
    * @param data
+   * @param provider
    */
-  public testReportOrderToDataLake(data: any): Promise<any> {
-    return this.reportOrderToDataLake(data);
+  public testReportOrderToDataLake(
+    data: any,
+    provider: PerpsProvider,
+  ): Promise<any> {
+    return this.reportOrderToDataLake(data, provider);
   }
 
   public testHasStandaloneProvider(): boolean {
@@ -834,6 +841,24 @@ describe('PerpsController', () => {
       status: 'active' as const,
     };
 
+    let chaseListeners: Set<() => void>;
+
+    /** Report a chase change from the provider and let its reads settle. */
+    const reportChaseChange = async (): Promise<void> => {
+      chaseListeners.forEach((listener) => listener());
+      await vi.advanceTimersByTimeAsync(STREAM_RETRY_CONFIG.BaseDelayMs * 3);
+    };
+
+    beforeEach(() => {
+      chaseListeners = new Set();
+      mockProvider.subscribeToChaseOrderChanges = vi.fn(({ callback }) => {
+        chaseListeners.add(callback);
+        return () => {
+          chaseListeners.delete(callback);
+        };
+      });
+    });
+
     it('reads Chase lifecycle state from the active provider', async () => {
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
@@ -960,7 +985,7 @@ describe('PerpsController', () => {
           // empty, then its own stream reports a new TWAP.
           streams[0].callback([{ ...twapOrder, orderId: 'old' }]);
           await vi.advanceTimersByTimeAsync(
-            TWAP_ORDER_CONFIG.RefreshIntervalMs,
+            TWAP_ORDER_CONFIG.StreamCatchUpIntervalMs,
           );
           streams[1].callback([{ ...twapOrder, orderId: 'new' }]);
           stop();
@@ -978,7 +1003,7 @@ describe('PerpsController', () => {
       },
     );
 
-    it('opens the live TWAP stream only once the provider is ready, and again after a reconnect', async () => {
+    it('opens no live TWAP stream before the provider is ready, and opens it again after a reconnect', async () => {
       vi.useFakeTimers();
       try {
         controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
@@ -997,14 +1022,18 @@ describe('PerpsController', () => {
             .forEach(([, handler]) => (handler as () => void)());
         const callback = vi.fn();
 
-        // Subscribed before the provider is ready: no stream yet.
-        const stop = controller.subscribeToLiveTwapOrders({ callback });
+        // Subscribed before the provider is ready: no stream yet. Such a
+        // channel opens on the next successful init (stream context tests).
+        const stopPending = controller.subscribeToLiveTwapOrders({
+          callback: vi.fn(),
+        });
         await vi.advanceTimersByTimeAsync(0);
 
         expect(mockProvider.subscribeToTwapOrders).not.toHaveBeenCalled();
+        stopPending();
 
         markControllerAsInitialized();
-        fireStateChanged();
+        const stop = controller.subscribeToLiveTwapOrders({ callback });
         await vi.advanceTimersByTimeAsync(0);
 
         expect(streams).toHaveLength(1);
@@ -1226,9 +1255,7 @@ describe('PerpsController', () => {
           symbol: chaseOrder.symbol,
           orderType: 'chase',
         });
-        await vi.advanceTimersByTimeAsync(
-          CHASE_ORDER_CONFIG.RefreshIntervalMs * 3,
-        );
+        await reportChaseChange();
         stop();
 
         expect(callback).toHaveBeenLastCalledWith({
@@ -1264,9 +1291,7 @@ describe('PerpsController', () => {
         const stop = controller.subscribeToChaseOrderLists({ callback });
         await vi.advanceTimersByTimeAsync(0);
         await controller.cancelOrder({ orderId: '55', symbol: 'ETH' });
-        await vi.advanceTimersByTimeAsync(
-          CHASE_ORDER_CONFIG.RefreshIntervalMs * 3,
-        );
+        await reportChaseChange();
         stop();
 
         expect(callback).toHaveBeenLastCalledWith({
@@ -1299,9 +1324,7 @@ describe('PerpsController', () => {
           symbol: chaseOrder.symbol,
           orderType: 'chase',
         });
-        await vi.advanceTimersByTimeAsync(
-          CHASE_ORDER_CONFIG.RefreshIntervalMs * 3,
-        );
+        await reportChaseChange();
         stop();
 
         // Success alone does not prove canceled, so nothing is invented.
@@ -1393,9 +1416,7 @@ describe('PerpsController', () => {
           await vi.advanceTimersByTimeAsync(0);
           finishCancel?.(canceled);
           const result = await cancel;
-          await vi.advanceTimersByTimeAsync(
-            CHASE_ORDER_CONFIG.RefreshIntervalMs * 2,
-          );
+          await reportChaseChange();
           stopBefore();
           stopAfter();
 
@@ -1427,7 +1448,8 @@ describe('PerpsController', () => {
         const callback = vi.fn();
 
         const stop = controller.subscribeToChaseOrderLists({ callback });
-        await vi.advanceTimersByTimeAsync(CHASE_ORDER_CONFIG.RefreshIntervalMs);
+        await vi.advanceTimersByTimeAsync(0);
+        await reportChaseChange();
         // The second read is still pending when the network switches.
         controller.testUpdate((state) => {
           state.isTestnet = true;
@@ -1696,6 +1718,38 @@ describe('PerpsController', () => {
           withStreamPause: expect.any(Function),
         }),
       );
+    });
+
+    it('holds Core orders deliveries during the operation and sends the latest once after it', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      let push: (orders: Order[]) => void = () => undefined;
+      mockProvider.subscribeToOrders.mockImplementation((params) => {
+        push = params.callback;
+        return () => undefined;
+      });
+      const callback = vi.fn();
+      controller.subscribeToOrders({ callback });
+      const first = [createMockOrder({ orderId: 'first' })];
+      const latest = [createMockOrder({ orderId: 'latest' })];
+      vi.spyOn(mockTradingServiceInstance, 'cancelOrders').mockImplementation(
+        async (options: any) =>
+          options.withStreamPause(async () => {
+            push(first);
+            push(latest);
+            expect(callback).not.toHaveBeenCalled();
+            return {
+              success: true,
+              successCount: 0,
+              failureCount: 0,
+              results: [],
+            };
+          }, ['orders']),
+      );
+
+      await controller.cancelOrders({ cancelAll: true });
+
+      expect(callback.mock.calls).toStrictEqual([[latest]]);
     });
 
     it('resumes streams even when operation throws error', async () => {
@@ -1971,8 +2025,125 @@ describe('PerpsController', () => {
 
       const unsubscribe = controller.subscribeToPrices(params);
 
-      expect(unsubscribe).toBe(mockUnsubscribe);
-      expect(mockProvider.subscribeToPrices).toHaveBeenCalledWith(params);
+      expect(mockProvider.subscribeToPrices).toHaveBeenCalledWith(
+        expect.objectContaining({ callback: expect.any(Function) }),
+      );
+      unsubscribe();
+      expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
+    });
+
+    describe('shared stream channels', () => {
+      beforeEach(() => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      });
+
+      it('opens one venue subscription for equal parameters and stops it with the last reader', () => {
+        const stop = vi.fn();
+        mockProvider.subscribeToPrices.mockReturnValue(stop);
+
+        const leaveFirst = controller.subscribeToPrices({
+          symbols: ['BTC'],
+          callback: vi.fn(),
+        });
+        const leaveSecond = controller.subscribeToPrices({
+          symbols: ['BTC'],
+          callback: vi.fn(),
+          throttleMs: 1000,
+        });
+
+        expect(mockProvider.subscribeToPrices).toHaveBeenCalledTimes(1);
+        expect(mockProvider.subscribeToPrices).toHaveBeenCalledWith(
+          expect.objectContaining({ throttleMs: undefined }),
+        );
+        leaveFirst();
+        expect(stop).not.toHaveBeenCalled();
+        leaveSecond();
+        expect(stop).toHaveBeenCalledTimes(1);
+      });
+
+      it('opens a separate venue subscription for other parameters', () => {
+        mockProvider.subscribeToPrices.mockReturnValue(vi.fn());
+
+        controller.subscribeToPrices({ symbols: ['BTC'], callback: vi.fn() });
+        controller.subscribeToPrices({ symbols: ['ETH'], callback: vi.fn() });
+
+        expect(mockProvider.subscribeToPrices).toHaveBeenCalledTimes(2);
+      });
+
+      it('replays the last positions to a reader that joins later', async () => {
+        let push: (positions: never[]) => void = () => undefined;
+        mockProvider.subscribeToPositions.mockImplementation(
+          (params: { callback: (positions: never[]) => void }) => {
+            push = params.callback;
+            return vi.fn();
+          },
+        );
+        controller.subscribeToPositions({ callback: vi.fn() });
+        push([]);
+
+        const late = vi.fn();
+        controller.subscribeToPositions({ callback: late });
+        await Promise.resolve();
+
+        expect(mockProvider.subscribeToPositions).toHaveBeenCalledTimes(1);
+        expect(late).toHaveBeenCalledWith([]);
+      });
+
+      it('never replays fills to a reader that joins later', async () => {
+        let push: (fills: never[]) => void = () => undefined;
+        mockProvider.subscribeToOrderFills.mockImplementation(
+          (params: { callback: (fills: never[]) => void }) => {
+            push = params.callback;
+            return vi.fn();
+          },
+        );
+        controller.subscribeToOrderFills({ callback: vi.fn() });
+        push([]);
+
+        const late = vi.fn();
+        controller.subscribeToOrderFills({ callback: late });
+        await Promise.resolve();
+
+        expect(late).not.toHaveBeenCalled();
+      });
+
+      it('reports a failure to a later reader when the first had no error handler', () => {
+        let fail: (error: Error) => void = () => undefined;
+        mockProvider.subscribeToOrders.mockImplementation(
+          (params: { onError?: (error: Error) => void }) => {
+            fail = params.onError ?? fail;
+            return vi.fn();
+          },
+        );
+        controller.subscribeToOrders({ callback: vi.fn() });
+        const onError = vi.fn();
+        controller.subscribeToOrders({ callback: vi.fn(), onError });
+
+        fail(new Error('setup lost'));
+
+        expect(onError).toHaveBeenCalledWith(new Error('setup lost'));
+      });
+
+      it('gives an orders reader that joins after an account switch its own channel', () => {
+        mockProvider.subscribeToOrders.mockReturnValue(vi.fn());
+        controller.subscribeToOrders({ callback: vi.fn() });
+
+        selectedAddress = '0x00000000000000000000000000000000000000b2';
+        controller.subscribeToOrders({ callback: vi.fn() });
+
+        expect(mockProvider.subscribeToOrders).toHaveBeenCalledTimes(2);
+      });
+
+      it('gives a reader that joins after an account switch its own channel', () => {
+        mockProvider.subscribeToPositions.mockReturnValue(vi.fn());
+        controller.subscribeToPositions({ callback: vi.fn() });
+
+        selectedAddress = '0x00000000000000000000000000000000000000b2';
+        controller.subscribeToPositions({ callback: vi.fn() });
+
+        expect(mockProvider.subscribeToPositions).toHaveBeenCalledTimes(2);
+      });
     });
   });
 });

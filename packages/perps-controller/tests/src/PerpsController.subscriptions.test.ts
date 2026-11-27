@@ -120,6 +120,7 @@ const mockMarketDataServiceInstance = {
   getMaxLeverage: vi.fn(),
   calculateFees: vi.fn().mockResolvedValue({ totalFee: 0 }),
   previewPositionModify: vi.fn(),
+  estimateCrossLiquidation: vi.fn(),
   getAvailableDexs: vi.fn().mockResolvedValue([]),
   getBlockExplorerUrl: vi.fn(),
   getOrderFills: vi.fn(),
@@ -355,9 +356,13 @@ class TestablePerpsController extends PerpsController {
    * Test accessor for protected method reportOrderToDataLake.
    * Wrapper is necessary because protected methods can't be called from test code.
    * @param data
+   * @param provider
    */
-  public testReportOrderToDataLake(data: any): Promise<any> {
-    return this.reportOrderToDataLake(data);
+  public testReportOrderToDataLake(
+    data: any,
+    provider: PerpsProvider,
+  ): Promise<any> {
+    return this.reportOrderToDataLake(data, provider);
   }
 
   public testHasStandaloneProvider(): boolean {
@@ -611,8 +616,11 @@ describe('PerpsController', () => {
 
       const unsubscribe = controller.subscribeToPositions(params);
 
-      expect(unsubscribe).toBe(mockUnsubscribe);
-      expect(mockProvider.subscribeToPositions).toHaveBeenCalledWith(params);
+      expect(mockProvider.subscribeToPositions).toHaveBeenCalledWith(
+        expect.objectContaining({ callback: expect.any(Function) }),
+      );
+      unsubscribe();
+      expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -1139,8 +1147,9 @@ describe('PerpsController', () => {
           oldCallback(oldUpdate);
 
           expect(controller.state).toBe(selectedState);
-          // The old stream still feeds its own consumer, not selected state.
-          expect(oldConsumer).toHaveBeenLastCalledWith(oldUpdate);
+          // The old stream was stopped, so its consumer, which moved to the new
+          // account, does not hear it either.
+          expect(oldConsumer).toHaveBeenLastCalledWith(accountState('200'));
         },
       );
 
@@ -1571,9 +1580,12 @@ describe('PerpsController', () => {
 
       const unsubscribe = controller.subscribeToAvailableToTrade(params);
 
-      expect(subscribe).toHaveBeenCalledWith(params);
+      expect(subscribe).toHaveBeenCalledWith(
+        expect.objectContaining({ symbol: 'BTC' }),
+      );
       expect(callback).toHaveBeenCalledWith(venueValue);
-      expect(unsubscribe).toBe(mockUnsubscribe);
+      unsubscribe();
+      expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
     });
 
     it('leaves the value unknown when the provider cannot read it from its venue', () => {
@@ -1886,7 +1898,7 @@ describe('PerpsController', () => {
         );
       });
 
-      it('passes no onError to the provider when the caller gave none', () => {
+      it('passes the channel error handler to the provider even when the caller gave none', () => {
         controllableStream();
 
         controller.subscribeToPublicTrades({
@@ -1894,9 +1906,11 @@ describe('PerpsController', () => {
           callback: vi.fn(),
         });
 
+        // A later reader of the same channel may listen for failures.
         expect(mockProvider.subscribeToPublicTrades).toHaveBeenCalledWith({
           symbol: 'BTC',
           callback: expect.any(Function),
+          onError: expect.any(Function),
         });
       });
 
@@ -2096,6 +2110,61 @@ describe('PerpsController', () => {
         params,
         context: expect.any(Object),
       });
+    });
+  });
+
+  describe('estimateCrossLiquidation', () => {
+    const params = {
+      symbol: 'BTC',
+      direction: 'long' as const,
+      size: '0.1',
+      entryPrice: '50000',
+      leverage: 10,
+    };
+
+    it('delegates to MarketDataService', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      vi.spyOn(
+        mockMarketDataServiceInstance,
+        'estimateCrossLiquidation',
+      ).mockResolvedValue({ status: 'none', reason: 'covered_by_account' });
+
+      expect(await controller.estimateCrossLiquidation(params)).toStrictEqual({
+        status: 'none',
+        reason: 'covered_by_account',
+      });
+      expect(
+        mockMarketDataServiceInstance.estimateCrossLiquidation,
+      ).toHaveBeenCalledWith({
+        provider: mockProvider,
+        params,
+      });
+    });
+
+    it('is unavailable from the provider when the route names another direct venue', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      expect(
+        await controller.estimateCrossLiquidation({
+          ...params,
+          providerId: 'lighter',
+        }),
+      ).toStrictEqual({ status: 'unavailable', reason: 'provider' });
+      expect(
+        mockMarketDataServiceInstance.estimateCrossLiquidation,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('is unavailable from the provider before initialization', async () => {
+      expect(await controller.estimateCrossLiquidation(params)).toStrictEqual({
+        status: 'unavailable',
+        reason: 'provider',
+      });
+      expect(
+        mockMarketDataServiceInstance.estimateCrossLiquidation,
+      ).not.toHaveBeenCalled();
     });
   });
 

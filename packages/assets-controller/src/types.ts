@@ -245,6 +245,11 @@ export type FungibleAssetPrice = BaseAssetPrice & {
   pricePercentChange1y?: number;
   /** Current price in USD */
   usdPrice: number;
+  /**
+   * True when this asset can stream on `market-stats.v1`.
+   * Absent or false keeps the asset on the `/v3/spot-prices` poll.
+   */
+  wssSupport?: boolean;
 };
 
 /**

@@ -70,13 +70,24 @@ export const HL_UNIFIED_ACCOUNT_MODE = 'unifiedAccount' as const;
  * @param mode - Abstraction mode from `userAbstraction` endpoint; null/undefined means unknown.
  * @returns `true` when spot folds into spendable/withdrawable (Unified / Portfolio); `false` for Standard / default / unknown.
  */
-export function hyperLiquidModeFoldsSpot(
-  mode?: HyperLiquidAbstractionMode | null,
-): boolean {
+export function hyperLiquidModeFoldsSpot(mode?: string | null): boolean {
   if (mode === null || mode === undefined) {
     return false;
   }
   return mode === 'unifiedAccount' || mode === 'portfolioMargin';
+}
+
+/**
+ * True for a Standard HL account (`disabled`, or `default` while unset):
+ * spot and perps are separate ledgers. Unknown or other modes are false.
+ *
+ * @param mode - Abstraction mode, or `AccountState.accountMode`.
+ * @returns Whether the account keeps separate spot and perps ledgers.
+ */
+export function isHyperLiquidStandardMode(
+  mode?: string | null,
+): mode is 'disabled' | 'default' {
+  return mode === 'disabled' || mode === 'default';
 }
 
 // Clearinghouse (Account) Types

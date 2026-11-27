@@ -203,7 +203,7 @@ export class PerpsAccessService {
   ): Promise<PerpsAccessPolicyRecord | null> {
     const pending = this.#inFlight.get(network);
     if (pending) {
-      return pending;
+      return await pending;
     }
     const lastAttemptAt = this.#lastAttemptAt.get(network);
     if (
@@ -228,7 +228,7 @@ export class PerpsAccessService {
         this.#inFlight.delete(network);
       });
     this.#inFlight.set(network, request);
-    return request;
+    return await request;
   }
 
   /**
@@ -260,7 +260,7 @@ export class PerpsAccessService {
     const key = `${network}:${address.toLowerCase()}:${programId}`;
     const cached = this.#enrollments.get(key);
     if (cached) {
-      return cached;
+      return await cached;
     }
     const request = read().catch((error: unknown) => {
       this.#enrollments.delete(key);
@@ -268,7 +268,7 @@ export class PerpsAccessService {
       return 'none' as const;
     });
     this.#enrollments.set(key, request);
-    return request;
+    return await request;
   }
 
   /**
@@ -300,7 +300,7 @@ export class PerpsAccessService {
     const key = `${network}:${address.toLowerCase()}:${programId}`;
     const cached = this.#positionVenueKeys.get(key);
     if (cached) {
-      return cached;
+      return await cached;
     }
     const request = read().catch((error: unknown) => {
       this.#positionVenueKeys.delete(key);
@@ -308,7 +308,7 @@ export class PerpsAccessService {
       return fallback;
     });
     this.#positionVenueKeys.set(key, request);
-    return request;
+    return await request;
   }
 
   async #fetchAndStore(

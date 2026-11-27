@@ -11,6 +11,7 @@ import type {
   MarketInfo,
   PerpsAccessPolicy,
   PerpsEnrollment,
+  PerpsMarketData,
   PerpsPlatformDependencies,
   PerpsProvider,
   PerpsProviderType,
@@ -371,6 +372,37 @@ describe('PerpsController perps access', () => {
       ]);
     });
 
+    it('reads the aggregate cache with only the listed HyperLiquid venue', async () => {
+      respondWith(US);
+      infrastructure.terminalApi = {
+        accessPolicyUrl: POLICY_URL,
+        globalSnapshotUrl: 'https://api.test/v4/perpetuals',
+      };
+      const state = getDefaultPerpsControllerState();
+      state.activeProvider = 'aggregated';
+      state.cachedMarketDataByProvider = {
+        'hyperliquid:mainnet': {
+          timestamp: Date.now(),
+          data: [
+            { symbol: 'BTC' },
+            { symbol: 'ignp:AAPL' },
+          ] as PerpsMarketData[],
+        },
+        'lighter:mainnet': {
+          timestamp: Date.now(),
+          data: [{ symbol: 'ETH', providerId: 'lighter' }] as PerpsMarketData[],
+        },
+      };
+      controller = createController(true, state);
+      await controller.init();
+
+      expect(
+        controller
+          .getCachedMarketDataForActiveProvider()
+          ?.map(({ symbol }) => symbol),
+      ).toStrictEqual(['ignp:AAPL']);
+    });
+
     it('drops markets from unlisted venues', async () => {
       respondWith(US);
       controller = createController();
@@ -455,8 +487,8 @@ describe('PerpsController perps access', () => {
         [ACCOUNT_A, lateA.promise],
         [ACCOUNT_B, Promise.resolve<PerpsEnrollment>('none')],
       ]);
-      hyperLiquid.getEnrollment.mockImplementation(async (address: string) =>
-        answers.get(address),
+      hyperLiquid.getEnrollment.mockImplementation(
+        async (address: string) => await answers.get(address),
       );
       controller = createController();
       await settle();
@@ -582,8 +614,8 @@ describe('PerpsController perps access', () => {
       [ACCOUNT_A, Promise.resolve<PerpsEnrollment>('approved')],
       [ACCOUNT_B, pendingB.promise],
     ]);
-    hyperLiquid.getEnrollment.mockImplementation(async (address: string) =>
-      answers.get(address),
+    hyperLiquid.getEnrollment.mockImplementation(
+      async (address: string) => await answers.get(address),
     );
     controller = createController();
     await controller.init();
