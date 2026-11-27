@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/utils` from `^12.0.0` to `^12.1.0` ([#11107](https://github.com/MetaMask/core/pull/11107), [#11474](https://github.com/MetaMask/core/pull/11474), [#11796](https://github.com/MetaMask/core/pull/11796))
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.3` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419), [#11474](https://github.com/MetaMask/core/pull/11474), [#11800](https://github.com/MetaMask/core/pull/11800))
 - Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
-- Bump `@tanstack/query-core` from `^5.103.2` to `^5.107.1` ([#11645](https://github.com/MetaMask/core/pull/11645))
+- Bump `@tanstack/query-core` from `^5.103.2` to `^5.108.4` ([#11645](https://github.com/MetaMask/core/pull/11645), [#11760](https://github.com/MetaMask/core/pull/11760))
 
 ## [1.1.0]
 

@@ -74,7 +74,7 @@
     "@metamask/superstruct": "^3.4.1",
     "@metamask/transaction-controller": "^74.5.1",
     "@metamask/utils": "^12.1.0",
-    "@tanstack/query-core": "^5.107.1",
+    "@tanstack/query-core": "^5.108.4",
     "bignumber.js": "^9.1.2",
     "fast-deep-equal": "^3.1.3"
   },

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/profile-sync-controller` from `^36.1.2` to `^36.1.3` ([#11800](https://github.com/MetaMask/core/pull/11800))
+- Bump `@tanstack/query-core` from `^5.107.1` to `^5.108.4` ([#11760](https://github.com/MetaMask/core/pull/11760))
 
 ## [113.3.5]
 
