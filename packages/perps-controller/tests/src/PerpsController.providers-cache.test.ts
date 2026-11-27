@@ -1275,6 +1275,7 @@ describe('PerpsController', () => {
             onChaseOrderMaxDistanceReached: expect.any(Function),
             getCurrentIsTestnet: expect.any(Function),
             getAgentSigner: expect.any(Function),
+            hasAgentSource: expect.any(Function),
             onAgentRejected: expect.any(Function),
           },
         ],

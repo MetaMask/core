@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^74.5.0` to `^74.5.1` ([#11789](https://github.com/MetaMask/core/pull/11789))
+
+## [33.2.0]
+
+### Changed
+
+- Send the quote `signature` when submitting gasless server quotes, and poll status with the `id` returned by the submit ([#11714](https://github.com/MetaMask/core/pull/11714))
+  - Build the delegation for subsidized server quotes with the subsidized caveats, from the quote's source calls, so the server can set the real order ID after signing.
+- Bump `@metamask/assets-controller` from `^21.0.0` to `^22.0.0` ([#11784](https://github.com/MetaMask/core/pull/11784))
+- Bump `@metamask/transaction-controller` from `^74.4.1` to `^74.5.0` ([#11784](https://github.com/MetaMask/core/pull/11784))
+
+## [33.1.1]
+
+### Changed
+
+- Bump `@metamask/ramps-controller` from `^30.1.0` to `^31.0.0` ([#11763](https://github.com/MetaMask/core/pull/11763))
+- Bump `@metamask/transaction-controller` from `^74.4.0` to `^74.4.1` ([#11761](https://github.com/MetaMask/core/pull/11761))
+
+## [33.1.0]
+
 ### Added
 
 - `ServerStrategy` quotes into the Lighter perps balance (`lighter:mainnet/perps:usdc`) when `paymentOverride` is `perpsLighter` ([#11705](https://github.com/MetaMask/core/pull/11705))
@@ -1988,7 +2010,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@33.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@33.2.0...HEAD
+[33.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@33.1.1...@metamask/transaction-pay-controller@33.2.0
+[33.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@33.1.0...@metamask/transaction-pay-controller@33.1.1
+[33.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@33.0.0...@metamask/transaction-pay-controller@33.1.0
 [33.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.1.1...@metamask/transaction-pay-controller@33.0.0
 [32.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.1.0...@metamask/transaction-pay-controller@32.1.1
 [32.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.0.0...@metamask/transaction-pay-controller@32.1.0

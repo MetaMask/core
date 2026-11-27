@@ -9,7 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.4.0` ([#11732](https://github.com/MetaMask/core/pull/11732))
+- Bump `@metamask/transaction-controller` from `^74.5.0` to `^74.5.1` ([#11789](https://github.com/MetaMask/core/pull/11789))
+
+## [84.0.1]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^21.0.0` to `^22.0.0` ([#11784](https://github.com/MetaMask/core/pull/11784))
+- Bump `@metamask/assets-controllers` from `^113.3.3` to `^113.3.4` ([#11784](https://github.com/MetaMask/core/pull/11784))
+- Bump `@metamask/transaction-controller` from `^74.4.1` to `^74.5.0` ([#11784](https://github.com/MetaMask/core/pull/11784))
+
+## [84.0.0]
+
+### Added
+
+- Add `Advanced Order Quotes Requested` and `Advanced Order Quotes Received` analytics event names with payload typing ([#11747](https://github.com/MetaMask/core/pull/11747))
+
+### Changed
+
+- **BREAKING:** Emit Advanced Order quote events for advanced-order quote polling without rewriting caller-provided event names ([#11747](https://github.com/MetaMask/core/pull/11747))
+  - Consumers must accept `AdvancedOrderMetricsEventName` values in `trackMetaMetricsFn` and explicitly use the Advanced Order event names when tracking successful advanced-order quote fetches.
+- Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.4.1` ([#11732](https://github.com/MetaMask/core/pull/11732), [#11761](https://github.com/MetaMask/core/pull/11761))
 
 ## [83.4.0]
 
@@ -2275,7 +2295,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@84.0.1...HEAD
+[84.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@84.0.0...@metamask/bridge-controller@84.0.1
+[84.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.4.0...@metamask/bridge-controller@84.0.0
 [83.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.3.0...@metamask/bridge-controller@83.4.0
 [83.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.2.0...@metamask/bridge-controller@83.3.0
 [83.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.5...@metamask/bridge-controller@83.2.0

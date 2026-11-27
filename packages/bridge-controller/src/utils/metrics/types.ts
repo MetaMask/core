@@ -9,11 +9,13 @@ import type {
 import type { FeatureId } from '../../validators/feature-flags.js';
 import { QuoteWarning } from '../quote-warnings/types.js';
 import type {
+  AdvancedOrderMetricsEventName,
   UnifiedSwapBridgeEventName,
   BatchSellMetricsEventName,
   BatchSellMetricsLocation,
   BridgeControllerMetricsEventName,
   BridgeControllerMetricsLocation,
+  BridgeControllerPublishedEventName,
   MetricsActionType,
   MetricsSwapType,
   PollingStatus,
@@ -496,6 +498,23 @@ type SharedCrossChainSwapsEventProperties<
   | Pick<EventPropertiesFromControllerState, EventNameType>[EventNameType]
   | Pick<RequiredEventContextFromClient, EventNameType>[EventNameType];
 
+export type SourceEventName<
+  EventNameType extends BridgeControllerPublishedEventName,
+> = EventNameType extends AdvancedOrderMetricsEventName.QuotesRequested
+  ? UnifiedSwapBridgeEventName.QuotesRequested
+  : EventNameType extends AdvancedOrderMetricsEventName.QuotesReceived
+    ? UnifiedSwapBridgeEventName.QuotesReceived
+    : EventNameType extends BridgeControllerMetricsEventName
+      ? EventNameType
+      : never;
+
+export type EventContextFromClient<
+  EventNameType extends BridgeControllerPublishedEventName,
+> = Pick<
+  RequiredEventContextFromClient,
+  SourceEventName<EventNameType>
+>[SourceEventName<EventNameType>];
+
 /**
  * trackUnifiedSwapBridgeEvent payload properties consist of required properties from the client
  * and properties from the bridge controller
@@ -504,7 +523,7 @@ type SharedCrossChainSwapsEventProperties<
  * `ab_tests` and `active_ab_tests` intentionally coexist during migration.
  */
 export type CrossChainSwapsEventProperties<
-  EventNameType extends BridgeControllerMetricsEventName,
+  EventNameType extends BridgeControllerPublishedEventName,
 > = EventNameType extends BatchSellMetricsEventName
   ? Pick<EventPropertiesFromControllerState, EventNameType>[EventNameType]
-  : SharedCrossChainSwapsEventProperties<EventNameType>;
+  : SharedCrossChainSwapsEventProperties<SourceEventName<EventNameType>>;

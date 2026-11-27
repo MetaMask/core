@@ -37,6 +37,8 @@ type CoreState = {
   visibleToMs: number | null;
   /** TradingView subscribeBars listenerGuid → tick callback (forwarded by REALTIME_UPDATE). */
   realtimeCallbacks: Record<string, RealtimeTickCallback>;
+  /** TradingView subscribeBars listenerGuid → resolution it subscribed with. */
+  realtimeCallbackResolutions: Record<string, string>;
   /** Curated indicators (MACD, RSI, BOL, MA200) keyed by indicator name → studyId. */
   activeStudies: Map<string, StudyId>;
   /** MA visibility-driven studies (MA5/10/20/50/200) keyed by name → studyId. */
@@ -57,11 +59,12 @@ type CoreState = {
   /** SLB scoping flag — activates Strategy C (bulk back-fill) pagination. */
   slbMode: boolean;
   /**
-   * Opt-in. When true, the per-interval visible-range pin is clamped so its
-   * start never predates the oldest loaded bar. Off by default so non-opt-in
-   * consumers keep today's unclamped framing.
+   * Opt-in. When true, the per-interval visible window is applied after the
+   * widget is ready (not as the constructor `timeframe`) and on every
+   * interval switch, clamped so its start never predates the oldest loaded
+   * bar. Off by default so non-opt-in consumers keep today's framing.
    */
-  atomicIntervalWindow: boolean;
+  boundedIntervalWindow: boolean;
   /**
    * Set to true when SLB data arrives and the viewport hasn't been
    * centered yet. Cleared after the first successful setVisibleRange
@@ -103,6 +106,7 @@ const state: CoreState = {
   visibleFromMs: null,
   visibleToMs: null,
   realtimeCallbacks: {},
+  realtimeCallbackResolutions: {},
   activeStudies: new Map(),
   maStudies: new Map(),
   legendStudyOrder: new Map(),
@@ -113,7 +117,7 @@ const state: CoreState = {
   hasExplicitCurrentPriceLine: false,
   hotReloadSeq: 0,
   slbMode: false,
-  atomicIntervalWindow: false,
+  boundedIntervalWindow: false,
   slbCenteringPending: false,
   legendOwnsLayoutSettle: false,
 };
@@ -283,16 +287,35 @@ export function setVisibleToMs(ms: number | null): void {
 export function registerRealtimeCallback(
   listenerGuid: string,
   callback: RealtimeTickCallback,
+  resolution?: string,
 ): void {
   state.realtimeCallbacks[listenerGuid] = callback;
+  if (resolution === undefined) {
+    delete state.realtimeCallbackResolutions[listenerGuid];
+  } else {
+    state.realtimeCallbackResolutions[listenerGuid] = resolution;
+  }
 }
 
 export function unregisterRealtimeCallback(listenerGuid: string): void {
   delete state.realtimeCallbacks[listenerGuid];
+  delete state.realtimeCallbackResolutions[listenerGuid];
 }
 
 export function getRealtimeCallbacks(): Record<string, RealtimeTickCallback> {
   return state.realtimeCallbacks;
+}
+
+/**
+ * Resolution a TradingView realtime listener subscribed with, if known.
+ *
+ * @param listenerGuid - The subscribeBars listener GUID.
+ * @returns The listener's resolution, or undefined when not recorded.
+ */
+export function getRealtimeCallbackResolution(
+  listenerGuid: string,
+): string | undefined {
+  return state.realtimeCallbackResolutions[listenerGuid];
 }
 
 // ----- Indicator studies --------------------------------------------------
@@ -395,14 +418,14 @@ export function setSlbMode(enabled: boolean): void {
   state.slbMode = enabled;
 }
 
-// ----- Atomic interval window (opt-in) ---------------------------------------
+// ----- Bounded interval window (opt-in) --------------------------------------
 
-export function getAtomicIntervalWindow(): boolean {
-  return state.atomicIntervalWindow;
+export function getBoundedIntervalWindow(): boolean {
+  return state.boundedIntervalWindow;
 }
 
-export function setAtomicIntervalWindow(enabled: boolean): void {
-  state.atomicIntervalWindow = enabled;
+export function setBoundedIntervalWindow(enabled: boolean): void {
+  state.boundedIntervalWindow = enabled;
 }
 
 export function isSlbCenteringPending(): boolean {
@@ -454,6 +477,7 @@ export function _resetStateForTests(): void {
   state.visibleFromMs = null;
   state.visibleToMs = null;
   state.realtimeCallbacks = {};
+  state.realtimeCallbackResolutions = {};
   state.activeStudies = new Map();
   state.maStudies = new Map();
   state.legendStudyOrder = new Map();
@@ -464,7 +488,7 @@ export function _resetStateForTests(): void {
   state.hasExplicitCurrentPriceLine = false;
   state.hotReloadSeq = 0;
   state.slbMode = false;
-  state.atomicIntervalWindow = false;
+  state.boundedIntervalWindow = false;
   state.slbCenteringPending = false;
   state.legendOwnsLayoutSettle = false;
 }

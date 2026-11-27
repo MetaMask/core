@@ -9,8 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^74.1.0` to `^74.4.0` ([#11605](https://github.com/MetaMask/core/pull/11605), [#11669](https://github.com/MetaMask/core/pull/11669), [#11732](https://github.com/MetaMask/core/pull/11732))
+- Bump `@metamask/transaction-controller` from `^74.5.0` to `^74.5.1` ([#11789](https://github.com/MetaMask/core/pull/11789))
+
+## [3.4.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^74.1.0` to `^74.5.0` ([#11605](https://github.com/MetaMask/core/pull/11605), [#11669](https://github.com/MetaMask/core/pull/11669), [#11732](https://github.com/MetaMask/core/pull/11732), [#11761](https://github.com/MetaMask/core/pull/11761), [#11784](https://github.com/MetaMask/core/pull/11784))
 - Bump `eth-chainlist` from `^0.0.873` to `^0.0.881` ([#11645](https://github.com/MetaMask/core/pull/11645))
+- Bump `@metamask/core-backend` from `^14.1.0` to `^15.0.0` ([#11784](https://github.com/MetaMask/core/pull/11784))
 
 ## [3.4.0]
 
@@ -265,7 +272,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
 - Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.4.1...HEAD
+[3.4.1]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.4.0...@metamask/client-utils@3.4.1
 [3.4.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.3.1...@metamask/client-utils@3.4.0
 [3.3.1]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.3.0...@metamask/client-utils@3.3.1
 [3.3.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.2.0...@metamask/client-utils@3.3.0

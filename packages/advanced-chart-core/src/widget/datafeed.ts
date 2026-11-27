@@ -6,9 +6,12 @@
 // pagination/rnBacked.ts when consumers opt into the custom strategy.
 
 import { reportErrorToRN, safeStringify } from '../core/bridge.js';
+import { canonicalResolution } from '../core/resolution.js';
 import {
+  getCurrentResolution,
   getOhlcvData,
   getOhlcvPagination,
+  getRealtimeCallbackResolution,
   getRealtimeCallbacks,
   getRnBackedPagination,
   registerRealtimeCallback,
@@ -82,30 +85,6 @@ function getVariableTickSize(): string {
 function getPriceScale(): number {
   return getConfiguredPriceDecimals() === null ? 100 : 10000000000;
 }
-
-/**
- * Upper bound on the `countBack` we will honor for an RN-backed (Strategy B)
- * backward pagination request.
- *
- * On a coarse→fine resolution switch (e.g. 1W→1m) TradingView inherits the
- * previous interval's wide visible TIME range and sizes the first backward
- * `getBars` `countBack` to fill that range at the new resolution — e.g. a
- * ~1-year span at 1m resolves to ~550,000 bars. It then auto-fires successive
- * `firstDataRequest:false` calls, each decremented by the bars we return,
- * walking history back years and firing hundreds of host fetches (the
- * "pagination storm"). The in-place resolution switch releases the visible-range
- * pin before switching so TradingView preserves the visible bar count rather
- * than the inherited span, which prevents this upstream; this clamp is a final
- * backstop in case an over-large `countBack` still reaches the datafeed.
- *
- * A genuine user scroll-back only ever asks for roughly a viewport's worth of
- * bars plus a buffer — orders of magnitude below this bound — so clamping here
- * stops the inherited-range artifact without affecting real scroll-back. This
- * is deliberately NOT applied to the first request (which returns in-memory
- * bars above). Requests above this bound are clamped (not halted) so
- * scroll-back still works but each individual RN fetch stays bounded.
- */
-const MAX_RNBACKED_PAGINATION_COUNTBACK = 5_000;
 
 /**
  * Strips internal fields from an OHLCVBar to the shape TV expects.
@@ -204,14 +183,16 @@ export const customDatafeed: TVDatafeed = {
     try {
       const fromMs = periodParams.from * 1000;
       const toMs = periodParams.to * 1000;
-      const bars = filterBarsForRange(fromMs, toMs, periodParams.countBack);
+      const { countBack, firstDataRequest } = periodParams;
+
+      const bars = filterBarsForRange(fromMs, toMs, countBack);
       if (bars.length > 0) {
         onResult(bars, { noData: false });
         return;
       }
 
       const all = getOhlcvData();
-      if (periodParams.firstDataRequest || all.length === 0) {
+      if (firstDataRequest || all.length === 0) {
         onResult([], { noData: true });
         return;
       }
@@ -237,19 +218,11 @@ export const customDatafeed: TVDatafeed = {
           });
         // Strategy B (RN-backed / Perps):
       } else if (getRnBackedPagination().enabled) {
-        // Clamp the inherited-range pagination storm (see
-        // MAX_RNBACKED_PAGINATION_COUNTBACK). An over-threshold countBack is the
-        // post-resolution-switch artifact, never a real scroll-back, so clamp it
-        // to keep scroll-back functional while bounding each individual RN fetch.
-        const effectiveCountBack = Math.min(
-          periodParams.countBack,
-          MAX_RNBACKED_PAGINATION_COUNTBACK,
-        );
         requestOlderBarsFromRN({
           resolution,
           fromSec: periodParams.from,
           toSec: periodParams.to,
-          countBack: effectiveCountBack,
+          countBack: periodParams.countBack,
           onResult,
         });
       } else {
@@ -270,11 +243,11 @@ export const customDatafeed: TVDatafeed = {
 
   subscribeBars(
     _symbolInfo: SymbolInfo,
-    _resolution: TVResolution,
+    resolution: TVResolution,
     onTick: RealtimeTickCallback,
     listenerGuid: string,
   ) {
-    registerRealtimeCallback(listenerGuid, onTick);
+    registerRealtimeCallback(listenerGuid, onTick, resolution);
   },
 
   unsubscribeBars(listenerGuid: string) {
@@ -283,14 +256,26 @@ export const customDatafeed: TVDatafeed = {
 };
 
 /**
- * Forward a realtime tick to every TradingView subscribeBars listener.
- * Called from widget/ohlcvIngestion.ts on REALTIME_UPDATE.
+ * Forward a realtime tick to the TradingView subscribeBars listeners for the
+ * current resolution. Called from widget/ohlcvIngestion.ts on REALTIME_UPDATE.
+ *
+ * TradingView can keep the previous resolution's listener alive briefly after
+ * an interval switch; a tick for the current resolution must not be fed to it,
+ * or that series would plot a bar at the wrong granularity.
  *
  * @param tick - The realtime bar to forward to listeners.
  */
 export function forwardRealtimeTick(tick: TVBar): void {
   const callbacks = getRealtimeCallbacks();
+  const current = canonicalResolution(getCurrentResolution());
   for (const guid of Object.keys(callbacks)) {
+    const listenerResolution = getRealtimeCallbackResolution(guid);
+    if (
+      listenerResolution !== undefined &&
+      canonicalResolution(listenerResolution) !== current
+    ) {
+      continue;
+    }
     try {
       callbacks[guid](tick);
     } catch (error) {
