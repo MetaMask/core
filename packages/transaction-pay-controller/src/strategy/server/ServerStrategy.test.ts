@@ -83,13 +83,8 @@ describe('ServerStrategy', () => {
     });
 
     it('returns false for a true exact output request when the flow is not allowlisted', () => {
-      getPayStrategiesConfigMock.mockReturnValue({
-        server: {
-          enabled: true,
-          enabledTransactionTypes: [] as TransactionType[],
-        },
-        relay: { enabled: false },
-      } as ReturnType<typeof getPayStrategiesConfig>);
+      isServerEnabledMock.mockReturnValue(true);
+      getServerEnabledTransactionTypesMock.mockReturnValue([]);
 
       expect(
         new ServerStrategy().supports({
@@ -109,13 +104,8 @@ describe('ServerStrategy', () => {
     });
 
     it('returns false for a true exact output request when server strategy is disabled', () => {
-      getPayStrategiesConfigMock.mockReturnValue({
-        server: {
-          enabled: false,
-          enabledTransactionTypes: [] as TransactionType[],
-        },
-        relay: { enabled: true },
-      } as ReturnType<typeof getPayStrategiesConfig>);
+      isServerEnabledMock.mockReturnValue(false);
+      getServerEnabledTransactionTypesMock.mockReturnValue([]);
 
       expect(
         new ServerStrategy().supports({
