@@ -1,13 +1,15 @@
 import { ORIGIN_METAMASK } from '@metamask/approval-controller';
 import { convertHexToDecimal, toHex } from '@metamask/controller-utils';
+import type { DecodedPermission } from '@metamask/gator-permissions-controller';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
-import type { Hex } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 import { describe, expect, it } from 'vitest';
 
 import type {
   MessageParams,
   MessageParamsPersonal,
   MessageParamsTyped,
+  MessageParamsTypedData,
   OriginalRequest,
 } from '../types.js';
 import {
@@ -18,12 +20,54 @@ import {
 
 const CHAIN_ID_MOCK = '0x1';
 const ORIGIN_MOCK = 'test.com';
-const INTERNAL_ACCOUNT_MOCK = '0x12345678abcd';
+const INTERNAL_ACCOUNT_MOCK = '0x0123456789abcdef0123456789abcdef01234567';
+const FROM_MOCK = '0x3244e191f1b4903970224322180f1fbbc415696b';
+
+/**
+ * Non-canonical encodings of `INTERNAL_ACCOUNT_MOCK` that are still signed as
+ * the same address.
+ */
+const NON_CANONICAL_INTERNAL_ACCOUNTS_MOCK = [
+  ['decimal string', BigInt(INTERNAL_ACCOUNT_MOCK).toString(10)],
+  ['short hex string', `0x${INTERNAL_ACCOUNT_MOCK.slice(3)}`],
+  ['uppercase prefix', `0X${INTERNAL_ACCOUNT_MOCK.slice(2)}`],
+  ['unprefixed hex string', INTERNAL_ACCOUNT_MOCK.slice(2)],
+  ['number', Number(INTERNAL_ACCOUNT_MOCK)],
+  ['array', [INTERNAL_ACCOUNT_MOCK]],
+] as [string, Json][];
 
 const DATA_TYPED_MOCK =
   '{"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Person":[{"name":"name","type":"string"},{"name":"wallet","type":"address"}],"Mail":[{"name":"from","type":"Person"},{"name":"to","type":"Person"},{"name":"contents","type":"string"}]},"primaryType":"Mail","domain":{"name":"Ether Mail","version":"1","chainId":1,"verifyingContract":"0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"},"message":{"from":{"name":"Cow","wallet":"0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826"},"to":{"name":"Bob","wallet":"0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB"},"contents":"Hello, Bob!"}}';
 
 const REQUEST_MOCK = {} as OriginalRequest;
+
+/**
+ * Build typed data with the given verifying contract.
+ *
+ * @param verifyingContract - The verifying contract.
+ * @returns The typed data.
+ */
+function buildVerifyingContractData(
+  verifyingContract: Json,
+): MessageParamsTypedData {
+  const data = JSON.parse(DATA_TYPED_MOCK) as MessageParamsTypedData;
+  data.domain.verifyingContract = verifyingContract;
+  return data;
+}
+
+/**
+ * Build delegation typed data with the given delegator.
+ *
+ * @param delegator - The delegator, or undefined to omit it.
+ * @returns The typed data.
+ */
+function buildDelegationData(delegator?: Json): MessageParamsTypedData {
+  const data = JSON.parse(DATA_TYPED_MOCK) as MessageParamsTypedData;
+  data.primaryType = PRIMARY_TYPE_DELEGATION;
+  data.types.Delegation = [{ name: 'delegator', type: 'address' }];
+  data.message = delegator === undefined ? {} : { delegator };
+  return data;
+}
 
 describe('Validation Utils', () => {
   describe.each([
@@ -390,6 +434,59 @@ describe('Validation Utils', () => {
             ).not.toThrow();
           });
 
+          it.each(NON_CANONICAL_INTERNAL_ACCOUNTS_MOCK)(
+            'throws if external origin and verifying contract is internal account as %s',
+            (_title, verifyingContract) => {
+              const data = buildVerifyingContractData(verifyingContract);
+
+              expect(() =>
+                validateTypedSignatureRequest({
+                  currentChainId: CHAIN_ID_MOCK,
+                  internalAccounts: ['0x1234', INTERNAL_ACCOUNT_MOCK],
+                  messageData: { data, from: FROM_MOCK },
+                  request: { origin: ORIGIN_MOCK } as OriginalRequest,
+                  version,
+                }),
+              ).toThrow(
+                /^External signature requests (must specify "domain\.verifyingContract" as a hex address|cannot use internal accounts as the verifying contract)\.$/u,
+              );
+            },
+          );
+
+          it.each(['', 'cosmos'])(
+            'does not throw if external origin and verifying contract is %j',
+            (verifyingContract) => {
+              const data = buildVerifyingContractData(verifyingContract);
+
+              expect(() =>
+                validateTypedSignatureRequest({
+                  currentChainId: CHAIN_ID_MOCK,
+                  internalAccounts: ['0x1234', INTERNAL_ACCOUNT_MOCK],
+                  messageData: { data, from: FROM_MOCK },
+                  request: { origin: ORIGIN_MOCK } as OriginalRequest,
+                  version,
+                }),
+              ).not.toThrow();
+            },
+          );
+
+          it.each(NON_CANONICAL_INTERNAL_ACCOUNTS_MOCK)(
+            'does not throw if internal origin and verifying contract is internal account as %s',
+            (_title, verifyingContract) => {
+              const data = buildVerifyingContractData(verifyingContract);
+
+              expect(() =>
+                validateTypedSignatureRequest({
+                  currentChainId: CHAIN_ID_MOCK,
+                  internalAccounts: ['0x1234', INTERNAL_ACCOUNT_MOCK],
+                  messageData: { data, from: FROM_MOCK },
+                  request: { origin: ORIGIN_METAMASK } as OriginalRequest,
+                  version,
+                }),
+              ).not.toThrow();
+            },
+          );
+
           it('does not throw if no origin and verifying contract is internal account', () => {
             const data = JSON.parse(DATA_TYPED_MOCK);
             data.domain.verifyingContract = INTERNAL_ACCOUNT_MOCK;
@@ -504,6 +601,87 @@ describe('Validation Utils', () => {
             ).not.toThrow();
           });
 
+          it.each(NON_CANONICAL_INTERNAL_ACCOUNTS_MOCK)(
+            'throws if external origin and delegation from internal account as %s',
+            (_title, delegator) => {
+              const data = buildDelegationData(delegator);
+
+              expect(() =>
+                validateTypedSignatureRequest({
+                  currentChainId: CHAIN_ID_MOCK,
+                  internalAccounts: ['0x1234', INTERNAL_ACCOUNT_MOCK],
+                  messageData: { data, from: FROM_MOCK },
+                  request: { origin: ORIGIN_MOCK } as OriginalRequest,
+                  version,
+                }),
+              ).toThrow(
+                'External signature requests must specify the delegator as a hex address.',
+              );
+            },
+          );
+
+          it('throws if external origin and delegation has no delegator', () => {
+            const data = buildDelegationData();
+
+            expect(() =>
+              validateTypedSignatureRequest({
+                currentChainId: CHAIN_ID_MOCK,
+                internalAccounts: ['0x1234', INTERNAL_ACCOUNT_MOCK],
+                messageData: { data, from: FROM_MOCK },
+                request: { origin: ORIGIN_MOCK } as OriginalRequest,
+                version,
+              }),
+            ).toThrow(
+              'External signature requests must specify the delegator as a hex address.',
+            );
+          });
+
+          it('does not throw if external origin and delegation from external account', () => {
+            const data = buildDelegationData(FROM_MOCK);
+
+            expect(() =>
+              validateTypedSignatureRequest({
+                currentChainId: CHAIN_ID_MOCK,
+                internalAccounts: ['0x1234', INTERNAL_ACCOUNT_MOCK],
+                messageData: { data, from: FROM_MOCK },
+                request: { origin: ORIGIN_MOCK } as OriginalRequest,
+                version,
+              }),
+            ).not.toThrow();
+          });
+
+          it('does not throw if external origin with decoded permission and delegation from internal account', () => {
+            const data = buildDelegationData(INTERNAL_ACCOUNT_MOCK);
+
+            expect(() =>
+              validateTypedSignatureRequest({
+                currentChainId: CHAIN_ID_MOCK,
+                internalAccounts: ['0x1234', INTERNAL_ACCOUNT_MOCK],
+                messageData: { data, from: FROM_MOCK },
+                request: { origin: ORIGIN_MOCK } as OriginalRequest,
+                version,
+                decodedPermission: {} as DecodedPermission,
+              }),
+            ).not.toThrow();
+          });
+
+          it.each(NON_CANONICAL_INTERNAL_ACCOUNTS_MOCK)(
+            'does not throw if internal origin and delegation from internal account as %s',
+            (_title, delegator) => {
+              const data = buildDelegationData(delegator);
+
+              expect(() =>
+                validateTypedSignatureRequest({
+                  currentChainId: CHAIN_ID_MOCK,
+                  internalAccounts: ['0x1234', INTERNAL_ACCOUNT_MOCK],
+                  messageData: { data, from: FROM_MOCK },
+                  request: { origin: ORIGIN_METAMASK } as OriginalRequest,
+                  version,
+                }),
+              ).not.toThrow();
+            },
+          );
+
           it('does not throw if no origin and delegation from internal account', () => {
             const data = JSON.parse(DATA_TYPED_MOCK);
 
@@ -520,6 +698,161 @@ describe('Validation Utils', () => {
                   from: '0x3244e191f1b4903970224322180f1fbbc415696b',
                 },
                 request: REQUEST_MOCK,
+                version,
+              }),
+            ).not.toThrow();
+          });
+        });
+
+        describe('address fields', () => {
+          type NestedDataMock = {
+            from: { wallet: Json; wallets: Json[] } | null;
+            to?: { wallet: Json; wallets: Json[] }[];
+          };
+
+          /**
+           * Build typed data with nested structs and arrays of addresses.
+           *
+           * @param message - The address values of the message.
+           * @returns The typed data.
+           */
+          function buildNestedData(
+            message: NestedDataMock = {
+              from: {
+                wallet: '0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826',
+                wallets: ['0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826'],
+              },
+              to: [
+                {
+                  wallet: '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
+                  wallets: [],
+                },
+              ],
+            },
+          ): MessageParamsTypedData {
+            return {
+              types: {
+                EIP712Domain: [
+                  { name: 'name', type: 'string' },
+                  { name: 'chainId', type: 'uint256' },
+                  { name: 'verifyingContract', type: 'address' },
+                ],
+                Person: [
+                  { name: 'wallet', type: 'address' },
+                  { name: 'wallets', type: 'address[]' },
+                ],
+                Mail: [
+                  { name: 'from', type: 'Person' },
+                  { name: 'to', type: 'Person[]' },
+                  { name: 'contents', type: 'string' },
+                ],
+              },
+              primaryType: 'Mail',
+              domain: {
+                name: 'Ether Mail',
+                chainId: 1,
+                verifyingContract: '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
+              },
+              message: { ...message, contents: 'Hello, Bob!' },
+            };
+          }
+
+          it('does not throw if external origin and all address fields are hex addresses', () => {
+            expect(() =>
+              validateTypedSignatureRequest({
+                currentChainId: CHAIN_ID_MOCK,
+                internalAccounts: [INTERNAL_ACCOUNT_MOCK],
+                messageData: { data: buildNestedData(), from: FROM_MOCK },
+                request: { origin: ORIGIN_MOCK } as OriginalRequest,
+                version,
+              }),
+            ).not.toThrow();
+          });
+
+          it('does not throw if external origin and struct fields are missing or null', () => {
+            expect(() =>
+              validateTypedSignatureRequest({
+                currentChainId: CHAIN_ID_MOCK,
+                internalAccounts: [INTERNAL_ACCOUNT_MOCK],
+                messageData: {
+                  data: buildNestedData({ from: null }),
+                  from: FROM_MOCK,
+                },
+                request: { origin: ORIGIN_MOCK } as OriginalRequest,
+                version,
+              }),
+            ).not.toThrow();
+          });
+
+          it.each([
+            [
+              'message.from.wallet',
+              (value: Json): NestedDataMock => ({
+                from: { wallet: value, wallets: [] },
+              }),
+            ],
+            [
+              'message.from.wallets[1]',
+              (value: Json): NestedDataMock => ({
+                from: { wallet: FROM_MOCK, wallets: [FROM_MOCK, value] },
+              }),
+            ],
+            [
+              'message.to[0].wallet',
+              (value: Json): NestedDataMock => ({
+                from: null,
+                to: [{ wallet: value, wallets: [] }],
+              }),
+            ],
+            [
+              'message.to[0].wallets[0]',
+              (value: Json): NestedDataMock => ({
+                from: null,
+                to: [{ wallet: FROM_MOCK, wallets: [value] }],
+              }),
+            ],
+          ])(
+            'throws if external origin and %s is not a hex address',
+            (path, buildMessage) => {
+              for (const [, value] of NON_CANONICAL_INTERNAL_ACCOUNTS_MOCK) {
+                const data = buildNestedData(buildMessage(value));
+
+                expect(() =>
+                  validateTypedSignatureRequest({
+                    currentChainId: CHAIN_ID_MOCK,
+                    internalAccounts: [INTERNAL_ACCOUNT_MOCK],
+                    messageData: { data, from: FROM_MOCK },
+                    request: { origin: ORIGIN_MOCK } as OriginalRequest,
+                    version,
+                  }),
+                ).toThrow(
+                  `External signature requests must specify "${path}" as a hex address.`,
+                );
+
+                expect(() =>
+                  validateTypedSignatureRequest({
+                    currentChainId: CHAIN_ID_MOCK,
+                    internalAccounts: [INTERNAL_ACCOUNT_MOCK],
+                    messageData: { data, from: FROM_MOCK },
+                    request: { origin: ORIGIN_METAMASK } as OriginalRequest,
+                    version,
+                  }),
+                ).not.toThrow();
+              }
+            },
+          );
+
+          it('does not validate domain fields if domain type is not defined', () => {
+            const data = buildNestedData();
+            delete data.types.EIP712Domain;
+            data.domain.verifyingContract = '123';
+
+            expect(() =>
+              validateTypedSignatureRequest({
+                currentChainId: CHAIN_ID_MOCK,
+                internalAccounts: [INTERNAL_ACCOUNT_MOCK],
+                messageData: { data, from: FROM_MOCK },
+                request: { origin: ORIGIN_MOCK } as OriginalRequest,
                 version,
               }),
             ).not.toThrow();

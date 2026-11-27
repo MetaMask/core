@@ -4,10 +4,11 @@ import {
   TYPED_MESSAGE_SCHEMA,
   typedSignatureHash,
 } from '@metamask/eth-sig-util';
+import type { MessageTypeProperty } from '@metamask/eth-sig-util';
 import type { DecodedPermission } from '@metamask/gator-permissions-controller';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
-import type { Json } from '@metamask/utils';
-import type { Hex } from '@metamask/utils';
+import { hasProperty } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 import { validate } from 'jsonschema';
 
 import type {
@@ -20,6 +21,20 @@ import { isDelegationRequest } from './delegations.js';
 
 export const PRIMARY_TYPE_DELEGATION = 'Delegation';
 export const DELEGATOR_FIELD = 'delegator';
+
+const EIP712_DOMAIN_TYPE = 'EIP712Domain';
+const VERIFYING_CONTRACT_PATH = 'domain.verifyingContract';
+
+/**
+ * A `0x`-prefixed, 20-byte hex address in any letter case.
+ */
+const CANONICAL_ADDRESS_REGEX = /^0x[0-9a-fA-F]{40}$/u;
+
+/**
+ * Non-address `verifyingContract` values that are accepted by the wallet
+ * middleware for compatibility with some Cosmos EVM adapters.
+ */
+const ALLOWED_NON_ADDRESS_VERIFYING_CONTRACTS: Json[] = ['', 'cosmos'];
 
 /**
  * Validate a personal signature request.
@@ -137,7 +152,7 @@ function validateTypedSignatureRequestV3V4({
     );
   }
 
-  let data;
+  let data: MessageParamsTypedData;
   if (typeof messageData.data === 'object') {
     data = messageData.data;
   } else {
@@ -159,7 +174,7 @@ function validateTypedSignatureRequestV3V4({
     throw new Error('Current chainId cannot be null or undefined.');
   }
 
-  let { chainId } = data.domain;
+  let chainId = data.domain.chainId as number | string | undefined;
   if (chainId) {
     if (typeof chainId === 'string') {
       chainId = parseInt(chainId, chainId.startsWith('0x') ? 16 : 10);
@@ -168,17 +183,13 @@ function validateTypedSignatureRequestV3V4({
     const activeChainId = parseInt(currentChainId, 16);
     if (Number.isNaN(activeChainId)) {
       throw new Error(
-        `Cannot sign messages for chainId "${
-          chainId as string
-        }", because MetaMask is switching networks.`,
+        `Cannot sign messages for chainId "${chainId}", because MetaMask is switching networks.`,
       );
     }
 
     if (chainId !== activeChainId) {
       throw new Error(
-        `Provided chainId "${
-          chainId as string
-        }" must match the active chainId "${activeChainId}"`,
+        `Provided chainId "${chainId}" must match the active chainId "${activeChainId}"`,
       );
     }
   }
@@ -196,6 +207,11 @@ function validateTypedSignatureRequestV3V4({
     internalAccounts,
     origin,
     decodedPermission,
+  });
+
+  validateAddressFields({
+    data,
+    origin,
   });
 }
 
@@ -267,28 +283,148 @@ function validateDelegation({
   internalAccounts: Hex[];
   origin: string | undefined;
   decodedPermission?: DecodedPermission;
-}) {
+}): void {
   if (!isDelegationRequest(data)) {
     return;
   }
 
   const hasDecodedPermission = decodedPermission !== undefined;
-  if (!hasDecodedPermission) {
-    const isOriginExternal = origin && origin !== ORIGIN_METAMASK;
+  const isOriginExternal = origin && origin !== ORIGIN_METAMASK;
 
-    const delegatorAddressLowercase = (
-      (data.message as Record<string, Json>)?.[DELEGATOR_FIELD] as Hex
-    )?.toLowerCase();
+  if (hasDecodedPermission || !isOriginExternal) {
+    return;
+  }
 
-    const isSignerInternal = internalAccounts.some(
-      (internalAccount) =>
-        internalAccount.toLowerCase() === delegatorAddressLowercase,
+  const delegator = (data.message as Record<string, Json>)[DELEGATOR_FIELD];
+
+  if (!isCanonicalAddress(delegator)) {
+    throw new Error(
+      `External signature requests must specify the delegator as a hex address.`,
     );
+  }
 
-    if (isOriginExternal && isSignerInternal) {
+  const isSignerInternal = internalAccounts.some(
+    (internalAccount) =>
+      internalAccount.toLowerCase() === delegator.toLowerCase(),
+  );
+
+  if (isSignerInternal) {
+    throw new Error(
+      `External signature requests cannot sign delegations for internal accounts.`,
+    );
+  }
+}
+
+/**
+ * Validate that every `address` field in the domain and message of an
+ * external typed signature request is a `0x`-prefixed, 20-byte hex string,
+ * so validations compare the same address that is signed.
+ *
+ * @param options - Options bag.
+ * @param options.data - The typed data to validate.
+ * @param options.origin - The origin of the request.
+ */
+function validateAddressFields({
+  data,
+  origin,
+}: {
+  data: MessageParamsTypedData;
+  origin: string | undefined;
+}): void {
+  const isOriginExternal = origin && origin !== ORIGIN_METAMASK;
+
+  if (!isOriginExternal) {
+    return;
+  }
+
+  const types = data.types as Record<string, MessageTypeProperty[]>;
+
+  validateAddressFieldsOfType({
+    type: EIP712_DOMAIN_TYPE,
+    value: data.domain,
+    types,
+    path: 'domain',
+  });
+
+  validateAddressFieldsOfType({
+    type: data.primaryType,
+    value: data.message,
+    types,
+    path: 'message',
+  });
+}
+
+/**
+ * Recursively validate the `address` values of a typed data value, following
+ * the same type resolution that is used to encode the value for signing.
+ *
+ * @param options - Options bag.
+ * @param options.type - The EIP-712 type of the value.
+ * @param options.value - The value to validate.
+ * @param options.types - The EIP-712 type definitions.
+ * @param options.path - The path of the value, used in the error message.
+ */
+function validateAddressFieldsOfType({
+  type,
+  value,
+  types,
+  path,
+}: {
+  type: string;
+  value: Json | undefined;
+  types: Record<string, MessageTypeProperty[]>;
+  path: string;
+}): void {
+  // Missing and null values are not encoded as addresses.
+  if (value === undefined || value === null) {
+    return;
+  }
+
+  if (hasProperty(types, type)) {
+    for (const field of types[type]) {
+      validateAddressFieldsOfType({
+        type: field.type,
+        value: (value as Record<string, Json>)[field.name],
+        types,
+        path: `${path}.${field.name}`,
+      });
+    }
+    return;
+  }
+
+  if (type === 'address') {
+    const isAllowedVerifyingContract =
+      path === VERIFYING_CONTRACT_PATH &&
+      ALLOWED_NON_ADDRESS_VERIFYING_CONTRACTS.includes(value);
+
+    if (!isCanonicalAddress(value) && !isAllowedVerifyingContract) {
       throw new Error(
-        `External signature requests cannot sign delegations for internal accounts.`,
+        `External signature requests must specify "${path}" as a hex address.`,
       );
     }
+    return;
   }
+
+  if (type.endsWith(']') && Array.isArray(value)) {
+    const itemType = type.slice(0, type.lastIndexOf('['));
+
+    value.forEach((item, index) =>
+      validateAddressFieldsOfType({
+        type: itemType,
+        value: item,
+        types,
+        path: `${path}[${index}]`,
+      }),
+    );
+  }
+}
+
+/**
+ * Check whether a value is a `0x`-prefixed, 20-byte hex address.
+ *
+ * @param value - The value to check.
+ * @returns True if the value is a `0x`-prefixed, 20-byte hex address.
+ */
+function isCanonicalAddress(value: Json | undefined): value is Hex {
+  return typeof value === 'string' && CANONICAL_ADDRESS_REGEX.test(value);
 }
