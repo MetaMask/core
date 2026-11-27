@@ -285,13 +285,8 @@ const encodeDataExamples = {
   // atomic types supported by EIP-712:
   address: [
     '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
-    '0x0', // odd
-    '0x10', // even
-    10,
-    'bBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
-    Number.MAX_SAFE_INTEGER,
-    MAX_SAFE_INTEGER_AS_HEX,
-    MAX_SAFE_INTEGER_PLUS_ONE_CHAR_AS_HEX,
+    '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    '0x0000000000000000000000000000000000000000',
   ],
   bool: [true, false, 'true', 'false'],
   bytes1: [
@@ -334,7 +329,70 @@ const encodeDataErrorExamples = {
     {
       input: '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB0',
       errorMessage:
-        'Unable to encode value: Invalid address value. Expected address to be 20 bytes long, but received 21 bytes.',
+        'Unable to encode value: Invalid address. Expected a "0x"-prefixed, 20-byte hex string, but received "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB0".',
+    },
+    {
+      // odd
+      input: '0x0',
+      errorMessage:
+        'Unable to encode value: Invalid address. Expected a "0x"-prefixed, 20-byte hex string, but received "0x0".',
+    },
+    {
+      // even
+      input: '0x10',
+      errorMessage:
+        'Unable to encode value: Invalid address. Expected a "0x"-prefixed, 20-byte hex string, but received "0x10".',
+    },
+    {
+      // 39 characters
+      input: '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBb',
+      errorMessage:
+        'Unable to encode value: Invalid address. Expected a "0x"-prefixed, 20-byte hex string, but received "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBb".',
+    },
+    {
+      input: '0XbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
+      errorMessage:
+        'Unable to encode value: Invalid address. Expected a "0x"-prefixed, 20-byte hex string, but received "0XbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB".',
+    },
+    {
+      input: 'bBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
+      errorMessage:
+        'Unable to encode value: Invalid address. Expected a "0x"-prefixed, 20-byte hex string, but received "bBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB".',
+    },
+    {
+      input: '1071767867375995473349368877325274214414350531515',
+      errorMessage:
+        'Unable to encode value: Invalid address. Expected a "0x"-prefixed, 20-byte hex string, but received "1071767867375995473349368877325274214414350531515".',
+    },
+    {
+      input: '',
+      errorMessage:
+        'Unable to encode value: Invalid address. Expected a "0x"-prefixed, 20-byte hex string, but received "".',
+    },
+    {
+      input: 10,
+      errorMessage:
+        'Unable to encode value: Invalid address. Expected a "0x"-prefixed, 20-byte hex string, but received "10".',
+    },
+    {
+      input: Number.MAX_SAFE_INTEGER,
+      errorMessage:
+        'Unable to encode value: Invalid address. Expected a "0x"-prefixed, 20-byte hex string, but received "9007199254740991".',
+    },
+    {
+      input: MAX_SAFE_INTEGER_AS_HEX,
+      errorMessage:
+        'Unable to encode value: Invalid address. Expected a "0x"-prefixed, 20-byte hex string, but received "0x1fffffffffffff".',
+    },
+    {
+      input: MAX_SAFE_INTEGER_PLUS_ONE_CHAR_AS_HEX,
+      errorMessage:
+        'Unable to encode value: Invalid address. Expected a "0x"-prefixed, 20-byte hex string, but received "0x1fffffffffffff1".',
+    },
+    {
+      input: ['0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB'],
+      errorMessage:
+        'Unable to encode value: Invalid address. Expected a "0x"-prefixed, 20-byte hex string, but received "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB".',
     },
   ],
   bool: [
