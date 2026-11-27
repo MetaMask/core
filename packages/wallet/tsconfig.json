@@ -83,6 +83,9 @@
       "path": "../geolocation-controller"
     },
     {
+      "path": "../assets-controllers"
+    },
+    {
       "path": "../signature-controller"
     },
     {

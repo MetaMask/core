@@ -361,6 +361,98 @@ describe('NftDetectionController', () => {
     vi.useRealTimers();
   });
 
+  describe('persisted useNftDetection', () => {
+    it('starts disabled when the persisted preference is false', async () => {
+      const mockAddNfts = vi.fn();
+      await withController(
+        {
+          usePersistedNftDetectionPreference: true,
+          options: { addNfts: mockAddNfts },
+          mockPreferencesState: { useNftDetection: false },
+        },
+        async ({ controller }) => {
+          controller.init();
+
+          await controller.detectNfts(['0x1'], { userAddress: '0x1' });
+
+          expect(mockAddNfts).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('starts enabled when the persisted preference is true', async () => {
+      const mockAddNfts = vi.fn();
+      await withController(
+        {
+          usePersistedNftDetectionPreference: true,
+          options: { addNfts: mockAddNfts },
+          mockPreferencesState: { useNftDetection: true },
+        },
+        async ({ controller }) => {
+          controller.init();
+
+          await controller.detectNfts(['0x1'], { userAddress: '0x1' });
+
+          expect(mockAddNfts).toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('keeps an explicit disabled option until the preference changes', async () => {
+      const mockAddNfts = vi.fn();
+      await withController(
+        {
+          options: { addNfts: mockAddNfts, disabled: true },
+          mockPreferencesState: { useNftDetection: true },
+        },
+        async ({ controller, controllerEvents }) => {
+          controller.init();
+          await controller.detectNfts(['0x1'], { userAddress: '0x1' });
+          expect(mockAddNfts).not.toHaveBeenCalled();
+
+          controllerEvents.triggerPreferencesStateChange({
+            ...getDefaultPreferencesState(),
+            useNftDetection: true,
+          });
+          await controller.detectNfts(['0x1'], { userAddress: '0x1' });
+
+          expect(mockAddNfts).toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not throw when PreferencesController is not registered yet', async () => {
+      const captureException = vi.fn();
+      const mockAddNfts = vi.fn();
+      await withController(
+        {
+          usePersistedNftDetectionPreference: true,
+          omitPreferencesGetState: true,
+          captureException,
+          options: { addNfts: mockAddNfts },
+        },
+        async ({ controller, messenger }) => {
+          expect(() => {
+            controller.init();
+          }).not.toThrow();
+          expect(captureException).toHaveBeenCalledTimes(1);
+
+          messenger.registerActionHandler(
+            'PreferencesController:getState',
+            () => ({
+              ...getDefaultPreferencesState(),
+              useNftDetection: false,
+            }),
+          );
+          await controller.detectNfts(['0x1'], { userAddress: '0x1' });
+
+          expect(mockAddNfts).not.toHaveBeenCalled();
+          expect(captureException).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+  });
+
   it('should call detect NFTs on mainnet', async () => {
     const mockGetSelectedAccount = vi
       .fn()
@@ -1693,13 +1785,26 @@ type ControllerEvents = {
 
 type WithControllerCallback<ReturnValue> = ({
   controller,
+  messenger,
 }: {
   controller: NftDetectionController;
   controllerEvents: ControllerEvents;
+  messenger: RootMessenger;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
   options?: Partial<ConstructorParameters<typeof NftDetectionController>[0]>;
+  /**
+   * When true, `disabled` is not passed to the constructor unless `options`
+   * sets it. The controller then takes its initial value from the persisted
+   * `useNftDetection` preference.
+   */
+  usePersistedNftDetectionPreference?: boolean;
+  /**
+   * When true, `PreferencesController:getState` is not registered.
+   */
+  omitPreferencesGetState?: boolean;
+  captureException?: (error: Error) => void;
   mockNetworkClientConfigurationsByNetworkClientId?: Record<
     NetworkClientId,
     NetworkClientConfiguration
@@ -1731,6 +1836,9 @@ async function withController<ReturnValue>(
   const [
     {
       options = {},
+      usePersistedNftDetectionPreference = false,
+      omitPreferencesGetState = false,
+      captureException,
       mockNetworkClientConfigurationsByNetworkClientId = {},
       mockFindNetworkClientIdByChainId = {},
       mockNetworkState = {},
@@ -1742,6 +1850,7 @@ async function withController<ReturnValue>(
 
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
+    captureException,
   });
 
   messenger.registerActionHandler(
@@ -1774,13 +1883,15 @@ async function withController<ReturnValue>(
     findNetworkClientIdByChainId,
   );
 
-  messenger.registerActionHandler(
-    'PreferencesController:getState',
-    vi.fn<(...args: []) => PreferencesState>().mockReturnValue({
-      ...getDefaultPreferencesState(),
-      ...mockPreferencesState,
-    }),
-  );
+  if (!omitPreferencesGetState) {
+    messenger.registerActionHandler(
+      'PreferencesController:getState',
+      vi.fn<(...args: []) => PreferencesState>().mockReturnValue({
+        ...getDefaultPreferencesState(),
+        ...mockPreferencesState,
+      }),
+    );
+  }
 
   const nftDetectionControllerMessenger = new Messenger<
     typeof controllerName,
@@ -1808,7 +1919,7 @@ async function withController<ReturnValue>(
 
   const controller = new NftDetectionController({
     messenger: nftDetectionControllerMessenger,
-    disabled: true,
+    ...(usePersistedNftDetectionPreference ? {} : { disabled: true }),
     addNfts: vi.fn(),
     removeNft: vi.fn(),
     getNftState: getDefaultNftControllerState,
@@ -1827,5 +1938,6 @@ async function withController<ReturnValue>(
   return await testFunction({
     controller,
     controllerEvents,
+    messenger,
   });
 }

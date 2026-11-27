@@ -236,6 +236,7 @@ const setupController = ({
     messenger: multichainAssetsRatesControllerMessenger,
     ...config,
   });
+  controller.init();
 
   const updateSpy = vi.spyOn(controller, 'update' as never);
 
@@ -265,6 +266,32 @@ describe('MultichainAssetsRatesController', () => {
     expect(controller.state).toStrictEqual({
       conversionRates: {},
       historicalPrices: {},
+    });
+  });
+
+  describe('construction and init', () => {
+    it('does not call other controllers when constructed', () => {
+      const messenger: MultichainAssetsRatesControllerMessenger = new Messenger(
+        { namespace: 'MultichainAssetsRatesController' },
+      );
+      const call = vi.spyOn(messenger, 'call');
+
+      const controller = new MultichainAssetsRatesController({ messenger });
+
+      expect(controller.state).toStrictEqual({
+        conversionRates: {},
+        historicalPrices: {},
+      });
+      expect(call).not.toHaveBeenCalled();
+    });
+
+    it('reads the current currency only once when init is called repeatedly', () => {
+      const { controller, messenger } = setupController();
+      const call = vi.spyOn(messenger, 'call');
+
+      controller.init();
+
+      expect(call).not.toHaveBeenCalled();
     });
   });
 

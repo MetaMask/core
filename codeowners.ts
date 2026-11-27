@@ -47,6 +47,7 @@ const config = {
     },
     'assets-controllers': {
       teams: ['@MetaMask/metamask-assets'],
+      initializationPath: 'assets-controllers',
     },
     'authenticated-user-storage': {
       teams: ['@MetaMask/auth-engineers'],

@@ -1262,9 +1262,6 @@
     }
   },
   "packages/assets-controllers/src/TokensController.test.ts": {
-    "typescript/consistent-type-imports": {
-      "count": 2
-    },
     "typescript/explicit-function-return-type": {
       "count": 6
     },

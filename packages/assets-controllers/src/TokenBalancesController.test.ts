@@ -241,6 +241,7 @@ const setupController = ({
     messenger: tokenBalancesControllerMessenger,
     ...config,
   });
+  controller.init();
   const updateSpy = vi.spyOn(controller, 'update' as never);
 
   return {
@@ -6827,6 +6828,31 @@ describe('TokenBalancesController', () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+  });
+
+  describe('construction and init', () => {
+    it('does not call other controllers when constructed', () => {
+      const messenger: TokenBalancesControllerMessenger = new Messenger({
+        namespace: 'TokenBalancesController',
+      });
+      const call = vi.spyOn(messenger, 'call');
+
+      const controller = new TokenBalancesController({ messenger });
+
+      expect(controller.state).toStrictEqual({ tokenBalances: {} });
+      expect(controller.isActive).toBe(false);
+      expect(call).not.toHaveBeenCalled();
+    });
+
+    it('reads the token and keyring state only once when init is called repeatedly', () => {
+      const { controller, tokenBalancesControllerMessenger } =
+        setupController();
+      const call = vi.spyOn(tokenBalancesControllerMessenger, 'call');
+
+      controller.init();
+
+      expect(call).not.toHaveBeenCalled();
     });
   });
 

@@ -13,7 +13,10 @@ import type {
   NetworkControllerNetworkDidChangeEvent,
   Provider,
 } from '@metamask/network-controller';
-import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
+import type {
+  PreferencesControllerGetStateAction,
+  PreferencesControllerStateChangeEvent,
+} from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import type BN from 'bn.js';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
@@ -120,7 +123,8 @@ export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetNetworkConfigurationByNetworkClientIdAction
   | NetworkControllerGetSelectedNetworkClientAction
-  | NetworkControllerGetStateAction;
+  | NetworkControllerGetStateAction
+  | PreferencesControllerGetStateAction;
 
 /**
  * The union of all external messenger event that must be allowed by the {@link AssetsContractControllerMessenger}.
@@ -174,6 +178,12 @@ export class AssetsContractController {
 
   #chainId: Hex;
 
+  #initialized = false;
+
+  #hasIpfsGatewayPreference = false;
+
+  #reportedMissingIpfsGatewayPreference = false;
+
   /**
    * Creates a AssetsContractController instance.
    *
@@ -197,11 +207,54 @@ export class AssetsContractController {
     this.#registerEventSubscriptions();
   }
 
+  /**
+   * Read the persisted IPFS gateway once `PreferencesController` is registered.
+   *
+   * The constructor does not call other controllers. Until this succeeds, the
+   * gateway stays at `IPFS_DEFAULT_GATEWAY_URL`. A missing
+   * `PreferencesController:getState` is reported once. `PreferencesController:stateChange`
+   * still updates the gateway. Calling this more than once has no effect.
+   */
+  init(): void {
+    if (this.#initialized) {
+      return;
+    }
+    this.#initialized = true;
+    this.#readIpfsGatewayPreference();
+  }
+
+  /**
+   * Set `#ipfsGateway` from the current preferences when that value is present.
+   * A failed read leaves the current gateway in place.
+   */
+  #readIpfsGatewayPreference(): void {
+    if (this.#hasIpfsGatewayPreference) {
+      return;
+    }
+
+    try {
+      const { ipfsGateway } = this.messenger.call(
+        'PreferencesController:getState',
+      );
+      if (typeof ipfsGateway !== 'string') {
+        return;
+      }
+      this.#ipfsGateway = ipfsGateway;
+      this.#hasIpfsGatewayPreference = true;
+    } catch (error) {
+      if (!this.#reportedMissingIpfsGatewayPreference) {
+        this.#reportedMissingIpfsGatewayPreference = true;
+        this.messenger.captureException?.(error as Error);
+      }
+    }
+  }
+
   #registerEventSubscriptions() {
     this.messenger.subscribe(
       `PreferencesController:stateChange`,
       ({ ipfsGateway }) => {
         this.#ipfsGateway = ipfsGateway;
+        this.#hasIpfsGatewayPreference = true;
       },
     );
 

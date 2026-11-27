@@ -17,6 +17,8 @@ import type {
   NetworkClientId,
   NetworkClientConfiguration,
   NetworkConfiguration,
+  NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
@@ -137,6 +139,112 @@ describe('AccountTrackerController', () => {
         });
       },
     );
+  });
+
+  describe('construction and init', () => {
+    it('does not call other controllers when constructed', () => {
+      const messenger: AccountTrackerControllerMessenger = new Messenger({
+        namespace: 'AccountTrackerController',
+      });
+      const call = vi.spyOn(messenger, 'call');
+
+      const controller = new AccountTrackerController({
+        messenger,
+        getStakedBalanceForChain: vi.fn(),
+      });
+
+      expect(controller.state).toStrictEqual({ accountsByChainId: {} });
+      expect(controller.isActive).toBe(false);
+      expect(call).not.toHaveBeenCalled();
+    });
+
+    it('does not add the selected chain in init when accountsByChainId state is provided', async () => {
+      await withController(
+        {
+          options: {
+            state: { accountsByChainId: { '0x89': {} } },
+          },
+        },
+        ({ controller }) => {
+          expect(controller.state).toStrictEqual({
+            accountsByChainId: { '0x89': {} },
+          });
+        },
+      );
+    });
+
+    it('keeps an entry for the selected chain that was added before init', () => {
+      const rootMessenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+      const messenger: AccountTrackerControllerMessenger = new Messenger({
+        namespace: 'AccountTrackerController',
+        parent: rootMessenger,
+      });
+      rootMessenger.delegate({
+        messenger,
+        actions: [
+          'KeyringController:getState',
+          'NetworkController:getState',
+          'NetworkController:getNetworkClientById',
+        ],
+      });
+      rootMessenger.registerActionHandler('KeyringController:getState', () => ({
+        isUnlocked: true,
+        keyrings: [],
+      }));
+      rootMessenger.registerActionHandler(
+        'NetworkController:getState',
+        () =>
+          ({ selectedNetworkClientId: 'mainnet' }) as ReturnType<
+            NetworkControllerGetStateAction['handler']
+          >,
+      );
+      rootMessenger.registerActionHandler(
+        'NetworkController:getNetworkClientById',
+        () =>
+          ({
+            configuration: { chainId: initialChainId },
+          }) as unknown as ReturnType<
+            NetworkControllerGetNetworkClientByIdAction['handler']
+          >,
+      );
+      const controller = new AccountTrackerController({
+        messenger,
+        getStakedBalanceForChain: vi.fn(),
+      });
+      controller.updateNativeBalances([
+        { address: ADDRESS_1, chainId: initialChainId, balance: '0x1' },
+      ]);
+
+      controller.init();
+
+      expect(controller.isActive).toBe(true);
+      expect(controller.state.accountsByChainId).toStrictEqual({
+        [initialChainId]: {
+          [CHECKSUM_ADDRESS_1]: { balance: '0x1' },
+        },
+      });
+    });
+
+    it('does not add the selected chain in init when isDeprecated() returns true', async () => {
+      await withController(
+        { options: { isDeprecated: () => true } },
+        ({ controller }) => {
+          expect(controller.state).toStrictEqual({ accountsByChainId: {} });
+        },
+      );
+    });
+
+    it('reads other controllers only once when init is called repeatedly', async () => {
+      await withController(({ controller, messenger }) => {
+        const call = vi.spyOn(messenger, 'call');
+
+        controller.init();
+
+        expect(call).not.toHaveBeenCalled();
+      });
+    });
   });
 
   it('should refresh when selectedAccount changes', async () => {
@@ -2467,6 +2575,7 @@ async function withController<ReturnValue>(
     getStakedBalanceForChain: vi.fn(),
     ...options,
   });
+  controller.init();
 
   const refresh = async (
     networkClientIds: NetworkClientId[],

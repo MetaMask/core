@@ -68,7 +68,10 @@ import type {
   NFTStandardType,
   NftMetadata,
 } from './NftController.js';
-import { NftController } from './NftController.js';
+import {
+  getDefaultNftControllerState,
+  NftController,
+} from './NftController.js';
 import type { Collection } from './NftDetectionController.js';
 
 type AllActions =
@@ -177,6 +180,14 @@ vi.mock(import('./multicall.js'), async (importOriginal) => ({
  * approval requests without the full approval flow.
  * @param args.defaultSelectedAccount - The default selected account to use in
  * @param args.displayNftMedia - The default displayNftMedia to use in
+ * @param args.preferencesState - When set, registered as
+ * `PreferencesController:getState` before `init`.
+ * @param args.publishInitialPreferences - Whether setup publishes an initial
+ * preferences state change. Defaults to true.
+ * @param args.callInit - Whether setup calls `init`. Defaults to true.
+ * @param args.publishSelectedAccount - Whether setup publishes a selected
+ * account change for the default owner account. Defaults to true.
+ * @param args.captureException - Reports messenger errors from `init`.
  * @returns A collection of test controllers and mocks.
  */
 function setupController({
@@ -193,6 +204,11 @@ function setupController({
   defaultSelectedAccount = OWNER_ACCOUNT,
   mockGetNetworkClientIdByChainId = {},
   displayNftMedia = true,
+  preferencesState,
+  publishInitialPreferences = true,
+  callInit = true,
+  publishSelectedAccount = true,
+  captureException,
 }: {
   options?: Partial<ConstructorParameters<typeof NftController>[0]>;
   getERC721AssetName?: Mock<
@@ -248,9 +264,15 @@ function setupController({
   defaultSelectedAccount?: InternalAccount;
   mockGetNetworkClientIdByChainId?: Record<Hex, NetworkClientConfiguration>;
   displayNftMedia?: boolean;
+  preferencesState?: PreferencesState & { openSeaEnabled?: boolean };
+  publishInitialPreferences?: boolean;
+  callInit?: boolean;
+  publishSelectedAccount?: boolean;
+  captureException?: (error: Error) => void;
 } = {}) {
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
+    captureException,
   });
 
   const getNetworkClientById = buildMockGetNetworkClientById(
@@ -403,6 +425,7 @@ function setupController({
       'AssetsContractController:getERC1155TokenURI',
       'NetworkController:findNetworkClientIdByChainId',
       'PhishingController:bulkScanUrls',
+      'PreferencesController:getState',
     ],
     events: [
       'AccountsController:selectedEvmAccountChange',
@@ -410,11 +433,20 @@ function setupController({
     ],
   });
 
+  if (preferencesState) {
+    messenger.registerActionHandler('PreferencesController:getState', () => {
+      return preferencesState;
+    });
+  }
+
   const nftController = new NftController({
     onNftAdded: vi.fn(),
     messenger: nftControllerMessenger,
     ...options,
   });
+  if (callInit) {
+    nftController.init();
+  }
 
   const triggerPreferencesStateChange = (
     state: PreferencesState & { openSeaEnabled?: boolean },
@@ -422,10 +454,12 @@ function setupController({
     messenger.publish('PreferencesController:stateChange', state, []);
   };
 
-  triggerPreferencesStateChange({
-    ...getDefaultPreferencesState(),
-    displayNftMedia,
-  });
+  if (publishInitialPreferences) {
+    triggerPreferencesStateChange({
+      ...getDefaultPreferencesState(),
+      displayNftMedia,
+    });
+  }
 
   const triggerSelectedAccountChange = (
     internalAccount: InternalAccount,
@@ -436,7 +470,9 @@ function setupController({
     );
   };
 
-  triggerSelectedAccountChange(OWNER_ACCOUNT);
+  if (publishSelectedAccount) {
+    triggerSelectedAccountChange(OWNER_ACCOUNT);
+  }
 
   return {
     nftController,
@@ -498,6 +534,285 @@ describe('NftController', () => {
       allNftContracts: {},
       allNfts: {},
       ignoredNfts: [],
+    });
+  });
+
+  describe('construction and init', () => {
+    it('does not call other controllers when constructed', () => {
+      const messenger: NftControllerMessenger = new Messenger({
+        namespace: 'NftController',
+      });
+      const call = vi.spyOn(messenger, 'call');
+
+      const controller = new NftController({ messenger });
+
+      expect(controller.state).toStrictEqual(getDefaultNftControllerState());
+      expect(call).not.toHaveBeenCalled();
+    });
+
+    it('reads the selected account only once when init is called repeatedly', () => {
+      const getSelectedAccount = vi.fn().mockReturnValue(OWNER_ACCOUNT);
+      const { nftController } = setupController({ getSelectedAccount });
+      getSelectedAccount.mockClear();
+
+      nftController.init();
+
+      expect(getSelectedAccount).not.toHaveBeenCalled();
+    });
+
+    it('applies persisted NFT preferences during init', async () => {
+      const preferences = {
+        ...getDefaultPreferencesState(),
+        ipfsGateway: 'https://persisted.example/ipfs/',
+        isIpfsGatewayEnabled: false,
+        displayNftMedia: false,
+        openSeaEnabled: true,
+      };
+      const { nftController, triggerPreferencesStateChange, mockGetAccount } =
+        setupController({
+          preferencesState: preferences,
+          publishInitialPreferences: false,
+        });
+      const spy = vi.spyOn(nftController, 'updateNftMetadata');
+      mockGetAccount.mockReturnValue(OWNER_ACCOUNT);
+      await nftController.addNft('0xtest', '3', 'mainnet', {
+        nftMetadata: { name: '', description: '', image: '', standard: '' },
+      });
+
+      triggerPreferencesStateChange(preferences);
+
+      expect(spy).not.toHaveBeenCalled();
+
+      triggerPreferencesStateChange({
+        ...preferences,
+        ipfsGateway: 'https://changed.example/ipfs/',
+      });
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not replace explicit NFT preference options during init', async () => {
+      const { nftController, triggerPreferencesStateChange, mockGetAccount } =
+        setupController({
+          options: {
+            displayNftMedia: false,
+            ipfsGateway: 'https://explicit.example/ipfs/',
+            isIpfsGatewayEnabled: true,
+          },
+          preferencesState: {
+            ...getDefaultPreferencesState(),
+            displayNftMedia: true,
+            ipfsGateway: 'https://persisted.example/ipfs/',
+            isIpfsGatewayEnabled: false,
+          },
+          publishInitialPreferences: false,
+        });
+      const spy = vi.spyOn(nftController, 'updateNftMetadata');
+      mockGetAccount.mockReturnValue(OWNER_ACCOUNT);
+      await nftController.addNft('0xtest', '3', 'mainnet', {
+        nftMetadata: { name: '', description: '', image: '', standard: '' },
+      });
+
+      triggerPreferencesStateChange({
+        ...getDefaultPreferencesState(),
+        displayNftMedia: true,
+        ipfsGateway: 'https://persisted.example/ipfs/',
+        isIpfsGatewayEnabled: false,
+      });
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps NFT preferences from a state change that arrives before init', async () => {
+      const stalePreferences = {
+        ...getDefaultPreferencesState(),
+        ipfsGateway: 'https://stale.example/ipfs/',
+        isIpfsGatewayEnabled: false,
+        displayNftMedia: false,
+      };
+      const eventPreferences = {
+        ...getDefaultPreferencesState(),
+        ipfsGateway: 'https://event.example/ipfs/',
+        isIpfsGatewayEnabled: true,
+        displayNftMedia: true,
+      };
+      const {
+        nftController,
+        nftControllerMessenger,
+        triggerPreferencesStateChange,
+        mockGetAccount,
+      } = setupController({
+        preferencesState: stalePreferences,
+        publishInitialPreferences: false,
+        callInit: false,
+      });
+      triggerPreferencesStateChange(eventPreferences);
+      const callSpy = vi.spyOn(nftControllerMessenger, 'call');
+
+      nftController.init();
+
+      expect(callSpy).not.toHaveBeenCalledWith(
+        'PreferencesController:getState',
+      );
+      const spy = vi.spyOn(nftController, 'updateNftMetadata');
+      mockGetAccount.mockReturnValue(OWNER_ACCOUNT);
+      await nftController.addNft('0xtest', '3', 'mainnet', {
+        nftMetadata: { name: '', description: '', image: '', standard: '' },
+      });
+
+      triggerPreferencesStateChange(eventPreferences);
+
+      expect(spy).not.toHaveBeenCalled();
+
+      triggerPreferencesStateChange({
+        ...eventPreferences,
+        ipfsGateway: 'https://changed.example/ipfs/',
+      });
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it('applies persisted NFT preferences when the selected account lookup throws during init', async () => {
+      const preferences = {
+        ...getDefaultPreferencesState(),
+        ipfsGateway: 'https://persisted.example/ipfs/',
+        isIpfsGatewayEnabled: false,
+        displayNftMedia: true,
+      };
+      const getSelectedAccount = vi
+        .fn()
+        .mockImplementationOnce(() => {
+          throw new Error('Accounts not ready');
+        })
+        .mockReturnValue(OWNER_ACCOUNT);
+      const { nftController, triggerPreferencesStateChange, mockGetAccount } =
+        setupController({
+          getSelectedAccount,
+          preferencesState: preferences,
+          publishInitialPreferences: false,
+          publishSelectedAccount: false,
+          callInit: false,
+        });
+
+      expect(() => nftController.init()).toThrow('Accounts not ready');
+
+      const spy = vi.spyOn(nftController, 'updateNftMetadata');
+      mockGetAccount.mockReturnValue(OWNER_ACCOUNT);
+      await nftController.addNft('0xtest', '3', 'mainnet', {
+        nftMetadata: { name: '', description: '', image: '', standard: '' },
+      });
+
+      triggerPreferencesStateChange(preferences);
+
+      expect(spy).not.toHaveBeenCalled();
+
+      triggerPreferencesStateChange({
+        ...preferences,
+        ipfsGateway: 'https://changed.example/ipfs/',
+      });
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it('retries the selected account lookup when init failed before and reads preferences only once', () => {
+      const getPreferencesState = vi
+        .fn()
+        .mockReturnValue(getDefaultPreferencesState());
+      const getSelectedAccount = vi
+        .fn()
+        .mockImplementationOnce(() => {
+          throw new Error('Accounts not ready');
+        })
+        .mockReturnValue(OWNER_ACCOUNT);
+      const { nftController, messenger } = setupController({
+        getSelectedAccount,
+        publishInitialPreferences: false,
+        publishSelectedAccount: false,
+        callInit: false,
+      });
+      messenger.registerActionHandler(
+        'PreferencesController:getState',
+        getPreferencesState,
+      );
+
+      expect(() => nftController.init()).toThrow('Accounts not ready');
+      nftController.init();
+      nftController.init();
+
+      expect(getSelectedAccount).toHaveBeenCalledTimes(2);
+      expect(getPreferencesState).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports a missing PreferencesController during init and continues', () => {
+      const captureException = vi.fn();
+
+      expect(() => {
+        setupController({
+          captureException,
+          publishInitialPreferences: false,
+        });
+      }).not.toThrow();
+
+      expect(captureException).toHaveBeenCalledTimes(1);
+    });
+
+    it('uses the selected account address before init is called', () => {
+      const rootMessenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+      const messenger: NftControllerMessenger = new Messenger({
+        namespace: 'NftController',
+        parent: rootMessenger,
+      });
+      rootMessenger.delegate({
+        messenger,
+        actions: [
+          'AccountsController:getSelectedAccount',
+          'NetworkController:getNetworkClientById',
+        ],
+      });
+      const getSelectedAccount = vi.fn().mockReturnValue(OWNER_ACCOUNT);
+      rootMessenger.registerActionHandler(
+        'AccountsController:getSelectedAccount',
+        getSelectedAccount,
+      );
+      rootMessenger.registerActionHandler(
+        'NetworkController:getNetworkClientById',
+        buildMockGetNetworkClientById(),
+      );
+      const controller = new NftController({ messenger });
+
+      controller.removeNft(ERC721_NFT_ADDRESS, ERC721_NFT_ID, 'mainnet');
+
+      expect(getSelectedAccount).toHaveBeenCalledTimes(1);
+    });
+
+    it('exposes addNfts over the messenger', async () => {
+      const { nftController, messenger } = setupController({
+        getERC721AssetName: vi.fn().mockResolvedValue('Name'),
+      });
+
+      await messenger.call(
+        'NftController:addNfts',
+        [
+          {
+            tokenAddress: '0x01',
+            tokenId: '1',
+            nftMetadata: {
+              name: 'NFT 1',
+              image: 'image1',
+              description: 'description 1',
+              standard: 'ERC721',
+              chainId: 1,
+            },
+          },
+        ],
+        OWNER_ACCOUNT.address,
+      );
+
+      expect(
+        nftController.state.allNfts[OWNER_ACCOUNT.address]?.['0x1'],
+      ).toHaveLength(1);
     });
   });
 

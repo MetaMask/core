@@ -224,6 +224,9 @@ const setupController = ({
     state,
     ...(isDeprecated ? { isDeprecated } : {}),
   });
+  // `init` never rejects; it fetches the initial balances in the background.
+  // eslint-disable-next-line no-void
+  void controller.init();
 
   return {
     controller,
@@ -247,6 +250,26 @@ async function waitForAllPromises(): Promise<void> {
   // we are testing some asynchronous execution flows that are started by
   // synchronous calls.
   await new Promise(process.nextTick);
+}
+
+/**
+ * Asserts that `promise` fulfills in a microtask, before the next macrotask.
+ * A fetch that `init` still awaited would lose this race to the timer.
+ *
+ * @param promise - The promise that should already be on its way to fulfilling.
+ */
+async function expectResolvedBeforeNextMacrotask(
+  promise: Promise<unknown>,
+): Promise<void> {
+  const winner = await Promise.race([
+    promise.then(() => 'resolved' as const),
+    new Promise<'timeout'>((resolve) => {
+      setTimeout(() => {
+        resolve('timeout');
+      }, 0);
+    }),
+  ]);
+  expect(winner).toBe('resolved');
 }
 
 describe('MultichainBalancesController', () => {
@@ -415,6 +438,101 @@ describe('MultichainBalancesController', () => {
     expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
       mockBalanceResult,
     );
+  });
+
+  describe('construction and init', () => {
+    it('does not call other controllers when constructed', () => {
+      const messenger: MultichainBalancesControllerMessenger = new Messenger({
+        namespace: 'MultichainBalancesController',
+      });
+      const call = vi.spyOn(messenger, 'call');
+
+      const controller = new MultichainBalancesController({ messenger });
+
+      expect(controller.state).toStrictEqual({ balances: {} });
+      expect(call).not.toHaveBeenCalled();
+    });
+
+    it('fetches the initial balances only once when init is called repeatedly', async () => {
+      const { controller, mockListMultichainAccounts } = setupController();
+      await waitForAllPromises();
+      mockListMultichainAccounts.mockClear();
+
+      await controller.init();
+
+      expect(mockListMultichainAccounts).not.toHaveBeenCalled();
+    });
+
+    it('logs and resolves when fetching the initial balances of an account fails', async () => {
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+      const messenger = getRootMessenger();
+      messenger.registerActionHandler(
+        'AccountsController:listMultichainAccounts',
+        () => [mockBtcAccount],
+      );
+      const controller = new MultichainBalancesController({
+        messenger: getRestrictedMessenger(messenger),
+      });
+
+      await controller.init();
+      // The fetch is not awaited by `init`; flush it before asserting the log.
+      await waitForAllPromises();
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Failed to fetch initial balances:',
+        expect.objectContaining({
+          message: expect.stringContaining(
+            'MultichainAssetsController:getState',
+          ),
+        }),
+      );
+      expect(controller.state.balances).toStrictEqual({});
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('resolves init while the initial balance fetch is still pending', async () => {
+      const messenger = getRootMessenger();
+      const handleRequest = vi.fn().mockReturnValue(
+        new Promise(() => {
+          // Never settles. Awaiting this would leave `init` pending.
+        }),
+      );
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        handleRequest,
+      );
+      messenger.registerActionHandler(
+        'AccountsController:listMultichainAccounts',
+        () => [mockBtcAccount],
+      );
+      messenger.registerActionHandler(
+        'MultichainAssetsController:getState',
+        () => ({
+          accountsAssets: {
+            [mockBtcAccount.id]: [mockBtcNativeAsset],
+          },
+          assetsMetadata: {},
+          allIgnoredAssets: {},
+        }),
+      );
+      messenger.registerActionHandler('KeyringController:getState', () => ({
+        isUnlocked: true,
+        keyrings: [],
+      }));
+      const controller = new MultichainBalancesController({
+        messenger: getRestrictedMessenger(messenger),
+      });
+
+      await expectResolvedBeforeNextMacrotask(controller.init());
+
+      expect(handleRequest).toHaveBeenCalledTimes(1);
+      expect(controller.state.balances).toStrictEqual({});
+
+      await expectResolvedBeforeNextMacrotask(controller.init());
+      expect(handleRequest).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('fetches initial balances for existing non-EVM accounts', async () => {
@@ -921,7 +1039,7 @@ describe('MultichainBalancesController', () => {
       expect(controller.state.balances).toStrictEqual(initialState.balances);
     });
 
-    it('does not fetch initial balances at construction when isDeprecated() returns true', async () => {
+    it('does not fetch initial balances in init when isDeprecated() returns true', async () => {
       const { mockSnapHandleRequest } = setupController({
         isDeprecated: () => true,
       });
