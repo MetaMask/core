@@ -26,6 +26,8 @@ import type {
   TokenListQueryOptions,
   TokenV2SupportedNetworksResponse,
   V1TokenDescriptionResponse,
+  TokenSearchQueryOptions,
+  TokenSearchResponse,
   NetworkInfo,
   TopAsset,
   TrendingToken,
@@ -35,6 +37,31 @@ import type {
   V2AssetResponse,
   V2AssetsQueryOptions,
 } from './types.js';
+
+const getEmptyTokenSearchResponse = (): TokenSearchResponse => ({
+  data: [],
+  count: 0,
+  totalCount: 0,
+  pageInfo: {
+    hasNextPage: false,
+    endCursor: '',
+  },
+});
+
+const normalizeTokenSearchQueryOptions = ({
+  query,
+  networks,
+  ...options
+}: TokenSearchQueryOptions): TokenSearchQueryOptions => {
+  const sortedNetworks =
+    networks && networks.length > 0 ? [...networks].sort() : undefined;
+
+  return {
+    ...options,
+    query: query.trim(),
+    networks: sortedNetworks,
+  };
+};
 
 /**
  * Token API Client.
@@ -86,7 +113,9 @@ export class TokenApiClient extends BaseApiClient {
    * @returns Array of network info.
    */
   async fetchNetworks(options?: FetchOptions): Promise<NetworkInfo[]> {
-    return this.queryClient.fetchQuery(this.getNetworksQueryOptions(options));
+    return await this.queryClient.fetchQuery(
+      this.getNetworksQueryOptions(options),
+    );
   }
 
   /**
@@ -123,7 +152,7 @@ export class TokenApiClient extends BaseApiClient {
     chainId: number,
     options?: FetchOptions,
   ): Promise<NetworkInfo> {
-    return this.queryClient.fetchQuery(
+    return await this.queryClient.fetchQuery(
       this.getNetworkByChainIdQueryOptions(chainId, options),
     );
   }
@@ -184,7 +213,7 @@ export class TokenApiClient extends BaseApiClient {
     queryOptions?: TokenListQueryOptions,
     options?: FetchOptions,
   ): Promise<TokenMetadata[]> {
-    return this.queryClient.fetchQuery(
+    return await this.queryClient.fetchQuery(
       this.getTokenListQueryOptions(chainId, queryOptions, options),
     );
   }
@@ -221,8 +250,86 @@ export class TokenApiClient extends BaseApiClient {
   async fetchV2SupportedNetworks(
     options?: FetchOptions,
   ): Promise<TokenV2SupportedNetworksResponse> {
-    return this.queryClient.fetchQuery(
+    return await this.queryClient.fetchQuery(
       this.getV2SupportedNetworksQueryOptions(options),
+    );
+  }
+
+  // ==========================================================================
+  // TOKEN SEARCH
+  // ==========================================================================
+
+  /**
+   * Returns the TanStack Query options object for token search.
+   *
+   * @param queryOptions - Search query options.
+   * @param queryOptions.query - User-provided query string.
+   * @param queryOptions.networks - CAIP-2 chain IDs to constrain the search to.
+   * @param queryOptions.first - Maximum number of results to return.
+   * @param queryOptions.after - Cursor returned by a previous response for paging.
+   * @param queryOptions.includeTokenSecurityData - Whether to include token security data.
+   * @param options - Fetch options including cache settings.
+   * @returns Query options object compatible with fetchQuery/useQuery.
+   */
+  getTokenSearchQueryOptions(
+    queryOptions: TokenSearchQueryOptions,
+    options?: FetchOptions,
+  ): FetchQueryOptions<TokenSearchResponse> {
+    const normalizedQueryOptions =
+      normalizeTokenSearchQueryOptions(queryOptions);
+
+    const { serviceProfile, ...paramsWithoutServiceProfile } =
+      normalizedQueryOptions;
+
+    return {
+      queryKey: ['token', 'search', normalizedQueryOptions],
+      queryFn: async ({
+        signal,
+      }: QueryFunctionContext): Promise<TokenSearchResponse> => {
+        if (!normalizedQueryOptions.query) {
+          return getEmptyTokenSearchResponse();
+        }
+
+        return await this.fetch<TokenSearchResponse>(
+          this.apiUrls.TOKEN,
+          '/tokens/search',
+          {
+            signal,
+            params: paramsWithoutServiceProfile,
+            ...(serviceProfile && {
+              headers: { 'x-mm-service-profile': serviceProfile },
+            }),
+          },
+        );
+      },
+      ...getQueryOptionsOverrides(options),
+      staleTime: options?.staleTime ?? STALE_TIMES.DEFAULT,
+      gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
+    };
+  }
+
+  /**
+   * Search for tokens by symbol, name, or address.
+   *
+   * @param queryOptions - Search query options.
+   * @param queryOptions.query - User-provided query string.
+   * @param queryOptions.networks - CAIP-2 chain IDs to constrain the search to.
+   * @param queryOptions.first - Maximum number of results to return.
+   * @param queryOptions.after - Cursor returned by a previous response for paging.
+   * @param queryOptions.includeTokenSecurityData - Whether to include token security data.
+   * @param options - Fetch options including cache settings.
+   * @returns The token search response.
+   */
+  async fetchTokenSearch(
+    queryOptions: TokenSearchQueryOptions,
+    options?: FetchOptions,
+  ): Promise<TokenSearchResponse> {
+    if (!queryOptions.query.trim()) {
+      return getEmptyTokenSearchResponse();
+    }
+
+    return await this.queryClient.fetchQuery(
+      this.getTokenSearchQueryOptions(queryOptions, options),
     );
   }
 
@@ -273,7 +380,7 @@ export class TokenApiClient extends BaseApiClient {
       queryFn: async ({
         signal,
       }: QueryFunctionContext): Promise<TokenMetadata> => {
-        return this.fetch<TokenMetadata>(
+        return await this.fetch<TokenMetadata>(
           this.apiUrls.TOKEN,
           `/token/${chainId}`,
           {
@@ -365,7 +472,7 @@ export class TokenApiClient extends BaseApiClient {
       queryFn: async ({
         signal,
       }: QueryFunctionContext): Promise<V1TokenDescriptionResponse> =>
-        this.fetch<V1TokenDescriptionResponse>(
+        await this.fetch<V1TokenDescriptionResponse>(
           this.apiUrls.TOKEN,
           `/token/${chainId}/description`,
           {
@@ -487,7 +594,7 @@ export class TokenApiClient extends BaseApiClient {
     },
     options?: FetchOptions,
   ): Promise<TrendingToken[]> {
-    return this.queryClient.fetchQuery(
+    return await this.queryClient.fetchQuery(
       this.getV3TrendingTokensQueryOptions(chainIds, queryOptions, options),
     );
   }
@@ -578,7 +685,7 @@ export class TokenApiClient extends BaseApiClient {
     },
     options?: FetchOptions,
   ): Promise<TrendingToken[]> {
-    return this.queryClient.fetchQuery(
+    return await this.queryClient.fetchQuery(
       this.getV3TopGainersQueryOptions(chainIds, queryOptions, options),
     );
   }
@@ -660,7 +767,7 @@ export class TokenApiClient extends BaseApiClient {
     },
     options?: FetchOptions,
   ): Promise<TrendingToken[]> {
-    return this.queryClient.fetchQuery(
+    return await this.queryClient.fetchQuery(
       this.getV3PopularTokensQueryOptions(chainIds, queryOptions, options),
     );
   }
@@ -703,7 +810,7 @@ export class TokenApiClient extends BaseApiClient {
     chainId: number,
     options?: FetchOptions,
   ): Promise<TopAsset[]> {
-    return this.queryClient.fetchQuery(
+    return await this.queryClient.fetchQuery(
       this.getTopAssetsQueryOptions(chainId, options),
     );
   }
@@ -744,7 +851,7 @@ export class TokenApiClient extends BaseApiClient {
   async fetchV1SuggestedOccurrenceFloors(
     options?: FetchOptions,
   ): Promise<V1SuggestedOccurrenceFloorsResponse> {
-    return this.queryClient.fetchQuery(
+    return await this.queryClient.fetchQuery(
       this.getV1SuggestedOccurrenceFloorsQueryOptions(options),
     );
   }
@@ -796,7 +903,7 @@ export class TokenApiClient extends BaseApiClient {
     if (assetIds.length === 0) {
       return [];
     }
-    return this.queryClient.fetchQuery(
+    return await this.queryClient.fetchQuery(
       this.getV2AssetsQueryOptions(assetIds, queryOptions, options),
     );
   }

@@ -10,8 +10,12 @@ import {
   setupTestEnvironment,
 } from '../../../tests/test-utils.js';
 import type { ApiPlatformClient } from '../ApiPlatformClient.js';
-import { API_URLS } from '../shared-types.js';
-import type { NetworkInfo, TokenMetadata } from './types.js';
+import { API_URLS, GC_TIMES, STALE_TIMES } from '../shared-types.js';
+import type {
+  NetworkInfo,
+  TokenMetadata,
+  TokenSearchResponse,
+} from './types.js';
 
 describe('TokenApiClient', () => {
   let client: ApiPlatformClient;
@@ -166,6 +170,214 @@ describe('TokenApiClient', () => {
         `${API_URLS.TOKEN}/v2/supportedNetworks`,
         expect.any(Object),
       );
+    });
+  });
+
+  describe('Token Search', () => {
+    it('fetches token search results with query options', async () => {
+      const mockResponse: TokenSearchResponse = {
+        data: [
+          {
+            assetId:
+              'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+            symbol: 'USDC',
+            decimals: 6,
+            name: 'USD Coin',
+            iconUrl: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/usdc',
+            labels: ['stable_coin'],
+          },
+        ],
+        count: 1,
+        totalCount: 1,
+        pageInfo: {
+          hasNextPage: false,
+          endCursor: '',
+        },
+      };
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      const result = await client.token.fetchTokenSearch({
+        query: ' usdc ',
+        networks: ['eip155:137', 'eip155:1'],
+        first: 25,
+        after: 'MA==',
+        includeTokenSecurityData: true,
+      });
+
+      expect(result).toStrictEqual(mockResponse);
+
+      const calledUrl = new URL(mockFetch.mock.calls[0]?.[0] as string);
+      expect(calledUrl.origin).toBe(API_URLS.TOKEN);
+      expect(calledUrl.pathname).toBe('/tokens/search');
+      expect(calledUrl.searchParams.get('query')).toBe('usdc');
+      expect(calledUrl.searchParams.get('networks')).toBe(
+        'eip155:1,eip155:137',
+      );
+      expect(calledUrl.searchParams.get('first')).toBe('25');
+      expect(calledUrl.searchParams.get('after')).toBe('MA==');
+      expect(calledUrl.searchParams.get('includeTokenSecurityData')).toBe(
+        'true',
+      );
+    });
+
+    it('uses custom TOKEN API URL when provided', async () => {
+      const customTokenUrl = 'https://custom.token.api.test';
+      const { client: customClient } = setupTestEnvironment({
+        apiUrls: { TOKEN: customTokenUrl },
+      });
+
+      const mockResponse: TokenSearchResponse = {
+        data: [],
+        count: 0,
+        totalCount: 0,
+        pageInfo: {
+          hasNextPage: false,
+          endCursor: '',
+        },
+      };
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      await customClient.token.fetchTokenSearch({
+        query: 'test',
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringMatching(
+          /^https:\/\/custom\.token\.api\.test\/tokens\/search/u,
+        ),
+        expect.any(Object),
+      );
+    });
+
+    it('sends x-mm-service-profile header when serviceProfile is provided', async () => {
+      const mockResponse: TokenSearchResponse = {
+        data: [],
+        count: 0,
+        totalCount: 0,
+        pageInfo: {
+          hasNextPage: false,
+          endCursor: '',
+        },
+      };
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      await client.token.fetchTokenSearch({
+        query: 'usdc',
+        serviceProfile: 'assets--trending-search',
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'x-mm-service-profile': 'assets--trending-search',
+          }),
+        }),
+      );
+    });
+
+    it('does not send x-mm-service-profile header when serviceProfile is not provided', async () => {
+      const mockResponse: TokenSearchResponse = {
+        data: [],
+        count: 0,
+        totalCount: 0,
+        pageInfo: {
+          hasNextPage: false,
+          endCursor: '',
+        },
+      };
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      await client.token.fetchTokenSearch({
+        query: 'usdc',
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.not.objectContaining({
+          headers: expect.objectContaining({
+            'x-mm-service-profile': expect.anything(),
+          }),
+        }),
+      );
+    });
+
+    it('includes serviceProfile in query key', () => {
+      const queryOptions = client.token.getTokenSearchQueryOptions({
+        query: 'usdc',
+        serviceProfile: 'custom-profile',
+      });
+
+      expect(queryOptions.queryKey).toStrictEqual([
+        'token',
+        'search',
+        {
+          query: 'usdc',
+          networks: undefined,
+          serviceProfile: 'custom-profile',
+        },
+      ]);
+    });
+
+    it('short-circuits empty token search queries', async () => {
+      const result = await client.token.fetchTokenSearch({
+        query: '   ',
+      });
+
+      expect(result).toStrictEqual({
+        data: [],
+        count: 0,
+        totalCount: 0,
+        pageInfo: {
+          hasNextPage: false,
+          endCursor: '',
+        },
+      });
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('returns reusable query options for token search', () => {
+      const queryOptions = client.token.getTokenSearchQueryOptions({
+        query: ' usdc ',
+        networks: ['eip155:137', 'eip155:1'],
+        first: 25,
+      });
+
+      expect(queryOptions.queryKey).toStrictEqual([
+        'token',
+        'search',
+        {
+          query: 'usdc',
+          networks: ['eip155:1', 'eip155:137'],
+          first: 25,
+        },
+      ]);
+      expect(typeof queryOptions.queryFn).toBe('function');
+      expect(queryOptions.staleTime).toBe(STALE_TIMES.DEFAULT);
+      expect(queryOptions.gcTime).toBe(GC_TIMES.DEFAULT);
+    });
+
+    it('getTokenSearchQueryOptions queryFn short-circuits empty queries without calling fetch', async () => {
+      const options = client.token.getTokenSearchQueryOptions({
+        query: '   ',
+      });
+      // @ts-expect-error - queryFn is typed as possibly being a symbol in @tanstack/query-core
+      const result = await options.queryFn({
+        queryKey: options.queryKey,
+        signal: new AbortController().signal,
+        meta: undefined,
+      });
+
+      expect(result).toStrictEqual({
+        data: [],
+        count: 0,
+        totalCount: 0,
+        pageInfo: {
+          hasNextPage: false,
+          endCursor: '',
+        },
+      });
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 

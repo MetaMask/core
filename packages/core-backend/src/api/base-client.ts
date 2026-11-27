@@ -32,6 +32,7 @@ export type InternalFetchOptions = {
     string,
     string | string[] | number | number[] | boolean | undefined
   >;
+  headers?: Record<string, string>;
 };
 
 /**
@@ -189,6 +190,10 @@ export class BaseApiClient {
     const token = await this.#fetchBearerToken();
     if (token) {
       headers.Authorization = `Bearer ${token}`;
+    }
+
+    if (options?.headers) {
+      Object.assign(headers, options.headers);
     }
 
     const response = await fetch(url.toString(), {

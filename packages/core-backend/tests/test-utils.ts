@@ -7,6 +7,7 @@ import { vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import { ApiPlatformClient } from '../src/api/ApiPlatformClient.js';
+import type { ApiPlatformClientOptions } from '../src/api/shared-types.js';
 
 // Mock for the global `fetch`. Call `setupTestEnvironment` (or stub it with
 // `vi.stubGlobal`) in a `beforeEach`, because `unstubGlobals` undoes the stub
@@ -47,9 +48,12 @@ export const createMockResponse = <ResponseData>(
 /**
  * Creates a fresh ApiPlatformClient for testing with disabled caching/retry.
  *
+ * @param options - Optional configuration overrides.
  * @returns A new ApiPlatformClient instance configured for testing.
  */
-export function createTestClient(): ApiPlatformClient {
+export function createTestClient(
+  options?: Partial<ApiPlatformClientOptions>,
+): ApiPlatformClient {
   return new ApiPlatformClient({
     clientProduct: 'test-client',
     clientVersion: '1.0.0',
@@ -62,17 +66,21 @@ export function createTestClient(): ApiPlatformClient {
         },
       },
     }),
+    ...options,
   });
 }
 
 /**
  * Setup function to be called in beforeEach.
  *
+ * @param options - Optional configuration overrides.
  * @returns An object containing a fresh test client.
  */
-export function setupTestEnvironment(): { client: ApiPlatformClient } {
+export function setupTestEnvironment(
+  options?: Partial<ApiPlatformClientOptions>,
+): { client: ApiPlatformClient } {
   vi.clearAllMocks();
   mockFetch.mockReset();
   vi.stubGlobal('fetch', mockFetch);
-  return { client: createTestClient() };
+  return { client: createTestClient(options) };
 }
