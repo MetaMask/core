@@ -70,10 +70,41 @@ const selectBlockedBindingMigrations = createSelector(
 );
 
 /**
+ * Selects the ids of the binding migrators whose phase has passed for the
+ * recorded migration while they are pending or unknown, so their work may
+ * never run: `startMigration` does not run a phase again once it has passed.
+ * This happens when a migrator is registered after the migration reached its
+ * phase. A migrator that ran on another device, or before a reinstall, can
+ * also be unknown here.
+ *
+ * @param state - The MoneyAccountLifecycleController state.
+ * @returns The ids of the skipped binding migrators.
+ */
+const selectSkippedBindingMigrations = createSelector(
+  [selectBindingMigrations, selectMoneyAccounts],
+  (bindingMigrations, moneyAccounts): string[] => {
+    if (!bindingMigrations) {
+      return [];
+    }
+    const runnablePhases = getRunnableBindingMigrationPhases(
+      moneyAccounts[bindingMigrations.previousAddress],
+    );
+    return Object.entries(bindingMigrations.migrators)
+      .filter(
+        ([, { phase, status }]) =>
+          !runnablePhases.includes(phase) &&
+          UNFINISHED_BINDING_MIGRATOR_STATUSES.includes(status),
+      )
+      .map(([migratorId]) => migratorId);
+  },
+);
+
+/**
  * Selectors for the MoneyAccountLifecycleController state.
  * These can be used with Redux or directly with controller state.
  */
 export const moneyAccountLifecycleControllerSelectors = {
   selectHasUnfinishedBindingMigrations,
   selectBlockedBindingMigrations,
+  selectSkippedBindingMigrations,
 };

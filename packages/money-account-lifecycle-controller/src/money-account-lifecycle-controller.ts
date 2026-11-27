@@ -90,6 +90,11 @@ const MAX_TIMEOUT_MS = 2 ** 31 - 1;
 
 const TIMED_OUT = Symbol('timed out');
 
+// Not an estimate of how long CHOMP takes to move the funds: there are no
+// measured transfer times yet. It only bounds how long the first
+// `startMigration` call waits so `afterDone` migrators can run in that call
+// when the transfer is quick. When it takes longer, the call resolves without
+// running them, and the next `startMigration` call runs them.
 const MIGRATION_DONE_TIMEOUT_MS = 60_000;
 
 const MIGRATION_DONE_FIRST_CHECK_DELAY_MS = 2000;
@@ -626,17 +631,17 @@ export class MoneyAccountLifecycleController extends BaseController<
    * its runs. Register migrators when the client starts, before it can call
    * `startMigration`.
    *
+   * Registering a migrator with the id of one already registered does
+   * nothing, so the first one registered keeps running.
+   *
    * @param migrator - The binding migrator. It holds functions, so it can
    * only be passed within the same process.
-   * @throws If the migrator is invalid, or one with the same id is already
-   * registered.
+   * @throws If the migrator is invalid.
    */
   registerBindingMigrator(migrator: BindingMigrator): void {
     assertValidBindingMigrator(migrator);
     if (this.#bindingMigrators.has(migrator.id)) {
-      throw new Error(
-        `A binding migrator with the id '${migrator.id}' is already registered`,
-      );
+      return;
     }
     this.#bindingMigrators.set(migrator.id, migrator);
 

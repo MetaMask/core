@@ -33,7 +33,7 @@ messenger.call('MoneyAccountLifecycleController:registerBindingMigrator', {
 
 Register migrators when the client starts, before it can call `startMigration`. The migrator holds functions, so it can only be registered from within the same process.
 
-- `id` is unique and stable, for example `vba`. Registering a second migrator with the same `id` throws, and so does an invalid migrator.
+- `id` is unique and stable, for example `vba`. Registering a migrator with the `id` of one already registered does nothing, so the first one keeps running. Registering an invalid migrator throws.
 - `timeoutMs` is optional and defaults to 30 seconds.
 - `reconcile` returns one of:
   - `{ status: 'not_required' }`
@@ -57,8 +57,9 @@ Register migrators when the client starts, before it can call `startMigration`. 
 - `afterLink` and `beforeFundsTransfer` have passed once CHOMP has started the funds transfer. From then on their migrators are never run for that migration, even when `startMigration` resumes it, and `afterDone` migrators only run once the migration is `DONE`.
 - A migrator registered after its phase has passed for a migration is never run for that migration, including when it is registered after the migration has finished. The controller does not catch up on it: owners must roll out a migrator before the migrations it has to cover reach its phase, or choose a later phase.
 - Every migrator of a phase runs. If any returns `pending` or `blocked`, `startMigration` then stops before the next step and throws a `BindingMigrationIncompleteError` naming those migrators.
+- An incomplete `afterLink` or `beforeFundsTransfer` migrator holds back the migration itself. Linking the successor freezes the Money Account on CHOMP until the migration completes, so the funds stay frozen until every migrator of the phase completes and `startMigration` runs again. Clients don't call `startMigration` again while a migrator is `blocked`, so a `blocked` result in these phases keeps the funds frozen until the migrator is fixed. Prefer `afterDone` unless the binding must move before the funds do. An incomplete `afterDone` migrator doesn't hold anything back, as the funds have already moved.
 - A migrator that throws, or takes longer than its `timeoutMs`, is treated as `pending` and reported. A `blocked` result is reported too. A `reconcile` that timed out keeps running; a later run on the same device waits for it rather than calling `reconcile` again.
-- When `afterDone` migrators are registered, `startMigration` waits up to a minute for CHOMP to finish moving the funds, then runs them. If the funds have not moved by then, calling `startMigration` again once the migration has finished runs them.
+- When `afterDone` migrators are registered, `startMigration` waits up to a minute for CHOMP to finish moving the funds, then runs them. The minute only bounds how long that call waits; it is not an estimate of how long the transfer takes. If the funds have not moved by then, calling `startMigration` again once the migration has finished runs them.
 
 ### Context
 
@@ -94,6 +95,8 @@ Every migrator must follow these rules:
 While the Money Account is migrating or migrated, and this wallet can drive that migration, `bindingMigrations` in the controller state records the migration's `migrationId`, `previousAddress` and `currentAddress`, and for each migrator its `phase`, `status`, `details`, `lastResult` and `lastError`. It is `null` otherwise, including when no migrator is registered. It is not persisted: it is refreshed from `getStatus` when a migrator registers, after each identity fetch and after each run, and cleared on lock and by `clearState`.
 
 The controller does not run migrators by itself. Clients call `startMigration` again when `moneyAccountLifecycleControllerSelectors.selectHasUnfinishedBindingMigrations` is true: a migrator that `startMigration` can still run is `pending` or `unknown`. Blocked migrators need investigation rather than another run, and as `startMigration` stops at a blocked migrator's phase, the selector also ignores migrators from that phase onwards; `selectBlockedBindingMigrations` lists their ids. A call made while a migration is in flight joins it and gets its outcome.
+
+`selectSkippedBindingMigrations` lists the migrators whose phase has passed while they are `pending` or `unknown`, for example because they were registered after the migration reached their phase. `startMigration` never runs them, so report them to the owning team. A migrator that ran on another device, or before a reinstall, can also be `unknown` there.
 
 ## Contributing
 

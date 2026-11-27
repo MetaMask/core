@@ -187,10 +187,12 @@ export type MoneyAccountLifecycleControllerClearStateAction = {
  * its runs. Register migrators when the client starts, before it can call
  * `startMigration`.
  *
+ * Registering a migrator with the id of one already registered does
+ * nothing, so the first one registered keeps running.
+ *
  * @param migrator - The binding migrator. It holds functions, so it can
  * only be passed within the same process.
- * @throws If the migrator is invalid, or one with the same id is already
- * registered.
+ * @throws If the migrator is invalid.
  */
 export type MoneyAccountLifecycleControllerRegisterBindingMigratorAction = {
   type: `MoneyAccountLifecycleController:registerBindingMigrator`;

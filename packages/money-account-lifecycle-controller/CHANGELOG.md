@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Add `bindingMigrations` to `MoneyAccountLifecycleControllerState`, recording the migration this wallet can drive and the status of each registered binding migrator, or `null` when there is none ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
 - Add `registerBindingMigrator` method, also exposed through the messenger, so integrations bound to the Money Account address can be moved to the MPC Money Account during `startMigration` ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
-- Add `moneyAccountLifecycleControllerSelectors`, with `selectHasUnfinishedBindingMigrations`, which tells clients to call `startMigration` again, and `selectBlockedBindingMigrations` ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
+- Add `moneyAccountLifecycleControllerSelectors`, with `selectHasUnfinishedBindingMigrations`, which tells clients to call `startMigration` again, `selectBlockedBindingMigrations` and `selectSkippedBindingMigrations` ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
 - Export `BindingMigrationIncompleteError`, `getBindingMigrationId` and the binding migrator types ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
 - Add `@noble/hashes` and `reselect` dependencies ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
 

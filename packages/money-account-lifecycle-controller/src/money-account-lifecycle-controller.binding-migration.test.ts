@@ -326,15 +326,24 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
       });
     });
 
-    it('throws when a migrator with the same id is already registered', async () => {
-      await withController(({ controller }) => {
-        controller.registerBindingMigrator(buildBindingMigrator({ id: 'vba' }));
+    it('ignores a migrator with the id of one already registered', async () => {
+      await withController(async ({ controller, mocks, init }) => {
+        mocks.getDerivedIdentities.mockResolvedValue({
+          identities: [MIGRATING_IDENTITY],
+        });
+        await init();
+        const first = buildBindingMigrator({ id: 'vba' });
+        const second = buildBindingMigrator({
+          id: 'vba',
+          phase: 'afterDone',
+        });
+        controller.registerBindingMigrator(first);
 
-        expect(() =>
-          controller.registerBindingMigrator(
-            buildBindingMigrator({ id: 'vba' }),
-          ),
-        ).toThrow("A binding migrator with the id 'vba' is already registered");
+        expect(() => controller.registerBindingMigrator(second)).not.toThrow();
+        expect(second.getStatus).not.toHaveBeenCalled();
+        expect(getMigrators(controller)).toStrictEqual({
+          vba: expect.objectContaining({ phase: 'afterLink' }),
+        });
       });
     });
 
@@ -1303,7 +1312,10 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
     });
 
     it('registers the migrator and reports the error when its status cannot be recorded', async () => {
-      await withController(async ({ controller, mocks }) => {
+      await withController(async ({ controller, mocks, init }) => {
+        mocks.getDerivedIdentities.mockResolvedValue({
+          identities: [MIGRATING_IDENTITY],
+        });
         const error = new Error('Handler not registered');
         mocks.getMoneyAccount.mockImplementationOnce(() => {
           throw error;
@@ -1312,11 +1324,8 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
         controller.registerBindingMigrator(buildBindingMigrator({ id: 'vba' }));
 
         expect(mocks.captureException).toHaveBeenCalledWith(error);
-        expect(() =>
-          controller.registerBindingMigrator(
-            buildBindingMigrator({ id: 'vba' }),
-          ),
-        ).toThrow("A binding migrator with the id 'vba' is already registered");
+        await init();
+        expect(getMigrators(controller)).toHaveProperty('vba');
       });
     });
   });

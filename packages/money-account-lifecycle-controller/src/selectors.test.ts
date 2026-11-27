@@ -14,8 +14,11 @@ import { getDefaultMoneyAccountLifecycleControllerState } from './money-account-
 import type { MoneyAccountLifecycleControllerState } from './money-account-lifecycle-controller.js';
 import { moneyAccountLifecycleControllerSelectors } from './selectors.js';
 
-const { selectHasUnfinishedBindingMigrations, selectBlockedBindingMigrations } =
-  moneyAccountLifecycleControllerSelectors;
+const {
+  selectHasUnfinishedBindingMigrations,
+  selectBlockedBindingMigrations,
+  selectSkippedBindingMigrations,
+} = moneyAccountLifecycleControllerSelectors;
 
 const PREVIOUS_ADDRESS: Hex = '0x00000000000000000000000000000000000000aa';
 const CURRENT_ADDRESS: Hex = '0x00000000000000000000000000000000000000dd';
@@ -193,6 +196,56 @@ describe('moneyAccountLifecycleControllerSelectors', () => {
 
       expect(selectBlockedBindingMigrations(state)).toBe(
         selectBlockedBindingMigrations({ ...state }),
+      );
+    });
+  });
+
+  describe('selectSkippedBindingMigrations', () => {
+    it('is empty when no binding migration is recorded', () => {
+      expect(
+        selectSkippedBindingMigrations(
+          getDefaultMoneyAccountLifecycleControllerState(),
+        ),
+      ).toStrictEqual([]);
+    });
+
+    it('is empty while every phase can still run', () => {
+      expect(
+        selectSkippedBindingMigrations(
+          buildState(MIGRATING, [
+            ['afterLink', 'unknown'],
+            ['beforeFundsTransfer', 'pending'],
+          ]),
+        ),
+      ).toStrictEqual([]);
+    });
+
+    it.each([
+      ['the funds transfer has started', TRANSFERRING],
+      ['the money account has migrated', MIGRATED],
+    ])(
+      'lists the pending and unknown migrators of passed phases once %s',
+      (_description, lifecycle) => {
+        expect(
+          selectSkippedBindingMigrations(
+            buildState(lifecycle, [
+              ['afterLink', 'unknown'],
+              ['afterLink', 'completed'],
+              ['beforeFundsTransfer', 'pending'],
+              ['beforeFundsTransfer', 'not_required'],
+              ['beforeFundsTransfer', 'blocked'],
+              ['afterDone', 'unknown'],
+            ]),
+          ),
+        ).toStrictEqual(['migrator-0', 'migrator-2']);
+      },
+    );
+
+    it('returns the same array while the state is unchanged', () => {
+      const state = buildState(MIGRATED, [['afterLink', 'unknown']]);
+
+      expect(selectSkippedBindingMigrations(state)).toBe(
+        selectSkippedBindingMigrations({ ...state }),
       );
     });
   });
