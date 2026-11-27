@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `signTypedData`, `TypedDataUtils.encodeData`, `TypedDataUtils.hashStruct`, `TypedDataUtils.eip712Hash`, and `TypedDataUtils.eip712DomainHash` now only accept `0x`-prefixed, 20-byte hex strings as `address` values in `V3` and `V4` typed data ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
+- **BREAKING:** `signTypedData`, `TypedDataUtils.encodeData`, `TypedDataUtils.hashStruct`, `TypedDataUtils.eip712Hash`, and `TypedDataUtils.eip712DomainHash` now only accept `0x`-prefixed, 20-byte hex strings as `address` values in `V3` and `V4` typed data ([#11803](https://github.com/MetaMask/core/pull/11803))
   - Numbers, non-hex strings, hex strings without a lowercase `0x` prefix, and hex strings that are not exactly 20 bytes long now throw an error instead of being converted to an address.
   - Callers must pass every `address` value as a `0x`-prefixed, 40-character hex string. `V1` typed data is not affected.
 - Bump `@metamask/utils` from `^12.0.2` to `^12.1.0` ([#11796](https://github.com/MetaMask/core/pull/11796))
