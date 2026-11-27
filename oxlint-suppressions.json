@@ -459,12 +459,6 @@
     "no-unsafe-optional-chaining": {
       "count": 5
     },
-    "typescript/no-unsafe-call": {
-      "count": 4
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 13
-    },
     "vitest/no-conditional-in-test": {
       "count": 9
     }
