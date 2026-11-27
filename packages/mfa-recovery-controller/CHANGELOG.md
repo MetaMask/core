@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Refactor MfaRecoveryController tests to streamline controller initialization ([#11718](https://github.com/MetaMask/core/pull/11718))
+- Revert "feat(mfa-recovery-controller): encrypt pending state with a host-owned key" ([#11681](https://github.com/MetaMask/core/pull/11681))
+- feat(mfa-recovery-controller): encrypt pending state with a host-owned key ([#11644](https://github.com/MetaMask/core/pull/11644))
+- chore: add vite as a devDependency to packages using vitest ([#11661](https://github.com/MetaMask/core/pull/11661))
+- chore(deps): bump the external-non-major group across 1 directory with 23 updates ([#11645](https://github.com/MetaMask/core/pull/11645))
+- chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
+
 ### Added
 
 - Adds `trustIdentifier`, which records a passkey a user device created, `untrustPasskey`, which forgets a removed passkey, `isTrusted`, which tells whether writes accept an identifier, and exports `UserStorageTrustedIdentifierStore`, which keeps one entry per passkey in encrypted user storage ([#11606](https://github.com/MetaMask/core/pull/11606))
