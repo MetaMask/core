@@ -252,14 +252,37 @@ describe('chomp', () => {
 
     it('ignores a match received at the deadline before the timeout callback runs', async () => {
       vi.useFakeTimers();
+      const now = vi.spyOn(performance, 'now');
       try {
-        const start = Date.now();
+        const start = performance.now();
         rpcRequestMock.mockImplementationOnce(async () => {
-          vi.setSystemTime(start + 60_000);
+          now.mockReturnValue(start + 60_000);
           return [buildMusdTransferLog()];
         });
 
         expect(await waitForChompDeposit(options)).toBeUndefined();
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        now.mockRestore();
+        vi.useRealTimers();
+      }
+    });
+
+    it('stops after 60 seconds when the wall clock moves backward', async () => {
+      vi.useFakeTimers();
+      try {
+        rpcRequestMock.mockResolvedValue([]);
+        rpcRequestMock.mockImplementationOnce(async () => {
+          vi.setSystemTime(Date.now() - 3_600_000);
+          return [];
+        });
+        const settled = vi.fn();
+        const result = waitForChompDeposit(options).then(settled);
+
+        await vi.advanceTimersByTimeAsync(60_000);
+        await result;
+        expect(settled).toHaveBeenCalledExactlyOnceWith(undefined);
+        expect(rpcRequestMock).toHaveBeenCalledTimes(12);
         expect(vi.getTimerCount()).toBe(0);
       } finally {
         vi.useRealTimers();

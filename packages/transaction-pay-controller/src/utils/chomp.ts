@@ -196,14 +196,15 @@ export async function waitForChompDeposit({
     return undefined;
   }
 
-  const deadline = Date.now() + CHOMP_WAIT_TIMEOUT_MS;
+  // Monotonic, so wall-clock changes cannot extend the wait.
+  const deadline = performance.now() + CHOMP_WAIT_TIMEOUT_MS;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<undefined>((resolve) => {
     timer = setTimeout(resolve, CHOMP_WAIT_TIMEOUT_MS, undefined);
   });
 
   try {
-    while (Date.now() < deadline) {
+    for (;;) {
       const hash = await Promise.race([
         timeout,
         tryFindChompDeposit({
@@ -214,7 +215,7 @@ export async function waitForChompDeposit({
           transactionId: transaction.id,
         }),
       ]);
-      if (Date.now() >= deadline) {
+      if (performance.now() >= deadline) {
         return undefined;
       }
       if (hash) {
@@ -225,14 +226,13 @@ export async function waitForChompDeposit({
         return hash;
       }
 
-      if (deadline - Date.now() <= CHOMP_WAIT_INTERVAL_MS) {
+      if (deadline - performance.now() <= CHOMP_WAIT_INTERVAL_MS) {
         return await timeout;
       }
       await new Promise((resolve) =>
         setTimeout(resolve, CHOMP_WAIT_INTERVAL_MS),
       );
     }
-    return undefined;
   } finally {
     clearTimeout(timer);
   }
