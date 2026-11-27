@@ -6557,7 +6557,7 @@
       "count": 1
     },
     "typescript/explicit-function-return-type": {
-      "count": 7
+      "count": 6
     },
     "typescript/no-base-to-string": {
       "count": 1
@@ -6566,9 +6566,6 @@
       "count": 1
     },
     "typescript/no-unsafe-assignment": {
-      "count": 4
-    },
-    "typescript/no-unsafe-member-access": {
       "count": 1
     }
   },
