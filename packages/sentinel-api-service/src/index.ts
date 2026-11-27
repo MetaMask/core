@@ -43,6 +43,8 @@ export type {
   SentinelSubmitTransactionsRequest,
   SentinelSubmitTransactionsResponse,
   SentinelSubmitTransactionWithMetadata,
+  SentinelVaultWhitelistSignRequest,
+  SentinelVaultWhitelistSignResponse,
 } from './types.js';
 export {
   SentinelCancellationReason,
@@ -64,6 +66,7 @@ export type {
   SentinelApiServiceGetSmartTransactionAction,
   SentinelApiServiceCancelAction,
   SentinelApiServiceGetBatchStatusAction,
+  SentinelApiServiceGetVaultWhitelistSignatureAction,
 } from './sentinel-api-service-method-action-types.js';
 export {
   SentinelApiResponseValidationError,

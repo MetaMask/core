@@ -887,7 +887,7 @@ describe('SentinelApiService', () => {
         expect(vi.mocked(trace).mock.calls[0]?.[0]).toStrictEqual({
           name: TRACES.SIMULATE_TRANSACTIONS,
           parentContext: undefined,
-          startTime: expect.any(Number),
+          startTime: expect.any(Number) as unknown,
           data: {
             chainId: CHAIN_ID_MAINNET,
             transactionCount: MOCK_SIMULATION_REQUEST.transactions.length,
@@ -943,7 +943,7 @@ describe('SentinelApiService', () => {
         expect(vi.mocked(trace).mock.calls[0]?.[0]).toStrictEqual({
           name: TRACES.SIMULATE_TRANSACTIONS,
           parentContext: undefined,
-          startTime: expect.any(Number),
+          startTime: expect.any(Number) as unknown,
           data: {
             chainId: CHAIN_ID_MAINNET,
             transactionCount: MOCK_SIMULATION_REQUEST.transactions.length,
@@ -1365,6 +1365,205 @@ describe('SentinelApiService', () => {
     });
   });
 
+  describe('getVaultWhitelistSignature', () => {
+    const path = '/api/vault-whitelist-sign';
+    const url = buildUrl('bsc-mainnet');
+    const body = {
+      sender: '0x1111111111111111111111111111111111111111',
+      recipient: '0x1111111111111111111111111111111111111111',
+      amount: '1000000',
+    } as const;
+    const request = { chainId: CHAIN_ID_NO_CONFIRMATIONS, ...body };
+    const response = {
+      deadline: 1795700000,
+      signature: `0x${'ab'.repeat(65)}`,
+    };
+
+    it('posts the raw deposit amount and returns the signature via the messenger', async () => {
+      const { service, rootMessenger } = createService();
+      registerBearerToken(rootMessenger, async () => 'jwt-token');
+      mockNetworks();
+      const scope = nock(url, {
+        reqheaders: {
+          'content-type': 'application/json',
+          authorization: 'Bearer jwt-token',
+        },
+      })
+        .post(path, body)
+        .reply(200, response);
+
+      expect(service.getVaultWhitelistSignature).toBeTypeOf('function');
+      const result = await rootMessenger.call(
+        'SentinelApiService:getVaultWhitelistSignature',
+        request,
+      );
+      expect(result).toStrictEqual({ eligible: true, ...response });
+      expect(scope.isDone()).toBe(true);
+      service.destroy();
+    });
+
+    it('returns an ineligible result only for the subscriber error', async () => {
+      const { service } = createService();
+      mockNetworks();
+      nock(url).post(path).reply(403, {
+        error: 'neither sender nor recipient is a subscriber',
+      });
+
+      expect(await service.getVaultWhitelistSignature(request)).toStrictEqual({
+        eligible: false,
+      });
+      service.destroy();
+    });
+
+    it.each([
+      [401, 'authentication required'],
+      [403, 'sender is not permitted'],
+      [403, 'requesting user does not match sender or recipient address'],
+      [502, 'signer unavailable'],
+      [503, 'not configured'],
+    ])(
+      'throws HttpError with the response body on %i: %s',
+      async (httpStatus, message) => {
+        const { service } = createService();
+        mockNetworks();
+        const data = { error: message };
+        nock(url).post(path).reply(httpStatus, data);
+
+        const error = await service
+          .getVaultWhitelistSignature(request)
+          .catch((caught: unknown) => caught);
+        expect(error).toBeInstanceOf(HttpError);
+        expect(error).toMatchObject({ httpStatus, data });
+        service.destroy();
+      },
+    );
+
+    it('throws a validation error on a malformed response', async () => {
+      const { service } = createService();
+      mockNetworks();
+      nock(url)
+        .post(path)
+        .reply(200, { ...response, signature: 'invalid' });
+
+      await expect(service.getVaultWhitelistSignature(request)).rejects.toThrow(
+        SentinelApiResponseValidationError,
+      );
+      service.destroy();
+    });
+
+    it('throws when the chain is not in the registry', async () => {
+      const { service } = createService();
+      mockNetworks();
+
+      await expect(
+        service.getVaultWhitelistSignature({
+          ...request,
+          chainId: CHAIN_ID_UNKNOWN,
+        }),
+      ).rejects.toThrow(SentinelChainNotSupportedError);
+      service.destroy();
+    });
+
+    it('does not dedupe concurrent requests for different amounts', async () => {
+      const { service } = createService();
+      mockNetworks();
+      const secondBody = { ...body, amount: '2000000' };
+      const secondResponse = { ...response, signature: `0x${'cd'.repeat(65)}` };
+      const scope = nock(url)
+        .post(path, body)
+        .reply(200, response)
+        .post(path, secondBody)
+        .reply(200, secondResponse);
+
+      const results = await Promise.all([
+        service.getVaultWhitelistSignature(request),
+        service.getVaultWhitelistSignature({
+          ...request,
+          amount: secondBody.amount,
+        }),
+      ]);
+      expect(results).toStrictEqual([
+        { eligible: true, ...response },
+        { eligible: true, ...secondResponse },
+      ]);
+      expect(scope.isDone()).toBe(true);
+      service.destroy();
+    });
+
+    it('requests a fresh signature for each concurrent identical request', async () => {
+      const { service } = createService();
+      mockNetworks();
+      const secondResponse = { ...response, signature: `0x${'cd'.repeat(65)}` };
+      const scope = nock(url)
+        .post(path, body)
+        .reply(200, response)
+        .post(path, body)
+        .reply(200, secondResponse);
+
+      const results = await Promise.all([
+        service.getVaultWhitelistSignature(request),
+        service.getVaultWhitelistSignature(request),
+      ]);
+      expect(results).toStrictEqual([
+        { eligible: true, ...response },
+        { eligible: true, ...secondResponse },
+      ]);
+      expect(scope.isDone()).toBe(true);
+      service.destroy();
+    });
+
+    it.each([
+      {
+        stage: 'fetch',
+        respond: (stall: () => Promise<never>): Promise<Response> => stall(),
+      },
+      {
+        stage: 'body',
+        respond: async (stall: () => Promise<never>): Promise<Response> => {
+          const stalledResponse = new Response();
+          vi.spyOn(stalledResponse, 'json').mockImplementation(stall);
+          return stalledResponse;
+        },
+      },
+    ])('aborts a stalled $stage after 10 seconds', async ({ respond }) => {
+      vi.useFakeTimers();
+      const fetchMock = vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(Response.json(MOCK_NETWORKS))
+        .mockImplementationOnce(async (_url, options) => {
+          const signal = options?.signal;
+          const stall = async (): Promise<never> =>
+            await new Promise((_resolve, reject) => {
+              signal?.addEventListener(
+                'abort',
+                () => reject(new DOMException('Aborted', 'AbortError')),
+                {
+                  once: true,
+                },
+              );
+            });
+          return await respond(stall);
+        });
+      const { service } = createService({ fetch: fetchMock });
+
+      try {
+        const result = service
+          .getVaultWhitelistSignature(request)
+          .catch((error: unknown) => error);
+        await vi.advanceTimersByTimeAsync(0);
+        const signal = fetchMock.mock.calls[1]?.[1]?.signal;
+        await vi.advanceTimersByTimeAsync(9_999);
+        expect(signal?.aborted).toBe(false);
+        await vi.advanceTimersByTimeAsync(1);
+        expect(await result).toMatchObject({ name: 'AbortError' });
+        expect(signal?.aborted).toBe(true);
+      } finally {
+        service.destroy();
+        vi.useRealTimers();
+      }
+    });
+  });
+
   describe('submitTransactions', () => {
     it('returns the uuid for the submitted transactions', async () => {
       const { service } = createService();
@@ -1678,6 +1877,28 @@ describe('SentinelApiService', () => {
 
       const error = await service
         .submitTransactions(MOCK_SUBMIT_REQUEST)
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(HttpError);
+      expect(error).toMatchObject({ httpStatus: 500 });
+      expect(error).not.toHaveProperty('data');
+      service.destroy();
+    });
+
+    it('getVaultWhitelistSignature throws HttpError without data', async () => {
+      const { service } = createService();
+      mockNetworks();
+      nock(buildUrl('bsc-mainnet'))
+        .post('/api/vault-whitelist-sign')
+        .reply(500, 'Internal Server Error');
+
+      const error = await service
+        .getVaultWhitelistSignature({
+          chainId: CHAIN_ID_NO_CONFIRMATIONS,
+          sender: '0x1111111111111111111111111111111111111111',
+          recipient: '0x1111111111111111111111111111111111111111',
+          amount: '1000000',
+        })
         .catch((caught: unknown) => caught);
 
       expect(error).toBeInstanceOf(HttpError);

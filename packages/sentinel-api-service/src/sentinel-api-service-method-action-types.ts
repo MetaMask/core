@@ -92,6 +92,17 @@ export type SentinelApiServiceGetFeesAction = {
 };
 
 /**
+ * Requests a signature authorizing a vault deposit on the given chain.
+ *
+ * @param request - The chain, participants, and raw deposit amount.
+ * @returns The signature and deadline, or an ineligible result.
+ */
+export type SentinelApiServiceGetVaultWhitelistSignatureAction = {
+  type: `SentinelApiService:getVaultWhitelistSignature`;
+  handler: SentinelApiService['getVaultWhitelistSignature'];
+};
+
+/**
  * Submits signed smart transactions via
  * `POST /v1/networks/{chainId}/submitTransactions`. Not cached.
  *
@@ -138,6 +149,7 @@ export type SentinelApiServiceMethodActions =
   | SentinelApiServiceSubmitRelayTransactionAction
   | SentinelApiServiceGetSmartTransactionAction
   | SentinelApiServiceGetFeesAction
+  | SentinelApiServiceGetVaultWhitelistSignatureAction
   | SentinelApiServiceSubmitTransactionsAction
   | SentinelApiServiceCancelAction
   | SentinelApiServiceGetBatchStatusAction;

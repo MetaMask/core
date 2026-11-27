@@ -10,6 +10,12 @@ import {
 } from '@metamask/superstruct';
 import { StrictHexStruct } from '@metamask/utils';
 
+/** Validates a successful vault whitelist signing response. */
+export const SentinelVaultWhitelistSignResponseStruct = type({
+  deadline: number(),
+  signature: StrictHexStruct,
+});
+
 /**
  * Validates a single network entry from the `/networks` registry, or the
  * single network configuration from the `/network` endpoint. Uses `type`
