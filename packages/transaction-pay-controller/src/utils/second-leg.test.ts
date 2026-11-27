@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import type { TransactionPayControllerMessenger } from '../types.js';
-import { waitForChompDeposit, withChompRecovery } from './chomp.js';
+import { withChompRecovery } from './chomp.js';
 import { getNetworkClientId } from './provider.js';
 import { submitSecondLeg } from './second-leg.js';
 import {
@@ -647,49 +647,6 @@ describe('second-leg', () => {
         }),
       ).rejects.toThrow(/^Second leg: Vault: submit failed$/u);
     });
-
-    const resolveError = new Error('Deferred to CHOMP');
-    it.each([
-      { hash: '0xchomp', expected: { transactionHash: '0xchomp' } },
-      { hash: undefined, expected: resolveError },
-    ] as const)(
-      'waits for CHOMP after getAmountData rejects (hash: $hash)',
-      async ({ hash, expected }) => {
-        const transaction = {
-          ...TRANSACTION_MOCK,
-          type: TransactionType.moneyAccountDeposit,
-        };
-        const callMock = vi.fn().mockRejectedValue(resolveError);
-        const messenger = buildMessenger(callMock);
-        const waitForChompDepositMock = vi.mocked(waitForChompDeposit);
-        waitForChompDepositMock.mockResolvedValue(hash);
-
-        const result = submitSecondLeg({
-          chainId: CHAIN_ID_MOCK,
-          from: FROM_MOCK,
-          messenger,
-          settlementHash: SETTLEMENT_HASH_MOCK,
-          tokenAddress: TOKEN_MOCK,
-          transaction,
-        });
-        expect(await result.catch((error: unknown) => error)).toStrictEqual(
-          expected,
-        );
-
-        expect(waitForChompDepositMock).toHaveBeenCalledExactlyOnceWith({
-          from: FROM_MOCK,
-          fromBlock: FROM_BLOCK_MOCK,
-          messenger,
-          sourceAmountRaw: AMOUNT_MOCK,
-          transaction,
-        });
-        expect(withChompRecoveryMock).not.toHaveBeenCalled();
-        expect(callMock).not.toHaveBeenCalledWith(
-          'TransactionController:addTransactionBatch',
-          expect.anything(),
-        );
-      },
-    );
 
     it('does not prefix errors resolving the calls', async () => {
       const callMock = vi.fn().mockResolvedValue({ updates: [] });

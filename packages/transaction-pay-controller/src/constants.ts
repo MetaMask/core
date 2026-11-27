@@ -4,10 +4,6 @@ import type { Hex } from '@metamask/utils';
 
 export const CONTROLLER_NAME = 'TransactionPayController';
 
-export const CHOMP_WAIT_INTERVAL_MS = 5_000;
-// Budget for CHOMP to credit the deposit, with a buffer.
-export const CHOMP_WAIT_TIMEOUT_MS = 60_000;
-
 /**
  * Parent transaction types that represent a Hyperliquid perps deposit and
  * share the same Arbitrum-USDC → Hypercore handling in pay strategies.

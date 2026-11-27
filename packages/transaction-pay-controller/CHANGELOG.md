@@ -14,7 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- If building second-leg calls for a Money Account deposit fails, wait up to 60 seconds for a CHOMP vault deposit and return its transaction hash if found ([#11787](https://github.com/MetaMask/core/pull/11787)).
 - Bump `@metamask/transaction-controller` from `^74.5.0` to `^74.5.1` ([#11789](https://github.com/MetaMask/core/pull/11789))
 
 ## [33.2.0]

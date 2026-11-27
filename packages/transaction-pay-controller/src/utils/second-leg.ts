@@ -10,7 +10,7 @@ import { createModuleLogger } from '@metamask/utils';
 
 import { projectLogger } from '../logger.js';
 import type { TransactionPayControllerMessenger } from '../types.js';
-import { waitForChompDeposit, withChompRecovery } from './chomp.js';
+import { withChompRecovery } from './chomp.js';
 import { prefixError } from './error-prefix.js';
 import { getNetworkClientId } from './provider.js';
 import {
@@ -90,36 +90,19 @@ export async function submitSecondLeg({
     tokenAddress,
   });
 
-  const chompOptions = {
-    from,
-    fromBlock,
-    messenger,
-    sourceAmountRaw,
-    transaction,
-  };
-
   // Resolved up front so the parent transaction reflects the settled amount
   // even when type-specific handling short-circuits the submission.
-  let nestedTransactions: NestedTransactionMetadata[];
-  try {
-    nestedTransactions = await resolveSecondLegCalls({
-      getCalls,
-      messenger,
-      note,
-      sourceAmountRaw,
-      transaction,
-    });
-  } catch (error) {
-    const transactionHash = await waitForChompDeposit(chompOptions);
-    if (transactionHash) {
-      return { transactionHash };
-    }
-    throw error;
-  }
+  const nestedTransactions = await resolveSecondLegCalls({
+    getCalls,
+    messenger,
+    note,
+    sourceAmountRaw,
+    transaction,
+  });
 
   try {
     return await withChompRecovery(
-      chompOptions,
+      { from, fromBlock, messenger, sourceAmountRaw, transaction },
       async () =>
         await submitBatch({
           chainId,
