@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0]
+
 ### Added
 
 - Adds `trustIdentifier`, which records a passkey a user device created, `untrustPasskey`, which forgets a removed passkey, `isTrusted`, which tells whether writes accept an identifier, and exports `UserStorageTrustedIdentifierStore`, which keeps one entry per passkey in encrypted user storage ([#11606](https://github.com/MetaMask/core/pull/11606))
@@ -87,5 +89,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.2` ([#11107](https://github.com/MetaMask/core/pull/11107), [#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.2` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419), [#11474](https://github.com/MetaMask/core/pull/11474))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/mfa-recovery-controller@0.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/mfa-recovery-controller@0.2.0...HEAD
+[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/mfa-recovery-controller@0.1.0...@metamask/mfa-recovery-controller@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/mfa-recovery-controller@0.1.0
