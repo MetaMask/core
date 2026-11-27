@@ -55,7 +55,7 @@
     "@ethersproject/providers": "^5.8.0",
     "@metamask/accounts-controller": "^40.2.0",
     "@metamask/approval-controller": "^10.0.0",
-    "@metamask/assets-controller": "^22.0.0",
+    "@metamask/assets-controller": "^22.0.1",
     "@metamask/base-controller": "^10.1.0",
     "@metamask/bridge-controller": "^84.0.1",
     "@metamask/controller-utils": "^13.0.0",

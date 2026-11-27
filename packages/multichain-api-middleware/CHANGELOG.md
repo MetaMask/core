@@ -7,10 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.2]
+
 ### Changed
 
 - Bump `jsonschema` from `^1.4.1` to `^1.5.0` ([#11645](https://github.com/MetaMask/core/pull/11645))
 - Bump `@metamask/utils` from `^12.0.2` to `^12.1.0` ([#11796](https://github.com/MetaMask/core/pull/11796))
+- Bump `@metamask/chain-agnostic-permission` from `^2.1.0` to `^3.0.0` ([#11797](https://github.com/MetaMask/core/pull/11797))
+- Bump `@metamask/permission-controller` from `^14.1.0` to `^15.0.0` ([#11797](https://github.com/MetaMask/core/pull/11797))
 
 ## [5.1.1]
 
@@ -342,7 +346,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@5.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@5.1.2...HEAD
+[5.1.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@5.1.1...@metamask/multichain-api-middleware@5.1.2
 [5.1.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@5.1.0...@metamask/multichain-api-middleware@5.1.1
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@5.0.0...@metamask/multichain-api-middleware@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@4.0.3...@metamask/multichain-api-middleware@5.0.0

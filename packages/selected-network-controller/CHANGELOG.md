@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.1.1]
+
 ### Changed
 
 - Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.1.0` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11796](https://github.com/MetaMask/core/pull/11796))
+- Bump `@metamask/permission-controller` from `^14.1.0` to `^15.0.0` ([#11797](https://github.com/MetaMask/core/pull/11797))
 
 ## [27.1.0]
 
@@ -553,7 +556,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1643](https://github.com/MetaMask/core/pull/1643))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@27.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@27.1.1...HEAD
+[27.1.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@27.1.0...@metamask/selected-network-controller@27.1.1
 [27.1.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@27.0.0...@metamask/selected-network-controller@27.1.0
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.7...@metamask/selected-network-controller@27.0.0
 [26.1.7]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.6...@metamask/selected-network-controller@26.1.7
