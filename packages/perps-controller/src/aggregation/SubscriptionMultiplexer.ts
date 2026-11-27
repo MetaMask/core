@@ -9,6 +9,8 @@
  */
 
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import { isOrdersStreamPaused } from '../errors.js';
+import { StreamChannelManager } from '../services/StreamChannelManager.js';
 import type {
   PerpsProviderType,
   PerpsProvider,
@@ -16,9 +18,8 @@ import type {
   PriceUpdate,
   Position,
   Order,
+  OrderFill,
   AccountState,
-  SubscribePricesParams,
-  SubscribePositionsParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
   SubscribeAccountParams,
@@ -56,6 +57,8 @@ export type MultiplexedPricesParams = {
   includeOrderBook?: boolean;
   /** Include market data (funding, OI, volume) */
   includeMarketData?: boolean;
+  /** Receives one venue's failure; the other venues keep streaming. */
+  onError?: (error: Error, providerId: PerpsProviderType) => void;
 };
 
 /**
@@ -66,6 +69,8 @@ export type MultiplexedPositionsParams = {
   providers: [PerpsProviderType, PerpsProvider][];
   /** Callback to receive aggregated position updates */
   callback: (positions: Position[]) => void;
+  /** Receives one venue's failure; the other venues keep streaming. */
+  onError?: (error: Error, providerId: PerpsProviderType) => void;
 };
 
 /**
@@ -164,12 +169,112 @@ export class SubscriptionMultiplexer {
   readonly #orderCache: Map<PerpsProviderType, Order[]> = new Map();
 
   /**
+   * One stream manager per venue. A venue's stream that fails is reopened with
+   * the manager's backoff, and when that venue reconnects, without touching
+   * the other venues.
+   */
+  readonly #venues = new WeakMap<PerpsProvider, StreamChannelManager>();
+
+  #nextVenueStreamId = 0;
+
+  /**
    * Create a new SubscriptionMultiplexer.
    *
    * @param options - Optional configuration including logger for error reporting
    */
   constructor(options?: SubscriptionMultiplexerOptions) {
     this.#logger = options?.logger;
+  }
+
+  /**
+   * Open one venue's part of a subscription. A failure reopens it with the
+   * venue's own stream manager and leaves the other venues alone.
+   *
+   * @param params - What to open.
+   * @param params.method - Name for error reports.
+   * @param params.providerId - The venue.
+   * @param params.provider - Its provider.
+   * @param params.open - Opens the venue stream.
+   * @param params.callback - Receives each update.
+   * @param params.onError - Receives each failure.
+   * @returns A function that closes it.
+   */
+  openVenue<Args extends unknown[]>(params: {
+    method: string;
+    providerId: PerpsProviderType;
+    provider: PerpsProvider;
+    open: (
+      emit: (...args: Args) => void,
+      fail: (error: Error) => void,
+    ) => () => void;
+    callback: (...args: Args) => void;
+    onError?: (error: Error, providerId: PerpsProviderType) => void;
+  }): () => void {
+    const { method, providerId, provider, open, callback, onError } = params;
+    let venue = this.#venues.get(provider);
+    if (!venue) {
+      venue = new StreamChannelManager({
+        subscribeToConnectionState: (listener): (() => void) =>
+          provider.subscribeToConnectionState?.(listener) ??
+          ((): void => undefined),
+        // Tagged with the stream that failed; one manager serves them all.
+        onError: (error, key): void =>
+          this.#logError(
+            error,
+            key?.stream ?? 'subscribeToConnectionState',
+            providerId,
+          ),
+      });
+      this.#venues.set(provider, venue);
+    }
+    this.#nextVenueStreamId += 1;
+    return venue.subscribe<Args>(
+      {
+        stream: method,
+        providerId,
+        options: { id: this.#nextVenueStreamId },
+      },
+      {
+        replay: false,
+        shouldRetry: (error) => !isOrdersStreamPaused(error),
+        open: (emit, fail) => {
+          try {
+            return open(emit, fail);
+          } catch (error) {
+            // A venue that refuses at once is known as failed at once.
+            fail(ensureError(error, `SubscriptionMultiplexer.${method}`));
+            return () => undefined;
+          }
+        },
+      },
+      {
+        callback,
+        onError: (error: Error) => {
+          if (!isOrdersStreamPaused(error)) {
+            this.#logError(error, method, providerId);
+          }
+          onError?.(error, providerId);
+        },
+      },
+    );
+  }
+
+  #logError(
+    error: unknown,
+    method: string,
+    providerId: PerpsProviderType,
+  ): void {
+    this.#logger?.error(
+      ensureError(error, `SubscriptionMultiplexer.${method}`),
+      {
+        tags: {
+          feature: PERPS_CONSTANTS.FeatureName,
+          provider: providerId,
+          method,
+        },
+        context: { name: 'SubscriptionMultiplexer', data: {} },
+      },
+    );
   }
 
   /**
@@ -191,11 +296,22 @@ export class SubscriptionMultiplexer {
 
     const unsubscribers: (() => void)[] = [];
 
-    // Subscribe to each provider with defensive error handling
     for (const [providerId, provider] of providers) {
-      try {
-        const subscribeParams: SubscribePricesParams = {
-          symbols,
+      unsubscribers.push(
+        this.openVenue<[PriceUpdate[]]>({
+          method: 'subscribeToPrices',
+          providerId,
+          provider,
+          onError: params.onError,
+          open: (emit, fail) =>
+            provider.subscribeToPrices({
+              symbols,
+              callback: emit,
+              onError: fail,
+              throttleMs,
+              includeOrderBook,
+              includeMarketData,
+            }),
           callback: (updates) => {
             // Tag and cache each update
             updates.forEach((update) => {
@@ -212,37 +328,10 @@ export class SubscriptionMultiplexer {
             });
 
             // Aggregate and emit based on mode
-            const aggregated = this.#aggregatePrices(symbols, aggregationMode);
-            callback(aggregated);
+            callback(this.#aggregatePrices(symbols, aggregationMode));
           },
-          throttleMs,
-          includeOrderBook,
-          includeMarketData,
-        };
-
-        const unsub = provider.subscribeToPrices(subscribeParams);
-        unsubscribers.push(unsub);
-      } catch (error) {
-        // Log to Sentry before cleanup
-        this.#logger?.error(
-          ensureError(error, 'SubscriptionMultiplexer.subscribeToPrices'),
-          {
-            tags: {
-              feature: PERPS_CONSTANTS.FeatureName,
-              provider: providerId,
-              method: 'subscribeToPrices',
-            },
-            context: {
-              name: 'SubscriptionMultiplexer',
-              data: { subscribedCount: unsubscribers.length },
-            },
-          },
-        );
-
-        // Clean up any subscriptions created before the failure
-        unsubscribers.forEach((unsub) => unsub());
-        throw error;
-      }
+        }),
+      );
     }
 
     // Return combined unsubscribe function
@@ -266,42 +355,28 @@ export class SubscriptionMultiplexer {
     const unsubscribers: (() => void)[] = [];
 
     for (const [providerId, provider] of providers) {
-      try {
-        const subscribeParams: SubscribePositionsParams = {
+      unsubscribers.push(
+        this.openVenue<[Position[]]>({
+          method: 'subscribeToPositions',
+          providerId,
+          provider,
+          onError: params.onError,
+          open: (emit, fail) =>
+            provider.subscribeToPositions({
+              callback: (positions) => emit(positions),
+              onError: fail,
+            }),
           callback: (positions) => {
             // Tag positions with providerId and cache
-            const taggedPositions = positions.map((pos) => ({
-              ...pos,
+            this.#positionCache.set(
               providerId,
-            }));
-            this.#positionCache.set(providerId, taggedPositions);
-
+              positions.map((position) => ({ ...position, providerId })),
+            );
             // Emit aggregated positions from all providers
-            const allPositions = this.#aggregatePositions();
-            callback(allPositions);
+            callback(this.#aggregatePositions());
           },
-        };
-
-        const unsub = provider.subscribeToPositions(subscribeParams);
-        unsubscribers.push(unsub);
-      } catch (error) {
-        this.#logger?.error(
-          ensureError(error, 'SubscriptionMultiplexer.subscribeToPositions'),
-          {
-            tags: {
-              feature: PERPS_CONSTANTS.FeatureName,
-              provider: providerId,
-              method: 'subscribeToPositions',
-            },
-            context: {
-              name: 'SubscriptionMultiplexer',
-              data: { subscribedCount: unsubscribers.length },
-            },
-          },
-        );
-        unsubscribers.forEach((unsub) => unsub());
-        throw error;
-      }
+        }),
+      );
     }
 
     return () => {
@@ -324,41 +399,26 @@ export class SubscriptionMultiplexer {
     const unsubscribers: (() => void)[] = [];
 
     for (const [providerId, provider] of providers) {
-      try {
-        const subscribeParams: SubscribeOrderFillsParams = {
-          onError: (error) => params.onError?.(error, providerId),
-          callback: (fills, isSnapshot) => {
-            // Tag fills with providerId
-            const taggedFills = fills.map((fill) => ({
-              ...fill,
+      unsubscribers.push(
+        this.openVenue<[OrderFill[], boolean?]>({
+          method: 'subscribeToOrderFills',
+          providerId,
+          provider,
+          onError: params.onError,
+          open: (emit, fail) =>
+            provider.subscribeToOrderFills({
+              onError: fail,
+              callback: (fills, isSnapshot) => emit(fills, isSnapshot),
+            }),
+          // For fills, we don't aggregate - emit immediately with tags
+          callback: (fills, isSnapshot) =>
+            callback(
+              fills.map((fill) => ({ ...fill, providerId })),
+              isSnapshot,
               providerId,
-            }));
-
-            // For fills, we don't aggregate - emit immediately with tags
-            callback(taggedFills, isSnapshot, providerId);
-          },
-        };
-
-        const unsub = provider.subscribeToOrderFills(subscribeParams);
-        unsubscribers.push(unsub);
-      } catch (error) {
-        this.#logger?.error(
-          ensureError(error, 'SubscriptionMultiplexer.subscribeToOrderFills'),
-          {
-            tags: {
-              feature: PERPS_CONSTANTS.FeatureName,
-              provider: providerId,
-              method: 'subscribeToOrderFills',
-            },
-            context: {
-              name: 'SubscriptionMultiplexer',
-              data: { subscribedCount: unsubscribers.length },
-            },
-          },
-        );
-        unsubscribers.forEach((unsub) => unsub());
-        throw error;
-      }
+            ),
+        }),
+      );
     }
 
     return () => {
@@ -377,47 +437,32 @@ export class SubscriptionMultiplexer {
     const unsubscribers: (() => void)[] = [];
 
     for (const [providerId, provider] of providers) {
-      try {
-        const subscribeParams: SubscribeOrdersParams = {
+      unsubscribers.push(
+        this.openVenue<[Order[]]>({
+          method: 'subscribeToOrders',
+          providerId,
+          provider,
           onError: (error) => {
             // Another venue can emit while this one is unauthenticated.
             this.#orderCache.delete(providerId);
             params.onError?.(error, providerId);
           },
+          open: (emit, fail) =>
+            provider.subscribeToOrders({
+              onError: fail,
+              callback: (orders) => emit(orders),
+            }),
           callback: (orders) => {
             // Tag orders with providerId and cache
-            const taggedOrders = orders.map((order) => ({
-              ...order,
+            this.#orderCache.set(
               providerId,
-            }));
-            this.#orderCache.set(providerId, taggedOrders);
-
+              orders.map((order) => ({ ...order, providerId })),
+            );
             // Emit aggregated orders from all providers
-            const allOrders = this.#aggregateOrders();
-            callback(allOrders, providerId);
+            callback(this.#aggregateOrders(), providerId);
           },
-        };
-
-        const unsub = provider.subscribeToOrders(subscribeParams);
-        unsubscribers.push(unsub);
-      } catch (error) {
-        this.#logger?.error(
-          ensureError(error, 'SubscriptionMultiplexer.subscribeToOrders'),
-          {
-            tags: {
-              feature: PERPS_CONSTANTS.FeatureName,
-              provider: providerId,
-              method: 'subscribeToOrders',
-            },
-            context: {
-              name: 'SubscriptionMultiplexer',
-              data: { subscribedCount: unsubscribers.length },
-            },
-          },
-        );
-        unsubscribers.forEach((unsub) => unsub());
-        throw error;
-      }
+        }),
+      );
     }
 
     return () => {
@@ -446,14 +491,28 @@ export class SubscriptionMultiplexer {
     const accountCache: Map<PerpsProviderType, AccountState> = new Map();
 
     for (const [providerId, provider] of providers) {
-      try {
-        const subscribeParams: SubscribeAccountParams = {
-          ...(params.accountId !== undefined && {
-            accountId: params.accountId,
-          }),
-          ...(params.requireCompleteAccount === true && {
-            requireCompleteAccount: true,
-          }),
+      unsubscribers.push(
+        this.openVenue<[AccountState | null]>({
+          method: 'subscribeToAccount',
+          providerId,
+          provider,
+          onError: (error) => {
+            // The failed venue's balance is not known until it recovers.
+            accountCache.delete(providerId);
+            params.onError?.(error, providerId);
+            callback(Array.from(accountCache.values()));
+          },
+          open: (emit, fail) =>
+            provider.subscribeToAccount({
+              ...(params.accountId !== undefined && {
+                accountId: params.accountId,
+              }),
+              ...(params.requireCompleteAccount === true && {
+                requireCompleteAccount: true,
+              }),
+              onError: fail,
+              callback: (account) => emit(account),
+            }),
           callback: (account) => {
             if (account === null) {
               // The venue's balance is no longer known. Drop its previous
@@ -462,48 +521,14 @@ export class SubscriptionMultiplexer {
               accountCache.delete(providerId);
             } else {
               // Tag account with providerId and cache
-              const taggedAccount: AccountState = {
-                ...account,
-                providerId,
-              };
-              accountCache.set(providerId, taggedAccount);
+              accountCache.set(providerId, { ...account, providerId });
             }
 
             // Emit this subscription's cached account states
-            const allAccounts = Array.from(accountCache.values());
-            callback(allAccounts);
+            callback(Array.from(accountCache.values()));
           },
-        };
-
-        const unsub = provider.subscribeToAccount(subscribeParams);
-        unsubscribers.push(unsub);
-      } catch (error) {
-        this.#logger?.error(
-          ensureError(error, 'SubscriptionMultiplexer.subscribeToAccount'),
-          {
-            tags: {
-              feature: PERPS_CONSTANTS.FeatureName,
-              provider: providerId,
-              method: 'subscribeToAccount',
-            },
-            context: {
-              name: 'SubscriptionMultiplexer',
-              data: { subscribedCount: unsubscribers.length },
-            },
-          },
-        );
-        if (params.onError) {
-          accountCache.delete(providerId);
-          params.onError(
-            ensureError(error, 'SubscriptionMultiplexer.subscribeToAccount'),
-            providerId,
-          );
-          callback(Array.from(accountCache.values()));
-          continue;
-        }
-        unsubscribers.forEach((unsub) => unsub());
-        throw error;
-      }
+        }),
+      );
     }
 
     return () => {
