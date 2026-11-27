@@ -199,9 +199,6 @@ async function executeSingleQuote(
       log('Source hash received', hash);
       setRelaySourceHash(transaction, messenger, hash);
     },
-    // Execute submissions return no hash, so a true exact output must poll
-    // for it even on same-chain routes.
-    pollSameChain: isTrueExactOutput && submittedSourceHash === FALLBACK_HASH,
     tolerateFailure: isPolymarket,
   });
 
@@ -276,8 +273,7 @@ async function executeSingleQuote(
  * @param options.messenger - Controller messenger.
  * @param options.quote - The Relay quote that was submitted.
  * @param options.submittedSourceHash - Hash of the submitted source
- * transaction, used as the settlement hash when Relay skips polling on
- * same-chain flows.
+ * transaction.
  * @param options.transaction - Original transaction meta.
  * @returns Hash of the final submitted child transaction, if available.
  */
@@ -368,9 +364,10 @@ async function buildPostQuoteDepositCalls({
  * recipient.
  *
  * Cross-chain relays surface the target-chain hash from polling. Same-chain
- * relays skip polling, but the submitted source transaction itself moved the
- * funds, so its hash is used instead. Relay execute submissions return
- * `FALLBACK_HASH` rather than a real hash, leaving nothing to read.
+ * relays have no separate fill transaction, so the submitted source transaction
+ * itself moved the funds and its hash is used instead. Relay execute
+ * submissions return `FALLBACK_HASH` rather than a real hash, leaving nothing
+ * to read.
  *
  * @param options - Resolution options.
  * @param options.completion - Outcome of `waitForRelayCompletion`.
@@ -425,23 +422,14 @@ async function waitForRelayCompletion(
   messenger: TransactionPayControllerMessenger,
   options: {
     onSourceHash?: (hash: Hex) => void;
-    pollSameChain?: boolean;
     tolerateFailure?: boolean;
   },
 ): Promise<RelayCompletionOutcome> {
-  const { onSourceHash, pollSameChain, tolerateFailure } = options;
+  const { onSourceHash, tolerateFailure } = options;
 
   const isSameChain =
     quote.details.currencyIn.currency.chainId ===
     quote.details.currencyOut.currency.chainId;
-
-  const isSingleDepositStep =
-    quote.steps.length === 1 && quote.steps[0].id === 'deposit';
-
-  if (isSameChain && !isSingleDepositStep && !pollSameChain) {
-    log('Skipping polling as same chain');
-    return { status: 'success', targetHash: FALLBACK_HASH };
-  }
 
   const { requestId } = quote.steps[0];
 
@@ -474,13 +462,9 @@ async function waitForRelayCompletion(
       }
 
       if (status.status === 'success') {
-        // A same-chain request polled for its hash settles in the origin
-        // transaction, so Relay reports no separate fill transaction.
-        const settledInOrigin = pollSameChain && isSameChain;
-
         const targetHash =
           (status.txHashes?.slice(-1)[0] as Hex | undefined) ??
-          (settledInOrigin
+          (isSameChain
             ? (status.inTxHashes?.[0] as Hex | undefined)
             : undefined) ??
           FALLBACK_HASH;

@@ -841,23 +841,38 @@ describe('Relay Submit Utils', () => {
       );
     });
 
-    it('does not wait for relay status if same chain', async () => {
+    it('waits for relay status if same chain', async () => {
       request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+
+      await submitRelayQuotes(request);
+
+      expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+      expect(successfulFetchMock).toHaveBeenCalledWith(
+        `${RELAY_STATUS_URL}?requestId=${REQUEST_ID_MOCK}`,
+        {
+          method: 'GET',
+        },
+      );
+    });
+
+    it('returns fallback hash if same-chain polling returns no hash', async () => {
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          ...STATUS_RESPONSE_MOCK,
+          inTxHashes: [],
+          txHashes: [],
+        }),
+      });
 
       const result = await submitRelayQuotes(request);
 
       expect(result.transactionHash).toBe('0x0');
-      expect(successfulFetchMock).toHaveBeenCalledTimes(0);
     });
 
-    it('returns fallback hash if same-chain polling returns no target hash', async () => {
+    it('returns the origin hash if same-chain polling returns no fill hash', async () => {
       request.quotes[0].original.details.currencyOut.currency.chainId = 1;
-      request.quotes[0].original.steps = [
-        {
-          ...request.quotes[0].original.steps[0],
-          id: 'deposit',
-        },
-      ];
       successfulFetchMock.mockResolvedValue({
         ok: true,
         json: async () => ({
@@ -868,7 +883,7 @@ describe('Relay Submit Utils', () => {
 
       const result = await submitRelayQuotes(request);
 
-      expect(result.transactionHash).toBe('0x0');
+      expect(result.transactionHash).toBe(SOURCE_HASH_MOCK);
     });
 
     it('waits for relay status if same chain with single deposit step', async () => {
@@ -905,16 +920,16 @@ describe('Relay Submit Utils', () => {
         expect(result.transactionHash).toBe(TRANSACTION_HASH_MOCK);
       });
 
-      it('returns the submitted source hash for a same-chain quote without polling', async () => {
+      it('returns the fill hash for a same-chain quote', async () => {
         request.quotes[0].original.details.currencyOut.currency.chainId = 1;
 
         const result = await submitRelayQuotes(request);
 
         expect(result.transactionHash).toBe(TRANSACTION_HASH_MOCK);
-        expect(successfulFetchMock).not.toHaveBeenCalled();
+        expect(successfulFetchMock).toHaveBeenCalledTimes(1);
       });
 
-      it('polls a same-chain execute submission and returns the origin hash', async () => {
+      it('returns the origin hash for a same-chain execute submission', async () => {
         request.quotes[0].original.details.currencyOut.currency.chainId = 1;
         request.quotes[0].original.metamask.isExecute = true;
         submitViaRelayExecuteMock.mockResolvedValue(FALLBACK_HASH);
@@ -2209,7 +2224,7 @@ describe('Relay Submit Utils', () => {
         );
       });
 
-      it('passes the submitted source hash as settlementHash on same-chain flows', async () => {
+      it('passes the fill hash as settlementHash on same-chain flows', async () => {
         request.quotes[0].request.targetChainId = CHAIN_ID_MOCK;
         request.quotes[0].original.details.currencyIn.currency.chainId = 1;
         request.quotes[0].original.details.currencyOut.currency.chainId = 1;
@@ -2218,7 +2233,7 @@ describe('Relay Submit Utils', () => {
 
         expect(submitSecondLegMock).toHaveBeenCalledWith(
           expect.objectContaining({
-            settlementHash: TRANSACTION_HASH_MOCK,
+            settlementHash: TARGET_HASH_MOCK,
           }),
         );
       });
