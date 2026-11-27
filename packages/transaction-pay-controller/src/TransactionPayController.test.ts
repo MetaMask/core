@@ -24,7 +24,7 @@ import type {
   TransactionPaymentToken,
   UpdateTransactionDataCallback,
 } from './types.js';
-import { getStrategyOrder } from './utils/feature-flags.js';
+import { getStrategyOrder, isServerEnabled } from './utils/feature-flags.js';
 import { updateQuotes } from './utils/quotes.js';
 import { updateSourceAmounts } from './utils/source-amounts.js';
 import {
@@ -82,6 +82,7 @@ describe('TransactionPayController', () => {
   );
   const subscribeAssetChangesMock = vi.mocked(subscribeAssetChanges);
   const getStrategyOrderMock = vi.mocked(getStrategyOrder);
+  const isServerEnabledMock = vi.mocked(isServerEnabled);
   const QuoteRefresherMock = vi.mocked(QuoteRefresher);
   const resumePayTransactionsMock = vi.mocked(resumePayTransactions);
   let messenger: TransactionPayControllerMessenger;
@@ -1040,6 +1041,50 @@ describe('TransactionPayController', () => {
         'perpsDeposit',
         'card-123',
       );
+    });
+
+    it('returns only server when server is enabled for the transaction', async () => {
+      isServerEnabledMock.mockReturnValue(true);
+
+      createController();
+
+      expect(
+        messenger.call(
+          'TransactionPayController:getStrategy',
+          TRANSACTION_META_MOCK,
+        ),
+      ).toBe(TransactionPayStrategy.Server);
+
+      expect(isServerEnabledMock).toHaveBeenCalledWith(
+        messenger,
+        TRANSACTION_META_MOCK,
+      );
+      expect(getStrategyOrderMock).not.toHaveBeenCalled();
+    });
+
+    it('uses the strategy order when server is enabled but a fiat payment method is selected', async () => {
+      isServerEnabledMock.mockReturnValue(true);
+      getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Fiat]);
+
+      const controller = createController();
+
+      controller.updatePaymentToken({
+        transactionId: TRANSACTION_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
+      });
+
+      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.fiatPayment = { selectedPaymentMethodId: 'card-123' };
+      });
+
+      expect(
+        messenger.call('TransactionPayController:getStrategy', {
+          id: TRANSACTION_ID_MOCK,
+          type: 'perpsDeposit',
+        } as TransactionMeta),
+      ).toBe(TransactionPayStrategy.Fiat);
     });
   });
 

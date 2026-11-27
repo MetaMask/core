@@ -30,6 +30,7 @@ import {
   getFiatOrderPollTimeoutMs,
   DEFAULT_RELAY_EXECUTE_URL,
   getDirectMoneyMusdEnabled,
+  getServerConfig,
   getServerPollingInterval,
   getFiatVaultDisabled,
   getRelayOriginGasOverhead,
@@ -45,6 +46,7 @@ import {
   isRelayExecuteEnabled,
   isAtomicMaxEnabled,
   isRelayValidationEnabled,
+  isServerEnabled,
   isServerGaslessEnabled,
   isServerValidationEnabled,
   getFeatureFlags,
@@ -650,12 +652,8 @@ describe('Feature Flags Utils', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          confirmations_pay_extended: {
-            payStrategies: {
-              server: {
-                gaslessEnabled: true,
-              },
-            },
+          confirmations_pay_server: {
+            gaslessEnabled: true,
           },
         },
       });
@@ -667,12 +665,8 @@ describe('Feature Flags Utils', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          confirmations_pay_extended: {
-            payStrategies: {
-              server: {
-                gaslessEnabled: false,
-              },
-            },
+          confirmations_pay_server: {
+            gaslessEnabled: false,
           },
         },
       });
@@ -690,11 +684,7 @@ describe('Feature Flags Utils', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          confirmations_pay_extended: {
-            payStrategies: {
-              server: { validationEnabled: { default: true } },
-            },
-          },
+          confirmations_pay_server: { validationEnabled: { default: true } },
         },
       });
 
@@ -720,15 +710,11 @@ describe('Feature Flags Utils', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          confirmations_pay_extended: {
-            payStrategies: {
-              server: {
-                validationEnabled: {
-                  default: false,
-                  transactionTypes: {
-                    [TransactionType.perpsDeposit]: true,
-                  },
-                },
+          confirmations_pay_server: {
+            validationEnabled: {
+              default: false,
+              transactionTypes: {
+                [TransactionType.perpsDeposit]: true,
               },
             },
           },
@@ -1256,16 +1242,64 @@ describe('Feature Flags Utils', () => {
     });
   });
 
-  describe('getPayStrategiesConfig - server', () => {
-    it('returns defaults when server config is missing', () => {
-      const config = getPayStrategiesConfig(messenger);
-
-      expect(config.server).toStrictEqual({
+  describe('getServerConfig', () => {
+    it('returns defaults when the flag is missing', () => {
+      expect(getServerConfig(messenger)).toStrictEqual({
+        baseUrl: DEFAULT_SERVER_BASE_URL,
         enabled: false,
         enabledTransactionTypes: [],
-        baseUrl: DEFAULT_SERVER_BASE_URL,
+        gaslessEnabled: true,
         pollingInterval: 2000,
+        validationEnabled: undefined,
       });
+    });
+
+    it('returns values from the flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_server: {
+            baseUrl: 'https://server.test',
+            enabled: true,
+            enabledTransactionTypes: ['perpsDeposit'],
+            gaslessEnabled: false,
+            pollingInterval: 7500,
+            validationEnabled: { default: true },
+          },
+        },
+      });
+
+      expect(getServerConfig(messenger)).toStrictEqual({
+        baseUrl: 'https://server.test',
+        enabled: true,
+        enabledTransactionTypes: [TransactionType.perpsDeposit],
+        gaslessEnabled: false,
+        pollingInterval: 7500,
+        validationEnabled: { default: true },
+      });
+    });
+
+    it('ignores server config in confirmations_pay_extended', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              server: {
+                enabled: true,
+                enabledTransactionTypes: ['perpsDeposit'],
+              },
+            },
+          },
+        },
+      });
+
+      expect(getServerConfig(messenger)).toStrictEqual(
+        expect.objectContaining({
+          enabled: false,
+          enabledTransactionTypes: [],
+        }),
+      );
     });
 
     it.each([
@@ -1292,54 +1326,97 @@ describe('Feature Flags Utils', () => {
         getRemoteFeatureFlagControllerStateMock.mockReturnValue({
           ...getDefaultRemoteFeatureFlagControllerState(),
           remoteFeatureFlags: {
-            confirmations_pay_extended: {
-              payStrategies: {
-                server: { enabledTransactionTypes },
-              },
-            },
+            confirmations_pay_server: { enabledTransactionTypes },
           },
         });
 
         expect(
-          getPayStrategiesConfig(messenger).server.enabledTransactionTypes,
+          getServerConfig(messenger).enabledTransactionTypes,
         ).toStrictEqual(expected);
       },
     );
+  });
 
-    it('returns enabled: true when the flag enables server', () => {
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay_extended: {
-            payStrategies: {
-              server: {
-                enabled: true,
-              },
-            },
-          },
-        },
-      });
-
-      expect(getPayStrategiesConfig(messenger).server.enabled).toBe(true);
+  describe('isServerEnabled', () => {
+    it('returns false when no feature flags are set', () => {
+      expect(
+        isServerEnabled(messenger, {
+          type: TransactionType.perpsDeposit,
+        } as TransactionMeta),
+      ).toBe(false);
     });
 
-    it('returns custom baseUrl when set by the feature flag', () => {
+    it('returns false when the flag is disabled', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          confirmations_pay_extended: {
-            payStrategies: {
-              server: {
-                baseUrl: 'https://server.test',
-              },
-            },
+          confirmations_pay_server: {
+            enabled: false,
+            enabledTransactionTypes: ['perpsDeposit'],
           },
         },
       });
 
-      const { server } = getPayStrategiesConfig(messenger);
+      expect(
+        isServerEnabled(messenger, {
+          type: TransactionType.perpsDeposit,
+        } as TransactionMeta),
+      ).toBe(false);
+    });
 
-      expect(server.baseUrl).toBe('https://server.test');
+    it('returns true when the transaction type is enabled', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_server: {
+            enabled: true,
+            enabledTransactionTypes: ['perpsDeposit'],
+          },
+        },
+      });
+
+      expect(
+        isServerEnabled(messenger, {
+          type: TransactionType.perpsDeposit,
+        } as TransactionMeta),
+      ).toBe(true);
+    });
+
+    it('returns true when a nested transaction type is enabled', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_server: {
+            enabled: true,
+            enabledTransactionTypes: ['perpsDeposit'],
+          },
+        },
+      });
+
+      expect(
+        isServerEnabled(messenger, {
+          type: TransactionType.batch,
+          nestedTransactions: [{ type: TransactionType.perpsDeposit }],
+        } as TransactionMeta),
+      ).toBe(true);
+    });
+
+    it('returns false when the transaction type is not enabled', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_server: {
+            enabled: true,
+            enabledTransactionTypes: ['perpsDeposit'],
+          },
+        },
+      });
+
+      expect(
+        isServerEnabled(messenger, {
+          type: TransactionType.simpleSend,
+        } as TransactionMeta),
+      ).toBe(false);
     });
   });
 
@@ -1410,12 +1487,8 @@ describe('Feature Flags Utils', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          confirmations_pay_extended: {
-            payStrategies: {
-              server: {
-                pollingInterval: 7500,
-              },
-            },
+          confirmations_pay_server: {
+            pollingInterval: 7500,
           },
         },
       });
@@ -1847,26 +1920,7 @@ describe('Feature Flags Utils', () => {
       expect(getStrategyOrder(messenger)).toStrictEqual([]);
     });
 
-    it('filters Server out of the strategy order when payStrategies.server is disabled', () => {
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay: {
-            payStrategies: {
-              relay: { enabled: true },
-              server: { enabled: false },
-            },
-            strategyOrder: ['server', 'relay'],
-          },
-        },
-      });
-
-      expect(getStrategyOrder(messenger)).toStrictEqual([
-        TransactionPayStrategy.Relay,
-      ]);
-    });
-
-    it('includes Server in the strategy order when payStrategies.server is enabled', () => {
+    it('filters Server out of the strategy order even when the server flag is enabled', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
@@ -1876,18 +1930,16 @@ describe('Feature Flags Utils', () => {
             },
             strategyOrder: ['server', 'relay'],
           },
-          confirmations_pay_extended: {
-            payStrategies: {
-              server: { enabled: true },
-            },
+          confirmations_pay_server: {
+            enabled: true,
+            enabledTransactionTypes: ['perpsDeposit'],
           },
         },
       });
 
-      expect(getStrategyOrder(messenger)).toStrictEqual([
-        TransactionPayStrategy.Server,
-        TransactionPayStrategy.Relay,
-      ]);
+      expect(
+        getStrategyOrder(messenger, undefined, undefined, 'perpsDeposit'),
+      ).toStrictEqual([TransactionPayStrategy.Relay]);
     });
   });
 

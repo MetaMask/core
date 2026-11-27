@@ -961,9 +961,6 @@
   "packages/transaction-pay-controller/src/strategy/across/AcrossStrategy.test.ts": {
     "TS2352": {
       "count": 5
-    },
-    "TS2741": {
-      "count": 2
     }
   },
   "packages/transaction-pay-controller/src/strategy/across/across-quotes.test.ts": {
@@ -1017,9 +1014,6 @@
   "packages/transaction-pay-controller/src/strategy/relay/RelayStrategy.test.ts": {
     "TS2352": {
       "count": 4
-    },
-    "TS2741": {
-      "count": 2
     }
   },
   "packages/transaction-pay-controller/src/strategy/relay/hyperliquid-withdraw.test.ts": {

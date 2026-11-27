@@ -10,10 +10,10 @@ import { isTrueExactOutputSupported } from '../../utils/trade-type.js';
 /**
  * Parent transaction types enabled for the server strategy by default.
  *
- * Intentionally empty so that turning on `payStrategies.server.enabled` alone
+ * Intentionally empty so that turning on `confirmations_pay_server.enabled` alone
  * never diverts live traffic away from the relay strategy. Flows are opted in
- * one at a time via the `payStrategies.server.enabledTransactionTypes` remote
- * feature flag, which lets a single flow be validated in isolation before the
+ * one at a time via the `confirmations_pay_server.enabledTransactionTypes`
+ * remote feature flag, which lets a single flow be validated in isolation before the
  * next one is added.
  */
 export const DEFAULT_SERVER_ENABLED_TRANSACTION_TYPES: TransactionType[] = [];

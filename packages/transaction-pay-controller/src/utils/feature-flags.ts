@@ -54,7 +54,6 @@ export const DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD = 1;
 export const DEFAULT_ACROSS_API_BASE = 'https://app.across.to/api';
 export const DEFAULT_SERVER_BASE_URL = SERVER_URL_BASE;
 export const DEFAULT_STRATEGY_ORDER: StrategyOrder = [
-  TransactionPayStrategy.Server,
   TransactionPayStrategy.Relay,
   TransactionPayStrategy.Across,
 ];
@@ -143,9 +142,6 @@ type StrategyRoutingConfig = {
     across: {
       enabled: boolean;
     };
-    server: {
-      enabled: boolean;
-    };
     relay: {
       enabled: boolean;
     };
@@ -232,16 +228,26 @@ type FeatureFlagsExtendedRaw = {
       gaslessEnabled?: boolean;
       validationEnabled?: RelayValidationEnabledConfig;
     };
-    server?: {
-      enabled?: boolean;
-      enabledTransactionTypes?: string[];
-      baseUrl?: string;
-      gaslessEnabled?: boolean;
-      pollingInterval?: number;
-      validationEnabled?: ServerValidationEnabledConfig;
-    };
   };
   resume?: ResumeConfig;
+};
+
+type ServerFeatureFlagsRaw = {
+  baseUrl?: string;
+  enabled?: boolean;
+  enabledTransactionTypes?: string[];
+  gaslessEnabled?: boolean;
+  pollingInterval?: number;
+  validationEnabled?: ServerValidationEnabledConfig;
+};
+
+export type ServerConfig = {
+  baseUrl: string;
+  enabled: boolean;
+  enabledTransactionTypes: TransactionType[];
+  gaslessEnabled: boolean;
+  pollingInterval: number;
+  validationEnabled?: ServerValidationEnabledConfig;
 };
 
 type EIP7702FeatureFlag = {
@@ -251,12 +257,6 @@ type EIP7702FeatureFlag = {
 
 export type PayStrategiesConfig = {
   across: AcrossConfig;
-  server: {
-    enabled: boolean;
-    enabledTransactionTypes: TransactionType[];
-    baseUrl: string;
-    pollingInterval: number;
-  };
   relay: {
     enabled: boolean;
   };
@@ -371,7 +371,6 @@ function normalizeStrategyOverride(
 
 function normalizeStrategyRoutingConfig(
   featureFlags: FeatureFlagsRaw,
-  extendedFeatureFlags: FeatureFlagsExtendedRaw,
 ): StrategyRoutingConfig {
   const strategyOrder = normalizeStrategyList(featureFlags.strategyOrder);
 
@@ -379,9 +378,6 @@ function normalizeStrategyRoutingConfig(
     payStrategies: {
       across: {
         enabled: featureFlags.payStrategies?.across?.enabled ?? false,
-      },
-      server: {
-        enabled: extendedFeatureFlags.payStrategies?.server?.enabled ?? false,
       },
       relay: {
         enabled: featureFlags.payStrategies?.relay?.enabled ?? true,
@@ -410,15 +406,8 @@ function getStrategyRoutingConfig(
   const featureFlags = state.remoteFeatureFlags?.confirmations_pay as
     | FeatureFlagsRaw
     | undefined;
-  const extendedFeatureFlags =
-    (state.remoteFeatureFlags?.confirmations_pay_extended as
-      | FeatureFlagsExtendedRaw
-      | undefined) ?? {};
 
-  return normalizeStrategyRoutingConfig(
-    featureFlags ?? {},
-    extendedFeatureFlags,
-  );
+  return normalizeStrategyRoutingConfig(featureFlags ?? {});
 }
 
 function filterEnabledStrategies(
@@ -434,8 +423,10 @@ function filterEnabledStrategies(
       return routingConfig.payStrategies.relay.enabled;
     }
 
+    // Server routing is decided solely by `confirmations_pay_server`, so the
+    // legacy order and overrides never select it.
     if (strategy === TransactionPayStrategy.Server) {
-      return routingConfig.payStrategies.server.enabled;
+      return false;
     }
 
     return true;
@@ -671,15 +662,9 @@ export function getPayStrategiesConfig(
     (state.remoteFeatureFlags?.confirmations_pay as
       | FeatureFlagsRaw
       | undefined) ?? {};
-  const extendedFeatureFlags =
-    (state.remoteFeatureFlags?.confirmations_pay_extended as
-      | FeatureFlagsExtendedRaw
-      | undefined) ?? {};
   const payStrategies = featureFlags.payStrategies ?? {};
-  const extendedPayStrategies = extendedFeatureFlags.payStrategies ?? {};
 
   const acrossRaw = payStrategies.across ?? {};
-  const serverRaw = extendedPayStrategies.server ?? {};
   const relayRaw = payStrategies.relay ?? {};
 
   const across = {
@@ -692,24 +677,66 @@ export function getPayStrategiesConfig(
     },
   };
 
-  const server = {
-    enabled: serverRaw.enabled ?? false,
-    enabledTransactionTypes: normalizeTransactionTypes(
-      serverRaw.enabledTransactionTypes,
-    ),
-    baseUrl: serverRaw.baseUrl ?? DEFAULT_SERVER_BASE_URL,
-    pollingInterval: serverRaw.pollingInterval ?? SERVER_POLLING_INTERVAL,
-  };
-
   const relay = {
     enabled: relayRaw.enabled ?? true,
   };
 
   return {
     across,
-    server,
     relay,
   };
+}
+
+/**
+ * Get the server strategy configuration from the dedicated
+ * `confirmations_pay_server` remote feature flag.
+ *
+ * The flag is separate from `confirmations_pay` and
+ * `confirmations_pay_extended` so it can be versioned on its own, letting new
+ * transaction types be enabled only for client versions that support them.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Server strategy configuration.
+ */
+export function getServerConfig(
+  messenger: TransactionPayControllerMessenger,
+): ServerConfig {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_server as
+      | ServerFeatureFlagsRaw
+      | undefined) ?? {};
+
+  return {
+    baseUrl: featureFlags.baseUrl ?? DEFAULT_SERVER_BASE_URL,
+    enabled: featureFlags.enabled ?? false,
+    enabledTransactionTypes: normalizeTransactionTypes(
+      featureFlags.enabledTransactionTypes,
+    ),
+    gaslessEnabled: featureFlags.gaslessEnabled ?? true,
+    pollingInterval: featureFlags.pollingInterval ?? SERVER_POLLING_INTERVAL,
+    validationEnabled: featureFlags.validationEnabled,
+  };
+}
+
+/**
+ * Whether a transaction should be routed to the server strategy.
+ *
+ * Requires `confirmations_pay_server.enabled`, and the transaction or one of
+ * its nested transactions to have a type in
+ * `confirmations_pay_server.enabledTransactionTypes`.
+ *
+ * @param messenger - Controller messenger.
+ * @param transaction - Transaction to check.
+ * @returns True if the transaction should use the server strategy.
+ */
+export function isServerEnabled(
+  messenger: TransactionPayControllerMessenger,
+  transaction?: TransactionMeta,
+): boolean {
+  const { enabled, enabledTransactionTypes } = getServerConfig(messenger);
+
+  return enabled && hasTransactionType(transaction, enabledTransactionTypes);
 }
 
 /**
@@ -765,8 +792,8 @@ export function isRelayValidationEnabled(
 /**
  * Whether the server strategy may request gasless quotes.
  *
- * Acts as a kill switch, configured via the `payStrategies.server.gaslessEnabled`
- * flag. Enabled by default.
+ * Acts as a kill switch, configured via the
+ * `confirmations_pay_server.gaslessEnabled` flag. Enabled by default.
  *
  * @param messenger - Controller messenger.
  * @returns True if gasless server quotes are enabled.
@@ -774,13 +801,7 @@ export function isRelayValidationEnabled(
 export function isServerGaslessEnabled(
   messenger: TransactionPayControllerMessenger,
 ): boolean {
-  const state = messenger.call('RemoteFeatureFlagController:getState');
-  const featureFlags =
-    (state.remoteFeatureFlags?.confirmations_pay_extended as
-      | FeatureFlagsExtendedRaw
-      | undefined) ?? {};
-
-  return featureFlags.payStrategies?.server?.gaslessEnabled ?? true;
+  return getServerConfig(messenger).gaslessEnabled;
 }
 
 /**
@@ -789,8 +810,8 @@ export function isServerGaslessEnabled(
  * Acts as an emergency kill switch: when disabled (default), Server quotes are
  * surfaced without being simulated/validated.
  *
- * Configured via the `payStrategies.server.validationEnabled` flag, an object
- * `{ default?: boolean; transactionTypes?: { [type]?: boolean } }`:
+ * Configured via the `confirmations_pay_server.validationEnabled` flag, an
+ * object `{ default?: boolean; transactionTypes?: { [type]?: boolean } }`:
  * `default` is the base toggle applied to all transactions (omitted = `false`);
  * a matching `transactionTypes[type]` entry overrides `default` when the
  * transaction, or any of its nested transactions, has that type.
@@ -804,14 +825,8 @@ export function isServerValidationEnabled(
   messenger: TransactionPayControllerMessenger,
   transaction?: TransactionMeta,
 ): boolean {
-  const state = messenger.call('RemoteFeatureFlagController:getState');
-  const featureFlags =
-    (state.remoteFeatureFlags?.confirmations_pay_extended as
-      | FeatureFlagsExtendedRaw
-      | undefined) ?? {};
-
   return isEnabledForTransaction(
-    featureFlags.payStrategies?.server?.validationEnabled,
+    getServerConfig(messenger).validationEnabled,
     transaction,
   );
 }
@@ -945,7 +960,7 @@ export function getRelayPollingTimeout(
 export function getServerPollingInterval(
   messenger: TransactionPayControllerMessenger,
 ): number {
-  return getPayStrategiesConfig(messenger).server.pollingInterval;
+  return getServerConfig(messenger).pollingInterval;
 }
 
 /**
