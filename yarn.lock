@@ -9023,6 +9023,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/network-controller": "npm:^38.0.1"
+    "@metamask/perps-controller": "npm:^26.2.0"
     "@metamask/ramps-controller": "npm:^31.0.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/sentinel-api-service": "npm:^2.3.0"

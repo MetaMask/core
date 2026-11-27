@@ -27,6 +27,9 @@
       "path": "../network-controller/tsconfig.build.json"
     },
     {
+      "path": "../perps-controller/tsconfig.build.json"
+    },
+    {
       "path": "../ramps-controller/tsconfig.build.json"
     },
     {

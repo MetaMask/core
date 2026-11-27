@@ -133,6 +133,7 @@ const ORIGINAL_QUOTE_MOCK: ServerQuote = {
     raw: '1000000',
   },
   provider: 'relay',
+  sender: ORIGINAL_FROM_MOCK,
   steps: [
     {
       type: 'transaction' as const,
@@ -213,6 +214,7 @@ describe('submitServerQuotes', () => {
     getKeyringControllerStateMock,
     getPaymentOverrideDataMock,
     getTransactionControllerStateMock,
+    lighterSubmitTransferMock,
     messenger,
     updateTransactionMock,
   } = getMessengerMock();
@@ -1586,7 +1588,7 @@ describe('submitServerQuotes', () => {
         buildNonGaslessRequest({
           steps: [
             {
-              ...ORIGINAL_QUOTE_MOCK.steps[0],
+              ...(ORIGINAL_QUOTE_MOCK.steps[0] as ServerTransactionStep),
               gasLimit: '21000',
               maxFeePerGas: '1000000000',
               maxPriorityFeePerGas: '500000000',
@@ -1615,7 +1617,7 @@ describe('submitServerQuotes', () => {
         },
         steps: [
           {
-            ...ORIGINAL_QUOTE_MOCK.steps[0],
+            ...(ORIGINAL_QUOTE_MOCK.steps[0] as ServerTransactionStep),
             gasLimit: '30000',
           },
         ],
@@ -1828,6 +1830,126 @@ describe('submitServerQuotes', () => {
       await submitServerQuotes(req);
 
       expect(successfulFetchMock).toHaveBeenCalled();
+    });
+  });
+
+  describe('Lighter transfer steps', () => {
+    const getTransactionMock = vi.mocked(getTransaction);
+
+    const LIGHTER_STEP_MOCK = {
+      type: 'lighterTransfer' as const,
+      toAccountIndex: 723071,
+      assetIndex: 3,
+      fromRouteType: 0,
+      toRouteType: 0,
+      amount: 1000000,
+      usdcFee: 3000000,
+      memo: `0x${'ab'.repeat(32)}` as const,
+    };
+
+    const buildLighterRequest = (): PayStrategyExecuteRequest<ServerQuote> => {
+      const quote = cloneDeep(QUOTE_MOCK);
+      quote.original = {
+        ...quote.original,
+        sender: '770167',
+        steps: [LIGHTER_STEP_MOCK],
+        gasless: false,
+      };
+      return {
+        accountSupports7702: true,
+        isSmartTransaction: (): boolean => false,
+        messenger,
+        quotes: [quote],
+        transaction: cloneDeep(TRANSACTION_META_MOCK),
+      };
+    };
+
+    const mockTransferResult = (result: {
+      success: boolean;
+      error?: string;
+      txHash?: string;
+    }): void => {
+      lighterSubmitTransferMock.mockResolvedValue(result);
+    };
+
+    beforeEach(() => {
+      mockTransferResult({ success: true, txHash: '0x1234' });
+    });
+
+    it('sends the transfer to Lighter for the account that owns the Lighter account', async () => {
+      await submitServerQuotes(buildLighterRequest());
+
+      expect(lighterSubmitTransferMock).toHaveBeenCalledTimes(1);
+      expect(lighterSubmitTransferMock).toHaveBeenCalledWith({
+        accountIndex: 770167,
+        eoa: ORIGINAL_FROM_MOCK,
+        toAccountIndex: LIGHTER_STEP_MOCK.toAccountIndex,
+        assetIndex: LIGHTER_STEP_MOCK.assetIndex,
+        fromRouteType: LIGHTER_STEP_MOCK.fromRouteType,
+        toRouteType: LIGHTER_STEP_MOCK.toRouteType,
+        amount: LIGHTER_STEP_MOCK.amount,
+        usdcFee: LIGHTER_STEP_MOCK.usdcFee,
+        memo: LIGHTER_STEP_MOCK.memo,
+      });
+    });
+
+    it('polls the status without a source hash', async () => {
+      getTransactionMock.mockReturnValue({
+        ...TRANSACTION_META_MOCK,
+        metamaskPay: { sourceHash: 'a'.repeat(80) as Hex },
+      });
+
+      await submitServerQuotes(buildLighterRequest());
+
+      expect(getServerStatusMock).toHaveBeenCalledWith(messenger, {
+        elapsedMs: expect.any(Number),
+        hash: undefined,
+        id: ORIGINAL_QUOTE_MOCK.id,
+        logs: undefined,
+        provider: 'relay',
+      });
+    });
+
+    it('throws with the Lighter error and does not poll status when the transfer fails', async () => {
+      mockTransferResult({ success: false, error: 'nonce too low' });
+
+      await expect(submitServerQuotes(buildLighterRequest())).rejects.toThrow(
+        'nonce too low',
+      );
+      expect(getServerStatusMock).not.toHaveBeenCalled();
+    });
+
+    it('throws a generic error when a failed transfer has no message', async () => {
+      mockTransferResult({ success: false });
+
+      await expect(submitServerQuotes(buildLighterRequest())).rejects.toThrow(
+        'Lighter transfer failed',
+      );
+    });
+
+    it('sends each transfer step in order', async () => {
+      const lighterRequest = buildLighterRequest();
+      const secondMemo = `0x${'cd'.repeat(32)}` as const;
+      lighterRequest.quotes[0].original.steps = [
+        LIGHTER_STEP_MOCK,
+        { ...LIGHTER_STEP_MOCK, memo: secondMemo },
+      ];
+
+      await submitServerQuotes(lighterRequest);
+
+      expect(lighterSubmitTransferMock).toHaveBeenCalledTimes(2);
+      expect(lighterSubmitTransferMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ memo: secondMemo }),
+      );
+    });
+
+    it('does not submit on-chain transactions for a Lighter-only quote', async () => {
+      await submitServerQuotes(buildLighterRequest());
+
+      expect(addTxMock).not.toHaveBeenCalled();
+      expect(addTxBatchMock).not.toHaveBeenCalled();
+      expect(submitServerIntentMock).not.toHaveBeenCalled();
+      expect(getServerStatusMock).toHaveBeenCalled();
     });
   });
 

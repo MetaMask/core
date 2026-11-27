@@ -61,6 +61,7 @@ vi.mock(import('../../utils/token.js'), async (importOriginal) =>
   mockModuleExcept(await importOriginal(), [
     'buildCaipAssetType',
     'getEvmQuoteSource',
+    'isEvmQuoteRequest',
     'normalizeTokenAddress',
   ]),
 );

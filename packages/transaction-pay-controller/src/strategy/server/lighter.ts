@@ -1,15 +1,39 @@
 import { successfulFetch } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
+import { createModuleLogger } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 
 import { PaymentOverride } from '../../constants.js';
-import type { QuoteRequest } from '../../types.js';
+import { projectLogger } from '../../logger.js';
+import type {
+  QuoteRequest,
+  TransactionPayControllerMessenger,
+} from '../../types.js';
+import type {
+  ServerLighterTransferStep,
+  ServerQuote,
+  ServerStep,
+} from './types.js';
 
-/** Lighter API that lists the accounts owned by an L1 address. */
+const log = createModuleLogger(projectLogger, 'lighter');
+
+/**
+ * Lighter API that lists the accounts owned by an L1 address.
+ *
+ * TEMPORARY: called directly until a perps-controller method resolves the
+ * Lighter account index. Remove it with `getLighterAccountIndex`.
+ */
 const LIGHTER_ACCOUNTS_BY_L1_ADDRESS_URL =
   'https://mainnet.zklighter.elliot.ai/api/v1/accountsByL1Address';
 
 /** `account_type` of the main Lighter account. Other types are sub-accounts. */
 const LIGHTER_MAIN_ACCOUNT_TYPE = 0;
+
+/** Namespace prefix of the CAIP-19 asset types of Lighter balances. */
+const LIGHTER_ASSET_PREFIX = 'lighter:';
+
+/** Decimals of USDC on Lighter, in which transfer amounts and fees are set. */
+const LIGHTER_USDC_DECIMALS = 6;
 
 /**
  * Placeholder chain ID for the Lighter perps balance. Only used within the
@@ -72,8 +96,12 @@ export class LighterNormalizer {
  *
  * The intents API needs it as the recipient of a Lighter deposit.
  *
- * Temporary: replace with the perps utility for resolving the Lighter account
- * index once it is available.
+ * TEMPORARY: this calls the Lighter API directly. Replace it with a
+ * perps-controller method that returns the Lighter account index, and remove
+ * this function and `LIGHTER_ACCOUNTS_BY_L1_ADDRESS_URL`. Note that this picks
+ * the account with `account_type` 0, while the Perps provider picks the lowest
+ * index and checks it is a standard account owned by the wallet. The quote
+ * sender must match the account `submitTransfer` signs for.
  *
  * @param l1Address - EVM address that owns the Lighter account.
  * @returns The account index, as a string.
@@ -96,4 +124,132 @@ export async function getLighterAccountIndex(l1Address: Hex): Promise<string> {
   }
 
   return String(mainAccount.index);
+}
+
+/**
+ * Check if an asset is held on Lighter, such as the Lighter perps balance.
+ *
+ * @param assetId - CAIP-19 asset type.
+ * @returns Whether the asset is on Lighter.
+ */
+export function isLighterAsset(assetId: string | undefined): boolean {
+  return assetId?.startsWith(LIGHTER_ASSET_PREFIX) ?? false;
+}
+
+/**
+ * Check if the source of a quote request is a Lighter balance, as declared by
+ * the client on the required asset.
+ *
+ * @param request - Quote request from the transaction-pay controller.
+ * @returns Whether the request withdraws from Lighter.
+ */
+export function isLighterSourceRequest(
+  request: Pick<QuoteRequest, 'sourceAssetId'>,
+): boolean {
+  return isLighterAsset(request.sourceAssetId);
+}
+
+/** Changes a Lighter request makes to the server quote request. */
+type LighterRequestOverrides = {
+  /** Index of the Lighter account receiving a deposit. */
+  recipient?: string;
+
+  /** Index of the Lighter account a withdrawal debits. */
+  sender?: string;
+};
+
+/**
+ * Get the changes a Lighter deposit or withdrawal makes to the server quote
+ * request, since Lighter identifies accounts by index rather than address.
+ *
+ * @param request - Normalized quote request.
+ * @param executionAccount - EVM address that owns the Lighter account.
+ * @returns The overrides, or undefined if the request does not involve Lighter.
+ */
+export async function processLighterRequest(
+  request: QuoteRequest,
+  executionAccount: Hex,
+): Promise<LighterRequestOverrides | undefined> {
+  const isDeposit = LighterNormalizer.isLighterRequest(request);
+  const isWithdraw = isLighterSourceRequest(request);
+
+  if (!isDeposit && !isWithdraw) {
+    return undefined;
+  }
+
+  const accountIndex = await getLighterAccountIndex(executionAccount);
+
+  return {
+    ...(isDeposit ? { recipient: accountIndex } : {}),
+    ...(isWithdraw ? { sender: accountIndex } : {}),
+  };
+}
+
+/**
+ * Check if a server quote step is a Lighter transfer.
+ *
+ * @param step - Step of a server quote.
+ * @returns Whether the step is a Lighter transfer.
+ */
+export function isLighterTransferStep(
+  step: ServerStep,
+): step is ServerLighterTransferStep {
+  return step.type === 'lighterTransfer';
+}
+
+/**
+ * Get the fee Lighter charges for the transfer steps of a quote.
+ *
+ * Lighter debits the fee from the account on top of the amount sent. It is in
+ * USDC, which is priced 1:1 with USD.
+ *
+ * @param steps - Steps of a server quote.
+ * @returns The total fee, in USDC.
+ */
+export function getLighterTransferFee(steps: ServerStep[]): BigNumber {
+  return steps
+    .filter(isLighterTransferStep)
+    .reduce((total, step) => total.plus(step.usdcFee), new BigNumber(0))
+    .shiftedBy(-LIGHTER_USDC_DECIMALS);
+}
+
+/**
+ * Send the Lighter transfer steps of a quote, via the Perps controller.
+ *
+ * The transfers debit the Lighter account the quote was requested for, which
+ * is the quote's sender.
+ *
+ * @param request - Request object.
+ * @param request.eoa - Address that owns the Lighter account to debit.
+ * @param request.messenger - Controller messenger.
+ * @param request.quote - Server quote with the transfer steps.
+ * @throws If a transfer fails, so the withdrawal stops before it is polled.
+ */
+export async function submitLighterSteps({
+  eoa,
+  messenger,
+  quote,
+}: {
+  eoa: Hex;
+  messenger: TransactionPayControllerMessenger;
+  quote: ServerQuote;
+}): Promise<void> {
+  for (const { type: _type, ...transfer } of quote.steps.filter(
+    isLighterTransferStep,
+  )) {
+    const result = await messenger.call(
+      'PerpsController:submitLighterTransfer',
+      {
+        ...transfer,
+        accountIndex: Number(quote.sender),
+        eoa,
+      },
+    );
+
+    if (!result.success) {
+      throw new Error(result.error ?? 'Lighter transfer failed');
+    }
+
+    log('Lighter transfer submitted', { txHash: result.txHash });
+  }
 }

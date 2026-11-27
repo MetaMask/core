@@ -145,6 +145,22 @@ describe('ServerStrategy', () => {
       ).toBe(false);
     });
 
+    it('returns true when a request has a Lighter source asset', () => {
+      expect(
+        new ServerStrategy().supports({
+          ...SUPPORTS_REQUEST_MOCK,
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              sourceAccountId:
+                'lighter:mainnet:0x1234567890123456789012345678901234567890',
+              sourceAssetId: 'lighter:mainnet/perps:usdc',
+            },
+          ],
+        }),
+      ).toBe(true);
+    });
+
     it('returns false when a request has a non-EVM source asset', () => {
       expect(
         new ServerStrategy().supports({

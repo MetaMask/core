@@ -7380,10 +7380,10 @@
       "count": 1
     },
     "typescript/no-unsafe-call": {
-      "count": 23
+      "count": 24
     },
     "typescript/no-unsafe-member-access": {
-      "count": 31
+      "count": 32
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/server-submit.ts": {
@@ -7417,13 +7417,13 @@
   },
   "packages/transaction-pay-controller/src/utils/feature-flags.test.ts": {
     "typescript/no-unsafe-argument": {
-      "count": 160
+      "count": 166
     },
     "typescript/no-unsafe-call": {
-      "count": 116
+      "count": 119
     },
     "typescript/no-unsafe-member-access": {
-      "count": 116
+      "count": 119
     }
   },
   "packages/transaction-pay-controller/src/utils/gas-payment.test.ts": {

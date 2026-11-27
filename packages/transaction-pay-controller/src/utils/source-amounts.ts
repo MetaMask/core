@@ -10,6 +10,7 @@ import type {
 } from '../index.js';
 import { TransactionPayStrategy } from '../index.js';
 import { projectLogger } from '../logger.js';
+import { isLighterAsset } from '../strategy/server/lighter.js';
 import type {
   EvmPaymentToken,
   GetBalanceCallback,
@@ -114,7 +115,8 @@ export function updateSourceAmounts(
 /**
  * Calculate source amounts for post-quote flows.
  * In this flow, the required tokens ARE the source tokens,
- * and the payment token is the target (destination).
+ * and the payment token is the target (destination). A required token the
+ * client declared as a Lighter asset is a synthetic source, like HyperLiquid.
  *
  * @param tokens - Required tokens from the transaction.
  * @param paymentToken - Selected payment/destination token.
@@ -138,8 +140,13 @@ function calculatePostQuoteSourceAmounts(
   // max with no encoded amount still uses the live balance. Every other
   // post-quote transfer is funded by the prepended call, which cannot pay a
   // Relay deposit while its amount is still 0.
-  const isFundedByPrependedTransfer =
-    !isHyperliquidSource && !isPolymarketDepositWallet && !hasPaymentOverride;
+  const isSynthetic = (token: TransactionPayRequiredToken): boolean =>
+    Boolean(isHyperliquidSource) || isLighterAsset(token.assetId);
+
+  const isFundedByPrependedTransfer = (
+    token: TransactionPayRequiredToken,
+  ): boolean =>
+    !isSynthetic(token) && !isPolymarketDepositWallet && !hasPaymentOverride;
 
   return tokens
     .filter((token) => {
@@ -149,18 +156,18 @@ function calculatePostQuoteSourceAmounts(
 
       if (
         token.amountRaw === '0' &&
-        (!isMaxAmount || isFundedByPrependedTransfer)
+        (!isMaxAmount || isFundedByPrependedTransfer(token))
       ) {
         log('Skipping token as zero amount', { tokenAddress: token.address });
         return false;
       }
 
       // Skip same token on same chain, unless the source is a synthetic
-      // upstream (HyperLiquid HyperCore or Polymarket deposit wallet) that
-      // the strategy renormalizes to a different effective source.
+      // upstream (HyperLiquid HyperCore, Lighter or Polymarket deposit wallet)
+      // that the strategy renormalizes to a different effective source.
       if (
         isSameToken(token, paymentToken) &&
-        !isHyperliquidSource &&
+        !isSynthetic(token) &&
         !isPolymarketDepositWallet
       ) {
         log('Skipping token as same as destination token');
@@ -181,7 +188,7 @@ function calculatePostQuoteSourceAmounts(
       // the original transaction.
       const isCapped =
         isMaxAmount &&
-        !isHyperliquidSource &&
+        !isSynthetic(token) &&
         !isPolymarketDepositWallet &&
         !hasPaymentOverride &&
         token.amountRaw !== '0' &&
@@ -198,6 +205,7 @@ function calculatePostQuoteSourceAmounts(
       return {
         sourceAmountHuman,
         sourceAmountRaw,
+        ...(token.assetId ? { sourceAssetId: token.assetId } : {}),
         sourceBalanceRaw,
         sourceChainId: token.chainId,
         sourceTokenAddress: token.address,

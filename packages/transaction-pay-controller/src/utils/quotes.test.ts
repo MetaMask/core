@@ -2834,6 +2834,32 @@ describe('Quotes Utils', () => {
       );
     });
 
+    it('uses the declared source asset as the source of the post-quote request', async () => {
+      await run({
+        transactionData: {
+          ...POST_QUOTE_TRANSACTION_DATA,
+          sourceAmounts: [
+            {
+              ...POST_QUOTE_TRANSACTION_DATA.sourceAmounts?.[0],
+              sourceAssetId: 'lighter:mainnet/perps:usdc',
+            } as TransactionPaySourceAmount,
+          ],
+        },
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: [
+            expect.objectContaining({
+              isPostQuote: true,
+              sourceAccountId: `lighter:mainnet:${TRANSACTION_META_MOCK.txParams.from}`,
+              sourceAssetId: 'lighter:mainnet/perps:usdc',
+            }),
+          ],
+        }),
+      );
+    });
+
     it('does not fetch quotes when sourceAmounts is empty (same-token filtered in source-amounts)', async () => {
       const sameTokenData: TransactionData = {
         ...POST_QUOTE_TRANSACTION_DATA,

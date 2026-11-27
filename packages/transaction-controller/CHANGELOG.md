@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `assetId` (CAIP-19 asset type) to `RequiredAsset` to identify an asset that `address` alone does not, such as a balance held off-chain ([#11730](https://github.com/MetaMask/core/pull/11730))
+
 ### Changed
 
 - Bump `@metamask/utils` from `^12.0.2` to `^12.1.0` ([#11796](https://github.com/MetaMask/core/pull/11796))

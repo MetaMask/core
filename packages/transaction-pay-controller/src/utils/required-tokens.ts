@@ -2,7 +2,7 @@ import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
 import { projectLogger } from '../logger.js';
@@ -40,7 +40,13 @@ export function parseRequiredTokens(
   if (requiredAssets?.length) {
     const assetTokens = requiredAssets
       .map((asset) =>
-        buildRequiredToken(transaction, asset.address, asset.amount, messenger),
+        buildRequiredToken(
+          transaction,
+          asset.address,
+          asset.amount,
+          messenger,
+          asset.assetId,
+        ),
       )
       .filter(Boolean) as TransactionPayRequiredToken[];
 
@@ -100,6 +106,7 @@ function getTokenTransferToken(
  * @param tokenAddress - Token address.
  * @param amountRawHex - Raw token amount in hexadecimal format.
  * @param messenger - Controller messenger.
+ * @param assetId - CAIP-19 asset type declared by the client, if any.
  * @returns The full token properties or undefined if the token data could not be retrieved.
  */
 function buildRequiredToken(
@@ -107,6 +114,7 @@ function buildRequiredToken(
   tokenAddress: Hex,
   amountRawHex: Hex,
   messenger: TransactionPayControllerMessenger,
+  assetId?: CaipAssetType,
 ): TransactionPayRequiredToken | undefined {
   const { chainId, txParams } = transaction;
   const from = txParams.from as Hex;
@@ -152,6 +160,7 @@ function buildRequiredToken(
     amountHuman,
     amountRaw,
     amountUsd,
+    ...(assetId ? { assetId } : {}),
     balanceFiat,
     balanceHuman,
     balanceRaw,

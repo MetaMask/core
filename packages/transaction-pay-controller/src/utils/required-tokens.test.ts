@@ -76,6 +76,31 @@ describe('Required Tokens Utils', () => {
         ]);
       });
 
+      it('keeps the asset ID the client declared for a required asset', () => {
+        getTokenInfoMock.mockReturnValue({ decimals: 6, symbol: 'USDC' });
+        getTokenBalanceMock.mockReturnValue('5000000');
+        getTokenFiatRateMock.mockReturnValue({
+          usdRate: '1',
+          fiatRate: '1',
+        });
+
+        const transactionMeta: TransactionMeta = {
+          ...TRANSACTION_META_MOCK,
+          requiredAssets: [
+            {
+              address: '0xabc123',
+              amount: '0x2DC6C0',
+              assetId: 'lighter:mainnet/perps:usdc',
+              standard: 'erc20',
+            },
+          ],
+        };
+
+        const [token] = parseRequiredTokens(transactionMeta, MESSENGER_MOCK);
+
+        expect(token.assetId).toBe('lighter:mainnet/perps:usdc');
+      });
+
       it('returns multiple tokens from requiredAssets', () => {
         const tokenAddress1 = '0xabc123' as Hex;
         const tokenAddress2 = '0xdef456' as Hex;

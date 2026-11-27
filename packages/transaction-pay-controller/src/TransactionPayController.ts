@@ -35,6 +35,7 @@ import { getStrategyOrder } from './utils/feature-flags.js';
 import { updateQuotes } from './utils/quotes.js';
 import { updateSourceAmounts } from './utils/source-amounts.js';
 import { getEvmPaymentToken } from './utils/token.js';
+import { getPayTransactionType } from './utils/transaction-type.js';
 import {
   subscribeAssetChanges,
   subscribeTransactionChanges,
@@ -489,7 +490,8 @@ export class TransactionPayController extends BaseController<
       this.messenger,
       evmPaymentToken?.chainId,
       evmPaymentToken?.address,
-      transaction.type,
+      // A Lighter withdraw is created as a batch, so its type is nested.
+      getPayTransactionType(transaction) ?? transaction.type,
       transactionData?.fiatPayment?.selectedPaymentMethodId,
     );
   }

@@ -4,7 +4,7 @@ import type { AccessList } from '@ethereumjs/tx';
 import type { AccountsController } from '@metamask/accounts-controller';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type { NetworkClientId } from '@metamask/network-controller';
-import type { Hex, Json } from '@metamask/utils';
+import type { CaipAssetType, Hex, Json } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
 import type { TransactionControllerMessenger } from './TransactionController.js';
@@ -2418,6 +2418,12 @@ export type RequiredAsset = {
 
   /** Amount of the asset required. */
   amount: Hex;
+
+  /**
+   * CAIP-19 asset type of the asset, when it is not identified by `address`
+   * alone, for example a balance held off-chain such as `lighter:mainnet/perps:usdc`.
+   */
+  assetId?: CaipAssetType;
 
   /** Token standard of the asset (e.g., 'erc20'). */
   standard: string;

@@ -23,6 +23,7 @@ import type {
 } from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkConfigurationByChainIdAction } from '@metamask/network-controller';
+import type { PerpsControllerSubmitLighterTransferAction } from '@metamask/perps-controller';
 import type { Quote as RampsQuote } from '@metamask/ramps-controller';
 import type {
   RampsControllerGetOrderAction,
@@ -80,6 +81,7 @@ export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetNetworkConfigurationByChainIdAction
   | NetworkControllerGetStateAction
+  | PerpsControllerSubmitLighterTransferAction
   | RampsControllerGetOrderAction
   | RampsControllerGetQuoteWithFeesAction
   | RampsControllerGetStateAction
@@ -490,6 +492,14 @@ export type TransactionPayRequiredToken = {
   /** Balance of the required token in USD. */
   balanceUsd: string;
 
+  /**
+   * CAIP-19 asset type the client declared for the required token, when
+   * `address` alone does not identify it, for example a Lighter perps balance
+   * (`lighter:mainnet/perps:usdc`). `address` and `chainId` then stand in for
+   * it in balance, price and amount lookups.
+   */
+  assetId?: CaipAssetType;
+
   /** Chain ID of the required token. */
   chainId: Hex;
 
@@ -510,6 +520,12 @@ export type TransactionPaySourceAmount = {
 
   /** Amount of payment token required in atomic format without factoring token decimals. */
   sourceAmountRaw: string;
+
+  /**
+   * CAIP-19 asset type the client declared for the source token, when it is
+   * not the EVM token below (for post-quote flows).
+   */
+  sourceAssetId?: CaipAssetType;
 
   /** Balance of the source token in atomic format (for post-quote flows). */
   sourceBalanceRaw?: string;
@@ -681,7 +697,8 @@ export type QuoteRequest = {
 
   /**
    * CAIP-19 asset type of the source token. The protocol of its chain selects
-   * the strategy execution path.
+   * the strategy execution path. A source the client declared by asset ID, such
+   * as a Lighter perps balance, is not an EVM asset.
    */
   sourceAssetId: CaipAssetType;
 

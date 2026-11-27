@@ -51,6 +51,7 @@ import {
 } from '../../utils/transaction.js';
 import { RELAY_DEPOSIT_TYPES } from '../relay/constants.js';
 import { getServerDepositData } from './deposit-step.js';
+import { isLighterTransferStep, submitLighterSteps } from './lighter.js';
 import {
   getServerStatus,
   ServerApiError,
@@ -286,6 +287,13 @@ async function executeSingleServerQuote(
     await submitSignatureStep(step, quote.request.from, messenger);
   }
 
+  // A Lighter withdrawal is a transfer signed with the Lighter API key.
+  await submitLighterSteps({
+    eoa: transaction.txParams.from as Hex,
+    messenger,
+    quote: quote.original,
+  });
+
   // Phase 2: on-chain transaction steps (if any). A deposit wallet withdraw
   // replaces them with an unwrap straight to the provider deposit address.
   let preSubmitUsdceBalance: bigint | undefined;
@@ -502,10 +510,13 @@ async function submitTransactionSteps(
   const transactionSteps = quote.original.steps.filter(isTransactionStep);
 
   if (transactionSteps.length === 0) {
-    // Signature-only quotes (all steps are signature steps, no transaction
-    // steps) have nothing to submit on-chain even when gasless is false.
-    const hasSignatureSteps = quote.original.steps.some(isSignatureStep);
-    if (!quote.original.gasless && !hasSignatureSteps) {
+    // Signature-only quotes (all steps are signature or Lighter transfer
+    // steps, no transaction steps) have nothing to submit on-chain even when
+    // gasless is false.
+    const hasOffChainSteps = quote.original.steps.some(
+      (step) => isSignatureStep(step) || isLighterTransferStep(step),
+    );
+    if (!quote.original.gasless && !hasOffChainSteps) {
       throw new Error('Server quote has no steps to submit');
     }
     return undefined;
@@ -1383,7 +1394,12 @@ async function waitForServerCompletion(
 
     try {
       const tx = getTransaction(transactionId, messenger);
-      const hash = tx?.metamaskPay?.sourceHash ?? tx?.hash;
+      // A Lighter withdrawal has no on-chain source transaction. The hash the
+      // status endpoint reports for it is the Lighter transfer hash, which the
+      // endpoint rejects as a `hash` input, so the quote ID alone tracks it.
+      const hash = quote.steps.some(isLighterTransferStep)
+        ? undefined
+        : (tx?.metamaskPay?.sourceHash ?? tx?.hash);
 
       sourceLogs ??= await getSourceLogs(hash, messenger);
 

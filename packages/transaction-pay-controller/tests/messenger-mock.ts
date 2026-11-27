@@ -15,6 +15,7 @@ import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkConfigurationByChainIdAction } from '@metamask/network-controller';
+import type { PerpsControllerSubmitLighterTransferAction } from '@metamask/perps-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { SentinelApiServiceSimulateTransactionsAction } from '@metamask/sentinel-api-service';
 import type {
@@ -137,6 +138,10 @@ export function getMessengerMock({
   const getPaymentOverrideDataMock: MockedFunction<
     TransactionPayControllerGetPaymentOverrideDataAction['handler']
   > = vi.fn().mockResolvedValue({ calls: [] });
+
+  const lighterSubmitTransferMock: MockedFunction<
+    PerpsControllerSubmitLighterTransferAction['handler']
+  > = vi.fn().mockResolvedValue({ success: true, txHash: '0xabc123' });
 
   const polymarketGetDepositWalletAddressMock: MockedFunction<
     TransactionPayControllerPolymarketGetDepositWalletAddressAction['handler']
@@ -271,6 +276,11 @@ export function getMessengerMock({
     );
 
     messenger.registerActionHandler(
+      'PerpsController:submitLighterTransfer',
+      lighterSubmitTransferMock,
+    );
+
+    messenger.registerActionHandler(
       'TransactionPayController:polymarketGetDepositWalletAddress',
       polymarketGetDepositWalletAddressMock,
     );
@@ -336,6 +346,7 @@ export function getMessengerMock({
     getRemoteFeatureFlagControllerStateMock,
     getStrategyMock,
     getTransactionControllerStateMock,
+    lighterSubmitTransferMock,
     messenger: messenger as TransactionPayControllerMessenger,
     polymarketGetDepositWalletAddressMock,
     polymarketSubmitDepositWalletBatchMock,

@@ -955,6 +955,24 @@ describe('TransactionPayController', () => {
       );
     });
 
+    it('routes a batch with a nested Lighter withdraw as a Lighter withdraw', () => {
+      createController();
+
+      messenger.call('TransactionPayController:getStrategy', {
+        id: TRANSACTION_ID_MOCK,
+        type: 'batch',
+        nestedTransactions: [{ type: 'perpsLighterWithdraw' }],
+      } as TransactionMeta);
+
+      expect(getStrategyOrderMock).toHaveBeenCalledWith(
+        messenger,
+        undefined,
+        undefined,
+        'perpsLighterWithdraw',
+        undefined,
+      );
+    });
+
     it('passes no payment token route args into feature flag fallback for a non-EVM payment token', async () => {
       const controller = createController();
 
