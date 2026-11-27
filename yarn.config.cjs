@@ -22,7 +22,13 @@ const { inspect } = require('util');
  * Only intended as temporary measures to faciliate upgrades and releases.
  * This should trend towards empty.
  */
-const ALLOWED_INCONSISTENT_DEPENDENCIES = {};
+const ALLOWED_INCONSISTENT_DEPENDENCIES = {
+  // `keyring-controller` depends on a preview build of
+  // `@metamask/keyring-sdk` (via an npm alias) for the atomic keyring
+  // support, while other workspaces use the published version. Temporary:
+  // removed once the published version includes `AtomicKeyring`.
+  '@metamask/keyring-sdk': ['npm:@metamask-previews/keyring-sdk@3.1.0-1b5404e'],
+};
 
 /**
  * Whether `yarn constraints --fix` may resolve a dependency range disagreement

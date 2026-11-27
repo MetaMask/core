@@ -13,7 +13,10 @@ import type {
  * restores on failure. Everything outside the scope is untouched, even on
  * failure: instances, references, and all.
  */
-export type TransactionScope = WalletTransactionScope | KeyringTransactionScope;
+export type TransactionScope =
+  | WalletTransactionScope
+  | KeyringTransactionScope
+  | AtomicTransactionScope;
 
 /**
  * The wallet transaction scope: the transaction owns the whole wallet —
@@ -48,6 +51,27 @@ export type VaultPersistPolicy = (
  */
 export type KeyringTransactionScope = {
   type: 'keyring';
+  /**
+   * The operated keyring entry.
+   */
+  entry: KeyringEntry;
+  /**
+   * Whether the transaction created the operated keyring entry.
+   */
+  created: boolean;
+};
+
+/**
+ * The atomic keyring transaction scope: the transaction owns the
+ * registration of a single atomic keyring entry, selected or created
+ * before the transaction began — and nothing else. Atomic keyrings
+ * serialize their own operations and persist their own state through
+ * their `update` commits, so the transaction takes no snapshot, restores
+ * nothing on failure, and persists only the registration of a keyring it
+ * created.
+ */
+export type AtomicTransactionScope = {
+  type: 'atomic';
   /**
    * The operated keyring entry.
    */
@@ -240,7 +264,9 @@ export class VaultTransaction {
    * Take the pre-mutation snapshot that defines the restore point: every
    * keyring of the wallet for the wallet scope, the operated keyring for
    * the keyring scope (skipped when the transaction created it), plus the
-   * wholesale-captured session state.
+   * wholesale-captured session state — and nothing for the atomic scope,
+   * whose keyring serializes its own operations and persists its own
+   * state through its `update` commits.
    *
    * Must be called once, before the transaction's first mutation; a
    * failure leaves the session untouched.
@@ -260,6 +286,13 @@ export class VaultTransaction {
       return;
     }
 
+    if (type === 'atomic') {
+      // An atomic keyring serializes its own operations and persists its
+      // own state through its `update` commits: the transaction has
+      // nothing to snapshot.
+      return;
+    }
+
     if (!this.#scope.created) {
       this.#keyringSnapshot = await this.#snapshotKeyring(
         this.#scope.entry,
@@ -275,7 +308,9 @@ export class VaultTransaction {
    * another keyring sharing its id must not affect the decision. For the
    * wallet scope, the whole session state — the serialized keyrings, the
    * unsupported keyrings, and the encryption key — is compared against the
-   * state captured at `begin()`.
+   * state captured at `begin()`. For the atomic scope, the registration
+   * of a keyring the transaction created is the transaction's only
+   * change.
    *
    * @returns Whether the scope has changed.
    */
@@ -284,6 +319,12 @@ export class VaultTransaction {
 
     if (scope.type === 'wallet') {
       return this.#hasWalletChanged();
+    }
+
+    if (scope.type === 'atomic') {
+      // The registration of a keyring the transaction created is the
+      // transaction's only change; a selected keyring was not touched.
+      return scope.created;
     }
 
     const { entry, created } = scope;
@@ -306,8 +347,9 @@ export class VaultTransaction {
 
   /**
    * Persist what the scope owns, iff it changed: the keyring scope
-   * persists the vault when the operated keyring changed, and the wallet
-   * scope when its persist policy says so.
+   * persists the vault when the operated keyring changed, the wallet
+   * scope when its persist policy says so, and the atomic scope the
+   * registration of a keyring the transaction created.
    *
    * Must be called while the controller mutex is held, after `begin()` and
    * a successful operation.
@@ -322,6 +364,17 @@ export class VaultTransaction {
       return;
     }
 
+    if (scope.type === 'atomic') {
+      // The registration of a keyring the transaction created is the
+      // transaction's only change: the vault must record it. A selected
+      // keyring was not touched — its next `update` commit writes the
+      // vault.
+      if (scope.created) {
+        await this.#operations.updateVault();
+      }
+      return;
+    }
+
     if (await scope.persist(() => this.hasChanged())) {
       await this.#operations.updateVault();
     }
@@ -331,7 +384,9 @@ export class VaultTransaction {
    * Restore what the scope owns from the snapshot taken at `begin()`:
    * every keyring of the wallet, plus the unsupported keyrings and the
    * encryption key, for the wallet scope; the single operated keyring for
-   * the keyring scope. Everything outside the scope is untouched.
+   * the keyring scope; nothing for the atomic scope, whose keyring
+   * serializes its own operations and persists its own state. Everything
+   * outside the scope is untouched.
    *
    * Must be called while the controller mutex is held, and only after
    * `begin()`.
@@ -341,6 +396,14 @@ export class VaultTransaction {
 
     if (scope.type === 'wallet') {
       await this.#rollbackWallet();
+      return;
+    }
+
+    if (scope.type === 'atomic') {
+      // An atomic keyring serializes its own operations and persists its
+      // own state through its `update` commits: there is nothing to
+      // restore. Only a commit failure reaches this point — nothing runs
+      // inside the transaction — and the error propagates.
       return;
     }
 
