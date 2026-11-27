@@ -1863,6 +1863,28 @@ describe('SentinelApiService', () => {
       service.destroy();
     });
 
+    it('getVaultWhitelistSignature throws HttpError without data', async () => {
+      const { service } = createService();
+      mockNetworks();
+      nock(buildUrl('bsc-mainnet'))
+        .post('/api/vault-whitelist-sign')
+        .reply(500, 'Internal Server Error');
+
+      const error = await service
+        .getVaultWhitelistSignature({
+          chainId: CHAIN_ID_NO_CONFIRMATIONS,
+          sender: '0x1111111111111111111111111111111111111111',
+          recipient: '0x1111111111111111111111111111111111111111',
+          amount: '1000000',
+        })
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(HttpError);
+      expect(error).toMatchObject({ httpStatus: 500 });
+      expect(error).not.toHaveProperty('data');
+      service.destroy();
+    });
+
     it('cancel throws HttpError without data', async () => {
       const { service } = createService();
       mockNetworks();
