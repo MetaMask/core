@@ -247,9 +247,8 @@ export enum PrimarySrpRepairFailureStage {
  * are never sent.
  */
 export enum PrimarySrpRepairFailureReason {
-  FetchFailed = 'fetch_failed',
+  BackupUnreadable = 'backup_unreadable',
   ExportFailed = 'export_failed',
-  InvalidBackup = 'invalid_backup',
   IdentityMismatch = 'identity_mismatch',
   Locked = 'locked',
   WriteRejected = 'write_rejected',

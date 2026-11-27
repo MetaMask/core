@@ -9,6 +9,7 @@ import { areUint8ArraysEqual } from '@metamask/utils';
 
 import {
   controllerName,
+  PrimarySrpRepairFailureReason,
   PrimarySrpRepairType,
   SecretType,
 } from '../constants.js';
@@ -31,6 +32,16 @@ const log = createModuleLogger(projectLogger, controllerName);
  * The identity fields a repair is planned for.
  */
 type Identity = { userId?: string; authConnectionId?: string };
+
+/**
+ * The outcome of planning a repair. `plan` is set when a repair is needed,
+ * `failureReason` when the backup could not be read, and neither when the
+ * backup is in sync.
+ */
+type PrimarySrpRepairPlanResult = {
+  plan?: PrimarySrpRepairPlan;
+  failureReason?: PrimarySrpRepairFailureReason;
+};
 
 /**
  * The vault keys used to write to the metadata service.
@@ -167,7 +178,7 @@ export class PrimarySrpBackupRepairService {
     password: string,
     expectedIdentity: Identity,
   ): Promise<void> {
-    const plan = await this.#planRepair(password);
+    const { plan } = await this.#planRepair(password);
 
     await trackIncompleteMetadataBackupEvents({
       plan,
@@ -189,52 +200,68 @@ export class PrimarySrpBackupRepairService {
    * the backup is `missing`, otherwise the candidate is compared with the local
    * primary SRP and a difference is a `mismatch`.
    *
-   * This only reads data. Fetch, parsing, and keyring failures are logged and
-   * result in no plan.
+   * This only reads data. Each read step that fails is logged and returns the
+   * matching `failureReason`, with no plan.
    *
    * @param password - The password used to export the local primary SRP.
-   * @returns The repair plan, or `undefined` if the backup is in sync or could
-   * not be read.
+   * @returns The plan when a repair is needed, the `failureReason` when the
+   * backup could not be read, and neither when the backup is in sync.
    */
-  async #planRepair(
-    password: string,
-  ): Promise<PrimarySrpRepairPlan | undefined> {
-    let secretMetadata: SecretMetadata[] = [];
-    let localPrimarySRP: Uint8Array | undefined;
+  async #planRepair(password: string): Promise<PrimarySrpRepairPlanResult> {
+    let secretMetadata: SecretMetadata[];
     try {
-      secretMetadata = parseSecretMetadata(await this.#fetchAllSecretData());
-      // Read once up front, so both the mismatch and missing results reuse it.
-      localPrimarySRP = await this.#exportPrimarySeedPhrase(password);
+      const remoteItems = await this.#fetchAllSecretData();
+      secretMetadata = parseSecretMetadata(remoteItems);
+    } catch (error) {
+      log('Error planning primary SRP repair', error);
+      return { failureReason: PrimarySrpRepairFailureReason.BackupUnreadable };
+    }
 
+    // Read once up front, so both the mismatch and missing results reuse it.
+    let localPrimarySRP: Uint8Array;
+    try {
+      localPrimarySRP = await this.#exportPrimarySeedPhrase(password);
+    } catch (error) {
+      log('Error planning primary SRP repair', error);
+      return { failureReason: PrimarySrpRepairFailureReason.ExportFailed };
+    }
+
+    try {
       const [primarySecretMetadata] =
         validateSecretMetadataBackup(secretMetadata);
       if (areUint8ArraysEqual(primarySecretMetadata.data, localPrimarySRP)) {
-        return undefined;
+        return {};
       }
 
       return {
-        repairType: PrimarySrpRepairType.Mismatch,
-        secretMetadata,
-        metadataSchemaVersion: getMetadataSchemaVersion(secretMetadata),
-        localPrimarySRP,
+        plan: {
+          repairType: PrimarySrpRepairType.Mismatch,
+          secretMetadata,
+          metadataSchemaVersion: getMetadataSchemaVersion(secretMetadata),
+          localPrimarySRP,
+        },
       };
     } catch (error) {
       // No mnemonic can be used as the primary secret, so the primary SRP is
       // missing and the local primary SRP read above is the data to write.
-      if (
-        error instanceof InvalidPrimarySecretDataTypeError &&
-        localPrimarySRP
-      ) {
+      if (error instanceof InvalidPrimarySecretDataTypeError) {
         return {
-          repairType: PrimarySrpRepairType.Missing,
-          secretMetadata,
-          metadataSchemaVersion: getMetadataSchemaVersion(secretMetadata),
-          localPrimarySRP,
+          plan: {
+            repairType: PrimarySrpRepairType.Missing,
+            secretMetadata,
+            metadataSchemaVersion: getMetadataSchemaVersion(secretMetadata),
+            localPrimarySRP,
+          },
         };
       }
 
+      // Safety net: validation only throws InvalidPrimarySecretDataTypeError,
+      // so this is unreachable in normal flow. It keeps an unexpected error
+      // from rejecting the run.
+      /* istanbul ignore next */
       log('Error planning primary SRP repair', error);
-      return undefined;
+      /* istanbul ignore next */
+      return { failureReason: PrimarySrpRepairFailureReason.Unknown };
     }
   }
 

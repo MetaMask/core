@@ -462,7 +462,7 @@ describe('trackPrimarySrpRepairEvent', () => {
       properties: {
         status: PrimarySrpRepairEventStatus.Failed,
         failure_stage: PrimarySrpRepairFailureStage.Plan,
-        failure_reason: PrimarySrpRepairFailureReason.FetchFailed,
+        failure_reason: PrimarySrpRepairFailureReason.BackupUnreadable,
       },
       trackEvent,
     });
@@ -473,7 +473,7 @@ describe('trackPrimarySrpRepairEvent', () => {
     expect(event.properties).toStrictEqual({
       status: 'failed',
       failure_stage: 'plan',
-      failure_reason: 'fetch_failed',
+      failure_reason: 'backup_unreadable',
     });
   });
 
