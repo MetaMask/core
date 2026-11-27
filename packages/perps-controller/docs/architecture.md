@@ -92,7 +92,7 @@ Code: `src/PerpsController.ts` `#createProviders`, `registerLighterProvider`, `h
 
 ## Services
 
-The controller creates `TradingService`, `MarketDataService`, `AccountService`, `EligibilityService`, `DataLakeService`, `LighterNotificationEnrollmentService`, `DepositService`, `FeatureFlagConfigurationService` and `RewardsIntegrationService` with the platform dependencies (some also get the messenger). Venue services are created by their provider.
+The controller creates `TradingService`, `MarketDataService`, `AccountService`, `EligibilityService`, `PerpsAccessService`, `DataLakeService`, `LighterNotificationEnrollmentService`, `DepositService`, `FeatureFlagConfigurationService` and `RewardsIntegrationService` with the platform dependencies (some also get the messenger). Venue services are created by their provider.
 
 | File                                   | Job                                                                                                                                                                                                                |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -104,6 +104,7 @@ The controller creates `TradingService`, `MarketDataService`, `AccountService`, 
 | `DataLakeService`                      | Reports order events to the Data Lake API with exponential backoff and tracing                                                                                                                                     |
 | `DepositService`                       | Prepares and validates deposit transaction data; the controller owns the `TransactionController` call and confirmation                                                                                             |
 | `DexDiscoveryCacheManager`             | Single HIP-3 DEX discovery cache for every `perpDexs()` derivative                                                                                                                                                 |
+| `PerpsAccessService`                   | Fetches the access policy per network, caches it on disk with its TTL, and caches wallet enrollments and program positions until the next fetch. `utils/perpsAccess.ts` applies programs to the region venues      |
 | `EligibilityService`                   | Eligibility from `GeolocationController` geolocation and blocked regions                                                                                                                                           |
 | `environmentTypeProperty.ts`           | Adds the optional UI surface to analytics properties                                                                                                                                                               |
 | `FeatureFlagConfigurationService`      | HIP-3 and geo-blocking config from remote flags; once remote config loads it never drops back to fallback                                                                                                          |

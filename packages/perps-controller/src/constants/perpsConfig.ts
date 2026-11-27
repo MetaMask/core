@@ -593,6 +593,19 @@ export const TERMINAL_API_CONFIG = {
 } as const;
 
 /**
+ * Perps access policy (`GET /v1/perps/access-policy`) client settings.
+ */
+export const PERPS_ACCESS_CONFIG = {
+  /** Background refresh interval; the policy is fetched at most this often. */
+  RefreshIntervalMs: 60 * 60 * 1000,
+  FetchTimeoutMs: 10_000,
+  /** Longest provider initialization waits for access before using the interim. */
+  InitializationWaitMs: 2_000,
+  /** Disk cache key prefix, suffixed with the network. */
+  DiskCacheKeyPrefix: 'perps:access-policy:',
+} as const;
+
+/**
  * Decimal precision configuration
  * Controls maximum decimal places for price and input validation
  */

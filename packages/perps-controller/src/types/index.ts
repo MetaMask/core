@@ -1461,9 +1461,8 @@ export type PerpsMarketData = {
    */
   fundingRate?: number;
   /**
-   * Market source DEX identifier (HIP-3 support)
-   * - null or undefined: Main validator DEX
-   * - "xyz", "abc", etc: HIP-3 builder-deployed DEX
+   * Venue within the provider that lists this market. Null or undefined is
+   * the provider's main venue. For HyperLiquid it is the HIP-3 DEX ("xyz").
    */
   marketSource?: string | null;
   /**
@@ -3859,6 +3858,26 @@ export type PerpsProvider = {
     params: GetScalePriceLadderParams,
   ): Promise<PerpsScalePriceLadder>;
 
+  /**
+   * Apply the venue access resolved for the selected wallet. `null` means the
+   * access feature is off.
+   *
+   * @param access - Resolved access, or null.
+   */
+  setAccess?(access: PerpsAccess | null): void;
+
+  /**
+   * Read a wallet's enrollment in a program venue served by this provider.
+   *
+   * @param address - Wallet address.
+   * @param venue - Program venue.
+   * @returns The wallet's state on that venue.
+   */
+  getEnrollment?(
+    address: Hex,
+    venue: PerpsVenueAccess,
+  ): Promise<PerpsEnrollment>;
+
   // Unified asset and route information
   getDepositRoutes(params?: GetSupportedPathsParams): AssetRoute[]; // Assets and their deposit routes
   getWithdrawalRoutes(params?: GetSupportedPathsParams): AssetRoute[]; // Assets and their withdrawal routes
@@ -4237,6 +4256,58 @@ export type PerpsProviderType = 'hyperliquid' | 'lighter';
  * - 'aggregated': Multi-provider aggregation mode
  */
 export type PerpsActiveProviderMode = PerpsProviderType | 'aggregated';
+
+/**
+ * What a wallet may do on a venue. More levels may be added later.
+ */
+export type PerpsVenueAccessLevel = 'trade' | 'view';
+
+/**
+ * Access to one venue: a provider and one of its market sources.
+ */
+export type PerpsVenueAccess = Readonly<{
+  providerId: PerpsProviderType;
+  /** As in `PerpsMarketData.marketSource`; null is the provider's main venue. */
+  marketSource: string | null;
+  /** Whether the venue's markets are shown. */
+  listed: boolean;
+  access: PerpsVenueAccessLevel;
+}>;
+
+/**
+ * A regulated program, such as a permissioned venue behind a KYC partner.
+ */
+export type PerpsProgram = Readonly<{
+  id: string;
+  /** Whether onboarding is offered in the caller's region. */
+  enrollable: boolean;
+  /** Venues for wallets enrolled in this program. */
+  venues: readonly PerpsVenueAccess[];
+}>;
+
+/**
+ * Access policy served by the backend for the caller's region.
+ */
+export type PerpsAccessPolicy = Readonly<{
+  venues: readonly PerpsVenueAccess[];
+  programs: readonly PerpsProgram[];
+  ttlSeconds: number;
+}>;
+
+/**
+ * Venue access resolved for the selected wallet. A venue missing from
+ * `venues` is hidden and blocked.
+ */
+export type PerpsAccess = Readonly<{
+  address: Hex;
+  // Mutable array type so the value fits controller state (`Json`).
+  venues: PerpsVenueAccess[];
+}>;
+
+/**
+ * A wallet's state in a program venue.
+ */
+export type PerpsEnrollment = 'approved' | 'reduceOnly' | 'none';
 
 /**
  * Aggregation mode for read operations.
@@ -4871,6 +4942,12 @@ export type PerpsPlatformDependencies = {
      * (`GET /v4/perpetuals`).
      */
     globalSnapshotUrl?: string;
+
+    /**
+     * Full endpoint URL for the Perps access policy
+     * (`GET /v1/perps/access-policy`). The controller appends `network`.
+     */
+    accessPolicyUrl?: string;
   };
 
   // === notify-perps API (Lighter account enrollment) ===

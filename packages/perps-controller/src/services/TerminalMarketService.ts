@@ -16,7 +16,6 @@ import {
 import { bytesToHex, sha256, stringToBytes } from '@metamask/utils';
 
 import {
-  canonicalizeHyperLiquidDexes,
   HYPERLIQUID_VENUE_MARGIN_MODES,
   isUnrestrictedMarginMode,
 } from '../constants/hyperLiquidConfig.js';
@@ -485,17 +484,16 @@ export class TerminalMarketService {
     if (new Set(normalized).size !== normalized.length) {
       throw new Error('Terminal global snapshot contains duplicate DEXes');
     }
-    if (!normalized.includes('main')) {
-      throw new Error('Terminal global snapshot requires the main DEX');
-    }
     if (provider === 'lighter') {
       // Lighter has one order-book venue and no HIP-3 style DEXes.
-      if (normalized.length !== 1) {
+      if (normalized.length !== 1 || normalized[0] !== 'main') {
         throw new Error('Terminal global snapshot Lighter DEX must be main');
       }
       return normalized;
     }
-    return canonicalizeHyperLiquidDexes(normalized);
+    // Lexical order, as terminal-backend canonicalizes the set for its
+    // fingerprint. `main` is optional: a venue set may list only HIP-3 DEXes.
+    return [...normalized].sort();
   }
 
   async #createFingerprint(

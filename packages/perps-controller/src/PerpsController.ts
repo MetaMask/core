@@ -13,7 +13,7 @@ import type { StateChangeListener } from '@metamask/base-controller';
 import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import { hasProperty } from '@metamask/utils';
-import type { CaipAccountId, Json } from '@metamask/utils';
+import type { CaipAccountId, Hex, Json } from '@metamask/utils';
 import { v4 as uuidv4 } from 'uuid';
 
 import {
@@ -39,6 +39,7 @@ import type {
   PerpsMode,
 } from './constants/perpsConfig.js';
 import {
+  PERPS_ACCESS_CONFIG,
   PERPS_CONSTANTS,
   MARKET_SORTING_CONFIG,
   buildProviderCacheKey,
@@ -68,6 +69,8 @@ import { FeatureFlagConfigurationService } from './services/FeatureFlagConfigura
 import { LighterNotificationEnrollmentService } from './services/LighterNotificationEnrollmentService.js';
 import { MarketDataService } from './services/MarketDataService.js';
 import { isMissingActionHandlerError } from './services/missingActionHandler.js';
+import { PerpsAccessService } from './services/PerpsAccessService.js';
+import type { PerpsAccessNetwork } from './services/PerpsAccessService.js';
 import { isProviderOnTestnet } from './services/providerNetwork.js';
 import { RewardsIntegrationService } from './services/RewardsIntegrationService.js';
 import type { ServiceContext } from './services/ServiceContext.js';
@@ -207,7 +210,9 @@ import type {
   PerpsAgentSigner,
   PerpsPlatformDependencies,
   PerpsActiveProviderMode,
+  PerpsAccess,
   PerpsAccountSupport,
+  PerpsEnrollment,
   PerpsAnalyticsProperties,
   PerpsAttributionContext,
   PerpsProviderAccountStateEntry,
@@ -220,6 +225,7 @@ import type {
   PerpsTransactionParams,
   PerpsAddTransactionOptions,
   MarketTypeFilter,
+  PerpsVenueAccess,
 } from './types/index.js';
 import type { SortDirection } from './types/index.js';
 import type {
@@ -275,6 +281,16 @@ import {
 } from './utils/marketUtils.js';
 import type { CompiledMarketPattern } from './utils/marketUtils.js';
 import { isStrategyOrderType } from './utils/orderTypes.js';
+import {
+  findVenueAccess,
+  getFallbackVenues,
+  getListedMarketSources,
+  getProviderVenues,
+  getVenueKey,
+  isProviderFullyOpen,
+  isSamePerpsAccess,
+  resolvePerpsAccess,
+} from './utils/perpsAccess.js';
 import {
   hydrateFromDiskSync,
   persistMarketEntriesToDisk,
@@ -679,8 +695,12 @@ export type PerpsControllerState = {
     depositId?: string;
   }[];
 
-  // Eligibility (Geo-Blocking)
+  // Eligibility (Geo-Blocking). Derived from `perpsAccess` while it is set.
   isEligible: boolean;
+
+  // Venue access for the selected wallet, from the backend access policy.
+  // Null only while the `perpsAccessEnabled` remote flag is off.
+  perpsAccess: PerpsAccess | null;
 
   // Tutorial/First time user tracking (per network)
   isFirstTimeUser: {
@@ -821,6 +841,7 @@ export const getDefaultPerpsControllerState = (): PerpsControllerState => ({
   lastError: null,
   lastUpdateTimestamp: 0,
   isEligible: false,
+  perpsAccess: null,
   isFirstTimeUser: {
     testnet: true,
     mainnet: true,
@@ -1007,6 +1028,13 @@ const metadata: StateMetadata<PerpsControllerState> = {
   isEligible: {
     includeInStateLogs: true,
     persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  perpsAccess: {
+    includeInStateLogs: true,
+    persist: false,
+    // Wallet address plus region and program status: kept out of Sentry.
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
@@ -1488,6 +1516,487 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Whether the `perpsAccessEnabled` remote flag is on (boolean or
+   * version-gated).
+   *
+   * @returns True when venue access comes from the backend policy.
+   */
+  #isPerpsAccessEnabled(): boolean {
+    try {
+      const flag = this.messenger.call('RemoteFeatureFlagController:getState')
+        .remoteFeatureFlags?.perpsAccessEnabled;
+      if (typeof flag === 'boolean') {
+        return flag;
+      }
+      if (isVersionGatedFeatureFlag(flag)) {
+        return (
+          this.#options.infrastructure.featureFlags.validateVersionGated(
+            flag,
+          ) ?? false
+        );
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Stop the background access refresh along with base cleanup. */
+  protected override destroy(): void {
+    if (this.#perpsAccessRefreshTimer) {
+      clearInterval(this.#perpsAccessRefreshTimer);
+      this.#perpsAccessRefreshTimer = null;
+    }
+    super.destroy();
+  }
+
+  #getAccessNetwork(): PerpsAccessNetwork {
+    return this.state.isTestnet ? 'testnet' : 'mainnet';
+  }
+
+  #getSelectedAccessAddress(): Hex | undefined {
+    const address = getSelectedEvmAccountFromMessenger(this.messenger)?.address;
+    return address?.startsWith('0x') ? (address as Hex) : undefined;
+  }
+
+  /** Start access resolution at construction when the flag is already on. */
+  #startPerpsAccess(): void {
+    this.#perpsAccessFlagEnabled = this.#isPerpsAccessEnabled();
+    if (this.#perpsAccessFlagEnabled) {
+      this.#enablePerpsAccess();
+    }
+  }
+
+  #enablePerpsAccess(): void {
+    this.#applyInitialPerpsAccess();
+    if (!this.#perpsAccessRefreshTimer) {
+      const timer = setInterval(
+        () => this.#refreshPerpsAccessInBackground(),
+        PERPS_ACCESS_CONFIG.RefreshIntervalMs,
+      );
+      // A background refresh must not keep a Node process alive.
+      if (typeof timer === 'object') {
+        timer.unref?.();
+      }
+      this.#perpsAccessRefreshTimer = timer;
+    }
+    this.#refreshPerpsAccessInBackground({ forceFetch: true });
+  }
+
+  #onPerpsAccessFlagChange(): void {
+    const enabled = this.#isPerpsAccessEnabled();
+    if (enabled === this.#perpsAccessFlagEnabled) {
+      return;
+    }
+    this.#perpsAccessFlagEnabled = enabled;
+    if (enabled) {
+      this.#enablePerpsAccess();
+      return;
+    }
+    if (this.#perpsAccessRefreshTimer) {
+      clearInterval(this.#perpsAccessRefreshTimer);
+      this.#perpsAccessRefreshTimer = null;
+    }
+    this.#perpsAccessGeneration += 1;
+    this.#perpsAccessNetwork = null;
+    this.#applyPerpsAccess(null);
+    this.refreshEligibility().catch(() => undefined);
+  }
+
+  /**
+   * Apply access without waiting: the cached policy's region venues when it is
+   * fresh, with program venues as `view` until the wallet's enrollment is
+   * known; otherwise every venue as `view` until the fallback answers.
+   */
+  #applyInitialPerpsAccess(): void {
+    const address = this.#getSelectedAccessAddress();
+    if (!address) {
+      return;
+    }
+    const record = this.#perpsAccessService.readCached(
+      this.#getAccessNetwork(),
+    );
+    const programVenueKeys = new Set(
+      record?.policy.programs.flatMap((program) =>
+        program.venues.map((venue) =>
+          getVenueKey(venue.providerId, venue.marketSource),
+        ),
+      ),
+    );
+    const venues =
+      record && this.#perpsAccessService.isFresh(record)
+        ? record.policy.venues.map((venue) =>
+            programVenueKeys.has(
+              getVenueKey(venue.providerId, venue.marketSource),
+            )
+              ? { ...venue, access: 'view' as const }
+              : venue,
+          )
+        : getFallbackVenues({
+            isRegionAllowed: false,
+            hyperLiquidDexes: this.#getConfiguredHyperLiquidDexes() ?? [],
+            isLighterEnabled: this.#isLighterProviderEnabled(),
+          });
+    this.#applyPerpsAccess({ address, venues: [...venues] });
+  }
+
+  #refreshPerpsAccessInBackground(options?: { forceFetch?: boolean }): void {
+    if (!this.#perpsAccessFlagEnabled) {
+      return;
+    }
+    this.#refreshPerpsAccess(options).catch((error: unknown) => {
+      this.#logError(
+        ensureError(error, 'PerpsController.refreshPerpsAccess'),
+        this.#getErrorContext('refreshPerpsAccess'),
+      );
+    });
+  }
+
+  async #refreshPerpsAccess({
+    forceFetch = false,
+  }: { forceFetch?: boolean } = {}): Promise<void> {
+    this.#perpsAccessGeneration += 1;
+    const resolution = this.#resolvePerpsAccess(
+      this.#perpsAccessGeneration,
+      forceFetch,
+    );
+    this.#perpsAccessResolution = resolution;
+    try {
+      await resolution;
+    } finally {
+      if (this.#perpsAccessResolution === resolution) {
+        this.#perpsAccessResolution = null;
+      }
+    }
+  }
+
+  /**
+   * Wait for access before creating providers. A new network fetches its
+   * policy first; otherwise an in-flight resolution is awaited.
+   */
+  async #awaitPerpsAccessForInitialization(): Promise<void> {
+    if (!this.#perpsAccessFlagEnabled) {
+      return;
+    }
+    try {
+      if (this.#perpsAccessNetwork !== this.#getAccessNetwork()) {
+        this.#applyInitialPerpsAccess();
+        await this.#withAccessWaitLimit(
+          this.#refreshPerpsAccess({ forceFetch: true }),
+        );
+        return;
+      }
+      const resolution = this.#perpsAccessResolution;
+      if (resolution) {
+        await this.#withAccessWaitLimit(resolution);
+      }
+    } catch (error) {
+      this.#logError(
+        ensureError(error, 'PerpsController.awaitPerpsAccess'),
+        this.#getErrorContext('awaitPerpsAccess'),
+      );
+    }
+  }
+
+  /**
+   * Wait for an access resolution for at most the initialization limit. The
+   * interim access stays applied; a later result rebuilds providers if needed.
+   *
+   * @param resolution - Resolution to wait for.
+   */
+  async #withAccessWaitLimit(resolution: Promise<void>): Promise<void> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        resolution,
+        new Promise<void>((resolve) => {
+          timer = setTimeout(resolve, PERPS_ACCESS_CONFIG.InitializationWaitMs);
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /**
+   * Resolve `perpsAccess` for the selected wallet. Drops the result when a
+   * newer resolution, a network switch or a flag change superseded it.
+   *
+   * @param generation - Generation this resolution belongs to.
+   * @param forceFetch - Fetch the policy even if one was fetched recently.
+   */
+  async #resolvePerpsAccess(
+    generation: number,
+    forceFetch: boolean,
+  ): Promise<void> {
+    const network = this.#getAccessNetwork();
+    this.#perpsAccessNetwork = network;
+    const address = this.#getSelectedAccessAddress();
+    const isCurrent = (): boolean =>
+      generation === this.#perpsAccessGeneration &&
+      this.#perpsAccessFlagEnabled &&
+      this.#getAccessNetwork() === network &&
+      this.#getSelectedAccessAddress()?.toLowerCase() ===
+        address?.toLowerCase();
+
+    if (!this.#eligibilityCheckDeferred) {
+      await this.#perpsAccessService.refresh(network, { force: forceFetch });
+    }
+    const record = await this.#perpsAccessService.loadCached(network);
+    const venues =
+      record && this.#perpsAccessService.isFresh(record)
+        ? record.policy.venues
+        : await this.#getFallbackAccessVenues();
+    if (!address || !isCurrent()) {
+      return;
+    }
+
+    // A stale policy still supplies its programs, so an enrolled wallet keeps
+    // its program venues and the fallback never opens the global book to it.
+    const programs = record?.policy.programs ?? [];
+    const enrollments: Record<string, PerpsEnrollment> = {};
+    const positionVenueKeys = new Set<string>();
+    await Promise.all(
+      programs.map(async (program) => {
+        const [venue] = program.venues;
+        const provider = venue
+          ? this.#getAccessReadProvider(venue.providerId)
+          : undefined;
+        const readEnrollment = provider?.getEnrollment?.bind(provider);
+        enrollments[program.id] = await this.#perpsAccessService.getEnrollment({
+          network,
+          address,
+          programId: program.id,
+          read:
+            venue && provider && readEnrollment
+              ? (): Promise<PerpsEnrollment> =>
+                  this.#trackAccessRead(
+                    provider,
+                    readEnrollment(address, venue),
+                  )
+              : undefined,
+        });
+        if (enrollments[program.id] === 'none' && provider) {
+          for (const key of await this.#readProgramPositionVenueKeys(
+            network,
+            provider,
+            address,
+            program.id,
+            program.venues,
+          )) {
+            positionVenueKeys.add(key);
+          }
+        }
+      }),
+    );
+    if (!isCurrent()) {
+      return;
+    }
+    this.#applyPerpsAccess(
+      resolvePerpsAccess({
+        address,
+        venues,
+        programs,
+        enrollments,
+        positionVenueKeys,
+      }),
+    );
+  }
+
+  /**
+   * Today's venues, used when no policy younger than its TTL is available:
+   * tradable in an allowed region, `view` when blocked or unknown.
+   *
+   * @returns Fallback venues.
+   */
+  async #getFallbackAccessVenues(): Promise<PerpsVenueAccess[]> {
+    let isRegionAllowed = false;
+    if (!this.#eligibilityCheckDeferred) {
+      try {
+        const geoLocation = await this.messenger.call(
+          'GeolocationController:getGeolocation',
+        );
+        isRegionAllowed =
+          geoLocation !== 'UNKNOWN' &&
+          (await this.#eligibilityService.checkEligibility({
+            blockedRegions: this.blockedRegionList.list,
+            geoLocation,
+          }));
+      } catch (error) {
+        this.#logError(
+          ensureError(error, 'PerpsController.getFallbackAccessVenues'),
+          this.#getErrorContext('getFallbackAccessVenues'),
+        );
+      }
+    }
+    return getFallbackVenues({
+      isRegionAllowed,
+      hyperLiquidDexes: this.#getConfiguredHyperLiquidDexes() ?? [],
+      isLighterEnabled: this.#isLighterProviderEnabled(),
+    });
+  }
+
+  #getAccessReadProvider(
+    providerId: PerpsProviderType,
+  ): PerpsProvider | undefined {
+    return (
+      this.providers.get(providerId) ??
+      (providerId === 'hyperliquid'
+        ? this.#getOrCreateStandaloneProvider()
+        : undefined)
+    );
+  }
+
+  async #trackAccessRead<Result>(
+    provider: PerpsProvider,
+    operation: Promise<Result>,
+  ): Promise<Result> {
+    return provider === this.#standaloneProvider
+      ? this.#trackStandaloneProviderOperation(provider, operation)
+      : operation;
+  }
+
+  /**
+   * Program venues where the wallet holds positions. A failed read counts as
+   * positions on every program venue, so it can only make them view-only.
+   *
+   * @param network - Network.
+   * @param provider - Provider serving the program venues.
+   * @param address - Wallet address.
+   * @param programId - Program id.
+   * @param programVenues - The program's venues.
+   * @returns Venue keys (`getVenueKey`) with positions.
+   */
+  async #readProgramPositionVenueKeys(
+    network: PerpsAccessNetwork,
+    provider: PerpsProvider,
+    address: Hex,
+    programId: string,
+    programVenues: readonly PerpsVenueAccess[],
+  ): Promise<string[]> {
+    const programKeys = new Set(
+      programVenues.map((venue) =>
+        getVenueKey(venue.providerId, venue.marketSource),
+      ),
+    );
+    return this.#perpsAccessService.getPositionVenueKeys({
+      network,
+      address,
+      programId,
+      fallback: [...programKeys],
+      read: async () => {
+        const positions = await this.#trackAccessRead(
+          provider,
+          provider.getPositions({ standalone: true, userAddress: address }),
+        );
+        return positions.flatMap((position) => {
+          const key = getVenueKey(
+            position.providerId ?? provider.protocolId,
+            parseAssetName(position.symbol).dex,
+          );
+          return programKeys.has(key) ? [key] : [];
+        });
+      },
+    });
+  }
+
+  #applyPerpsAccess(next: PerpsAccess | null): void {
+    if (!isSamePerpsAccess(this.state.perpsAccess, next)) {
+      this.update((state) => {
+        state.perpsAccess = next && {
+          address: next.address,
+          venues: next.venues.map((venue) => ({ ...venue })),
+        };
+        if (next) {
+          state.isEligible = next.venues.some(
+            (venue) => venue.access === 'trade',
+          );
+        }
+      });
+    }
+    this.#syncProvidersWithAccess();
+  }
+
+  /**
+   * Whether access allows a provider to exist. HyperLiquid always exists: the
+   * active and aggregated providers require it and it enforces access itself.
+   * Another provider needs a venue, and without `setAccess` (no fence) every
+   * venue must be listed and tradable, so it is removed when access narrows.
+   *
+   * @param providerId - Provider id.
+   * @param hasFence - Whether the provider implements `setAccess`.
+   * @returns True when the provider may be created.
+   */
+  #isProviderPermittedByAccess(
+    providerId: PerpsProviderType,
+    hasFence: boolean,
+  ): boolean {
+    const access = this.state.perpsAccess;
+    if (!access || providerId === 'hyperliquid') {
+      return true;
+    }
+    if (getProviderVenues(access, providerId).length === 0) {
+      return false;
+    }
+    return hasFence || isProviderFullyOpen(access, providerId);
+  }
+
+  #providerSetNeedsRebuild(): boolean {
+    for (const [providerId, provider] of this.providers) {
+      if (
+        !this.#isProviderPermittedByAccess(
+          providerId,
+          typeof provider.setAccess === 'function',
+        )
+      ) {
+        return true;
+      }
+    }
+    for (const [providerId, hasFence] of this.#providersExcludedByAccess) {
+      if (this.#isProviderPermittedByAccess(providerId, hasFence)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  #handAccessToProviders(): void {
+    const access = this.state.perpsAccess;
+    for (const provider of this.providers.values()) {
+      provider.setAccess?.(access);
+    }
+    const standaloneProvider: PerpsProvider | null = this.#standaloneProvider;
+    standaloneProvider?.setAccess?.(access);
+  }
+
+  /**
+   * Hand the current access to every provider, and rebuild the providers when
+   * access adds or removes one.
+   */
+  #syncProvidersWithAccess(): void {
+    this.#handAccessToProviders();
+    if (
+      !this.isInitialized ||
+      this.isCurrentlyReinitializing() ||
+      this.#disconnectOperationPromise ||
+      !this.#providerSetNeedsRebuild()
+    ) {
+      return;
+    }
+    const completeReinitialization = this.#beginReinitialization();
+    this.isInitialized = false;
+    this.#initializationPromise = null;
+    this.#initWithoutDisconnectWait(true)
+      .catch((error: unknown) => {
+        this.#logError(
+          ensureError(error, 'PerpsController.perpsAccessRebuild'),
+          this.#getErrorContext('perpsAccessRebuild'),
+        );
+      })
+      .finally(completeReinitialization);
+  }
+
+  /**
    * Active provider instance for routing operations.
    * When activeProvider is 'hyperliquid' or 'lighter': points to specific provider directly
    * When activeProvider is 'aggregated': points to AggregatedPerpsProvider wrapper
@@ -1610,6 +2119,23 @@ export class PerpsController extends BaseController<
 
   readonly #eligibilityService: EligibilityService;
 
+  readonly #perpsAccessService: PerpsAccessService;
+
+  // Bumped by each access resolution; a late result for an older one is dropped.
+  #perpsAccessGeneration = 0;
+
+  #perpsAccessResolution: Promise<void> | null = null;
+
+  #perpsAccessNetwork: PerpsAccessNetwork | null = null;
+
+  #perpsAccessFlagEnabled = false;
+
+  #perpsAccessRefreshTimer: ReturnType<typeof setInterval> | null = null;
+
+  // Providers left out by access at the last initialization, with whether
+  // the provider enforces access itself (`setAccess`).
+  readonly #providersExcludedByAccess = new Map<PerpsProviderType, boolean>();
+
   readonly #dataLakeService: DataLakeService;
 
   readonly #lighterNotificationEnrollmentService: LighterNotificationEnrollmentService;
@@ -1645,6 +2171,8 @@ export class PerpsController extends BaseController<
         ...state,
         // A live routing decision must never be restored from a snapshot.
         effectiveProvider: null,
+        // Access is resolved for the current wallet, never restored.
+        perpsAccess: null,
       },
     });
 
@@ -1676,6 +2204,7 @@ export class PerpsController extends BaseController<
     });
     this.#accountService = new AccountService(infrastructure, messenger);
     this.#eligibilityService = new EligibilityService(infrastructure);
+    this.#perpsAccessService = new PerpsAccessService(infrastructure);
     this.#dataLakeService = new DataLakeService(infrastructure, messenger);
     this.#lighterNotificationEnrollmentService =
       new LighterNotificationEnrollmentService(infrastructure, messenger);
@@ -1736,6 +2265,9 @@ export class PerpsController extends BaseController<
       'RemoteFeatureFlagController:stateChange',
       this.refreshEligibilityOnFeatureFlagChange.bind(this),
     );
+    this.messenger.subscribe('RemoteFeatureFlagController:stateChange', () =>
+      this.#onPerpsAccessFlagChange(),
+    );
 
     // Also subscribed for the controller lifetime: the subscription profile
     // must learn the new trading address after every account switch, and the
@@ -1764,6 +2296,11 @@ export class PerpsController extends BaseController<
       // would otherwise be attributed to nothing, so the new address announces
       // itself here. Fire-and-forget: attribution plumbing must not block or
       // fail an account switch.
+      if (this.#perpsAccessFlagEnabled) {
+        // Never keep the previous wallet's access while the new one resolves.
+        this.#applyInitialPerpsAccess();
+        this.#refreshPerpsAccessInBackground();
+      }
       if (switchedAccount) {
         this.#rewardsIntegrationService
           .registerTradingAddress(switchedAccount.address, {
@@ -1806,6 +2343,7 @@ export class PerpsController extends BaseController<
     // Eagerly hydrate in-memory caches from disk so hooks see data on first render.
     // Must happen at construction time — before any React component mounts.
     this.#hydrateCacheFromDiskSync();
+    this.#startPerpsAccess();
     this.#options.infrastructure.performance.onControllerConstructed?.(
       this.#options.infrastructure.performance.now(),
     );
@@ -1868,7 +2406,9 @@ export class PerpsController extends BaseController<
 
       if (
         providerId === 'hyperliquid' ||
-        (providerId === 'lighter' && this.#isLighterProviderEnabled()) ||
+        (providerId === 'lighter' &&
+          this.#isLighterProviderEnabled() &&
+          !this.#providersExcludedByAccess.has('lighter')) ||
         this.providers.has(providerId as PerpsProviderType)
       ) {
         providerIds.add(providerId);
@@ -1908,7 +2448,11 @@ export class PerpsController extends BaseController<
     if (!this.#isMarketCacheEntryCurrent(activeProvider, entry, options)) {
       return null;
     }
-    return clonePerpsMarketData(entry.data);
+    const listed = this.#filterListedVenues(
+      clonePerpsMarketData(entry.data),
+      (market) => market.symbol,
+    );
+    return listed.length > 0 ? listed : null;
   }
 
   #getCachedAggregateMarketRows(options?: {
@@ -1930,6 +2474,14 @@ export class PerpsController extends BaseController<
       ) {
         providerIds.add('lighter');
       }
+    }
+    if (
+      !this.#isProviderPermittedByAccess(
+        'lighter',
+        typeof this.providers.get('lighter')?.setAccess === 'function',
+      )
+    ) {
+      providerIds.delete('lighter');
     }
     if (this.isInitialized) {
       // A disk-hydrated slice of a venue that did not register this session
@@ -1953,7 +2505,11 @@ export class PerpsController extends BaseController<
         return null;
       }
     }
-    return assembled.length > 0 ? assembled : null;
+    const listed = this.#filterListedVenues(
+      assembled,
+      (market) => market.symbol,
+    );
+    return listed.length > 0 ? listed : null;
   }
 
   #isMarketCacheEntryCurrent(
@@ -2115,7 +2671,7 @@ export class PerpsController extends BaseController<
       return true;
     }
 
-    const expectedDexes = this.#getStaticSnapshotDexes();
+    const expectedDexes = this.#getConfiguredHyperLiquidDexes();
     return (
       entry.hip3ConfigVersion === this.state.hip3ConfigVersion &&
       expectedDexes !== undefined &&
@@ -2153,7 +2709,7 @@ export class PerpsController extends BaseController<
     const { isTestnet, hip3ConfigVersion } = this.state;
     const lifecycleGeneration = this.#lifecycleGeneration;
     const network = isTestnet ? 'testnet' : 'mainnet';
-    const expectedDexes = this.#getStaticSnapshotDexes();
+    const expectedDexes = this.#getConfiguredHyperLiquidDexes();
     if (!expectedDexes) {
       throw new Error('User data snapshot DEX identity is not static');
     }
@@ -2905,9 +3461,12 @@ export class PerpsController extends BaseController<
       return this.#initializationPromise;
     }
 
-    this.#initializationPromise = this.#performInitialization(
-      preserveSubscriptions,
-    );
+    const initialization = this.#performInitialization(preserveSubscriptions);
+    this.#initializationPromise = initialization;
+    // Rebuild for access only once callers awaiting this init have resumed.
+    initialization
+      .then(() => queueMicrotask(() => this.#syncProvidersWithAccess()))
+      .catch(() => undefined);
     this.#initializationStartWaiters.forEach((notifyStarted) =>
       notifyStarted(),
     );
@@ -2957,6 +3516,8 @@ export class PerpsController extends BaseController<
       if (this.#reinitializationOperationPromise === operation) {
         this.#reinitializationOperationPromise = null;
       }
+      // Access may have changed the provider set while this one held the lock.
+      this.#syncProvidersWithAccess();
     };
   }
 
@@ -3008,6 +3569,7 @@ export class PerpsController extends BaseController<
         this.providers.clear();
         await this.#cleanupStandaloneProvider();
 
+        await this.#awaitPerpsAccessForInitialization();
         this.#createProviders();
 
         // Await the Lighter dynamic import (if started) so Lighter is in the
@@ -3032,6 +3594,7 @@ export class PerpsController extends BaseController<
           state.initializationState = InitializationState.Initialized;
           state.initializationError = null;
         });
+        this.#handAccessToProviders();
 
         this.#debugLog('PerpsController: Providers initialized successfully', {
           providerCount: this.providers.size,
@@ -3118,6 +3681,7 @@ export class PerpsController extends BaseController<
    */
   #createProviders(): void {
     const { activeProvider } = this.state;
+    this.#providersExcludedByAccess.clear();
 
     this.#debugLog(
       'PerpsController: Creating provider with HIP-3 configuration',
@@ -3174,7 +3738,16 @@ export class PerpsController extends BaseController<
     // is only used when explicitly enabled and selected.
     this.#lighterLoadError = null;
     const isLighterEnabled = this.#isLighterProviderEnabled();
-    if (isLighterEnabled) {
+    // Without a venue the protocol is never loaded. The fence check needs the
+    // instance, so it runs again at registration.
+    const isLighterPermitted = this.#isProviderPermittedByAccess(
+      'lighter',
+      true,
+    );
+    if (isLighterEnabled && !isLighterPermitted) {
+      this.#providersExcludedByAccess.set('lighter', false);
+    }
+    if (isLighterEnabled && isLighterPermitted) {
       const loadProvider =
         this.#options.clientConfig?.providerCredentials?.lighter?.loadProvider;
       // NOTE: Keep the path in a variable so bundlers that ignore the
@@ -3251,6 +3824,15 @@ export class PerpsController extends BaseController<
         apiKeyIndex: lighter.apiKeyIndex,
       },
     });
+    const hasFence = typeof lighterProvider.setAccess === 'function';
+    if (!this.#isProviderPermittedByAccess('lighter', hasFence)) {
+      this.#providersExcludedByAccess.set('lighter', hasFence);
+      this.#debugLog(
+        'PerpsController: Lighter provider not permitted by access',
+      );
+      return;
+    }
+    lighterProvider.setAccess?.(this.state.perpsAccess);
     this.providers.set('lighter', lighterProvider);
     this.#debugLog('PerpsController: Lighter provider registered', {
       isTestnet: lighterIsTestnet,
@@ -3430,13 +4012,22 @@ export class PerpsController extends BaseController<
     const compiledBlocklist = this.#compilePatternsSafely(
       this.#hip3BlocklistMarkets,
     );
+    // A venue listed by access but outside today's HIP-3 configuration (a
+    // program DEX) is not gated by the kill switch or the allowlist.
+    const configuredDexes = new Set(this.#getConfiguredHyperLiquidDexes());
+    const access = this.state.perpsAccess;
     return (symbol: string) => {
       const { dex } = parseAssetName(symbol);
+      const isAccessOnlyVenue =
+        access !== null &&
+        dex !== null &&
+        !configuredDexes.has(dex) &&
+        findVenueAccess(access.venues, 'hyperliquid', dex)?.listed === true;
       return shouldIncludeMarket(
         symbol,
         dex,
-        hip3Enabled,
-        compiledAllowlist,
+        hip3Enabled || isAccessOnlyVenue,
+        isAccessOnlyVenue ? [] : compiledAllowlist,
         compiledBlocklist,
       );
     };
@@ -6526,18 +7117,55 @@ export class PerpsController extends BaseController<
         context,
         isMarketAllowed,
       });
-      return provider === this.#standaloneProvider
-        ? this.#trackStandaloneProviderOperation(provider, operation)
-        : operation;
+      return this.#filterListedVenues(
+        await (provider === this.#standaloneProvider
+          ? this.#trackStandaloneProviderOperation(provider, operation)
+          : operation),
+        (market) => market.name,
+      );
     }
 
     const provider = this.getActiveProvider();
-    return this.#marketDataService.getMarkets({
-      provider,
-      params,
-      context,
-      isMarketAllowed,
-    });
+    return this.#filterListedVenues(
+      await this.#marketDataService.getMarkets({
+        provider,
+        params,
+        context,
+        isMarketAllowed,
+      }),
+      (market) => market.name,
+    );
+  }
+
+  /**
+   * Drop markets from venues that access does not list, whatever their source
+   * (snapshot, Terminal API, provider or cache). No-op while access is off.
+   *
+   * @param markets - Markets.
+   * @param getSymbol - Reads a market's symbol (`dex:COIN` for HIP-3).
+   * @returns Markets on listed venues.
+   */
+  #filterListedVenues<
+    Market extends {
+      providerId?: PerpsProviderType;
+      marketSource?: string | null;
+    },
+  >(markets: Market[], getSymbol: (market: Market) => string): Market[] {
+    const access = this.state.perpsAccess;
+    if (!access) {
+      return markets;
+    }
+    const { activeProvider } = this.state;
+    const defaultProviderId: PerpsProviderType =
+      activeProvider === 'aggregated' ? 'hyperliquid' : activeProvider;
+    return markets.filter(
+      (market) =>
+        findVenueAccess(
+          access.venues,
+          market.providerId ?? defaultProviderId,
+          market.marketSource ?? parseAssetName(getSymbol(market)).dex,
+        )?.listed === true,
+    );
   }
 
   /**
@@ -6584,17 +7212,23 @@ export class PerpsController extends BaseController<
         params,
         context,
       });
-      return provider === this.#standaloneProvider
-        ? this.#trackStandaloneProviderOperation(provider, operation)
-        : operation;
+      return this.#filterListedVenues(
+        await (provider === this.#standaloneProvider
+          ? this.#trackStandaloneProviderOperation(provider, operation)
+          : operation),
+        (market) => market.symbol,
+      );
     }
 
     const provider = this.getActiveProvider();
-    return this.#marketDataService.getMarketDataWithPrices({
-      provider,
-      params,
-      context,
-    });
+    return this.#filterListedVenues(
+      await this.#marketDataService.getMarketDataWithPrices({
+        provider,
+        params,
+        context,
+      }),
+      (market) => market.symbol,
+    );
   }
 
   /**
@@ -6613,8 +7247,22 @@ export class PerpsController extends BaseController<
 
     const { activeProvider, isTestnet, hip3ConfigVersion } = this.state;
     const isActive = (providerId: PerpsProviderType): boolean =>
-      activeProvider === providerId ||
-      (activeProvider === 'aggregated' && this.providers.has(providerId));
+      this.state.activeProvider === providerId ||
+      (this.state.activeProvider === 'aggregated' &&
+        this.providers.has(providerId));
+    const isLighterSnapshotAllowed = (): boolean => {
+      const { perpsAccess } = this.state;
+      return (
+        isActive('lighter') &&
+        (!perpsAccess ||
+          (this.#isProviderPermittedByAccess(
+            'lighter',
+            typeof this.providers.get('lighter')?.setAccess === 'function',
+          ) &&
+            findVenueAccess(perpsAccess.venues, 'lighter', 'main')?.listed ===
+              true))
+      );
+    };
     const contexts: NonNullable<ServiceContext['globalSnapshots']> = {};
 
     const hyperLiquidDexes = isActive('hyperliquid')
@@ -6630,11 +7278,14 @@ export class PerpsController extends BaseController<
         isCurrent: (): boolean =>
           this.state.activeProvider === activeProvider &&
           this.state.isTestnet === isTestnet &&
-          this.state.hip3ConfigVersion === hip3ConfigVersion,
+          this.state.hip3ConfigVersion === hip3ConfigVersion &&
+          isActive('hyperliquid') &&
+          this.#getStaticSnapshotDexes()?.join(',') ===
+            hyperLiquidDexes.join(','),
         isMarketAllowed: this.#buildMarketAllowedFilter(),
       };
     }
-    if (isActive('lighter')) {
+    if (isLighterSnapshotAllowed()) {
       contexts.lighter = {
         request: {
           provider: 'lighter',
@@ -6645,7 +7296,8 @@ export class PerpsController extends BaseController<
         },
         isCurrent: (): boolean =>
           this.state.activeProvider === activeProvider &&
-          this.state.isTestnet === isTestnet,
+          this.state.isTestnet === isTestnet &&
+          isLighterSnapshotAllowed(),
         // Lighter keeps its provider's market list; the snapshot only adds
         // metadata to it, so there is no snapshot row to filter.
         isMarketAllowed: (): boolean => true,
@@ -6662,7 +7314,27 @@ export class PerpsController extends BaseController<
     );
   }
 
+  /**
+   * HyperLiquid DEXes of the market snapshot: the listed venues while access
+   * is set, today's configured DEXes otherwise.
+   *
+   * @returns Sorted DEX ids, or undefined when no static snapshot applies.
+   */
   #getStaticSnapshotDexes(): string[] | undefined {
+    const access = this.state.perpsAccess;
+    if (!access) {
+      return this.#getConfiguredHyperLiquidDexes();
+    }
+    const listed = getListedMarketSources(access, 'hyperliquid');
+    return listed.length > 0 ? Array.from(new Set(listed)).sort() : undefined;
+  }
+
+  /**
+   * HyperLiquid DEXes enabled by the HIP-3 configuration, `main` first.
+   *
+   * @returns DEX ids, or undefined when DEXes are discovered at runtime.
+   */
+  #getConfiguredHyperLiquidDexes(): string[] | undefined {
     if (!this.#hip3Enabled) {
       return ['main'];
     }
@@ -7241,7 +7913,7 @@ export class PerpsController extends BaseController<
     const { activeProvider, isTestnet, hip3ConfigVersion } = this.state;
     const lifecycleGeneration = this.#lifecycleGeneration;
     const { activeProviderInstance } = this;
-    const hyperliquidDexes = this.#getStaticSnapshotDexes();
+    const hyperliquidDexes = this.#getConfiguredHyperLiquidDexes();
     const isCurrent = (): boolean => {
       let currentAddress: string | undefined;
       try {
@@ -8016,13 +8688,19 @@ export class PerpsController extends BaseController<
           : this.providers.has(providerId);
 
       if (!isValidProvider) {
+        let reason = '';
+        if (
+          providerId !== 'aggregated' &&
+          this.#providersExcludedByAccess.has(providerId)
+        ) {
+          reason = ': not permitted by perps access';
+        } else if (providerId === 'lighter' && this.#lighterLoadError) {
+          reason = `: ${this.#lighterLoadError}`;
+        }
         return {
           success: false,
           providerId: this.state.activeProvider,
-          error:
-            providerId === 'lighter' && this.#lighterLoadError
-              ? `Provider ${providerId} not available: ${this.#lighterLoadError}`
-              : `Provider ${providerId} not available`,
+          error: `Provider ${providerId} not available${reason}`,
         };
       }
 
@@ -10217,6 +10895,8 @@ export class PerpsController extends BaseController<
     if (this.#eligibilityCheckDeferred) {
       return;
     }
+    // The blocked-region list feeds the access fallback.
+    this.#refreshPerpsAccessInBackground();
 
     // Capture the current version before starting the async operation.
     // This prevents race conditions where stale eligibility checks
@@ -10237,7 +10917,10 @@ export class PerpsController extends BaseController<
       // Only update state if the blocked region list hasn't changed while we were awaiting.
       // This prevents stale fallback-based eligibility checks from overwriting
       // results from remote-based checks.
-      if (this.#blockedRegionListVersion !== versionAtStart) {
+      if (
+        this.#blockedRegionListVersion !== versionAtStart ||
+        this.state.perpsAccess
+      ) {
         return;
       }
 
@@ -10251,7 +10934,10 @@ export class PerpsController extends BaseController<
       );
 
       // Only update on error if version is still current
-      if (this.#blockedRegionListVersion === versionAtStart) {
+      if (
+        this.#blockedRegionListVersion === versionAtStart &&
+        !this.state.perpsAccess
+      ) {
         // Default to eligible on error
         this.update((state) => {
           state.isEligible = true;

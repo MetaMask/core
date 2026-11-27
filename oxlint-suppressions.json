@@ -5051,7 +5051,7 @@
       "count": 2
     },
     "typescript/return-await": {
-      "count": 49
+      "count": 46
     }
   },
   "packages/perps-controller/src/providers/AggregatedPerpsProvider.ts": {

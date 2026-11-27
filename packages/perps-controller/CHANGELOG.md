@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `perpsAccess` controller state: venue access for the selected wallet, resolved from the backend access policy (`GET /v1/perps/access-policy`) while the `perpsAccessEnabled` remote flag is on, and `null` while it is off ([#11700](https://github.com/MetaMask/core/pull/11700))
+  - The policy is fetched on start and network switch, cached on disk per network and refreshed at most hourly. Without a policy younger than its `ttlSeconds`, the controller falls back to `GeolocationController` and the blocked-region list: an allowed region keeps today's venues, a blocked or unknown region gets every venue as `view`
+  - Program enrollment comes from the venue provider's `getEnrollment`: approved wallets get the program's venues, reduce-only wallets get them as `view`, and wallets holding positions on a program venue without an approved state get those venues as `view`
+  - Only providers with a venue are created; a provider without `setAccess` is created only when all its venues are listed and tradable, and providers are rebuilt when the set changes. `switchProvider` to an excluded provider fails with `not permitted by perps access`
+  - Markets from venues that are not listed are dropped from `getMarkets`, `getMarketDataWithPrices` and cached market data, and the global snapshot is requested with the listed HyperLiquid venues as `dexes`
+  - `isEligible` is derived from `perpsAccess` (any `trade` venue) while the flag is on
+- Add types `PerpsAccess`, `PerpsAccessPolicy`, `PerpsProgram`, `PerpsVenueAccess`, `PerpsVenueAccessLevel` and `PerpsEnrollment`, and optional `setAccess` and `getEnrollment` members on `PerpsProvider` ([#11700](https://github.com/MetaMask/core/pull/11700))
+- Add optional `terminalApi.accessPolicyUrl` to `PerpsPlatformDependencies` ([#11700](https://github.com/MetaMask/core/pull/11700))
 - Export `PERPS_EVENT_VALUE.INTERACTION_TYPE.TRADE_ON_SHEET_OPENED` and `TRADE_ON_VENUE_CHANGED` for the Lite market page's per-order venue selector ([#11778](https://github.com/MetaMask/core/pull/11778))
 - Report Lighter wallet registration in `AccountState.exchangeAccountStatus` on account reads and subscriptions. Export `LIGHTER_ACCOUNT_DISCOVERY_CONFIG` (from `constants/lighterConfig`) for the discovery interval and deadline. ([#11746](https://github.com/MetaMask/core/pull/11746))
 - Add `PerpsController:getExchangeAccountStatus` for read-only registration checks on an explicit venue. Export `GetExchangeAccountStatusParams`, `ExchangeAccountStatus`, `PerpsControllerGetExchangeAccountStatusAction`, and an optional provider hook. Lighter returns the master account index when registered; venues without a registration step return `{ registered: true }`. ([#11746](https://github.com/MetaMask/core/pull/11746))
