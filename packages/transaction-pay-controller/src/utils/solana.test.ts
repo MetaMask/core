@@ -657,7 +657,7 @@ describe('Solana Utils', () => {
         });
 
         expect(await wait()).toBeUndefined();
-        expect(fetchMock).toHaveBeenCalledTimes(4);
+        expect(fetchMock).toHaveBeenCalledTimes(5);
         expect(fetchMock).toHaveBeenCalledWith(RPC_URL, {
           body: JSON.stringify({
             id: 1,
@@ -692,6 +692,37 @@ describe('Solana Utils', () => {
       });
 
       await expect(wait()).rejects.toThrow('Solana transaction expired');
+    });
+
+    it('throws if the transaction expired while only processed', async () => {
+      mockRpc({
+        getBlockHeight: { result: 101 },
+        getSignatureStatuses: {
+          result: { value: [getSignatureStatus(null, 'processed')] },
+        },
+      });
+
+      await expect(wait()).rejects.toThrow('Solana transaction expired');
+    });
+
+    it('retries failed RPC requests until the transaction is confirmed', async () => {
+      const failedResponse = { ok: false, status: 503 };
+
+      fetchMock
+        // getSignatureStatuses
+        .mockResolvedValueOnce(failedResponse)
+        // getBlockHeight
+        .mockResolvedValueOnce(failedResponse)
+        // getSignatureStatuses
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async (): Promise<unknown> => ({
+            result: { value: [getSignatureStatus(null, 'confirmed')] },
+          }),
+        });
+
+      expect(await wait()).toBeUndefined();
+      expect(fetchMock).toHaveBeenCalledTimes(3);
     });
   });
 });

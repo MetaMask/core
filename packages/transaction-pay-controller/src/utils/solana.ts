@@ -2,6 +2,7 @@ import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import type { Base58 } from '@metamask/transaction-controller';
 import {
+  createModuleLogger,
   hexToBytes,
   isObject,
   KnownCaipNamespace,
@@ -29,6 +30,7 @@ import {
 import { BigNumber } from 'bignumber.js';
 import { v4 as uuid } from 'uuid';
 
+import { projectLogger } from '../logger.js';
 import type {
   QuoteRequest,
   TransactionPayControllerMessenger,
@@ -41,6 +43,8 @@ export const SOLANA_DECIMALS = 9;
 const SOLANA_NATIVE_ASSET_REFERENCE = 'slip44:501';
 const INFURA_PROJECT_ID_PLACEHOLDER = '{infuraProjectId}';
 const SIGNATURE_STATUS_ERROR_KEY = 'err';
+
+const log = createModuleLogger(projectLogger, 'solana');
 
 /** Account of a Solana instruction. */
 export type SolanaInstructionKey = {
@@ -383,7 +387,12 @@ export async function signAndSendSolanaTransaction(
 /**
  * Wait until a broadcast Solana transaction is confirmed, by polling its
  * signature status. Throws once the transaction fails, or once its blockhash
- * expired without the transaction landing.
+ * expired without the transaction being confirmed.
+ *
+ * The transaction is already broadcast, so a failed RPC request, such as a rate
+ * limit, is retried on the next poll rather than failing the payment. The
+ * blockhash expiry bounds the wait, as it is checked until the transaction is
+ * confirmed.
  *
  * @param request - Wait request.
  * @param request.lastValidBlockHeight - Last block height at which the
@@ -409,13 +418,7 @@ export async function waitForSolanaTransactionConfirmed({
   const rpcUrl = getSolanaRpcUrl(messenger, scope);
 
   while (true) {
-    const {
-      value: [status],
-    } = await solanaRpcRequest<SolanaSignatureStatuses>(
-      rpcUrl,
-      'getSignatureStatuses',
-      [[signature], { searchTransactionHistory: true }],
-    );
+    const status = await getSolanaSignatureStatus(rpcUrl, signature);
 
     const transactionError = status?.[SIGNATURE_STATUS_ERROR_KEY];
 
@@ -432,19 +435,60 @@ export async function waitForSolanaTransactionConfirmed({
       return;
     }
 
-    if (!status) {
-      const blockHeight = await solanaRpcRequest<number>(
-        rpcUrl,
-        'getBlockHeight',
-        [{ commitment: 'confirmed' }],
-      );
+    const blockHeight = await getSolanaBlockHeight(rpcUrl);
 
-      if (blockHeight > lastValidBlockHeight) {
-        throw new Error('Solana transaction expired');
-      }
+    if (blockHeight !== undefined && blockHeight > lastValidBlockHeight) {
+      throw new Error('Solana transaction expired');
     }
 
     await new Promise((resolve) => setTimeout(resolve, pollingInterval));
+  }
+}
+
+/**
+ * Get the status of a Solana signature.
+ *
+ * @param rpcUrl - Solana RPC URL.
+ * @param signature - Base58 signature of the transaction.
+ * @returns The signature status, `null` if the transaction is not found, or
+ * `undefined` if the request failed.
+ */
+async function getSolanaSignatureStatus(
+  rpcUrl: string,
+  signature: Base58,
+): Promise<SolanaSignatureStatus | null | undefined> {
+  try {
+    const {
+      value: [status],
+    } = await solanaRpcRequest<SolanaSignatureStatuses>(
+      rpcUrl,
+      'getSignatureStatuses',
+      [[signature], { searchTransactionHistory: true }],
+    );
+
+    return status;
+  } catch (error) {
+    log('Failed to get Solana signature status', { error, signature });
+    return undefined;
+  }
+}
+
+/**
+ * Get the confirmed Solana block height.
+ *
+ * @param rpcUrl - Solana RPC URL.
+ * @returns The block height, or `undefined` if the request failed.
+ */
+async function getSolanaBlockHeight(
+  rpcUrl: string,
+): Promise<number | undefined> {
+  try {
+    return await solanaRpcRequest<number>(rpcUrl, 'getBlockHeight', [
+      { commitment: 'confirmed' },
+    ]);
+  } catch (error) {
+    log('Failed to get Solana block height', { error });
+    return undefined;
   }
 }
 
