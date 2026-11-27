@@ -270,9 +270,8 @@ function getStandingDelegationRequirement(
  * Checks a single-use transaction delegation: exactly `LimitedCalls(1)`, one
  * exact-execution caveat pinning a vault deposit or a Rewards claim and,
  * optionally, one `Timestamp` deadline and one `Redeemer` allowlist, in any
- * order. A deadline
- * and a redeemer allowlist only narrow when and by whom the delegation can be
- * redeemed.
+ * order. A deadline and a redeemer allowlist only narrow when and by whom the
+ * delegation can be redeemed.
  *
  * Withdrawals, payments and Card approvals use the same shape with other
  * calls, so they require MFA.

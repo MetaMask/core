@@ -206,8 +206,8 @@ function getChompSuccessorRequirement(
 
 /**
  * Checks the Rewards claim proof. It only proves the Money Account earned the
- * rewards and asks for them to be paid to itself, so it can't move funds
- * elsewhere.
+ * rewards and asks for them to be paid to itself. The payout stays in the
+ * Money Account as long as the Rewards backend pays to the signed `Pay to`.
  *
  * @param groups - The named groups of {@link REWARDS_CLAIM_PROOF_PATTERN}.
  * @param context - The request context.
@@ -243,10 +243,17 @@ function getRewardsClaimProofRequirement(
  * Determines whether a personal message requires MFA.
  *
  * Whitelisted are the CHOMP authentication message, the CHOMP successor
- * association message, the card provider sign-in message, the Rewards
- * binding message and the Rewards claim proof, each with a fresh timestamp. At worst, signing them without MFA lets someone tie the Money
- * Account to another CHOMP profile or Rewards subscription, which can deny
- * service but not move funds.
+ * association message, the card provider sign-in message and the Rewards
+ * binding message, each with a fresh timestamp. At worst, signing them
+ * without MFA lets someone tie the Money Account to another CHOMP profile or
+ * Rewards subscription, which can deny service but not move funds.
+ *
+ * Also whitelisted is the Rewards claim proof, which has an expiry instead of
+ * an issue time: it must not have expired and must expire within
+ * `maxMessageAge` plus one minute. Signing it leads to a payout, so the proof
+ * must name the Money Account as both the earning address and `Pay to`. That
+ * keeps the payout in the Money Account as long as the Rewards backend pays
+ * to the signed `Pay to`, which it does but this check can't enforce.
  *
  * @param message - The message as hex-encoded UTF-8.
  * @param context - The request context.
