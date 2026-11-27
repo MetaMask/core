@@ -9,16 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [15.0.0]
 
-### Uncategorized
-
-- chore: add vite as a devDependency to packages using vitest ([#11661](https://github.com/MetaMask/core/pull/11661))
-- chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
-- chore: add `allow-scripts` script to child workspaces so Yarn doesn't fail ([#11324](https://github.com/MetaMask/core/pull/11324))
-- test: turn coverage off by default and add test:coverage ([#11061](https://github.com/MetaMask/core/pull/11061))
-- test: switch Vitest coverage provider to `v8` ([#11261](https://github.com/MetaMask/core/pull/11261))
-- fix(permission-controller): move nanoid bump changelog entry to Unreleased ([#11263](https://github.com/MetaMask/core/pull/11263))
-- ci: validate all changelogs in a single run ([#11199](https://github.com/MetaMask/core/pull/11199))
-
 ### Added
 
 - Add `rpcMethods` property to endowment permission specifications, listed RPC methods will be require the endowment to use ([#11704](https://github.com/MetaMask/core/pull/11704))
