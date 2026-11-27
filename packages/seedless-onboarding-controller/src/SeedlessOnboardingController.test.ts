@@ -5070,6 +5070,61 @@ describe('SeedlessOnboardingController', () => {
     });
 
     describe('completePasswordChange', () => {
+      it('saves the outdated password cache as in sync when the lifecycle completes', async () => {
+        await withController(
+          {
+            state: {
+              seedlessOperationLifecycle: {
+                operation: SeedlessOnboardingOperation.PasswordChange,
+                checkpoint: SeedlessOnboardingCheckpoint.KeySyncPending,
+              },
+              passwordOutdatedCache: {
+                isExpiredPwd: true,
+                timestamp: 1,
+              },
+            },
+          },
+          async ({ controller }) => {
+            await controller.completePasswordChange();
+
+            expect(controller.state.seedlessOperationLifecycle).toBeUndefined();
+            expect(controller.state.passwordOutdatedCache).toStrictEqual({
+              isExpiredPwd: false,
+              timestamp: expect.any(Number),
+            });
+          },
+        );
+      });
+
+      it('keeps the outdated password cache when completion is a no-op', async () => {
+        const passwordOutdatedCache = {
+          isExpiredPwd: true,
+          timestamp: 1,
+        };
+
+        await withController(
+          {
+            state: {
+              seedlessOperationLifecycle: {
+                operation: SeedlessOnboardingOperation.PasswordChange,
+                checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+              },
+              passwordOutdatedCache,
+            },
+          },
+          async ({ controller }) => {
+            await controller.completePasswordChange();
+
+            expect(controller.state.passwordOutdatedCache).toStrictEqual(
+              passwordOutdatedCache,
+            );
+            expect(getLifecyclePhase(controller.state)).toBe(
+              SeedlessOnboardingCheckpoint.LocalPasswordPending,
+            );
+          },
+        );
+      });
+
       it('clears an in-progress lifecycle', async () => {
         await withController(
           {

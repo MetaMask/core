@@ -6791,7 +6791,7 @@ describe('SeedlessOnboardingController', () => {
             });
 
             // 1st update: #checkIsPasswordOutdated updates passwordOutdatedCache
-            // 2nd update: single atomic vault + envelope + authPubKey + LocalPasswordPending + cache reset
+            // 2nd update: single atomic vault + envelope + authPubKey + LocalPasswordPending; cache stays
             const vaultUpdates = snapshots.filter(
               (snapshot) => snapshot.vault !== previousVault,
             );
@@ -6806,7 +6806,9 @@ describe('SeedlessOnboardingController', () => {
               vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
               passwordAuthPubKey: authPubKeyOf(NEW_PASSWORD),
             });
-            expect(vaultUpdates[0].passwordOutdatedCache).toBeUndefined();
+            expect(vaultUpdates[0].passwordOutdatedCache?.isExpiredPwd).toBe(
+              true,
+            );
             expect(vaultUpdates[0].seedlessOperationLifecycle).toStrictEqual({
               operation: SeedlessOnboardingOperation.PasswordSync,
               checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
@@ -6839,7 +6841,7 @@ describe('SeedlessOnboardingController', () => {
           // 1st update: #assertPasswordInSync caches passwordOutdatedCache
           // 2nd update: RemotePasswordPending lifecycle checkpoint
           // 3rd update: LocalStatePending lifecycle checkpoint
-          // 4th update: single atomic vault + envelope + authPubKey + LocalPasswordPending + cache reset
+          // 4th update: single atomic vault + envelope + authPubKey + LocalPasswordPending; cache stays
           expect(snapshots).toHaveLength(4);
           expect(snapshots[0].vault).toBe(previousVault);
           expect(snapshots[0].passwordOutdatedCache).toBeDefined();
@@ -6862,7 +6864,9 @@ describe('SeedlessOnboardingController', () => {
             vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
             passwordAuthPubKey: authPubKeyOf(NEW_PASSWORD),
           });
-          expect(snapshots[3].passwordOutdatedCache).toBeUndefined();
+          expect(snapshots[3].passwordOutdatedCache).toStrictEqual(
+            snapshots[0].passwordOutdatedCache,
+          );
           expect(snapshots[3].seedlessOperationLifecycle).toStrictEqual({
             operation: SeedlessOnboardingOperation.PasswordChange,
             checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
@@ -6884,6 +6888,7 @@ describe('SeedlessOnboardingController', () => {
           await controller.storeKeyringEncryptionKey('keyring-key');
           await controller.resolvePasswordSyncState({ skipCache: true });
           expect(controller.state.passwordOutdatedCache).toBeDefined();
+          const passwordOutdatedCache = controller.state.passwordOutdatedCache;
           const previousVault = controller.state.vault;
 
           const snapshots: SeedlessOnboardingControllerState[] = [];
@@ -6901,7 +6906,7 @@ describe('SeedlessOnboardingController', () => {
 
           // 1st update: RemotePasswordPending lifecycle checkpoint
           // 2nd update: LocalStatePending lifecycle checkpoint
-          // 3rd update: single atomic vault + keyring key + envelope + authPubKey + LocalPasswordPending + cache reset
+          // 3rd update: single atomic vault + keyring key + envelope + authPubKey + LocalPasswordPending; cache stays
           expect(snapshots).toHaveLength(3);
           expect(snapshots[0].vault).toBe(previousVault);
           expect(snapshots[0].seedlessOperationLifecycle).toStrictEqual({
@@ -6923,7 +6928,9 @@ describe('SeedlessOnboardingController', () => {
             vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
             passwordAuthPubKey: authPubKeyOf('reset-password'),
           });
-          expect(snapshots[2].passwordOutdatedCache).toBeUndefined();
+          expect(snapshots[2].passwordOutdatedCache).toStrictEqual(
+            passwordOutdatedCache,
+          );
           expect(snapshots[2].seedlessOperationLifecycle).toStrictEqual({
             operation: SeedlessOnboardingOperation.PasswordChange,
             checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,

@@ -64,6 +64,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `clearState` now returns a promise and waits for in-flight controller operations before clearing state. It also clears the in-memory decrypted vault data to prevent a completed operation from restoring cleared state ([#10148](https://github.com/MetaMask/core/pull/10148))
 - Throw `SeedlessOnboardingControllerErrorMessage.UserAlreadyAuthenticated` from `authenticate` when `mfaFlag` is enabled and a different user or verifier is already in state; callers must call `clearState` before authenticating another user ([#11346](https://github.com/MetaMask/core/pull/11346))
 - Update `changePassword`, `resolvePasswordSyncState`, and `reconcilePassword` to support envelope-managed vaults ([#11346](https://github.com/MetaMask/core/pull/11346))
+- `completePasswordChange` now saves `passwordOutdatedCache` as in sync when it completes a `KEY_SYNC_PENDING` lifecycle ([#11795](https://github.com/MetaMask/core/pull/11795))
+  - The vault commit leaves the previous cache in place. A client does not need another `resolvePasswordSyncState` call after recovery. The next password check reads this cache.
 - `storeKeyringEncryptionKey` and `loadKeyringEncryptionKey` now acquire the controller lock, so they wait for any in-flight controller operation before reading or writing the Keyring encryption key ([#10148](https://github.com/MetaMask/core/pull/10148))
 - Bump `@metamask/analytics-controller` from `^4.3.1` to `^4.4.0` ([#11691](https://github.com/MetaMask/core/pull/11691))
 - Bump `@metamask/auth-network-utils` from `^0.4.0` to `^0.5.0` ([#11346](https://github.com/MetaMask/core/pull/11346))
