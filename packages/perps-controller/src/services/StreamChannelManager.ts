@@ -108,8 +108,9 @@ export type StreamChannelSubscriber<Args extends unknown[]> = {
 /** How `rebind` treats the channels around the ones that move. */
 export type StreamRebindOptions = {
   /**
-   * Channels that keep their key but share the venue state the moving ones
-   * use: stopped with them, and restarted after them.
+   * Channels that share venue state with the moving channels. Matched
+   * channels stop with them even if their key stays current, and reopen
+   * after the other moving channels.
    */
   restart?: (key: StreamChannelKey) => boolean;
   /** Runs once every source concerned has stopped, before any starts. */
@@ -311,6 +312,13 @@ export class StreamChannelManager {
       this.#stopSource(channel);
     }
     options.onStopped?.();
+
+    const { restart } = options;
+    if (restart) {
+      stale.sort(
+        (left, right) => Number(restart(left.key)) - Number(restart(right.key)),
+      );
+    }
 
     let providerMoved = false;
     for (const channel of stale) {

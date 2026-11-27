@@ -11,6 +11,7 @@ import {
   PerpsController,
   getDefaultPerpsControllerState,
 } from '../../src/PerpsController.js';
+import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
 import { WebSocketConnectionState } from '../../src/types/index.js';
 import type {
@@ -77,6 +78,31 @@ function createStreamProvider(): StreamProvider {
   });
   provider.disconnect.mockResolvedValue({ success: true });
   return provider;
+}
+
+/**
+ * Mimic HyperLiquid's wallet binding for positions.
+ *
+ * @param selectedAddress - The selected wallet address.
+ * @param positions - The positions delivered after binding.
+ * @returns A mock subscription that admits one wallet at a time.
+ */
+function bindSingleWalletPositions(
+  selectedAddress: string,
+  positions: Position[],
+): HyperLiquidProvider['subscribeToPositions'] {
+  let boundAddress: string | undefined;
+  return ({ accountId, callback }) => {
+    const address = accountId?.split(':')[2] ?? selectedAddress;
+    if (boundAddress && boundAddress !== address) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
+    boundAddress = address;
+    callback(positions);
+    return () => {
+      boundAddress = undefined;
+    };
+  };
 }
 
 const flush = async (): Promise<void> =>
@@ -159,6 +185,47 @@ describe('PerpsController stream context', () => {
     provider.positions[0].callback(update);
 
     expect(callback).toHaveBeenCalledWith(update);
+  });
+
+  it('lets the selected wallet bind before a named wallet queued before init', async () => {
+    const [provider] = providers;
+    const namedAddress = '0x2222222222222222222222222222222222222222';
+    const accountId = `eip155:1:${namedAddress}` as const;
+    const selectedPositions = [createMockPosition({ symbol: 'BTC' })];
+    provider.subscribeToPositions.mockImplementation(
+      bindSingleWalletPositions(selectedAddress, selectedPositions),
+    );
+    const named = vi.fn();
+    const namedError = vi.fn();
+    const selected = vi.fn();
+    const selectedError = vi.fn();
+
+    const stopNamed = controller.subscribeToPositions({
+      accountId,
+      callback: named,
+      onError: namedError,
+    });
+    const stopSelected = controller.subscribeToPositions({
+      callback: selected,
+      onError: selectedError,
+    });
+
+    try {
+      expect(provider.subscribeToPositions).not.toHaveBeenCalled();
+      await controller.init();
+
+      expect(selectedError).not.toHaveBeenCalled();
+      expect(selected).toHaveBeenCalledExactlyOnceWith(selectedPositions);
+      expect(named).not.toHaveBeenCalled();
+      expect(namedError).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          message: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+        }),
+      );
+    } finally {
+      stopSelected();
+      stopNamed();
+    }
   });
 
   it('moves readers to the new provider on re-init, keeping their cleanup', async () => {
