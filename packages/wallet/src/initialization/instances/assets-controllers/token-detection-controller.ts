@@ -41,7 +41,7 @@ export const tokenDetectionController: InitializationConfiguration<
       tokenListService,
       trackMetaMetricsEvent,
       getBalancesInSingleCall: async (...args) =>
-        messenger.call(
+        await messenger.call(
           'AssetsContractController:getBalancesInSingleCall',
           ...args,
         ),

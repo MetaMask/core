@@ -43,6 +43,7 @@ import { ERC20Standard } from './Standards/ERC20Standard.js';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard.js';
 import { TOKEN_END_POINT_API } from './token-service.js';
 import type { TokenRwaData } from './token-service.js';
+import type { TokenListService } from './TokenListService.js';
 import type { Token } from './TokenRatesController.js';
 import { getDefaultTokensState, TokensController } from './TokensController.js';
 import type {
@@ -3356,7 +3357,7 @@ describe('TokensController', () => {
                   rwaData: { ticker: 'NEW' },
                 },
               }),
-            } as unknown as import('./TokenListService.js').TokenListService,
+            } as unknown as TokenListService,
           },
         },
         async ({ controller }) => {
@@ -3387,7 +3388,7 @@ describe('TokensController', () => {
         messenger,
         tokenListService: {
           fetchTokensByChainId,
-        } as unknown as import('./TokenListService.js').TokenListService,
+        } as unknown as TokenListService,
       });
 
       expect(controller.state).toStrictEqual(getDefaultTokensState());
@@ -3442,7 +3443,7 @@ describe('TokensController', () => {
         },
         tokenListService: {
           fetchTokensByChainId,
-        } as unknown as import('./TokenListService.js').TokenListService,
+        } as unknown as TokenListService,
       });
 
       await expectResolvedBeforeNextMacrotask(controller.init());
@@ -3495,7 +3496,7 @@ describe('TokensController', () => {
         },
         tokenListService: {
           fetchTokensByChainId,
-        } as unknown as import('./TokenListService.js').TokenListService,
+        } as unknown as TokenListService,
       });
 
       await expect(controller.init()).rejects.toThrow('Accounts not ready');
@@ -3517,7 +3518,7 @@ describe('TokensController', () => {
             isDeprecated: () => true,
             tokenListService: {
               fetchTokensByChainId,
-            } as unknown as import('./TokenListService.js').TokenListService,
+            } as unknown as TokenListService,
           },
         },
         async ({ getSelectedAccountHandler }) => {
@@ -3557,7 +3558,7 @@ describe('TokensController', () => {
         messenger: tokensControllerMessenger,
         tokenListService: {
           fetchTokensByChainId: vi.fn().mockResolvedValue({}),
-        } as unknown as import('./TokenListService.js').TokenListService,
+        } as unknown as TokenListService,
       });
 
       await controller.addTokens(
@@ -4475,7 +4476,7 @@ async function withController<ReturnValue>(
 
   const tokenListService = {
     fetchTokensByChainId: vi.fn().mockResolvedValue({}),
-  } as unknown as import('./TokenListService.js').TokenListService;
+  } as unknown as TokenListService;
 
   const controller = new TokensController({
     chainId: ChainId.mainnet,

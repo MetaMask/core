@@ -31,7 +31,7 @@ export const accountTrackerController: InitializationConfiguration<
       messenger,
       state,
       getStakedBalanceForChain: async (...args) =>
-        messenger.call(
+        await messenger.call(
           'AssetsContractController:getStakedBalanceForChain',
           ...args,
         ),

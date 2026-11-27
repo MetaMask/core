@@ -249,7 +249,7 @@ export class MultichainBalancesController extends BaseController<
    */
   async #fetchInitialBalances(accounts: InternalAccount[]): Promise<void> {
     const results = await Promise.allSettled(
-      accounts.map(async (account) => this.updateBalance(account.id)),
+      accounts.map(async (account) => await this.updateBalance(account.id)),
     );
     for (const result of results) {
       if (result.status === 'rejected') {

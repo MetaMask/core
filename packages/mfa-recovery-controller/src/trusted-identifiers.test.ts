@@ -79,6 +79,9 @@ const PASSKEY: Identifier = {
 // keccak256('user@example.com')
 const EMAIL_HASH =
   'cfb15ca7270395d72219fd758f75a0c95e3f0a61d959222402f24051d08e9b32';
+// keccak256('apple-sub')
+const APPLE_SUB_HASH =
+  'cd8b238198cbcfb8527787a6db62ac659185c9d4c08b47799d016417fbc2327a';
 
 describe('toTrustedIdentifier', () => {
   it('reads the RP ID hash, credential ID and COSE public key from a passkey attestation', () => {
@@ -103,7 +106,7 @@ describe('toTrustedIdentifier', () => {
 describe('isTrustedIdentifier', () => {
   const login = {
     authConnection: AuthConnection.Google,
-    socialLoginEmail: 'User@Example.com',
+    userId: EMAIL_HASH,
   };
   const google: Identifier = {
     type: 'social',
@@ -119,22 +122,20 @@ describe('isTrustedIdentifier', () => {
     expect(isTrustedIdentifier(PASSKEY, [TRUSTED_PASSKEY], {})).toBe(true);
   });
 
-  it("accepts the device's Google login by its lowercased email", () => {
+  it("accepts the device's Google login", () => {
     expect(isTrustedIdentifier(google, [], login)).toBe(true);
   });
 
-  it("accepts the device's Apple login by its sub", () => {
+  it("accepts the device's Apple login", () => {
     expect(
       isTrustedIdentifier(
         {
           type: 'social',
           namespace: 'https://appleid.apple.com',
-          // keccak256('apple-sub')
-          value:
-            'cd8b238198cbcfb8527787a6db62ac659185c9d4c08b47799d016417fbc2327a',
+          value: APPLE_SUB_HASH,
         },
         [],
-        { authConnection: AuthConnection.Apple, userId: 'apple-sub' },
+        { authConnection: AuthConnection.Apple, userId: APPLE_SUB_HASH },
       ),
     ).toBe(true);
   });
@@ -142,10 +143,20 @@ describe('isTrustedIdentifier', () => {
   it.each([
     ['no social login', {}],
     ['another provider', { ...login, authConnection: AuthConnection.Apple }],
-    ['another email', { ...login, socialLoginEmail: 'other@example.com' }],
-    ['no email', { authConnection: AuthConnection.Google }],
+    ['another userId', { ...login, userId: APPLE_SUB_HASH }],
+    ['no userId', { authConnection: AuthConnection.Google }],
+    ['empty userId', { authConnection: AuthConnection.Google, userId: '' }],
   ])('rejects a social identifier when the device has %s', (_name, device) => {
     expect(isTrustedIdentifier(google, [], device)).toBe(false);
+  });
+
+  it('rejects a social identifier with an empty value even if userId is empty', () => {
+    expect(
+      isTrustedIdentifier({ ...google, value: '' }, [], {
+        authConnection: AuthConnection.Google,
+        userId: '',
+      }),
+    ).toBe(false);
   });
 
   it('rejects a Telegram login, which the escrow does not identify', () => {

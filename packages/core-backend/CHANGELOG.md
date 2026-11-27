@@ -7,13 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.0]
+
+### Added
+
+- Add `MarketStatsService` for real-time spot prices over the shared backend WebSocket. `subscribe` and `unsubscribe` take one `{ assetId, currency }` or a list, and a required `caller` name. `subscribe` makes that caller's channels exactly the list it passes, and `unsubscribe` removes the caller from the listed channels. A channel stays open while any caller wants it. `getSubscriptions` returns the open channels and `getChainStatuses` returns chain health. Price batches, closed channels, and open channels on a chain reported down are published as `MarketStatsService:pricesUpdated` ([#11193](https://github.com/MetaMask/core/pull/11193))
+- Export `wssSupport` on `V3SpotPricesResponse` ([#11193](https://github.com/MetaMask/core/pull/11193))
+
 ### Changed
 
+- **BREAKING:** Remove `BackendWebSocketService.getSubscriptionsByChannel` and the `BackendWebSocketService:getSubscriptionsByChannel` action. Close channels with `unsubscribeChannels`. `CHANNEL_SUBSCRIPTION_MANAGER_ALLOWED_ACTIONS`, and the OHLCV and launchpad allowed-action lists that spread it, grant `BackendWebSocketService:unsubscribeChannels` instead. `ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS` no longer grants `BackendWebSocketService:getSubscriptionsByChannel` ([#11193](https://github.com/MetaMask/core/pull/11193))
+- `BackendWebSocketService.subscribe` stores the `succeeded` list from the subscribe response and returns its `failed` list. A response with an empty `succeeded` list still rejects. Unsubscribing one channel leaves the others on that subscription open. `unsubscribeChannels` removes every named channel that shares a subscription in one frame and resolves with `{ failed }`, the channels the gateway refused, which stay stored for the caller to handle. `WebSocketSubscription.unsubscribe` resolves with the same `UnsubscribeResult`. An unsubscribe reply with no `failed` list rejects and keeps the channels stored. `MarketStatsService` keeps its own open set, sends the assets that are not already open in one frame, and closes the channels a caller drops in one unsubscribe frame per subscription. After a reconnect, those channels go out in one frame ([#11193](https://github.com/MetaMask/core/pull/11193))
+  - `MARKET_STATS_SERVICE_ALLOWED_ACTIONS` grants `BackendWebSocketService:unsubscribeChannels`.
+- `getV3SpotPricesQueryOptions` requests `wssSupport` by default. Pass `includeWssSupportField: false` to omit it ([#11193](https://github.com/MetaMask/core/pull/11193))
 - Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
 - Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@tanstack/query-core` from `^5.103.2` to `^5.107.1` ([#11645](https://github.com/MetaMask/core/pull/11645))
 - Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11645](https://github.com/MetaMask/core/pull/11645))
+
+### Fixed
+
+- `AccountActivityService` keeps the account channels a subscribe response accepts when the gateway refuses others, and does not force a reconnection for that refusal or for a subscribe the gateway rejects outright. A transport failure still reconnects ([#11193](https://github.com/MetaMask/core/pull/11193))
 
 ## [14.1.0]
 
@@ -575,7 +590,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@14.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@15.0.0...HEAD
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@14.1.0...@metamask/core-backend@15.0.0
 [14.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@14.0.0...@metamask/core-backend@14.1.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@13.0.0...@metamask/core-backend@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.3.0...@metamask/core-backend@13.0.0

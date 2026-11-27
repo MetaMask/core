@@ -29,8 +29,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'sendMessage',
   'sendRequest',
   'subscribe',
+  'unsubscribeChannels',
   'getConnectionInfo',
-  'getSubscriptionsByChannel',
   'channelHasSubscription',
   'findSubscriptionsByChannelPrefix',
   'addChannelCallback',
@@ -232,8 +232,25 @@ export type WebSocketSubscription = {
   channelType: string;
   /** Callback function for handling notifications (optional for external use) */
   callback?: (notification: ServerNotificationMessage) => void;
-  /** Function to unsubscribe and clean up */
-  unsubscribe: (requestId?: string) => Promise<void>;
+  /**
+   * Channels the gateway refused on this subscribe. Empty when every requested
+   * channel opened. Callers decide what to do with them.
+   */
+  failed?: string[];
+  /**
+   * Function to unsubscribe and clean up. Resolves with the channels the
+   * gateway refused to close, which stay stored. The caller decides what to
+   * do with them.
+   */
+  unsubscribe: (requestId?: string) => Promise<UnsubscribeResult>;
+};
+
+/**
+ * Outcome of an unsubscribe the gateway acknowledged.
+ */
+export type UnsubscribeResult = {
+  /** Channels the gateway refused to close. They stay stored locally. */
+  failed: string[];
 };
 
 /**
@@ -746,27 +763,6 @@ export class BackendWebSocketService {
   }
 
   /**
-   * Gets all subscription information for a specific channel
-   *
-   * @param channel - The channel name to look up
-   * @returns Array of subscription details for all subscriptions containing the channel
-   */
-  getSubscriptionsByChannel(channel: string): WebSocketSubscription[] {
-    const matchingSubscriptions: WebSocketSubscription[] = [];
-    for (const [subscriptionId, subscription] of this.#subscriptions) {
-      if (subscription.channels.includes(channel)) {
-        matchingSubscriptions.push({
-          subscriptionId,
-          channels: subscription.channels,
-          channelType: subscription.channelType,
-          unsubscribe: subscription.unsubscribe,
-        });
-      }
-    }
-    return matchingSubscriptions;
-  }
-
-  /**
    * Checks if a channel has a subscription
    *
    * @param channel - The channel name to check
@@ -939,7 +935,8 @@ export class BackendWebSocketService {
    * @param options.callback - Callback function for handling notifications
    * @param options.requestId - Optional request ID for testing (will generate UUID if not provided)
    * @param options.channelType - Channel type identifier
-   * @returns Subscription object with unsubscribe method
+   * @returns Subscription for the channels the gateway accepted. `failed` lists
+   * the channels it refused. A response that accepts nothing rejects.
    *
    * @example
    * ```typescript
@@ -981,45 +978,163 @@ export class BackendWebSocketService {
       data: { channels, requestId },
     });
 
+    const succeeded = subscriptionResponse?.succeeded ?? [];
+    const failed = subscriptionResponse?.failed ?? [];
+
+    if (succeeded.length === 0) {
+      throw new Error(
+        failed.length > 0
+          ? `Request failed: ${failed.join(', ')}`
+          : 'Invalid subscription response: missing subscription ID',
+      );
+    }
+
     if (!subscriptionResponse?.subscriptionId) {
       throw new Error('Invalid subscription response: missing subscription ID');
     }
 
     const { subscriptionId } = subscriptionResponse;
-
-    // Create unsubscribe function
-    const unsubscribe = async (unsubRequestId?: string): Promise<void> => {
-      // Send unsubscribe request first
-      await this.sendRequest({
-        event: 'unsubscribe',
-        data: {
-          subscription: subscriptionId,
-          channels,
-          requestId: unsubRequestId,
-        },
-      });
-
-      // Clean up subscription mapping
-      this.#subscriptions.delete(subscriptionId);
-    };
-
-    const subscription = {
+    const stored = {
       subscriptionId,
-      channels: [...channels],
-      channelType,
-      unsubscribe,
-    };
-
-    // Store subscription with subscription ID as key
-    this.#subscriptions.set(subscriptionId, {
-      subscriptionId,
-      channels: [...channels], // Store copy of channels
+      channels: [...succeeded],
       channelType,
       callback,
+    };
+
+    const unsubscribe = (
+      unsubRequestId?: string,
+    ): Promise<UnsubscribeResult> => {
+      const current = this.#subscriptions.get(subscriptionId);
+      return this.#unsubscribeChannels(
+        subscriptionId,
+        current?.channels ?? stored.channels,
+        unsubRequestId,
+      );
+    };
+
+    this.#subscriptions.set(subscriptionId, {
+      ...stored,
       unsubscribe,
     });
 
-    return subscription;
+    return {
+      subscriptionId,
+      channels: [...succeeded],
+      channelType,
+      failed,
+      unsubscribe,
+    };
+  }
+
+  /**
+   * Remove these channels from the server.
+   *
+   * Channels stored on the same subscription go out in one unsubscribe frame.
+   * A channel the server does not have is skipped. A refusal on one
+   * subscription does not skip the others.
+   *
+   * Channels the gateway refuses are returned in `failed` and stay stored. The
+   * caller decides whether to retry or give up. A request that fails outright,
+   * or a reply that does not acknowledge the removal, rejects instead.
+   *
+   * @param channels - Fully-qualified channel names to close.
+   * @returns The channels the gateway refused to close.
+   */
+  async unsubscribeChannels(
+    channels: readonly string[],
+  ): Promise<UnsubscribeResult> {
+    const grouped = new Map<string, string[]>();
+    for (const channel of channels) {
+      for (const [subscriptionId, subscription] of this.#subscriptions) {
+        if (!subscription.channels.includes(channel)) {
+          continue;
+        }
+        const removing = grouped.get(subscriptionId);
+        if (!removing) {
+          grouped.set(subscriptionId, [channel]);
+          continue;
+        }
+        if (!removing.includes(channel)) {
+          removing.push(channel);
+        }
+      }
+    }
+
+    const failures: unknown[] = [];
+    const failed: string[] = [];
+    for (const [subscriptionId, removing] of grouped) {
+      try {
+        const result = await this.#unsubscribeChannels(
+          subscriptionId,
+          removing,
+        );
+        failed.push(...result.failed);
+      } catch (error) {
+        failures.push(error);
+      }
+    }
+    if (failures.length === 1) {
+      const [failure] = failures;
+      throw failure instanceof Error ? failure : new Error(String(failure));
+    }
+    if (failures.length > 1) {
+      throw new AggregateError(failures, 'unsubscribe failed');
+    }
+    return { failed };
+  }
+
+  /**
+   * Unsubscribe specific channels from a stored subscription and drop them
+   * locally when the gateway accepts the removal. Channels the gateway refuses
+   * stay stored and are returned for the caller to handle.
+   *
+   * @param subscriptionId - Server subscription that owns the channels.
+   * @param channelsToRemove - Channels to remove. Channels no longer stored are skipped.
+   * @param requestId - Optional request id for the unsubscribe frame.
+   * @returns The channels the gateway refused to close.
+   */
+  async #unsubscribeChannels(
+    subscriptionId: string,
+    channelsToRemove: readonly string[],
+    requestId?: string,
+  ): Promise<UnsubscribeResult> {
+    const subscription = this.#subscriptions.get(subscriptionId);
+    if (!subscription || channelsToRemove.length === 0) {
+      return { failed: [] };
+    }
+
+    const removing = channelsToRemove.filter((channel) =>
+      subscription.channels.includes(channel),
+    );
+    if (removing.length === 0) {
+      return { failed: [] };
+    }
+
+    const response = await this.sendRequest({
+      event: 'unsubscribe',
+      data: {
+        subscription: subscriptionId,
+        channels: removing,
+        requestId,
+      },
+    });
+    // A reply without a `failed` list (for example an error payload) is not an
+    // acknowledgement. Keep the channels locally so they stay tracked and can
+    // be retried, rather than dropping them while the gateway still holds them.
+    if (!Array.isArray(response?.failed)) {
+      throw new Error(
+        `Invalid unsubscribe response: missing failed list for ${removing.join(', ')}`,
+      );
+    }
+    const refused = response.failed;
+    const removed = removing.filter((channel) => !refused.includes(channel));
+    subscription.channels = subscription.channels.filter(
+      (channel) => !removed.includes(channel),
+    );
+    if (subscription.channels.length === 0) {
+      this.#subscriptions.delete(subscriptionId);
+    }
+    return { failed: refused };
   }
 
   // =============================================================================
@@ -1290,14 +1405,10 @@ export class BackendWebSocketService {
     this.#pendingRequests.delete(requestId);
     clearTimeout(request.timeout);
 
-    // Check if the response indicates failure
-    if (message.data.failed && message.data.failed.length > 0) {
-      request.reject(
-        new Error(`Request failed: ${message.data.failed.join(', ')}`),
-      );
-    } else {
-      request.resolve(message.data);
-    }
+    // `failed` names channels the gateway refused on a response it otherwise
+    // accepted. Subscribe and unsubscribe keep the rest. Rejecting here would
+    // drop every channel in a market-stats batch when one asset is refused.
+    request.resolve(message.data);
   }
 
   /**

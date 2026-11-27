@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.4.1` ([#11732](https://github.com/MetaMask/core/pull/11732), [#11761](https://github.com/MetaMask/core/pull/11761))
+- Bump `@metamask/transaction-controller` from `^74.5.0` to `^74.5.1` ([#11789](https://github.com/MetaMask/core/pull/11789))
 - **BREAKING:** The constructors of `TokensController`, `TokenBalancesController`, `TokenDetectionController`, `TokenRatesController`, `AccountTrackerController`, `NftController`, `MultichainBalancesController`, `MultichainAssetsRatesController` and `MultichainAssetsController` no longer call other controllers or start background work, so they can be constructed in any order ([#11315](https://github.com/MetaMask/core/pull/11315))
   - Call `init` on each of them once the controllers they read from are registered. Until then:
     - `TokensController` does not enrich persisted tokens from the token list, and reads the selected account on demand.
@@ -50,6 +50,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The first missing handler is reported through `messenger.captureException`. Stored tokens stay unchanged until a scan reaches `PhishingController`. A scan that reaches the controller and fails stays on the configured interval.
 - `NftController.init` keeps `ipfsGateway`, `isIpfsGatewayEnabled`, and `displayNftMedia` from a `PreferencesController:stateChange` that arrives before `init` ([#11315](https://github.com/MetaMask/core/pull/11315))
 - `TokenListController.init` retries a failed token-list cache load, and subscribes to persist `tokensChainsCache` only after that load succeeds ([#11315](https://github.com/MetaMask/core/pull/11315))
+
+## [113.3.4]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.5.0` ([#11732](https://github.com/MetaMask/core/pull/11732), [#11761](https://github.com/MetaMask/core/pull/11761), [#11784](https://github.com/MetaMask/core/pull/11784))
+- Bump `@metamask/core-backend` from `^14.1.0` to `^15.0.0` ([#11784](https://github.com/MetaMask/core/pull/11784))
 
 ## [113.3.3]
 
@@ -3771,7 +3778,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@113.3.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@113.3.4...HEAD
+[113.3.4]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@113.3.3...@metamask/assets-controllers@113.3.4
 [113.3.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@113.3.2...@metamask/assets-controllers@113.3.3
 [113.3.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@113.3.1...@metamask/assets-controllers@113.3.2
 [113.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@113.3.0...@metamask/assets-controllers@113.3.1

@@ -94,9 +94,15 @@ export const DUMMY_AUTHORIZATION_SIGNATURE =
 export const EIP_2780_AUTHORIZATION_GAS = 35190;
 
 /**
- * Intrinsic gas cost for each authorization omitted from the node estimate.
+ * EIP-2780 intrinsic gas charged for each authorization.
  */
 export const EIP7280_AUTHORIZATION_INTRINSIC_GAS = 7816;
+
+/**
+ * EIP-7702 intrinsic gas charged for each authorization before EIP-2780
+ * (`PER_EMPTY_ACCOUNT_COST`).
+ */
+export const EIP7702_AUTHORIZATION_INTRINSIC_GAS = 25000;
 
 /**
  * Gas for the upgrade authorization of the sender that is not included in the
@@ -105,6 +111,18 @@ export const EIP7280_AUTHORIZATION_INTRINSIC_GAS = 7816;
  */
 export const UPGRADE_AUTHORIZATION_GAS =
   EIP7280_AUTHORIZATION_INTRINSIC_GAS + EIP_2780_AUTHORIZATION_GAS;
+
+/**
+ * Gas for an authorization of the sender that replaces an existing delegation
+ * and is not included in the sum of the provided gas values of a batch.
+ *
+ * The intrinsic cost of an authorization is 25,000 before EIP-2780 and 7,816
+ * after it, so the larger value is used as the active rules are not known.
+ */
+export const REPLACE_AUTHORIZATION_GAS = Math.max(
+  EIP7702_AUTHORIZATION_INTRINSIC_GAS,
+  EIP7280_AUTHORIZATION_INTRINSIC_GAS,
+);
 
 /**
  * Error for a simulated transaction that failed, as opposed to the simulation
@@ -300,9 +318,10 @@ export async function estimateGas({
  *   provides source-token balance to subsequent sub-calls). When 7702
  *   simulation succeeds it is preferred since the bundled call has no per-tx
  *   intrinsic gas cost and produces a tighter estimate. If the sender requires
- *   an upgrade, the fallback adds the authorization intrinsic gas and, if no
- *   delegation exists yet, the delegation indicator charge. The provided gas
- *   values do not include these authorization costs.
+ *   an upgrade, the fallback adds the authorization gas, which the provided
+ *   gas values do not include: the EIP-2780 intrinsic and delegation indicator
+ *   charges for a first upgrade, or the larger of the EIP-7702 and EIP-2780
+ *   intrinsic charges when replacing an existing delegation.
  *
  * @param transactions - Batch transactions to inspect.
  * @returns Parsed gas limits and total when every transaction has gas; otherwise `undefined`.
@@ -391,7 +410,7 @@ export async function estimateGasBatch({
 
     if (simulationFails && providedBatchGasLimits) {
       const upgradeGas = chainResult.delegationAddress
-        ? EIP7280_AUTHORIZATION_INTRINSIC_GAS
+        ? REPLACE_AUTHORIZATION_GAS
         : UPGRADE_AUTHORIZATION_GAS;
       const fallbackGasLimit =
         providedBatchGasLimits.totalGasLimit +
@@ -669,10 +688,10 @@ async function getLatestBlock(
  * authority of each authorization so that it can apply any EIP-2780 runtime
  * authorization charges.
  * - If the Simulation API is disabled, unsupported or unavailable, the selected
- * node estimates the transaction without unsigned authorizations and with the
- * delegation of the sender overridden. Intrinsic gas is added for each omitted
- * authorization, plus the EIP-2780 delegation charge if the sender is not yet
- * delegated. A simulated transaction error is not retried using the node.
+ * node estimates the transaction with placeholder signatures for unsigned
+ * authorizations and with the delegation of the sender overridden, plus the
+ * EIP-2780 delegation charge if the sender is not yet delegated. A simulated
+ * transaction error is not retried using the node.
  *
  * @param options - The options object.
  * @param options.authorizationList - The original authorization list of the transaction.
@@ -753,19 +772,21 @@ async function estimateGasType4({
  * Estimate the gas for a type 4 transaction with unsigned authorizations using
  * the selected node.
  *
- * Unsigned authorizations are omitted from the node request and their intrinsic
- * gas is added manually per entry. Their authority is the sender, so the
- * delegation of the sender is set with a state override, and the EIP-2780 charge
- * for a new delegation indicator is added once if the sender is not yet
- * delegated. Signed authorizations remain in the request and are charged by the
- * node.
+ * Unsigned authorizations remain in the node request with placeholder
+ * signatures, so the node charges their intrinsic gas under its active rules:
+ * 25,000 per authorization before EIP-2780 and 7,816 after it. As placeholder
+ * signatures do not recover the sender, the node skips their runtime charges and
+ * delegation. Their authority is the sender, so the delegation of the sender is
+ * set with a state override, and the EIP-2780 charge for a new delegation
+ * indicator is added once if the sender is not yet delegated. Signed
+ * authorizations are charged by the node.
  *
  * @param options - The options object.
  * @param options.authorizationList - The original authorization list of the transaction.
  * @param options.messenger - The messenger instance for communication.
  * @param options.networkClientId - The network client ID.
- * @param options.txParams - The normalized transaction parameters.
- * @returns The estimated gas including omitted authorization costs.
+ * @param options.txParams - The normalized transaction parameters, including placeholder signatures for unsigned authorizations.
+ * @returns The estimated gas including the delegation indicator charge.
  */
 async function estimateGasType4Node({
   authorizationList,
@@ -781,14 +802,6 @@ async function estimateGasType4Node({
   const unsignedAuthorizations = authorizationList.filter(
     (authorization) => !isAuthorizationSigned(authorization),
   );
-  const signedAuthorizations = authorizationList.filter(isAuthorizationSigned);
-  const nodeTxParams = {
-    ...txParams,
-    authorizationList: signedAuthorizations.length
-      ? signedAuthorizations
-      : undefined,
-    type: signedAuthorizations.length ? txParams.type : undefined,
-  };
 
   // Unsigned authorizations are signed by the sender, and the last valid
   // authorization for an authority sets its delegation.
@@ -796,17 +809,10 @@ async function estimateGasType4Node({
     unsignedAuthorizations[unsignedAuthorizations.length - 1].address;
 
   const [nodeGas, currentDelegationAddress] = await Promise.all([
-    estimateGasNode(
-      messenger,
-      networkClientId,
-      nodeTxParams,
-      delegationAddress,
-    ),
+    estimateGasNode(messenger, networkClientId, txParams, delegationAddress),
     getDelegationAddress(txParams.from as Hex, messenger, networkClientId),
   ]);
 
-  const intrinsicGas =
-    unsignedAuthorizations.length * EIP7280_AUTHORIZATION_INTRINSIC_GAS;
   const delegationGas = currentDelegationAddress
     ? 0
     : EIP_2780_AUTHORIZATION_GAS;
@@ -814,11 +820,10 @@ async function estimateGasType4Node({
   log('Type 4 gas using node', {
     currentDelegationAddress,
     delegationGas,
-    intrinsicGas,
     nodeGas,
   });
 
-  return BNToHex(hexToBN(nodeGas).addn(intrinsicGas + delegationGas));
+  return BNToHex(hexToBN(nodeGas).addn(delegationGas));
 }
 
 /**

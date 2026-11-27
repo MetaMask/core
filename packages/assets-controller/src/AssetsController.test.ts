@@ -14,6 +14,7 @@ import type {
 } from '@metamask/network-controller';
 import type { NetworkEnablementControllerState } from '@metamask/network-enablement-controller';
 import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import { describe, expect, it, vi } from 'vitest';
 import type { Mock, MockInstance, MockedFunction } from 'vitest';
 
@@ -49,6 +50,7 @@ import type {
   DataRequest,
   DataResponse,
   FungibleAssetMetadata,
+  FungibleAssetPrice,
   Middleware,
 } from './types.js';
 import {
@@ -194,12 +196,25 @@ const MOCK_ASSET_ID =
 const MOCK_ASSET_ID_LOWERCASE =
   'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
 const MOCK_NATIVE_ASSET_ID = 'eip155:1/slip44:60' as Caip19AssetId;
+const MOCK_EVM_TX = {
+  chainId: '0xa4b1',
+  txParams: { from: '0x1234567890123456789012345678901234567890' },
+} as unknown as TransactionMeta;
 /** mUSD on mainnet — a controller-managed default tracked asset. */
 const [MOCK_DEFAULT_TRACKED_ASSET_ID] =
   getDefaultTrackedAssetsForChain('eip155:1');
 // DAI — a second checksummed address so filtered blob assertions are exact.
 const OTHER_ASSET_ID =
   'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
+
+function fungiblePrice(price: number, lastUpdated: number): FungibleAssetPrice {
+  return {
+    assetPriceType: 'fungible',
+    price,
+    usdPrice: price,
+    lastUpdated,
+  };
+}
 
 /**
  * Activate asset tracking by marking the UI open, the keyring unlocked, and
@@ -1450,7 +1465,7 @@ describe('AssetsController', () => {
         assetsBalance: {
           [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '100' } },
         },
-        assetsPrice: { [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 } },
+        assetsPrice: { [MOCK_ASSET_ID]: fungiblePrice(2, 123) },
       };
 
       await withController({ state: initialState }, ({ controller }) => {
@@ -1464,7 +1479,7 @@ describe('AssetsController', () => {
           chainId: 'eip155:1',
           balance: { amount: '100' },
           metadata,
-          price: { price: 2, lastUpdated: 123 },
+          price: fungiblePrice(2, 123),
           fiatValue: 200,
         });
       });
@@ -1476,7 +1491,7 @@ describe('AssetsController', () => {
         assetsBalance: {
           [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '1' } },
         },
-        assetsPrice: { [MOCK_ASSET_ID]: { price: 1, lastUpdated: 1 } },
+        assetsPrice: { [MOCK_ASSET_ID]: fungiblePrice(1, 1) },
       };
 
       await withController({ state: initialState }, ({ controller }) => {
@@ -1529,7 +1544,7 @@ describe('AssetsController', () => {
           MOCK_ASSET_ID,
         );
 
-        expect(asset?.price).toStrictEqual({ price: 0, lastUpdated: 0 });
+        expect(asset?.price).toStrictEqual(fungiblePrice(0, 0));
         expect(asset?.fiatValue).toBe(0);
       });
     });
@@ -1575,7 +1590,7 @@ describe('AssetsController', () => {
         assetsBalance: {
           [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '100' } },
         },
-        assetsPrice: { [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 } },
+        assetsPrice: { [MOCK_ASSET_ID]: fungiblePrice(2, 123) },
       };
 
       await withController({ state: initialState }, ({ messenger }) => {
@@ -1617,8 +1632,8 @@ describe('AssetsController', () => {
           },
         },
         assetsPrice: {
-          [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 },
-          [MOCK_NATIVE_ASSET_ID]: { price: 3000, lastUpdated: 123 },
+          [MOCK_ASSET_ID]: fungiblePrice(2, 123),
+          [MOCK_NATIVE_ASSET_ID]: fungiblePrice(3000, 123),
         },
       };
 
@@ -1637,7 +1652,7 @@ describe('AssetsController', () => {
           chainId: 'eip155:1',
           balance: { amount: '100' },
           metadata,
-          price: { price: 2, lastUpdated: 123 },
+          price: fungiblePrice(2, 123),
           fiatValue: 200,
         });
         expect(assets[MOCK_NATIVE_ASSET_ID]?.fiatValue).toBe(6000);
@@ -1713,7 +1728,7 @@ describe('AssetsController', () => {
         assetsBalance: {
           [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '100' } },
         },
-        assetsPrice: { [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 } },
+        assetsPrice: { [MOCK_ASSET_ID]: fungiblePrice(2, 123) },
       };
 
       await withController({ state: initialState }, ({ messenger }) => {
@@ -1756,8 +1771,8 @@ describe('AssetsController', () => {
           },
         },
         assetsPrice: {
-          [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 },
-          [polygonNativeAssetId]: { price: 0.5, lastUpdated: 123 },
+          [MOCK_ASSET_ID]: fungiblePrice(2, 123),
+          [polygonNativeAssetId]: fungiblePrice(0.5, 123),
         },
       };
 
@@ -1773,7 +1788,7 @@ describe('AssetsController', () => {
           chainId: 'eip155:1',
           balance: { amount: '100' },
           metadata,
-          price: { price: 2, lastUpdated: 123 },
+          price: fungiblePrice(2, 123),
           fiatValue: 200,
         });
       });
@@ -1841,7 +1856,7 @@ describe('AssetsController', () => {
         assetsBalance: {
           [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '100' } },
         },
-        assetsPrice: { [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 } },
+        assetsPrice: { [MOCK_ASSET_ID]: fungiblePrice(2, 123) },
       };
 
       await withController({ state: initialState }, ({ messenger }) => {
@@ -3147,7 +3162,7 @@ describe('AssetsController', () => {
         async ({ controller }) => {
           await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
 
-          const wsRequest = wsSubscribeSpy.mock.calls.at(-1)?.[0].request;
+          const wsRequest = wsSubscribeSpy.mock.calls.at(-1)?.[0]?.request;
           expect(wsRequest?.chainIds).toStrictEqual(['eip155:1']);
           expect(wsRequest?.customAssets).toBeUndefined();
 
@@ -4205,6 +4220,125 @@ describe('AssetsController', () => {
         ).toBe(1.0);
       });
     });
+
+    it('reconciles market stats after a state update', async () => {
+      const reconcile = vi
+        .spyOn(PriceDataSource.prototype, 'reconcileMarketStreams')
+        .mockResolvedValue(undefined);
+
+      try {
+        await withController(async ({ controller }) => {
+          reconcile.mockClear();
+
+          await controller.handleAssetsUpdate(
+            {
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [MOCK_ASSET_ID]: { amount: '1' },
+                },
+              },
+              assetsPrice: {
+                [MOCK_ASSET_ID]: {
+                  assetPriceType: 'fungible',
+                  price: 1,
+                  usdPrice: 1,
+                  lastUpdated: 1,
+                  wssSupport: true,
+                },
+              },
+            },
+            'TestSource',
+          );
+
+          expect(reconcile).toHaveBeenCalledTimes(1);
+        });
+      } finally {
+        reconcile.mockRestore();
+      }
+    });
+
+    it('reconciles market stats after a price-only update', async () => {
+      const reconcile = vi
+        .spyOn(PriceDataSource.prototype, 'reconcileMarketStreams')
+        .mockResolvedValue(undefined);
+
+      try {
+        await withController(async ({ controller }) => {
+          reconcile.mockClear();
+
+          await controller.handleAssetsUpdate(
+            {
+              assetsPrice: {
+                [MOCK_ASSET_ID]: {
+                  assetPriceType: 'fungible',
+                  price: 1,
+                  usdPrice: 1,
+                  lastUpdated: 1,
+                  wssSupport: true,
+                },
+              },
+            },
+            'PriceDataSource',
+          );
+
+          expect(reconcile).toHaveBeenCalledTimes(1);
+        });
+      } finally {
+        reconcile.mockRestore();
+      }
+    });
+
+    it('does not wait for market stats to reconcile before the update resolves', async () => {
+      const reconcile = vi
+        .spyOn(PriceDataSource.prototype, 'reconcileMarketStreams')
+        .mockReturnValue(new Promise<void>(() => undefined));
+
+      try {
+        await withController(async ({ controller }) => {
+          await controller.handleAssetsUpdate(
+            {
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [MOCK_ASSET_ID]: { amount: '1' },
+                },
+              },
+            },
+            'TestSource',
+          );
+
+          expect(reconcile).toHaveBeenCalled();
+        });
+      } finally {
+        reconcile.mockRestore();
+      }
+    });
+
+    it('keeps the update when market stats fail to reconcile', async () => {
+      const reconcile = vi
+        .spyOn(PriceDataSource.prototype, 'reconcileMarketStreams')
+        .mockRejectedValue(new Error('socket down'));
+
+      try {
+        await withController(async ({ controller }) => {
+          await controller.handleAssetsUpdate(
+            {
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [MOCK_ASSET_ID]: { amount: '1' },
+                },
+              },
+            },
+            'TestSource',
+          );
+
+          expect(
+            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+          ).toStrictEqual({ amount: '1' });
+        });
+      } finally {
+        reconcile.mockRestore();
+      }
+    });
   });
 
   describe('syncAssetsPrices', () => {
@@ -4316,6 +4450,90 @@ describe('AssetsController', () => {
       });
     });
 
+    it('reopens market-stats channels after the new prices are stored', async () => {
+      let resolveSync: () => void = () => undefined;
+      const sync = new Promise<void>((resolve) => {
+        resolveSync = resolve;
+      });
+      const resubscribe = vi
+        .spyOn(PriceDataSource.prototype, 'resubscribeForCurrencyChange')
+        .mockResolvedValue(undefined);
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '1' },
+          },
+        },
+      };
+
+      try {
+        await withController(
+          { state: initialState },
+          async ({ controller }) => {
+            vi.spyOn(controller, 'syncAssetsPrices').mockReturnValue(sync);
+
+            controller.setSelectedCurrency('eur');
+
+            expect(resubscribe).not.toHaveBeenCalled();
+
+            resolveSync();
+            await waitFor(() => {
+              expect(resubscribe).toHaveBeenCalledTimes(1);
+            });
+          },
+        );
+      } finally {
+        resubscribe.mockRestore();
+      }
+    });
+
+    it('skips reopening channels when the currency changes again before prices return', async () => {
+      let resolveEur: () => void = () => undefined;
+      let resolveGbp: () => void = () => undefined;
+      const eurSync = new Promise<void>((resolve) => {
+        resolveEur = resolve;
+      });
+      const gbpSync = new Promise<void>((resolve) => {
+        resolveGbp = resolve;
+      });
+      const resubscribe = vi
+        .spyOn(PriceDataSource.prototype, 'resubscribeForCurrencyChange')
+        .mockResolvedValue(undefined);
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '1' },
+          },
+        },
+      };
+
+      try {
+        await withController(
+          { state: initialState },
+          async ({ controller }) => {
+            vi.spyOn(controller, 'syncAssetsPrices')
+              .mockReturnValueOnce(eurSync)
+              .mockReturnValueOnce(gbpSync);
+
+            controller.setSelectedCurrency('eur');
+            controller.setSelectedCurrency('gbp');
+
+            resolveEur();
+            await waitUntilStable(() => resubscribe.mock.calls.length);
+
+            expect(resubscribe).not.toHaveBeenCalled();
+
+            resolveGbp();
+            await waitFor(() => {
+              expect(resubscribe).toHaveBeenCalledTimes(1);
+            });
+          },
+        );
+      } finally {
+        resubscribe.mockRestore();
+      }
+    });
+
     it('does not call getAssets when isBasicFunctionality is false', async () => {
       const initialState: Partial<AssetsControllerState> = {
         assetsBalance: {
@@ -4348,10 +4566,10 @@ describe('AssetsController', () => {
           .spyOn(controller, 'getAssets')
           .mockResolvedValue({});
 
-        messenger.publish('TransactionController:transactionConfirmed', {
-          chainId: '0xa4b1',
-          txParams: { from: '0x1234567890123456789012345678901234567890' },
-        });
+        messenger.publish(
+          'TransactionController:transactionConfirmed',
+          MOCK_EVM_TX,
+        );
 
         await waitFor(() => {
           expect(getAssetsSpy).toHaveBeenCalledWith(
@@ -4374,10 +4592,10 @@ describe('AssetsController', () => {
           .spyOn(controller, 'getAssets')
           .mockResolvedValue({});
 
-        messenger.publish('TransactionController:unapprovedTransactionAdded', {
-          chainId: '0xa4b1',
-          txParams: { from: '0x1234567890123456789012345678901234567890' },
-        });
+        messenger.publish(
+          'TransactionController:unapprovedTransactionAdded',
+          MOCK_EVM_TX,
+        );
 
         await waitFor(() => {
           expect(getAssetsSpy).toHaveBeenCalledWith(
@@ -4530,14 +4748,14 @@ describe('AssetsController', () => {
           status: 'up',
         });
 
-        messenger.publish('TransactionController:unapprovedTransactionAdded', {
-          chainId: '0xa4b1',
-          txParams: { from: '0x1234567890123456789012345678901234567890' },
-        });
-        messenger.publish('TransactionController:transactionConfirmed', {
-          chainId: '0xa4b1',
-          txParams: { from: '0x1234567890123456789012345678901234567890' },
-        });
+        messenger.publish(
+          'TransactionController:unapprovedTransactionAdded',
+          MOCK_EVM_TX,
+        );
+        messenger.publish(
+          'TransactionController:transactionConfirmed',
+          MOCK_EVM_TX,
+        );
 
         await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
@@ -4768,7 +4986,7 @@ describe('AssetsController', () => {
     it('does not emit stateChange when a data source re-reports the same price', async () => {
       const initialState: Partial<AssetsControllerState> = {
         assetsPrice: {
-          [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 },
+          [MOCK_ASSET_ID]: fungiblePrice(2, 123),
         },
       };
 
@@ -4784,7 +5002,7 @@ describe('AssetsController', () => {
           await controller.handleAssetsUpdate(
             {
               assetsPrice: {
-                [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 },
+                [MOCK_ASSET_ID]: fungiblePrice(2, 123),
               },
             },
             'TestSource',
@@ -4798,7 +5016,7 @@ describe('AssetsController', () => {
     it('emits stateChange when a price genuinely changes', async () => {
       const initialState: Partial<AssetsControllerState> = {
         assetsPrice: {
-          [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 },
+          [MOCK_ASSET_ID]: fungiblePrice(2, 123),
         },
       };
 
@@ -4814,7 +5032,7 @@ describe('AssetsController', () => {
           await controller.handleAssetsUpdate(
             {
               assetsPrice: {
-                [MOCK_ASSET_ID]: { price: 3, lastUpdated: 456 },
+                [MOCK_ASSET_ID]: fungiblePrice(3, 456),
               },
             },
             'TestSource',
@@ -5351,7 +5569,7 @@ describe('AssetsController', () => {
               id: stellarAccountId,
               address:
                 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
-              type: 'stellar:data-account',
+              type: 'stellar:account',
               scopes: [stellarChainId],
             }),
           ]);
@@ -5680,6 +5898,7 @@ describe('AssetsController', () => {
       });
 
       let nativePresentAtPriceFetch: boolean | undefined;
+      const subscribeSpy = vi.spyOn(PriceDataSource.prototype, 'subscribe');
       const fetchSpy = vi
         .spyOn(PriceDataSource.prototype, 'fetch')
         .mockImplementation(async () => {
@@ -5702,10 +5921,16 @@ describe('AssetsController', () => {
           'AccountTreeController:initialized',
           getDefaultAccountTreeControllerState(),
         );
+        // The first poll prices through the private poll, not `fetch`.
+        // Wait for that subscription to finish so the switch is an update,
+        // which still snapshots state in `fetch`.
         await waitFor(() => {
-          expect(fetchSpy).toHaveBeenCalled();
+          expect(subscribeSpy).toHaveBeenCalled();
         });
-        await waitUntilStable(() => [fetchSpy.mock.calls.length]);
+        await waitUntilStable(() => [
+          subscribeSpy.mock.calls.length,
+          controller.state,
+        ]);
 
         // A new account has no native row yet. The switch must seed it
         // before the price subscription snapshots state.
@@ -5730,6 +5955,7 @@ describe('AssetsController', () => {
           ).toStrictEqual({ amount: '0' });
         });
       } finally {
+        subscribeSpy.mockRestore();
         fetchSpy.mockRestore();
         controller.destroy();
       }

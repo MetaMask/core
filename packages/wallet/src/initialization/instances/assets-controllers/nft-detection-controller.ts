@@ -36,7 +36,7 @@ export const nftDetectionController: InitializationConfiguration<
       // `!PreferencesController:getState().useNftDetection`.
       ...(options.disabled === undefined ? {} : { disabled: options.disabled }),
       addNfts: async (...args) =>
-        messenger.call('NftController:addNfts', ...args),
+        await messenger.call('NftController:addNfts', ...args),
       removeNft: (...args) =>
         messenger.call('NftController:removeNft', ...args),
       getNftState: () => messenger.call('NftController:getState'),

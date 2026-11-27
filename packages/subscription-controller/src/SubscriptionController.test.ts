@@ -53,6 +53,8 @@ import type {
 import {
   CANCEL_TYPES,
   CRYPTO_AUTH_METHODS,
+  CRYPTO_PAYMENT_ERRORS,
+  INVOICE_PAYMENT_STATUSES,
   MODAL_TYPE,
   PAYMENT_TYPES,
   PRODUCT_TYPES,
@@ -326,6 +328,8 @@ const SUBSCRIPTION_SERVICE_ACTIONS = [
   'SubscriptionService:startSubscriptionWithCrypto',
   'SubscriptionService:updatePaymentMethodCard',
   'SubscriptionService:updatePaymentMethodCrypto',
+  'SubscriptionService:payLastInvoice',
+  'SubscriptionService:verifyPaymentMethod',
   'SubscriptionService:getSubscriptionsEligibilities',
   'SubscriptionService:submitUserEvent',
   'SubscriptionService:assignUserToCohort',
@@ -436,6 +440,8 @@ function registerMockSubscriptionService(rootMessenger: RootMessenger): {
     startSubscriptionWithCrypto: Mock;
     updatePaymentMethodCard: Mock;
     updatePaymentMethodCrypto: Mock;
+    payLastInvoice: Mock;
+    verifyPaymentMethod: Mock;
     getBillingPortalUrl: Mock;
     getSubscriptionsEligibilities: Mock;
     submitUserEvent: Mock;
@@ -464,6 +470,8 @@ function registerMockSubscriptionService(rootMessenger: RootMessenger): {
   const mockStartSubscriptionWithCrypto = vi.fn();
   const mockUpdatePaymentMethodCard = vi.fn();
   const mockUpdatePaymentMethodCrypto = vi.fn();
+  const mockPayLastInvoice = vi.fn();
+  const mockVerifyPaymentMethod = vi.fn();
   const mockGetBillingPortalUrl = vi.fn();
   const mockGetSubscriptionsEligibilities = vi.fn();
   const mockSubmitUserEvent = vi.fn();
@@ -508,6 +516,14 @@ function registerMockSubscriptionService(rootMessenger: RootMessenger): {
     mockUpdatePaymentMethodCrypto,
   );
   rootMessenger.registerActionHandler(
+    'SubscriptionService:payLastInvoice',
+    mockPayLastInvoice,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionService:verifyPaymentMethod',
+    mockVerifyPaymentMethod,
+  );
+  rootMessenger.registerActionHandler(
     'SubscriptionService:getBillingPortalUrl',
     mockGetBillingPortalUrl,
   );
@@ -542,6 +558,8 @@ function registerMockSubscriptionService(rootMessenger: RootMessenger): {
     startSubscriptionWithCrypto: mockStartSubscriptionWithCrypto,
     updatePaymentMethodCard: mockUpdatePaymentMethodCard,
     updatePaymentMethodCrypto: mockUpdatePaymentMethodCrypto,
+    payLastInvoice: mockPayLastInvoice,
+    verifyPaymentMethod: mockVerifyPaymentMethod,
     getBillingPortalUrl: mockGetBillingPortalUrl,
     getSubscriptionsEligibilities: mockGetSubscriptionsEligibilities,
     submitUserEvent: mockSubmitUserEvent,
@@ -5178,6 +5196,129 @@ describe('SubscriptionController', () => {
     });
   });
 
+  describe('retryCryptoCharge', () => {
+    it.each([
+      [SUBSCRIPTION_STATUSES.paused, 'verifyPaymentMethod', 'payLastInvoice'],
+      [SUBSCRIPTION_STATUSES.pastDue, 'payLastInvoice', 'verifyPaymentMethod'],
+      [SUBSCRIPTION_STATUSES.active, 'payLastInvoice', 'verifyPaymentMethod'],
+    ] as const)(
+      'calls %s subscriptions through %s and refreshes state',
+      async (status, calledMethod, skippedMethod) => {
+        await withController(
+          { state: { subscriptions: [{ ...MOCK_SUBSCRIPTION, status }] } },
+          async ({ controller, rootMessenger, mockService }) => {
+            mockService[calledMethod].mockResolvedValue(MOCK_SUBSCRIPTION);
+            mockService.getSubscriptions.mockResolvedValue(
+              MOCK_GET_SUBSCRIPTIONS_RESPONSE,
+            );
+
+            await rootMessenger.call(
+              'SubscriptionController:retryCryptoCharge',
+              { subscriptionId: MOCK_SUBSCRIPTION.id },
+            );
+
+            expect(mockService[calledMethod]).toHaveBeenCalledWith({
+              subscriptionId: MOCK_SUBSCRIPTION.id,
+            });
+            expect(mockService[skippedMethod]).not.toHaveBeenCalled();
+            expect(controller.state.subscriptions).toStrictEqual([
+              MOCK_SUBSCRIPTION,
+            ]);
+          },
+        );
+      },
+    );
+
+    it('keeps the charged subscription when the refresh returns stale state', async () => {
+      const failed: Subscription = {
+        ...MOCK_CRYPTO_SUBSCRIPTION,
+        status: SUBSCRIPTION_STATUSES.pastDue,
+        lastInvoice: {
+          id: 'in_1',
+          status: INVOICE_PAYMENT_STATUSES.FAILED,
+          errorCode: CRYPTO_PAYMENT_ERRORS.INSUFFICIENT_BALANCE,
+        },
+      };
+      const charged: Subscription = {
+        ...failed,
+        lastInvoice: {
+          id: 'in_1',
+          status: INVOICE_PAYMENT_STATUSES.PROCESSING,
+        },
+      };
+      await withController(
+        { state: { subscriptions: [failed] } },
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.payLastInvoice.mockResolvedValue(charged);
+          mockService.getSubscriptions.mockResolvedValue({
+            ...MOCK_GET_SUBSCRIPTIONS_RESPONSE,
+            subscriptions: [failed, MOCK_SUBSCRIPTION],
+          });
+
+          const result = await rootMessenger.call(
+            'SubscriptionController:retryCryptoCharge',
+            { subscriptionId: failed.id },
+          );
+
+          expect(controller.state.subscriptions).toStrictEqual([
+            charged,
+            MOCK_SUBSCRIPTION,
+          ]);
+          expect(result).toStrictEqual(controller.state.subscriptions);
+        },
+      );
+    });
+
+    it('refreshes the access token when the refresh returns unchanged state', async () => {
+      const failed: Subscription = {
+        ...MOCK_CRYPTO_SUBSCRIPTION,
+        status: SUBSCRIPTION_STATUSES.paused,
+      };
+      await withController(
+        {
+          state: {
+            customerId: 'cus_1',
+            subscriptions: [failed],
+            trialedProducts: [],
+          },
+        },
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.verifyPaymentMethod.mockResolvedValue({
+            ...failed,
+            status: SUBSCRIPTION_STATUSES.provisional,
+          });
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [failed],
+            trialedProducts: [],
+          });
+          const triggerAccessTokenRefreshSpy = vi.spyOn(
+            controller,
+            'triggerAccessTokenRefresh',
+          );
+
+          await rootMessenger.call('SubscriptionController:retryCryptoCharge', {
+            subscriptionId: failed.id,
+          });
+
+          expect(triggerAccessTokenRefreshSpy).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('throws when the user has no such subscription', async () => {
+      await withController(async ({ rootMessenger, mockService }) => {
+        await expect(
+          rootMessenger.call('SubscriptionController:retryCryptoCharge', {
+            subscriptionId: 'sub_unknown',
+          }),
+        ).rejects.toThrow(SubscriptionControllerErrorMessage.UserNotSubscribed);
+        expect(mockService.payLastInvoice).not.toHaveBeenCalled();
+        expect(mockService.verifyPaymentMethod).not.toHaveBeenCalled();
+      });
+    });
+  });
+
   describe('getBillingPortalUrl', () => {
     it('should get the billing portal URL', async () => {
       await withController(async ({ rootMessenger, mockService }) => {
@@ -5484,6 +5625,24 @@ describe('SubscriptionController', () => {
         ).toThrow(
           SubscriptionControllerErrorMessage.PaymentTokenAddressAndSymbolRequiredForCrypto,
         );
+      });
+    });
+  });
+
+  describe('setChargeRetryInProgress', () => {
+    it('sets and clears the charge retry in-progress flag', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.call(
+          'SubscriptionController:setChargeRetryInProgress',
+          true,
+        );
+        expect(controller.state.isChargeRetryInProgress).toBe(true);
+
+        rootMessenger.call(
+          'SubscriptionController:setChargeRetryInProgress',
+          false,
+        );
+        expect(controller.state.isChargeRetryInProgress).toBe(false);
       });
     });
   });

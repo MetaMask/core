@@ -470,7 +470,7 @@ describe('assets-controllers configurations', () => {
       instance.destroy?.();
     }
     await Promise.all(
-      wallets.splice(0).map(async (wallet) => wallet.destroy()),
+      wallets.splice(0).map(async (wallet) => await wallet.destroy()),
     );
     constructorOptions.clear();
   });

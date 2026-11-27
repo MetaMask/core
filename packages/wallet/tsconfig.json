@@ -87,6 +87,9 @@
     },
     {
       "path": "../signature-controller"
+    },
+    {
+      "path": "../core-backend"
     }
   ],
   "include": ["../../types", "./src"]

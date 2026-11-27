@@ -379,7 +379,11 @@ export class SubscriptionMultiplexer {
     for (const [providerId, provider] of providers) {
       try {
         const subscribeParams: SubscribeOrdersParams = {
-          onError: (error) => params.onError?.(error, providerId),
+          onError: (error) => {
+            // Another venue can emit while this one is unauthenticated.
+            this.#orderCache.delete(providerId);
+            params.onError?.(error, providerId);
+          },
           callback: (orders) => {
             // Tag orders with providerId and cache
             const taggedOrders = orders.map((order) => ({

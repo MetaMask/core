@@ -1036,6 +1036,8 @@ export type CrossMarginSummary = {
 
 // Using 'type' instead of 'interface' for BaseController Json compatibility
 export type AccountState = {
+  /** Registration of this wallet on this venue, when reported. */
+  exchangeAccountStatus?: ExchangeAccountStatus;
   /**
    * Venue account mode when confirmed by the current account stream or read
    * (Hyperliquid `userAbstraction`). Pass it to `calculateAccountSummary`.
@@ -2269,9 +2271,9 @@ export type SubscribeOrderFillsParams = {
 
 export type SubscribeOrdersParams = {
   /**
-   * Reports detectable setup failures without asserting an empty account.
-   * Lighter currently produces these errors; other providers may not report
-   * setup failures through this optional callback.
+   * Reports an unavailable orders stream without asserting an empty account.
+   * Lighter reports setup failures and loss of signer authentication. Keep the
+   * subscription for the next authenticated snapshot.
    */
   onError?: (error: Error, sourceProviderId?: PerpsProviderType) => void;
   /** The completeness flag is true for deliveries from the opt-in Hyperliquid stream. */
@@ -3448,6 +3450,14 @@ export type GetAccountSupportParams = {
   providerId?: PerpsProviderType;
 };
 
+/** Selects the venue whose registration should be checked. */
+export type GetExchangeAccountStatusParams = { providerId: PerpsProviderType };
+
+/** The selected wallet's venue registration and, when applicable, master index. */
+export type ExchangeAccountStatus =
+  | { registered: true; accountIndex?: number }
+  | { registered: false };
+
 /**
  * Selects the provider route whose withdrawal destination should be resolved.
  * Accepts the same optional route `withdraw` accepts.
@@ -3487,6 +3497,14 @@ export type PerpsProvider = {
   getAccountSupport?(
     params?: GetAccountSupportParams,
   ): Promise<PerpsAccountSupport>;
+
+  /**
+   * Check the selected wallet’s venue registration once, without signing.
+   * Omit this hook for venues with no registration step.
+   */
+  getExchangeAccountStatus?(
+    params: GetExchangeAccountStatusParams,
+  ): Promise<ExchangeAccountStatus>;
 
   /**
    * Return order capabilities for the provider/market route. Providers may

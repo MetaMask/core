@@ -227,7 +227,7 @@ describe('Wallet', () => {
 
     const results = await wallet.init();
 
-    expect(results).toHaveLength(22);
+    expect(results).toHaveLength(23);
   });
 
   it('disallows modifying the messenger', async () => {

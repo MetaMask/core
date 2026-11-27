@@ -17,6 +17,7 @@ export { geolocationApiService } from './geolocation-api-service/geolocation-api
 export { geolocationController } from './geolocation-controller/geolocation-controller.js';
 export { keyringController } from './keyring-controller/keyring-controller.js';
 export { loggingController } from './logging-controller/logging-controller.js';
+export { marketStatsService } from './market-stats-service/market-stats-service.js';
 export { multichainAssetsController } from './assets-controllers/multichain-assets-controller.js';
 export { multichainAssetsRatesController } from './assets-controllers/multichain-assets-rates-controller.js';
 export { multichainBalancesController } from './assets-controllers/multichain-balances-controller.js';

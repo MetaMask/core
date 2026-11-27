@@ -3,9 +3,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { CandlePeriod } from '../../../src/constants/chartConfig.js';
 import {
   LIGHTER_CHANNEL_RELEASE_DELAY_MS,
+  LIGHTER_ORDERS_RESUBSCRIBE_RETRY,
   LIGHTER_SOCKET_DOWN_GRACE_MS,
   LIGHTER_SOCKET_IDLE_CLOSE_MS,
+  LIGHTER_ACCOUNT_DISCOVERY_CONFIG,
 } from '../../../src/constants/lighterConfig.js';
+import { PerpsControllerError } from '../../../src/errors.js';
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsProvider.js';
 import {
   getLighterReconnectDelayMs,
@@ -26,6 +30,7 @@ import type {
   LighterWasmCall,
 } from '../../../src/types/lighter-types.js';
 import {
+  ACCOUNT,
   BTC_MARKET,
   buildProvider,
   fakeStreamCtor,
@@ -35,8 +40,14 @@ import {
   StreamFakeWebSocket,
 } from '../../helpers/lighterProvider.js';
 import type { BuiltProvider } from '../../helpers/lighterProvider.js';
-import { createMockHyperLiquidProvider } from '../../helpers/providerMocks.js';
-import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
+import {
+  createMockHyperLiquidProvider,
+  createMockOrder,
+} from '../../helpers/providerMocks.js';
+import {
+  createDeferred,
+  createMockInfrastructure,
+} from '../../helpers/serviceMocks.js';
 
 vi.mock(
   import('../../../src/services/LighterClientService'),
@@ -181,12 +192,730 @@ const openMarketScreen = (
 describe('LighterProvider stream lifecycle', () => {
   finishPendingTimersAfterEach();
 
+  describe('account discovery', () => {
+    it('streams registration after a deposit without a client read or a trading key', async () => {
+      const { provider, clientInstance, calls } = buildStreamProvider({
+        configuredAccountIndex: null,
+      });
+      const lookup = clientInstance.getAccountsByL1Address;
+      lookup
+        .mockResolvedValueOnce({ subAccounts: [] })
+        .mockRejectedValueOnce(new Error('offline'));
+      const callback = vi.fn();
+      provider.subscribeToAccount({ callback });
+      await settle();
+      const socket = latestSocket();
+      socket.open();
+      try {
+        expect(callback).toHaveBeenCalledExactlyOnceWith(
+          expect.objectContaining({
+            exchangeAccountStatus: { registered: false },
+          }),
+        );
+        const { InitialIntervalMs } = LIGHTER_ACCOUNT_DISCOVERY_CONFIG;
+        await vi.advanceTimersByTimeAsync(InitialIntervalMs);
+        expect(lookup).toHaveBeenCalledTimes(2);
+        await vi.advanceTimersByTimeAsync(2 * InitialIntervalMs - 1);
+        expect(lookup).toHaveBeenCalledTimes(2);
+        await vi.advanceTimersByTimeAsync(1);
+        expect(venueChannels(socket)).toContain('user_stats/28');
+        expect(venueChannels(socket)).not.toContain('account_all_orders/28');
+        receive(socket, {
+          type: 'subscribed/user_stats',
+          stats: {
+            collateral: '0',
+            portfolio_value: '0',
+            leverage: '0',
+            available_balance: '0',
+            margin_usage: '0',
+            buying_power: '0',
+          },
+        });
+        const registered = expect.objectContaining({
+          totalBalance: '0',
+          exchangeAccountStatus: { registered: true, accountIndex: 28 },
+        });
+        expect(callback).toHaveBeenLastCalledWith(registered);
+        const late = vi.fn();
+        provider.subscribeToAccount({ callback: late });
+        expect(late).toHaveBeenCalledExactlyOnceWith(registered);
+        await vi.advanceTimersByTimeAsync(
+          LIGHTER_ACCOUNT_DISCOVERY_CONFIG.DeadlineMs,
+        );
+        expect(lookup).toHaveBeenCalledTimes(3);
+        expect(calls).toStrictEqual([]);
+        expect(clientInstance.getApiKeys).not.toHaveBeenCalled();
+        expect(clientInstance.sendTx).not.toHaveBeenCalled();
+      } finally {
+        await provider.disconnect();
+      }
+    });
+
+    it('stops at the deadline without repeating the initial empty snapshot', async () => {
+      const { provider, clientInstance } = buildStreamProvider({
+        configuredAccountIndex: null,
+      });
+      const lookup = clientInstance.getAccountsByL1Address.mockResolvedValue({
+        subAccounts: [],
+      });
+      const callback = vi.fn();
+      provider.subscribeToAccount({ callback });
+      await settle();
+      await vi.advanceTimersByTimeAsync(
+        LIGHTER_ACCOUNT_DISCOVERY_CONFIG.DeadlineMs,
+      );
+      const attempts = lookup.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(
+        LIGHTER_ACCOUNT_DISCOVERY_CONFIG.DeadlineMs,
+      );
+      expect(attempts).toBeGreaterThan(1);
+      expect(lookup).toHaveBeenCalledTimes(attempts);
+      expect(callback).toHaveBeenCalledTimes(1);
+      await provider.disconnect();
+    });
+
+    it('starts a fresh discovery window for a new wallet and drops the old retry', async () => {
+      const { provider, clientInstance, getUserAddressMock } =
+        buildStreamProvider({ configuredAccountIndex: null });
+      const lookup = clientInstance.getAccountsByL1Address;
+      const old = createDeferred<unknown>();
+      const absent = { subAccounts: [] };
+      const next = { ...ACCOUNT, index: 91, l1Address: '0xbbbb' };
+      lookup
+        .mockResolvedValueOnce(absent)
+        .mockReturnValueOnce(old.promise)
+        .mockResolvedValueOnce(absent)
+        .mockResolvedValue({ subAccounts: [next] });
+      const callback = vi.fn();
+      provider.subscribeToAccount({ callback });
+      await settle();
+      const { InitialIntervalMs, DeadlineMs } =
+        LIGHTER_ACCOUNT_DISCOVERY_CONFIG;
+      await vi.advanceTimersByTimeAsync(InitialIntervalMs);
+      getUserAddressMock.mockReturnValue(next.l1Address);
+      latestSocket().open(); // Observes the switch and rebuilds the stream.
+      await settle();
+      latestSocket().open();
+      old.reject(new Error('stale wallet lookup'));
+      await settle();
+      await vi.advanceTimersByTimeAsync(InitialIntervalMs);
+      expect(venueChannels(latestSocket())).toContain('user_stats/91');
+      expect(venueChannels(latestSocket())).not.toContain('user_stats/28');
+      await vi.advanceTimersByTimeAsync(DeadlineMs);
+      expect(lookup.mock.calls).toStrictEqual([
+        [ACCOUNT.l1Address],
+        [ACCOUNT.l1Address],
+        [next.l1Address],
+        [next.l1Address],
+      ]);
+      await provider.disconnect();
+    });
+
+    it('stops discovery when the last account listener leaves, even with prices open', async () => {
+      const { provider, clientInstance } = buildStreamProvider({
+        configuredAccountIndex: null,
+      });
+      const lookup = clientInstance.getAccountsByL1Address.mockResolvedValue({
+        subAccounts: [],
+      });
+      provider.subscribeToPrices({ symbols: [], callback: vi.fn() });
+      const leave = provider.subscribeToAccount({ callback: vi.fn() });
+      await settle();
+      leave();
+      await vi.advanceTimersByTimeAsync(
+        LIGHTER_ACCOUNT_DISCOVERY_CONFIG.DeadlineMs,
+      );
+      expect(lookup).toHaveBeenCalledTimes(1);
+      await provider.disconnect();
+    });
+  });
+
+  describe('authentication after account discovery', () => {
+    it('resumes the orders channel using the signer that just became ready', async () => {
+      const { provider, bridge, clientInstance } = buildStreamProvider({
+        configuredAccountIndex: null,
+        registeredKey: '9c'.repeat(40),
+      });
+      clientInstance.getAccountsByL1Address.mockResolvedValueOnce({
+        subAccounts: [],
+      });
+      provider.subscribeToAccount({ callback: vi.fn() });
+      await settle();
+      const socket = latestSocket();
+      socket.open();
+      await provider.getExchangeAccountStatus({ providerId: 'lighter' });
+      await settle();
+      expect(venueChannels(socket)).not.toContain('account_all_orders/28');
+
+      await provider.getOpenOrders();
+      await settle();
+      expect(venueChannels(socket)).toContain('account_all_orders/28');
+      expect(bridge.createClient).toHaveBeenCalledTimes(1);
+      await provider.disconnect();
+    });
+
+    it('reopens the orders channel when the signer becomes ready after a transient auth failure', async () => {
+      const { provider, bridge } = buildStreamProvider({
+        registeredKey: '9c'.repeat(40),
+      });
+      const onError = vi.fn();
+      provider.subscribeToPrices({ symbols: [], callback: vi.fn() });
+      const socket = latestSocket();
+      socket.open();
+      await settle();
+      // The first signer setup fails transiently, so the orders channel is
+      // skipped while no signer is ready.
+      const transient = new Error('bridge temporarily unavailable');
+      vi.mocked(bridge.createClient).mockRejectedValueOnce(transient);
+      provider.subscribeToOrders({ callback: vi.fn(), onError });
+      await settle();
+      expect(venueChannels(socket)).not.toContain('account_all_orders/28');
+      expect(onError).toHaveBeenCalledExactlyOnceWith(transient);
+
+      // The signer becomes ready; the resume marker must reopen the channel.
+      await provider.getOpenOrders();
+      await settle();
+      expect(venueChannels(socket)).toContain('account_all_orders/28');
+      await provider.disconnect();
+    });
+
+    it('notifies orders subscribers when a reconnect token refresh fails', async () => {
+      const { provider, bridge } = buildStreamProvider();
+      const onError = vi.fn();
+      const fillError = vi.fn();
+      provider.subscribeToOrders({ callback: vi.fn(), onError });
+      provider.subscribeToOrderFills({ callback: vi.fn(), onError: fillError });
+      await settle();
+      // Expire the cached auth token so the reconnect must mint a new one.
+      vi.setSystemTime(Date.now() + 600_000);
+      await provider.reconnect();
+      const socket = latestSocket();
+      const error = new Error('token refresh failed');
+      vi.mocked(bridge.execute).mockRejectedValueOnce(error);
+      socket.open();
+      await settle();
+      expect(onError).toHaveBeenCalledExactlyOnceWith(error);
+      expect(fillError).not.toHaveBeenCalled();
+
+      // The bounded re-mint restores the channel on the same socket.
+      await vi.advanceTimersByTimeAsync(
+        LIGHTER_ORDERS_RESUBSCRIBE_RETRY.DelayMs,
+      );
+      await settle();
+      expect(venueChannels(socket)).toContain('account_all_orders/28');
+      expect(onError).toHaveBeenCalledTimes(1);
+      await provider.disconnect();
+    });
+
+    it('skips a delayed reconnect token after a new getter takes over the same channel', async () => {
+      const { provider, bridge } = buildStreamProvider();
+      provider.subscribeToPrices({ symbols: [], callback: vi.fn() });
+      const leave = provider.subscribeToOrders({ callback: vi.fn() });
+      await settle();
+      const originalTime = Date.now();
+      vi.setSystemTime(originalTime + 600_000);
+      const release = stallAuthToken(bridge);
+      await provider.reconnect();
+      const socket = latestSocket();
+      socket.open();
+      await settle();
+      leave();
+      await vi.advanceTimersByTimeAsync(LIGHTER_CHANNEL_RELEASE_DELAY_MS);
+      // The replacement can authenticate from cache before the old mint returns.
+      vi.setSystemTime(originalTime);
+      provider.subscribeToOrders({ callback: vi.fn() });
+      await settle();
+      const frames = (): string[] =>
+        socket.sent.filter(
+          (frame) =>
+            frame ===
+            JSON.stringify({
+              type: 'subscribe',
+              channel: 'account_all_orders/28',
+              auth: 'auth-token',
+            }),
+        );
+      try {
+        expect(frames()).toHaveLength(1);
+      } finally {
+        release();
+        await settle();
+        await provider.disconnect();
+      }
+      expect(frames()).toHaveLength(1);
+    });
+
+    const openOrders = {
+      '100': [
+        {
+          order_index: 42,
+          client_order_index: 1,
+          market_index: 100,
+          owner_account_index: 28,
+          initial_base_amount: '1',
+          remaining_base_amount: '1',
+          price: '90000',
+          is_ask: false,
+          type: 'limit',
+          time_in_force: 'good-till-time',
+          reduce_only: 0,
+          status: 'open',
+          order_expiry: 0,
+          timestamp: 1700000000000,
+        },
+      ],
+    };
+
+    it('delivers live orders after a bad update to an empty snapshot without replaying a false empty', async () => {
+      const { provider } = buildStreamProvider({
+        registeredKey: '9c'.repeat(40),
+      });
+      try {
+        const existing = vi.fn();
+        provider.subscribeToOrders({ callback: existing });
+        await settle();
+        const socket = latestSocket();
+        socket.open();
+        await settle();
+        const snapshot = 'subscribed/account_all_orders';
+        const update = 'update/account_all_orders';
+        receive(socket, { type: snapshot, orders: {} });
+        expect(existing).toHaveBeenLastCalledWith([]);
+        existing.mockClear();
+
+        receive(socket, { type: update, orders: null });
+        const late = vi.fn();
+        provider.subscribeToOrders({ callback: late });
+        receive(socket, { type: update, orders: {} });
+        expect(late).not.toHaveBeenCalled();
+        expect(existing).not.toHaveBeenCalled();
+        receive(socket, { type: update, orders: openOrders });
+        const open = [expect.objectContaining({ orderId: '42' })];
+        expect(existing).toHaveBeenCalledExactlyOnceWith(open);
+        expect(late).toHaveBeenCalledExactlyOnceWith(open);
+
+        // A valid snapshot beats the pending repair; do not restart a healthy channel.
+        const sentBeforeSnapshot = socket.sent.length;
+        receive(socket, { type: snapshot, orders: {} });
+        await settle();
+        expect(late).toHaveBeenLastCalledWith([]);
+        expect(socket.sent).toHaveLength(sentBeforeSnapshot);
+      } finally {
+        await provider.disconnect();
+      }
+    });
+
+    it('retries on the next delta and reports an error if the repaired orders snapshot is malformed too', async () => {
+      const { provider } = buildStreamProvider({
+        registeredKey: '9c'.repeat(40),
+      });
+      try {
+        const callback = vi.fn();
+        const onError = vi.fn();
+        provider.subscribeToOrders({ callback, onError });
+        await settle();
+        const socket = latestSocket();
+        socket.open();
+        await settle();
+        const before = socket.sent.length;
+        const snapshot = 'subscribed/account_all_orders';
+        receive(socket, { type: snapshot, orders: null });
+        await settle();
+        expect(onError).not.toHaveBeenCalled();
+        receive(socket, { type: snapshot, orders: null });
+        expect(onError).toHaveBeenCalledOnce();
+        receive(socket, {
+          type: 'update/account_all_orders',
+          orders: openOrders,
+        });
+        await settle();
+        expect(callback).not.toHaveBeenCalled();
+        const resubscribe = [
+          { type: 'unsubscribe', channel: 'account_all_orders/28' },
+          {
+            type: 'subscribe',
+            channel: 'account_all_orders/28',
+            auth: 'auth-token',
+          },
+        ];
+        expect(
+          socket.sent.slice(before).map((frame): unknown => JSON.parse(frame)),
+        ).toStrictEqual([...resubscribe, ...resubscribe]);
+        receive(socket, { type: snapshot, orders: openOrders });
+        expect(callback).toHaveBeenCalledExactlyOnceWith([
+          expect.objectContaining({ orderId: '42' }),
+        ]);
+      } finally {
+        await provider.disconnect();
+      }
+    });
+
+    it.each([
+      ['update/account_all_orders', 0],
+      ['subscribed/account_all_orders', 1],
+    ] as const)(
+      'retries a failed orders repair on the next delta after an empty %s',
+      async (initialType, expectedDeliveries) => {
+        const { provider, bridge } = buildStreamProvider();
+        try {
+          const callback = vi.fn();
+          const onError = vi.fn();
+          const fillError = vi.fn();
+          provider.subscribeToOrders({ callback, onError });
+          provider.subscribeToOrderFills({
+            callback: vi.fn(),
+            onError: fillError,
+          });
+          await settle();
+          const socket = latestSocket();
+          socket.open();
+          await settle();
+          const snapshot = 'subscribed/account_all_orders';
+          receive(socket, { type: initialType, orders: {} });
+          expect(callback).toHaveBeenCalledTimes(expectedDeliveries);
+          callback.mockClear();
+          const before = socket.sent.length;
+          vi.setSystemTime(Date.now() + 600_000);
+          const error = new Error('token refresh failed');
+          vi.mocked(bridge.execute).mockRejectedValueOnce(error);
+          receive(socket, { type: snapshot, orders: null });
+          await settle();
+          expect(onError).toHaveBeenCalledExactlyOnceWith(error);
+          expect(fillError).not.toHaveBeenCalled();
+          expect(socket.sent).toHaveLength(before);
+
+          const late = vi.fn();
+          provider.subscribeToOrders({ callback: late });
+          const delta = { type: 'update/account_all_orders', orders: {} };
+          receive(socket, delta);
+          receive(socket, delta);
+          await settle();
+          expect(
+            socket.sent
+              .slice(before)
+              .map((frame): unknown => JSON.parse(frame)),
+          ).toStrictEqual([
+            { type: 'unsubscribe', channel: 'account_all_orders/28' },
+            {
+              type: 'subscribe',
+              channel: 'account_all_orders/28',
+              auth: 'auth-token',
+            },
+          ]);
+          expect(callback).not.toHaveBeenCalled();
+          expect(late).not.toHaveBeenCalled();
+          receive(socket, { type: snapshot, orders: openOrders });
+          const open = [expect.objectContaining({ orderId: '42' })];
+          expect(callback).toHaveBeenCalledExactlyOnceWith(open);
+          expect(late).toHaveBeenCalledExactlyOnceWith(open);
+        } finally {
+          await provider.disconnect();
+        }
+      },
+    );
+
+    it('keeps live Lighter orders on another venue’s update after a repair token mint fails', async () => {
+      const { provider: lighter, bridge } = buildStreamProvider();
+      const hl = createMockHyperLiquidProvider();
+      const aggregate = new AggregatedPerpsProvider({
+        providers: new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', hl],
+          ['lighter', lighter],
+        ]),
+        defaultProvider: 'lighter',
+        infrastructure: createMockInfrastructure(),
+        isTestnet: true,
+      });
+      try {
+        const combined = vi.fn();
+        const onError = vi.fn();
+        aggregate.subscribeToOrders({ callback: combined, onError });
+        await settle();
+        const socket = latestSocket();
+        socket.open();
+        await settle();
+        receive(socket, {
+          type: 'subscribed/account_all_orders',
+          orders: openOrders,
+        });
+        const before = socket.sent.length;
+        vi.setSystemTime(Date.now() + 600_000);
+        vi.mocked(bridge.execute).mockRejectedValueOnce(
+          new Error('token mint failed'),
+        );
+        receive(socket, { type: 'update/account_all_orders', orders: null });
+        await settle();
+        expect(socket.sent).toHaveLength(before);
+
+        const late = vi.fn();
+        lighter.subscribeToOrders({ callback: late });
+        const order = expect.objectContaining({ orderId: '42' });
+        expect(late).toHaveBeenCalledExactlyOnceWith([order]);
+        const hlOrder = createMockOrder();
+        hl.subscribeToOrders.mock.calls[0][0].callback([hlOrder]);
+        expect(combined).toHaveBeenLastCalledWith(
+          expect.arrayContaining([
+            expect.objectContaining({ orderId: '42', providerId: 'lighter' }),
+            { ...hlOrder, providerId: 'hyperliquid' },
+          ]),
+          'hyperliquid',
+        );
+        expect(onError).not.toHaveBeenCalled();
+      } finally {
+        await lighter.disconnect();
+      }
+    });
+
+    it('retires cached orders if the repair unsubscribes but cannot send the replacement', async () => {
+      const { provider } = buildStreamProvider();
+      try {
+        const callback = vi.fn();
+        const onError = vi.fn();
+        provider.subscribeToOrders({ callback, onError });
+        await settle();
+        const socket = latestSocket();
+        socket.open();
+        await settle();
+        receive(socket, {
+          type: 'subscribed/account_all_orders',
+          orders: openOrders,
+        });
+        expect(callback).toHaveBeenCalledExactlyOnceWith([
+          expect.objectContaining({ orderId: '42' }),
+        ]);
+        const { send } = socket;
+        const error = new Error('subscribe failed');
+        vi.spyOn(socket, 'send')
+          .mockImplementationOnce(send)
+          .mockImplementationOnce(() => {
+            throw error;
+          });
+        receive(socket, { type: 'update/account_all_orders', orders: null });
+        await settle();
+        expect(venueChannels(socket)).not.toContain('account_all_orders/28');
+        expect(onError).toHaveBeenCalledExactlyOnceWith(error);
+        const late = vi.fn();
+        provider.subscribeToOrders({ callback: late });
+        expect(late).not.toHaveBeenCalled();
+      } finally {
+        await provider.disconnect();
+      }
+    });
+
+    it('ignores a repair failure after a valid orders snapshot has arrived', async () => {
+      const { provider, bridge } = buildStreamProvider();
+      try {
+        const callback = vi.fn();
+        const onError = vi.fn();
+        provider.subscribeToOrders({ callback, onError });
+        await settle();
+        const socket = latestSocket();
+        socket.open();
+        await settle();
+        const before = socket.sent.length;
+        vi.setSystemTime(Date.now() + 600_000);
+        const mint = createDeferred<never>();
+        vi.mocked(bridge.execute).mockImplementationOnce(() => mint.promise);
+        const snapshot = 'subscribed/account_all_orders';
+        receive(socket, { type: snapshot, orders: null });
+        await settle();
+        receive(socket, { type: snapshot, orders: {} });
+        mint.reject(new Error('late token failure'));
+        await settle();
+        receive(socket, {
+          type: 'update/account_all_orders',
+          orders: openOrders,
+        });
+        await settle();
+        expect(callback).toHaveBeenLastCalledWith([
+          expect.objectContaining({ orderId: '42' }),
+        ]);
+        expect(onError).not.toHaveBeenCalled();
+        expect(socket.sent).toHaveLength(before);
+      } finally {
+        await provider.disconnect();
+      }
+    });
+
+    it.each([
+      { cache: 'empty', orders: {}, count: 0 },
+      { cache: 'populated', orders: openOrders, count: 1 },
+    ])(
+      'waits for a fresh orders snapshot after signer reset (previous snapshot: $cache)',
+      async ({ orders, count }) => {
+        const { provider, fireReset } = buildStreamProvider({
+          registeredKey: '9c'.repeat(40),
+        });
+        try {
+          const existing = vi.fn();
+          provider.subscribeToOrders({ callback: existing });
+          await settle();
+          const socket = latestSocket();
+          socket.open();
+          await settle();
+          const snapshot = 'subscribed/account_all_orders';
+          receive(socket, { type: snapshot, orders });
+          expect(existing.mock.lastCall?.[0]).toHaveLength(count);
+          existing.mockClear();
+
+          fireReset();
+          expect(venueChannels(socket)).not.toContain('account_all_orders/28');
+          expect(venueChannels(socket)).toStrictEqual(
+            expect.arrayContaining([
+              'user_stats/28',
+              'account_all_positions/28',
+            ]),
+          );
+          const late = vi.fn();
+          provider.subscribeToOrders({ callback: late });
+          expect(late).not.toHaveBeenCalled();
+
+          await settle();
+          expect(venueChannels(socket)).toContain('account_all_orders/28');
+          receive(socket, {
+            type: 'update/account_all_orders',
+            orders: openOrders,
+          });
+          expect(existing).not.toHaveBeenCalled();
+          expect(late).not.toHaveBeenCalled();
+          receive(socket, { type: snapshot, orders: {} });
+          expect(existing).toHaveBeenCalledWith([]);
+          expect(late).toHaveBeenCalledWith([]);
+        } finally {
+          await provider.disconnect();
+        }
+      },
+    );
+
+    it('does not republish retired Lighter orders on another venue’s update', async () => {
+      const { provider: lighter, fireReset } = buildStreamProvider({
+        registeredKey: '9c'.repeat(40),
+      });
+      const hl = createMockHyperLiquidProvider();
+      const hlOrder = createMockOrder();
+      hl.subscribeToOrders.mockImplementation((params) => {
+        params.callback([hlOrder]);
+        return (): void => undefined;
+      });
+      const aggregate = new AggregatedPerpsProvider({
+        providers: new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', hl],
+          ['lighter', lighter],
+        ]),
+        defaultProvider: 'lighter',
+        infrastructure: createMockInfrastructure(),
+        isTestnet: true,
+      });
+      try {
+        const existing = vi.fn();
+        const onError = vi.fn();
+        aggregate.subscribeToOrders({ callback: existing, onError });
+        const fillError = vi.fn();
+        lighter.subscribeToOrderFills({
+          callback: vi.fn(),
+          onError: fillError,
+        });
+        await settle();
+        latestSocket().open();
+        await settle();
+        receive(latestSocket(), {
+          type: 'subscribed/account_all_orders',
+          orders: openOrders,
+        });
+        expect(existing).toHaveBeenLastCalledWith(
+          expect.arrayContaining([expect.objectContaining({ orderId: '42' })]),
+          'lighter',
+        );
+        existing.mockClear();
+
+        fireReset();
+        expect(existing).not.toHaveBeenCalled();
+        const late = vi.fn();
+        aggregate.subscribeToOrders({ callback: late });
+        expect(late).toHaveBeenCalledExactlyOnceWith(
+          [{ ...hlOrder, providerId: 'hyperliquid' }],
+          'hyperliquid',
+        );
+        expect(onError).toHaveBeenCalledExactlyOnceWith(
+          expect.objectContaining({
+            errorCode: PERPS_ERROR_CODES.ORDERS_STREAM_PAUSED,
+          }),
+          'lighter',
+        );
+        expect(onError.mock.lastCall?.[0]).toBeInstanceOf(PerpsControllerError);
+        expect(fillError).not.toHaveBeenCalled();
+      } finally {
+        await lighter.disconnect();
+      }
+    });
+
+    it('uses current signer readiness when reconnecting a channel opened with a retained key', async () => {
+      const { provider, bridge, clientInstance, fireReset } =
+        buildStreamProvider({
+          configuredAccountIndex: null,
+          registeredKey: '9c'.repeat(40),
+        });
+      clientInstance.getAccountsByL1Address.mockResolvedValueOnce({
+        subAccounts: [],
+      });
+      provider.subscribeToOrders({ callback: vi.fn() });
+      await settle();
+      latestSocket().open();
+      await provider.getExchangeAccountStatus({ providerId: 'lighter' });
+      await settle();
+      expect(venueChannels(latestSocket())).toContain('account_all_orders/28');
+
+      await provider.getOpenOrders();
+      vi.mocked(bridge.execute).mockClear();
+      vi.mocked(bridge.createClient).mockClear();
+      clientInstance.getApiKeys.mockReset().mockResolvedValue({ apiKeys: [] });
+      await provider.reconnect();
+      latestSocket().open();
+      await settle();
+      expect(venueChannels(latestSocket())).toContain('account_all_orders/28');
+      expect(bridge.execute).not.toHaveBeenCalled();
+      expect(clientInstance.getApiKeys).not.toHaveBeenCalled();
+
+      vi.setSystemTime(Date.now() + 600_000); // Expire the trading read's token.
+      await provider.reconnect();
+      latestSocket().open();
+      await settle();
+      expect(venueChannels(latestSocket())).toContain('account_all_orders/28');
+      expect(bridge.execute).toHaveBeenCalledWith({
+        function: '_createAuthToken',
+        params: [28, 7],
+      });
+      expect(clientInstance.getApiKeys).not.toHaveBeenCalled();
+      expect(bridge.createClient).not.toHaveBeenCalled();
+
+      fireReset();
+      await provider.reconnect();
+      latestSocket().open();
+      await settle();
+      expect(venueChannels(latestSocket())).not.toContain(
+        'account_all_orders/28',
+      );
+      expect(clientInstance.sendTx).not.toHaveBeenCalled();
+      expect(bridge.createClient).not.toHaveBeenCalled();
+      // Trading setup in the new signer generation must install a new getter.
+      clientInstance.getApiKeys.mockResolvedValue({
+        apiKeys: [
+          { accountIndex: 28, apiKeyIndex: 7, publicKey: '9c'.repeat(40) },
+        ],
+      });
+      await provider.getOpenOrders();
+      await settle();
+      expect(venueChannels(latestSocket())).toContain('account_all_orders/28');
+      await provider.disconnect();
+    });
+  });
+
   describe('channel release', () => {
     it('keeps only watched channels plus the account channels after leaving 20 markets', async () => {
       const platformDependencies = createMockInfrastructure();
       const { provider } = buildStreamProvider({ platformDependencies });
       provider.subscribeToPrices({ symbols: [], callback: vi.fn() });
-      provider.subscribeToPositions({ callback: vi.fn() });
+      provider.subscribeToOrders({ callback: vi.fn() });
       await settle();
       const socket = latestSocket();
       socket.open();
@@ -286,12 +1015,12 @@ describe('LighterProvider stream lifecycle', () => {
       socket.open();
       const releaseToken = stallAuthToken(bridge);
 
-      const leavePositions = provider.subscribeToPositions({
+      const leaveOrders = provider.subscribeToOrders({
         callback: vi.fn(),
       });
       await settle();
       expect(venueChannels(socket)).toContain('user_stats/28');
-      leavePositions();
+      leaveOrders();
       await vi.advanceTimersByTimeAsync(LIGHTER_CHANNEL_RELEASE_DELAY_MS);
       releaseToken();
       await settle();
