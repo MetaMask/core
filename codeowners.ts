@@ -1,9 +1,5 @@
 // This file defines the mapping between GitHub teams and the packages they
 // codeown within this repo (and defines other, custom codeowner rules).
-//
-// Please keep the teams referenced in this file synchronized with the
-// `teams.json` file in the repository root. That file is used for some
-// automated workflows.
 
 import type { CodeownersConfig } from './scripts/manage-codeowners/types.js';
 
