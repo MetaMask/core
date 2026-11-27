@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@noble/curves` from `^1.9.7` to `^2.4.0` ([#11656](https://github.com/MetaMask/core/pull/11656))
+
 ## [36.1.3]
 
 ### Changed
