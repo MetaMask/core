@@ -1,175 +1,193 @@
 # Vault transactions and atomic keyrings
 
-This document explains the transaction, rollback, and locking model introduced by
-the atomic-keyring PR stack. It describes the combined design, rather than each
-intermediate refactor.
+For normal keyrings, the controller serializes operations and restores state after a failure.
+Atomic keyrings manage their own concurrency. They acquire the controller mutex only
+when selecting a keyring or committing state, so slow work does not block unrelated operations.
 
-**Stack roadmap:** this document starts in [#11119](https://github.com/MetaMask/core/pull/11119),
-which introduces `VaultTransaction`. The later PRs move rollback and commit logic
-into it, then add atomic keyrings and diagnostics. Those parts describe the
-intended combined design, not behavior already implemented in #11119.
-
-## Why change the old model?
-
-A keyring operation can wait on a hardware device, a Snap, or user interaction.
-Holding the controller mutex for that entire operation blocks unrelated work.
-Meanwhile, rebuilding every keyring after a failure invalidates unrelated
-references and can disrupt shared hardware resources.
-
-The design separates two responsibilities:
-
-- **Legacy keyrings:** the controller owns operation isolation, snapshots,
-  persistence, and rollback, scoped as narrowly as possible.
-- **Atomic keyrings:** the keyring owns operation concurrency and state mutations;
-  the controller provides serialized commit windows for writing the vault.
-
-Here, "transaction" means an in-memory restore point and persistence policy, not
-a database transaction or a way to undo remote side effects.
+**Scope:** this document describes the combined PR stack. [#11119](https://github.com/MetaMask/core/pull/11119)
+introduces `VaultTransaction`. Later PRs move rollback and commit logic into it,
+then add atomic keyrings and diagnostics. Those sections describe the intended design
+after the full stack lands, not behavior already available in #11119.
 
 ## Transaction scopes
 
-[`VaultTransaction`](../src/VaultTransaction.ts) operates on a `VaultSession`
-(the controller's live keyrings, unsupported keyrings, and cached encryption key)
-through controller-owned `VaultOperations` (creation, validation, and vault writes).
+A transaction defines an in-memory restore point and persistence policy. It cannot
+undo remote side effects.
 
-| Scope     | Snapshot                                                      | Commit                                                       | Rollback                                                                   |
-| --------- | ------------------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------- |
-| `keyring` | Only the selected legacy keyring; none if newly created       | Write the vault if that keyring changed or was added/removed | Rebuild the selected existing keyring, or destroy/drop a newly created one |
-| `wallet`  | All keyrings, unsupported keyrings, and cached encryption key | Follow the operation's persistence policy                    | Reconcile the wallet against the snapshot                                  |
-| `atomic`  | None                                                          | Persist only a newly created keyring's registration          | Restore nothing                                                            |
+| Scope     | Snapshot                                                      | Commit                                                           | Rollback                                                        |
+| --------- | ------------------------------------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------- |
+| `keyring` | The selected normal keyring, unless it is new                 | Write if the selected keyring changed, was added, or was removed | Rebuild the existing keyring, or destroy and remove the new one |
+| `wallet`  | All keyrings, unsupported keyrings, and cached encryption key | Follow the operation's persistence policy                        | Reconcile the wallet against its snapshot                       |
+| `atomic`  | None                                                          | Persist a new keyring's registration only                        | Restore nothing                                                 |
 
-The scope limits snapshotting, change detection, and rollback, **not the encrypted
-file format**: a vault write still validates and serializes the whole wallet.
+**A transaction scoped to one keyring still writes the whole vault.** The scope
+limits which keyrings are compared and restored, not which keyrings are persisted.
+Writing the vault still validates, serializes, and encrypts the whole wallet.
 
-For ordinary transactions, the controller holds its mutex while it:
+Wallet persistence policies can write on change, force a write, skip it, or use an
+operation-specific condition. The controller checks for changes only if the policy needs that information.
 
-```text
-selects/creates and validates → begins transaction → runs operation → commits
-                                                        on failure → rolls back
+## Normal keyring flow
+
+`withKeyring` and `withKeyringV2` share this path. Callbacks must mutate **only the
+keyring that they receive**. The transaction does not track or restore changes to other keyrings.
+
+The diagram shows an existing keyring. If setup or snapshotting fails, the controller
+returns the error without attempting rollback.
+
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant Controller
+    participant Tx as VaultTransaction
+    participant Keyring
+    participant Vault
+
+    Caller->>Controller: withKeyring / withKeyringV2
+    activate Controller
+    Note over Controller: Acquire controller mutex
+    Controller->>Controller: Select and validate entry
+    Controller->>Tx: begin(keyring scope)
+    Tx->>Keyring: serialize()
+    Keyring-->>Tx: State to deep-clone
+    Controller->>Keyring: Run caller's operation
+    Note over Controller,Keyring: Controller mutex stays held during slow work
+    Keyring-->>Controller: Result or error
+    alt Operation and commit succeed
+        Controller->>Tx: commit()
+        Tx->>Keyring: Compare serialized state
+        opt Selected keyring changed
+            Tx->>Vault: Validate and write whole wallet
+        end
+    else Operation or commit fails
+        Controller->>Tx: rollback()
+        Tx->>Keyring: Destroy stale instance
+        Tx->>Controller: Recreate and validate replacement
+        Note over Controller,Tx: Other keyring instances remain untouched
+    end
+    Note over Controller: Release controller mutex
+    Controller-->>Caller: Result or original error
+    deactivate Controller
 ```
 
-Setup and snapshot failures happen before the rollback boundary. In particular,
-a failed selection, missing V2 adapter, or failed snapshot must not trigger
-rollback of a pre-existing entry without a valid restore point.
+After a successful operation, the controller keeps the same instances. There is one
+exception: if a non-primary keyring loses its last account, the controller removes
+and destroys it.
 
-Wallet operations use an explicit persistence policy: write when the session
-changed, force a write, skip it, or use an operation-specific condition (for
-example, an unlock/upgrade decision). `hasChanged` is lazy so policies that do
-not need a diff do not pay for it.
+### Rollback rules
 
-## Legacy operations and rollback
+| Concern                    | Rule                                                                                                                                                                      |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Failure within one keyring | Always rebuild the existing keyring on which the operation ran, even if its serialized data is unchanged. This resets runtime-only state and detaches the stale instance. |
+| Wallet failure             | Keep unchanged instances. Rebuild changed, removed, or destroyed entries. Restore cached credentials and unsupported keyrings.                                            |
+| Shared resources           | Destroy any instances that the failed transaction created before recreating wallet keyrings. Destroy each stale instance before creating its replacement.                 |
+| Partial destruction        | Treat the instance as destroyed even if `destroy()` throws.                                                                                                               |
+| Duplicate accounts         | When restoring one keyring, check its replacement against all remaining keyrings. When restoring the wallet, check against the keyrings already reconciled.               |
+| Failed replacement         | Destroy any replacement that fails validation. If recreation or validation fails, keep the serialized snapshot in the unsupported-keyring list.                           |
+| Error handling             | Log errors during cleanup or recreation without replacing the original operation error. Do not retry keyrings already marked as unsupported.                              |
 
-`withKeyring` and `withKeyringV2` use the same single-keyring transaction path.
-Their callbacks must mutate **only the keyring they receive**. Mutating other
-keyrings through cached or deprecated direct-access references is outside this
-contract; those mutations are not tracked or rolled back by the scoped transaction.
+The controller deep-clones serialized data because `serialize()` may return references
+to live state. During rollback, it identifies entries by object identity rather than
+metadata ID. This prevents duplicate IDs from causing it to restore the wrong instance.
+Changing unrelated keyrings through cached references or deprecated getters remains
+outside the transaction contract.
 
-Snapshots deep-clone serialized data because `serialize()` can return aliases to
-live state. Entries are tracked by object identity, not metadata ID: duplicate
-IDs in a corrupted vault must not make rollback target the wrong instance.
+## Atomic keyring flow
 
-On success, instances survive in place. A legacy keyring that transitions from
-non-empty to empty is removed and destroyed unless it is the primary HD keyring.
+A builder declares `atomic: true` to receive `KeyringBuilderContext.update`.
+The instance that it returns must carry the SDK's `AtomicKeyring` brand. Legacy
+builders still receive zero arguments. To choose the execution path, the controller
+checks the registered underlying keyring, not its V2 adapter.
 
-On failure:
+The diagram shows an operation that changes an existing atomic keyring. Read-only
+operations do not need to call `update`. With `createIfMissing`, the controller
+persists the new keyring's registration before running the operation.
 
-- **Single-keyring scope:** always rebuild the operated existing keyring, even
-  if its serialized data is unchanged. This resets runtime-only state and
-  detaches the failed operation's stale instance. Other instances are untouched.
-- **Wallet scope:** retain unchanged instances, rebuild changed, removed, or
-  destroyed entries, and remove entries created by the failed transaction.
-  Restore the cached encryption key and unsupported-keyring snapshot too.
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant Controller
+    participant Keyring as Atomic keyring
+    participant Remote as Device / Snap
+    participant Vault
 
-Resource cleanup order matters: destroy transaction-created leftovers before
-recreating any wallet keyring, and destroy a stale instance before building its
-replacement. Hardware keyrings may share SDK singletons that must be released
-first. Even a partially failed destruction marks an instance as needing rebuild.
-
-Recreated keyrings are checked for duplicate accounts: against all remaining
-keyrings for a scoped rollback, or the reconciled-so-far list for wallet rollback.
-A replacement that fails validation is destroyed. If recreation or validation
-fails, its serialized snapshot is parked as unsupported. Already unsupported
-keyrings are not retried during rollback. Cleanup/recreation errors are logged
-rather than replacing the original operation error.
-
-## Atomic keyring operations
-
-A builder opts in with `atomic: true` and receives a `KeyringBuilderContext`
-containing the controller's `update` callback. Its result must carry the SDK's
-`AtomicKeyring` brand; the controller rejects a declared-atomic builder returning
-a non-atomic instance. Legacy builders continue to receive zero arguments.
-
-`withKeyring` and `withKeyringV2` inspect the **registered underlying keyring**,
-not its V2 adapter, to choose the atomic path:
-
-```text
-Controller mutex: select/create + validate + persist new registration → release
-Keyring operation: acquire own lock → remote/slow work → update → finish
-Controller update:                         acquire controller mutex
-                                          check registered identity
-                                          snapshot wallet → action → commit
-                                          release controller mutex
+    Caller->>Controller: withKeyring / withKeyringV2
+    Note over Controller: Acquire controller mutex
+    Controller->>Controller: Select and validate entry
+    Note over Controller: Release controller mutex
+    Controller->>Keyring: Run caller's operation
+    Note over Keyring: Acquire own operation lock
+    Keyring->>Remote: Perform slow work
+    Remote-->>Keyring: Result
+    Keyring->>Controller: update(registered identity, action)
+    Note over Controller: Acquire controller mutex
+    alt Instance is detached or replaced
+        Controller->>Controller: Reject without running action
+    else Instance is still registered
+        Controller->>Controller: Snapshot wallet, then run action
+        opt Session changed and action succeeded
+            Controller->>Vault: Validate and write whole wallet
+            Vault-->>Controller: Success or write error
+        end
+        Note over Controller: No controller rollback on action or write failure
+    end
+    Note over Controller: Release controller mutex
+    Controller-->>Keyring: Update result or error
+    Note over Keyring: Release own operation lock
+    Keyring-->>Controller: Result or error
+    Controller-->>Caller: Result or error
 ```
 
-The operation runs outside the controller mutex so its `update` can acquire
-that same non-reentrant mutex without deadlocking. With `createIfMissing`, the
-new keyring is registered and persisted before the operation is dispatched.
-Atomic dispatch does not run the legacy post-operation empty-keyring cleanup.
+The operation runs without the controller mutex so that `update` can acquire it.
+The mutex is not reentrant: holding it while awaiting `update` would deadlock.
+After an atomic operation, the controller does not automatically remove an empty keyring.
 
-Each `update(keyring, action)` checks that the exact keyring instance is still
-registered **after acquiring the mutex**. An update queued behind a wallet lock
-or restore cannot commit on behalf of a detached/replaced instance. Adapters
-must route updates using the controller-registered identity.
+### Commit contract
 
-The commit window snapshots the wallet, runs the mutation action, and writes
-the vault only if the session changed. It still includes wallet serialization,
-validation, and encryption; it is not a constant-time or single-keyring write.
-Keep slow work outside the action.
+- **Identity:** after acquiring the mutex, the controller checks that the exact
+  instance is still registered. It rejects queued updates for a detached or replaced
+  keyring. Adapters must pass the identity of the instance registered with the controller.
+- **Cost:** while holding the mutex, the controller takes a wallet snapshot and runs
+  the mutation action. If state changed, it validates, serializes, and encrypts the
+  wallet. Keep remote work outside the action.
+- **No rollback:** a successful commit remains in place even if the operation later
+  fails. If the action throws, any partial changes remain in memory, but that update
+  does not write the vault. If writing the vault fails, the changes also remain in
+  memory. In both cases, the keyring must handle recovery.
+- **Lock order:** serialization must safely return committed state. It must not wait
+  for a lock held by an operation that is itself waiting for `update`. Otherwise,
+  neither the controller nor the keyring can proceed.
+- **Unsafe access:** the unsafe APIs for read-only access do not acquire the controller
+  mutex. They must never be used to change state instead of calling `update`.
 
-**Atomic does not mean controller-managed rollback.** If the operation fails
-after a successful update, that commit remains. If the action throws, its
-partial in-memory mutations are not restored and that update does not write
-the vault. A vault-write failure likewise propagates without restoring the
-mutation. The keyring must define its own consistency and recovery behavior.
+## Diagnostics
 
-Keyring implementations must synchronize their own operations and expose safe
-committed-state reads for controller serialization. Do not make serialization
-wait for a keyring lock held by an operation awaiting `update`: that reverses
-the lock dependency and can deadlock. Unsafe read-only controller access bypasses
-the transaction mutex and is not a substitute for a mutation/commit path.
+Enable `DEBUG=metamask:keyring-controller*` to include both namespaces.
 
-## Lock diagnostics
+| Namespace                           | Measures                                                                                                                     |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `metamask:keyring-controller`       | Atomic operation `durationMs`, including remote work and internal lock waits                                                 |
+| `metamask:keyring-controller:locks` | Controller/vault mutex `waitMs`, `holdMs`, and `totalMs`. `atomicUpdate` measures the commit window, not the full operation. |
 
-Enable `DEBUG=metamask:keyring-controller*` to include both namespaces:
+Logs include correlation IDs and metadata for the selected keyring. Access kind
+(`v1`, `v2`, or `commit`) identifies the access path, not whether the keyring is atomic. Arguments, results, and
+errors are omitted to avoid exposing secrets. Diagnostics arrive in #11267.
 
-- `metamask:keyring-controller`: atomic operation start/finish and full
-  `durationMs`, including remote work and internal keyring waits.
-- `metamask:keyring-controller:locks`: controller/vault mutex request,
-  acquisition, release, and completion, including `waitMs`, `holdMs`, and `totalMs`.
-  `atomicUpdate` measures the controller-side commit window, not the full operation.
+## PR map and code
 
-Events carry correlation IDs and, after selection, keyring type, metadata ID,
-and access kind (`v1`, `v2`, or `commit`). V1/V2 describes access, not whether the
-keyring is atomic. Logs omit arguments, results, and errors to avoid secrets.
-Diagnostics arrive in [#11267](https://github.com/MetaMask/core/pull/11267),
-which also adds the README's lock timing reference.
+| PR                                                    | Contribution                                             |
+| ----------------------------------------------------- | -------------------------------------------------------- |
+| [#10407](https://github.com/MetaMask/core/pull/10407) | Granular rollback and single-keyring snapshot/diff scope |
+| [#11119](https://github.com/MetaMask/core/pull/11119) | Internal `VaultTransaction` abstraction                  |
+| [#11127](https://github.com/MetaMask/core/pull/11127) | Transaction-owned rollback                               |
+| [#11139](https://github.com/MetaMask/core/pull/11139) | Transaction-owned commit and persistence policies        |
+| [#11164](https://github.com/MetaMask/core/pull/11164) | Destroy leftovers before recreation                      |
+| [#11707](https://github.com/MetaMask/core/pull/11707) | Validate replacements and clean up rejected instances    |
+| [#11241](https://github.com/MetaMask/core/pull/11241) | Atomic builders, unlocked dispatch, and update commits   |
+| [#11267](https://github.com/MetaMask/core/pull/11267) | Mutex and atomic-operation timing logs                   |
 
-## PR map and implementation
-
-| PR                                                    | Contribution                                                   |
-| ----------------------------------------------------- | -------------------------------------------------------------- |
-| [#10407](https://github.com/MetaMask/core/pull/10407) | Granular rollback and single-keyring snapshot/diff scope       |
-| [#11119](https://github.com/MetaMask/core/pull/11119) | Internal `VaultTransaction` abstraction                        |
-| [#11127](https://github.com/MetaMask/core/pull/11127) | Rollback owned by `VaultTransaction`                           |
-| [#11139](https://github.com/MetaMask/core/pull/11139) | Commit and persistence policies owned by `VaultTransaction`    |
-| [#11164](https://github.com/MetaMask/core/pull/11164) | Destroy transaction-created leftovers before recreation        |
-| [#11707](https://github.com/MetaMask/core/pull/11707) | Validate rollback replacements and clean up rejected instances |
-| [#11241](https://github.com/MetaMask/core/pull/11241) | Atomic builders, unlocked dispatch, and `update` commits       |
-| [#11267](https://github.com/MetaMask/core/pull/11267) | Mutex and atomic-operation timing logs                         |
-
-Entry points in [`KeyringController.ts`](../src/KeyringController.ts):
-`#withKeyringOrRollback`, `#withTransaction`, `#atomicUpdate`, and `#buildKeyring`.
-Rollback and persistence policies live in
-[`VaultTransaction.ts`](../src/VaultTransaction.ts); regression coverage lives in
-[`VaultTransaction.test.ts`](../src/VaultTransaction.test.ts) and
-[`KeyringController.test.ts`](../src/KeyringController.test.ts).
+- [`KeyringController.ts`](../src/KeyringController.ts): dispatch, transaction
+  boundaries, builder injection, and atomic updates.
+- [`VaultTransaction.ts`](../src/VaultTransaction.ts): snapshots, rollback, and commit policies.
+- Regression coverage: [`VaultTransaction.test.ts`](../src/VaultTransaction.test.ts)
+  and [`KeyringController.test.ts`](../src/KeyringController.test.ts).
