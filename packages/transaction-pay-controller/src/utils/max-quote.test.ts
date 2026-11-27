@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { mockModuleExcept } from '../../tests/mock-module-except.js';
 import type {
+  GetAmountDataRequest,
   PayStrategyGetQuotesRequest,
   QuoteRequest,
   TransactionPayControllerMessenger,
@@ -305,8 +306,11 @@ describe('max-quote', () => {
 
         await run();
 
-        const [, { amount, transaction }] = messengerCallMock.mock.calls[0];
+        const request = messengerCallMock.mock
+          .calls[0][1] as GetAmountDataRequest;
+        const { amount, transaction } = request;
 
+        expect(request).not.toHaveProperty('secondLeg');
         expect(messengerCallMock).toHaveBeenCalledWith(
           'TransactionPayController:getAmountData',
           expect.anything(),
@@ -449,7 +453,9 @@ describe('max-quote', () => {
         ]);
         expect(requoteMock).toHaveBeenCalledWith(
           expect.objectContaining({
-            original: expect.objectContaining({ id: 'a-gas-station' }),
+            original: expect.objectContaining({
+              id: 'a-gas-station',
+            }) as unknown,
           }),
           { ...REQUEST_MOCK, atomic: true, targetAmountMinimum: '950' },
           expect.objectContaining({

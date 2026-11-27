@@ -169,6 +169,7 @@ async function resolveSecondLegCalls({
     'TransactionPayController:getAmountData',
     {
       amount: sourceAmountRaw,
+      secondLeg: true,
       transaction: updatedTransaction,
     },
   );
@@ -185,16 +186,20 @@ async function resolveSecondLegCalls({
     throw new Error('Missing nested transactions');
   }
 
-  for (const { nestedTransactionIndex, data } of updates) {
-    if (nestedTransactions[nestedTransactionIndex]) {
-      nestedTransactions[nestedTransactionIndex].data = data;
+  for (const { nestedTransactionIndex, data, to } of updates) {
+    const nested = nestedTransactions[nestedTransactionIndex];
+    if (nested) {
+      nested.data = data;
+      nested.to = to ?? nested.to;
     }
   }
 
   updateTransaction({ transactionId, messenger, note }, (tx) => {
-    for (const { nestedTransactionIndex, data } of updates) {
-      if (tx.nestedTransactions?.[nestedTransactionIndex]) {
-        tx.nestedTransactions[nestedTransactionIndex].data = data;
+    for (const { nestedTransactionIndex, data, to } of updates) {
+      const nested = tx.nestedTransactions?.[nestedTransactionIndex];
+      if (nested) {
+        nested.data = data;
+        nested.to = to ?? nested.to;
       }
     }
 
