@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [36.1.3]
+
 ### Changed
 
 - Bump `@metamask/keyring-controller` from `^28.2.1` to `^28.2.2` ([#11537](https://github.com/MetaMask/core/pull/11537))
-- Bump `@metamask/seedless-onboarding-controller` from `^12.0.0` to `^12.1.0` ([#11569](https://github.com/MetaMask/core/pull/11569))
+- Bump `@metamask/seedless-onboarding-controller` from `^12.0.0` to `^13.0.0` ([#11569](https://github.com/MetaMask/core/pull/11569), [#11800](https://github.com/MetaMask/core/pull/11800))
 - Bump `immer` from `^11.1.18` to `^11.2.10` ([#11645](https://github.com/MetaMask/core/pull/11645))
 - Bump `@metamask/utils` from `^12.0.2` to `^12.1.0` ([#11796](https://github.com/MetaMask/core/pull/11796))
 
@@ -1155,7 +1157,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@36.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@36.1.3...HEAD
+[36.1.3]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@36.1.2...@metamask/profile-sync-controller@36.1.3
 [36.1.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@36.1.1...@metamask/profile-sync-controller@36.1.2
 [36.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@36.1.0...@metamask/profile-sync-controller@36.1.1
 [36.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@36.0.0...@metamask/profile-sync-controller@36.1.0
