@@ -20,7 +20,6 @@ const IGNORED_ROOT_FILES = new Set([
   'AGENTS.md',
   'CLAUDE.md',
   'README.md',
-  'teams.json',
 
   // The lockfile has special logic for determining whether a package
   // build/test/lint run is required, so it should not trigger a full run on its

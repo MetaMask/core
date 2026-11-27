@@ -144,7 +144,6 @@ jobs:
           - constraints
           - lint:dependencies
           - lint:misc:check
-          - lint:teams
           - lint:tsc:check
           - lint:tsconfigs:all
           - messenger-action-types:check

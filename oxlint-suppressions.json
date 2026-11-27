@@ -7954,14 +7954,6 @@
       "count": 1
     }
   },
-  "scripts/lint-teams-json.ts": {
-    "n/no-unsupported-features/node-builtins": {
-      "count": 1
-    },
-    "typescript/no-unsafe-return": {
-      "count": 2
-    }
-  },
   "scripts/lint-tsconfigs/lint-tsconfigs.ts": {
     "typescript/return-await": {
       "count": 2

@@ -11,7 +11,7 @@ Manually creating a new monorepo package can be a tedious, even frustrating proc
 2. Make sure your license is correct.
    - By default, `create-package` gives your package a combined MIT license and Apache 2.0 license.
    - If your desired license is _not_ MIT and Apache 2.0, then you must update your `LICENSE` file and the `license` field of `package.json`.
-3. Update `.github/CODEOWNERS` and `teams.json` to assign a team as the owner of the new package.
+3. Update `.github/CODEOWNERS` to assign a team as the owner of the new package.
 4. Open a new Pull Request to merge your new package scaffolding into the monorepo.
    - It should contain no functional changes beyond the addition of the new package structure.
    - See [Why two PRs are recommended](#why-two-prs-are-recommended).
@@ -35,7 +35,7 @@ The `create-package` directory contains a [template package](../../scripts/creat
 
 When adding a new package to the monorepo, it is recommended to open two separate Pull Requests:
 
-1. The first PR should contain only the scaffolding for the new package, including its initial structure, configuration files, and any necessary updates to monorepo-wide files like `.github/CODEOWNERS` and `teams.json`.
+1. The first PR should contain only the scaffolding for the new package, including its initial structure, configuration files, and any necessary updates to monorepo-wide files like `.github/CODEOWNERS`.
 2. The second PR should contain the functional changes, such as adding dependencies and implementing the package's features.
 
 This approach helps reviewers from the Core Platform team focus on the structural changes separately from the functional changes which can be a large volume of code, making the review process more manageable and efficient, reducing the risk of introducing errors.
