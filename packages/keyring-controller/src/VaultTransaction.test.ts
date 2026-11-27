@@ -808,6 +808,31 @@ describe('VaultTransaction', () => {
       expect(keyrings[1]?.keyring).not.toBe(entryB.keyring);
     });
 
+    it('cleans up a replacement rejected by wallet duplicate validation even if destruction fails', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const entry = buildEntry(buildFakeKeyring({ type: 'A' }));
+      const destroy = vi.fn(async () => {
+        throw new Error('Destroy failed');
+      });
+      const replacement = buildEntry(buildFakeKeyring({ destroy }));
+      const { transaction, session, createKeyring, assertNoDuplicateAccounts } =
+        buildWalletTransaction({ keyrings: [entry] });
+      await transaction.begin();
+      await transaction.remove(entry);
+      createKeyring.mockResolvedValue(replacement);
+      assertNoDuplicateAccounts.mockRejectedValue(
+        new Error('Duplicate accounts'),
+      );
+
+      expect(await transaction.rollback()).toBeUndefined();
+
+      expect(destroy).toHaveBeenCalledTimes(1);
+      expect(session.getKeyrings()).toStrictEqual([]);
+      expect(session.getUnsupportedKeyrings()).toStrictEqual([
+        { type: 'A', data: {}, metadata: entry.metadata },
+      ]);
+    });
+
     it('checks recreated keyrings for duplicates against the reconciled-so-far list', async () => {
       const entryA = buildEntry(
         buildFakeKeyring({ type: 'A', serialize: async () => ({ a: true }) }),
@@ -879,10 +904,11 @@ describe('VaultTransaction', () => {
         { id: 'a', name: 'A' },
       );
       const other = buildEntry(buildFakeKeyring({ type: 'Other' }));
-      const { transaction, session, createKeyring } = buildTransaction(
-        { type: 'keyring', entry, created: false },
-        { keyrings: [entry, other] },
-      );
+      const { transaction, session, createKeyring, assertNoDuplicateAccounts } =
+        buildTransaction(
+          { type: 'keyring', entry, created: false },
+          { keyrings: [entry, other] },
+        );
       await transaction.begin();
 
       // The transaction removes the operated keyring.
@@ -898,6 +924,10 @@ describe('VaultTransaction', () => {
       expect(session.getKeyrings()).toHaveLength(2);
       expect(session.getKeyrings()[0]?.keyring).not.toBe(entry.keyring);
       expect(session.getKeyrings()[1]).toBe(other);
+      expect(assertNoDuplicateAccounts).toHaveBeenCalledExactlyOnceWith([
+        other.keyring,
+        session.getKeyrings()[0]?.keyring,
+      ]);
     });
 
     it('always rebuilds the operated keyring on failure, even when unchanged, in place', async () => {
@@ -934,19 +964,55 @@ describe('VaultTransaction', () => {
       expect(session.getKeyrings()[1]?.keyring).not.toBe(entry.keyring);
     });
 
-    it('does not check for duplicate accounts when recreating the operated keyring', async () => {
+    it('checks recreated keyrings for duplicates against all remaining keyrings', async () => {
       const entry = buildEntry(
         buildFakeKeyring({ type: 'A', serialize: async () => ({ a: true }) }),
       );
-      const { transaction, assertNoDuplicateAccounts } = buildTransaction(
-        { type: 'keyring', entry, created: false },
-        { keyrings: [entry] },
-      );
+      const other = buildEntry(buildFakeKeyring({ type: 'Other' }));
+      const { transaction, session, assertNoDuplicateAccounts } =
+        buildTransaction(
+          { type: 'keyring', entry, created: false },
+          { keyrings: [entry, other] },
+        );
       await transaction.begin();
 
       await transaction.rollback();
 
-      expect(assertNoDuplicateAccounts).not.toHaveBeenCalled();
+      expect(assertNoDuplicateAccounts).toHaveBeenCalledExactlyOnceWith([
+        other.keyring,
+        session.getKeyrings()[0]?.keyring,
+      ]);
+    });
+
+    it('destroys and parks a recreated keyring rejected by duplicate validation', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const entry = buildEntry(buildFakeKeyring({ type: 'A' }));
+      const other = buildEntry(buildFakeKeyring({ type: 'Other' }));
+      const destroy = vi.fn(async () => undefined);
+      const destroyV2 = vi.fn(async () => undefined);
+      const replacement = buildEntry(
+        buildFakeKeyring({ destroy }),
+        buildFakeKeyringV2({ destroy: destroyV2 }),
+      );
+      const { transaction, session, createKeyring, assertNoDuplicateAccounts } =
+        buildTransaction(
+          { type: 'keyring', entry, created: false },
+          { keyrings: [entry, other] },
+        );
+      await transaction.begin();
+      createKeyring.mockResolvedValue(replacement);
+      assertNoDuplicateAccounts.mockRejectedValue(
+        new Error('Duplicate accounts'),
+      );
+
+      await transaction.rollback();
+
+      expect(session.getKeyrings()).toStrictEqual([other]);
+      expect(session.getUnsupportedKeyrings()).toStrictEqual([
+        { type: 'A', data: {}, metadata: entry.metadata },
+      ]);
+      expect(destroy).toHaveBeenCalledTimes(1);
+      expect(destroyV2).toHaveBeenCalledTimes(1);
     });
 
     it('parks the keyring as unsupported when its recreation fails', async () => {

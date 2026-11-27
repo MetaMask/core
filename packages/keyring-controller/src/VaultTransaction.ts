@@ -549,7 +549,9 @@ export class VaultTransaction {
     if (index === -1) {
       // The transaction removed the keyring: rebuild it at its original
       // position.
-      const newEntry = await this.#recreate(undefined, snapshot);
+      const newEntry = await this.#recreate(undefined, snapshot, {
+        duplicateCheckBase: keyrings,
+      });
       if (newEntry) {
         this.#session.insertKeyringAt(snapshot.index, newEntry);
       }
@@ -564,7 +566,9 @@ export class VaultTransaction {
     // first, then destroyed by the recreation itself, before its
     // replacement takes back its position.
     this.#session.removeKeyring(entry);
-    const newEntry = await this.#recreate(entry, snapshot);
+    const newEntry = await this.#recreate(entry, snapshot, {
+      duplicateCheckBase: this.#session.getKeyrings(),
+    });
     if (newEntry) {
       this.#session.insertKeyringAt(index, newEntry);
     }
@@ -585,39 +589,44 @@ export class VaultTransaction {
    * @param options - Recreation options.
    * @param options.duplicateCheckBase - The already reconciled keyrings
    *   the recreated keyring is checked against for duplicate accounts;
-   *   when omitted, the check is skipped: the wallet-scope rollback checks
-   *   against the reconciled-so-far keyrings, while the keyring-scope
-   *   rollback owns the only keyring that changed, so a duplicate would
-   *   come from a mutation made outside a transaction.
+   *   the wallet-scope rollback checks against the reconciled-so-far
+   *   keyrings, while the keyring-scope rollback checks against all
+   *   remaining keyrings.
    * @returns The new keyring entry, or `undefined` if it could not be
    *   recreated.
    */
   async #recreate(
     old: KeyringEntry | undefined,
     snapshot: KeyringSnapshot,
-    { duplicateCheckBase }: { duplicateCheckBase?: KeyringEntry[] } = {},
+    { duplicateCheckBase }: { duplicateCheckBase: KeyringEntry[] },
   ): Promise<KeyringEntry | undefined> {
+    let entry: KeyringEntry | undefined;
     try {
       if (old) {
         await this.destroy(old, { ignoreErrors: true });
       }
 
-      const entry = await this.#operations.createKeyring(
+      entry = await this.#operations.createKeyring(
         snapshot.type,
         snapshot.data,
         snapshot.metadata,
       );
 
-      if (duplicateCheckBase) {
-        await this.#operations.assertNoDuplicateAccounts([
-          ...duplicateCheckBase.map(({ keyring }) => keyring),
-          entry.keyring,
-        ]);
-      }
+      // getAccounts() is expected not to throw or reject: rollback relies
+      // on being able to verify that restored keyrings have no duplicates.
+      await this.#operations.assertNoDuplicateAccounts([
+        ...duplicateCheckBase.map(({ keyring }) => keyring),
+        entry.keyring,
+      ]);
 
       return entry;
     } catch (error) {
       console.error(error);
+      // A successfully created entry rejected by validation is not added
+      // to the session, but must still release its resources.
+      if (entry) {
+        await this.destroy(entry, { ignoreErrors: true });
+      }
       // Only the serialized keyring is parked: the snapshot position must
       // not leak into the vault.
       this.#session.parkUnsupportedKeyring({
