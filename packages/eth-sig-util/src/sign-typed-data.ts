@@ -8,7 +8,6 @@ import {
 } from '@metamask/abi-utils/dist/parsers/index.js';
 import { padStart } from '@metamask/abi-utils/dist/utils/index.js';
 import {
-  add0x,
   assert,
   bigIntToBytes,
   bytesToHex,
@@ -19,6 +18,7 @@ import {
   signedBigIntToBytes,
   stringToBytes,
 } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import { keccak256 } from 'ethereum-cryptography/keccak';
 
 import {
@@ -215,43 +215,32 @@ function normalizeBool(value: unknown): boolean {
 }
 
 /**
- * Parse an address string to a `Uint8Array`. The behaviour of this is quite
- * strange, in that it does not parse the address as hexadecimal string, nor as
- * UTF-8. It does some weird stuff with the string and char codes, and then
- * returns the result as a `Uint8Array`.
- *
- * This is based on the old `ethereumjs-abi` implementation, which essentially
- * calls `new BN(address, 10)` on the address string, the equivalent of calling
- * `parseInt(address, 10)` in JavaScript. This is not a valid way to parse an
- * address and would result in `NaN` in plain JavaScript, but it is the
- * behaviour of the old implementation, and so we must preserve it for backwards
- * compatibility.
- *
- * @param address - The address to parse.
- * @returns The parsed address.
+ * A `0x`-prefixed, 20-byte hex address in any letter case.
  */
-function reallyStrangeAddressToBytes(address: string): Uint8Array {
-  let addressValue = BigInt(0);
+const ADDRESS_REGEX = /^0x[0-9a-fA-F]{40}$/u;
 
-  for (let i = 0; i < address.length; i++) {
-    const character = BigInt(address.charCodeAt(i) - 48);
-    addressValue *= BigInt(10);
+/**
+ * Normalize a value for the Solidity `address` type. Only `0x`-prefixed,
+ * 20-byte hex strings are accepted; anything else is rejected.
+ *
+ * Previous versions also accepted numbers, hex strings of any length, and
+ * non-hex strings, which were converted to an address in ways that could
+ * differ from how the value is displayed. Rejecting ambiguous input keeps the
+ * signed value consistent with what was requested.
+ *
+ * @param value - The value to normalize.
+ * @returns The normalized address.
+ * @throws If the value is not a `0x`-prefixed, 20-byte hex string.
+ */
+function normalizeAddress(value: unknown): Hex {
+  assert(
+    typeof value === 'string' && ADDRESS_REGEX.test(value),
+    `Unable to encode value: Invalid address. Expected a "0x"-prefixed, 20-byte hex string, but received "${String(
+      value,
+    )}".`,
+  );
 
-    // 'a'
-    if (character >= 49) {
-      addressValue += character - BigInt(49) + BigInt(0xa);
-
-      // 'A'
-    } else if (character >= 17) {
-      addressValue += character - BigInt(17) + BigInt(0xa);
-
-      // '0' - '9'
-    } else {
-      addressValue += character;
-    }
-  }
-
-  return padStart(bigIntToBytes(addressValue), 20);
+  return value as Hex;
 }
 
 /**
@@ -295,13 +284,7 @@ function encodeField(
   }
 
   if (type === 'address') {
-    if (typeof value === 'number') {
-      return ['address', padStart(numberToBytes(value), 20)];
-    } else if (isStrictHexString(value)) {
-      return ['address', add0x(value)];
-    } else if (typeof value === 'string') {
-      return ['address', reallyStrangeAddressToBytes(value).subarray(0, 20)];
-    }
+    return ['address', normalizeAddress(value)];
   }
 
   if (type === 'bool') {

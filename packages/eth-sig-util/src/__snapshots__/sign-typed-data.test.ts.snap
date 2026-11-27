@@ -24,21 +24,11 @@ exports[`TypedDataUtils.eip712Hash > V4 > should hash a typed message with extra
 
 exports[`TypedDataUtils.eip712Hash > V4 > should hash a typed message with only custom domain seperator fields 1`] = `"3efa3ef0305f56ba5bba62000500e29fe82c5314bca2f958c64e31b2498560f8"`;
 
-exports[`TypedDataUtils.encodeData > V3 > example data > type "address" > should encode "0x0" (type "string") 1`] = `"c92db6bca97089c40b3f6512400e065cf2c27db90a50ce13440d951b13ada2990000000000000000000000000000000000000000000000000000000000000000"`;
-
-exports[`TypedDataUtils.encodeData > V3 > example data > type "address" > should encode "0x1fffffffffffff" (type "string") 1`] = `"c92db6bca97089c40b3f6512400e065cf2c27db90a50ce13440d951b13ada299000000000000000000000000000000000000000000000000001fffffffffffff"`;
-
-exports[`TypedDataUtils.encodeData > V3 > example data > type "address" > should encode "0x1fffffffffffff1" (type "string") 1`] = `"c92db6bca97089c40b3f6512400e065cf2c27db90a50ce13440d951b13ada29900000000000000000000000000000000000000000000000001fffffffffffff1"`;
-
-exports[`TypedDataUtils.encodeData > V3 > example data > type "address" > should encode "0x10" (type "string") 1`] = `"c92db6bca97089c40b3f6512400e065cf2c27db90a50ce13440d951b13ada2990000000000000000000000000000000000000000000000000000000000000010"`;
+exports[`TypedDataUtils.encodeData > V3 > example data > type "address" > should encode "0x0000000000000000000000000000000000000000" (type "string") 1`] = `"c92db6bca97089c40b3f6512400e065cf2c27db90a50ce13440d951b13ada2990000000000000000000000000000000000000000000000000000000000000000"`;
 
 exports[`TypedDataUtils.encodeData > V3 > example data > type "address" > should encode "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB" (type "string") 1`] = `"c92db6bca97089c40b3f6512400e065cf2c27db90a50ce13440d951b13ada299000000000000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"`;
 
-exports[`TypedDataUtils.encodeData > V3 > example data > type "address" > should encode "10" (type "number") 1`] = `"c92db6bca97089c40b3f6512400e065cf2c27db90a50ce13440d951b13ada299000000000000000000000000000000000000000000000000000000000000000a"`;
-
-exports[`TypedDataUtils.encodeData > V3 > example data > type "address" > should encode "9007199254740991" (type "number") 1`] = `"c92db6bca97089c40b3f6512400e065cf2c27db90a50ce13440d951b13ada299000000000000000000000000000000000000000000000000001fffffffffffff"`;
-
-exports[`TypedDataUtils.encodeData > V3 > example data > type "address" > should encode "bBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB" (type "string") 1`] = `"c92db6bca97089c40b3f6512400e065cf2c27db90a50ce13440d951b13ada29900000000000000000000000000000023eafa60608dacea43aa64cbe38e38e38d"`;
+exports[`TypedDataUtils.encodeData > V3 > example data > type "address" > should encode "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" (type "string") 1`] = `"c92db6bca97089c40b3f6512400e065cf2c27db90a50ce13440d951b13ada299000000000000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"`;
 
 exports[`TypedDataUtils.encodeData > V3 > example data > type "bool" > should encode "false" (type "boolean") 1`] = `"83478c46da931c2f6871fdb6febd69a27b0ebc8c91f3e2cf580c3bd8777690060000000000000000000000000000000000000000000000000000000000000000"`;
 
@@ -194,23 +184,13 @@ exports[`TypedDataUtils.encodeData > V3 > should encode data with an atomic prop
 
 exports[`TypedDataUtils.encodeData > V3 > should encode data with custom type 1`] = `"a0cedeb2dc280ba39b857546d74f5549c3a1d7bdc2dd96bf881f76108e23dac2fc71e5fa27ff56c350aa531bc129ebdf613b772b6604664f5d8dbe21b85eb0c8cd54f074a4af31b4411ff6a60c9719dbd559c221c8ac3492d9d872b041d703d1b5aadf3154a261abdd9086fc627b61efca26ae5702701d05cd2305f7c52a2fc8"`;
 
-exports[`TypedDataUtils.encodeData > V4 > example data > type "address" > should encode "0x0" (type "string") 1`] = `"c92db6bca97089c40b3f6512400e065cf2c27db90a50ce13440d951b13ada2990000000000000000000000000000000000000000000000000000000000000000"`;
-
-exports[`TypedDataUtils.encodeData > V4 > example data > type "address" > should encode "0x1fffffffffffff" (type "string") 1`] = `"c92db6bca97089c40b3f6512400e065cf2c27db90a50ce13440d951b13ada299000000000000000000000000000000000000000000000000001fffffffffffff"`;
-
-exports[`TypedDataUtils.encodeData > V4 > example data > type "address" > should encode "0x1fffffffffffff1" (type "string") 1`] = `"c92db6bca97089c40b3f6512400e065cf2c27db90a50ce13440d951b13ada29900000000000000000000000000000000000000000000000001fffffffffffff1"`;
-
-exports[`TypedDataUtils.encodeData > V4 > example data > type "address" > should encode "0x10" (type "string") 1`] = `"c92db6bca97089c40b3f6512400e065cf2c27db90a50ce13440d951b13ada2990000000000000000000000000000000000000000000000000000000000000010"`;
+exports[`TypedDataUtils.encodeData > V4 > example data > type "address" > should encode "0x0000000000000000000000000000000000000000" (type "string") 1`] = `"c92db6bca97089c40b3f6512400e065cf2c27db90a50ce13440d951b13ada2990000000000000000000000000000000000000000000000000000000000000000"`;
 
 exports[`TypedDataUtils.encodeData > V4 > example data > type "address" > should encode "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB" (type "string") 1`] = `"c92db6bca97089c40b3f6512400e065cf2c27db90a50ce13440d951b13ada299000000000000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"`;
 
-exports[`TypedDataUtils.encodeData > V4 > example data > type "address" > should encode "10" (type "number") 1`] = `"c92db6bca97089c40b3f6512400e065cf2c27db90a50ce13440d951b13ada299000000000000000000000000000000000000000000000000000000000000000a"`;
+exports[`TypedDataUtils.encodeData > V4 > example data > type "address" > should encode "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" (type "string") 1`] = `"c92db6bca97089c40b3f6512400e065cf2c27db90a50ce13440d951b13ada299000000000000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"`;
 
-exports[`TypedDataUtils.encodeData > V4 > example data > type "address" > should encode "9007199254740991" (type "number") 1`] = `"c92db6bca97089c40b3f6512400e065cf2c27db90a50ce13440d951b13ada299000000000000000000000000000000000000000000000000001fffffffffffff"`;
-
-exports[`TypedDataUtils.encodeData > V4 > example data > type "address" > should encode "bBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB" (type "string") 1`] = `"c92db6bca97089c40b3f6512400e065cf2c27db90a50ce13440d951b13ada29900000000000000000000000000000023eafa60608dacea43aa64cbe38e38e38d"`;
-
-exports[`TypedDataUtils.encodeData > V4 > example data > type "address" > should encode array of all address example data 1`] = `"1cf487eff7ac1d95e8069104ae1f91e4ecc076c3a5c23645a8b93a413d1bc7118eb4f5f4cd3a16acaa954558d08ceb9f1a1dfd26dbf9eb2b780b871fa554bbcd"`;
+exports[`TypedDataUtils.encodeData > V4 > example data > type "address" > should encode array of all address example data 1`] = `"1cf487eff7ac1d95e8069104ae1f91e4ecc076c3a5c23645a8b93a413d1bc711f2be156332c7f29717e8c39cbbe0acc1d2d92090ff143998a52b143002c0b885"`;
 
 exports[`TypedDataUtils.encodeData > V4 > example data > type "bool" > should encode "false" (type "boolean") 1`] = `"83478c46da931c2f6871fdb6febd69a27b0ebc8c91f3e2cf580c3bd8777690060000000000000000000000000000000000000000000000000000000000000000"`;
 
@@ -388,21 +368,11 @@ exports[`TypedDataUtils.encodeData > V4 > should encode data with a recursive da
 
 exports[`TypedDataUtils.encodeData > V4 > should encode data with custom type 1`] = `"a0cedeb2dc280ba39b857546d74f5549c3a1d7bdc2dd96bf881f76108e23dac2fc71e5fa27ff56c350aa531bc129ebdf613b772b6604664f5d8dbe21b85eb0c8cd54f074a4af31b4411ff6a60c9719dbd559c221c8ac3492d9d872b041d703d1b5aadf3154a261abdd9086fc627b61efca26ae5702701d05cd2305f7c52a2fc8"`;
 
-exports[`TypedDataUtils.hashStruct > V3 > example data > type "address" > should hash "0x0" (type "string") 1`] = `"c93aa5d5f1b1efece209c34fceee0aeb33da38ea34dbdd4df854e9708a636fea"`;
-
-exports[`TypedDataUtils.hashStruct > V3 > example data > type "address" > should hash "0x1fffffffffffff" (type "string") 1`] = `"edb736a49622b7860bcec9c56c2b0346870f5bf02b7e516722c51be85c740bd3"`;
-
-exports[`TypedDataUtils.hashStruct > V3 > example data > type "address" > should hash "0x1fffffffffffff1" (type "string") 1`] = `"de987a2d2d32026fc996b901c82d405a4ce60ef64f96c8f35735b71fb1e5b618"`;
-
-exports[`TypedDataUtils.hashStruct > V3 > example data > type "address" > should hash "0x10" (type "string") 1`] = `"894a63b658fa6d5bb6c952ee75b45769ba7239f339da816a60bb94c32657b31b"`;
+exports[`TypedDataUtils.hashStruct > V3 > example data > type "address" > should hash "0x0000000000000000000000000000000000000000" (type "string") 1`] = `"c93aa5d5f1b1efece209c34fceee0aeb33da38ea34dbdd4df854e9708a636fea"`;
 
 exports[`TypedDataUtils.hashStruct > V3 > example data > type "address" > should hash "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB" (type "string") 1`] = `"ab14541443c6f456616e472ecca6d4fc887f862760d3a056b348441a9e0fd1c6"`;
 
-exports[`TypedDataUtils.hashStruct > V3 > example data > type "address" > should hash "10" (type "number") 1`] = `"ce14e365ba45aa306d169b4cd22bd4a4dd45b07f68948757788cd974302272b9"`;
-
-exports[`TypedDataUtils.hashStruct > V3 > example data > type "address" > should hash "9007199254740991" (type "number") 1`] = `"edb736a49622b7860bcec9c56c2b0346870f5bf02b7e516722c51be85c740bd3"`;
-
-exports[`TypedDataUtils.hashStruct > V3 > example data > type "address" > should hash "bBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB" (type "string") 1`] = `"4d9b02d96f7647b8d3acfafc97b2faa65ef7b442ea647f8c8f6f606d4d794d34"`;
+exports[`TypedDataUtils.hashStruct > V3 > example data > type "address" > should hash "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" (type "string") 1`] = `"ab14541443c6f456616e472ecca6d4fc887f862760d3a056b348441a9e0fd1c6"`;
 
 exports[`TypedDataUtils.hashStruct > V3 > example data > type "bool" > should hash "false" (type "boolean") 1`] = `"8015e06ae558f4ef85aa3a10a88e0530c81d4c6437ea005773d0ae01fa87e98f"`;
 
@@ -558,23 +528,13 @@ exports[`TypedDataUtils.hashStruct > V3 > should hash data with an atomic proper
 
 exports[`TypedDataUtils.hashStruct > V3 > should hash data with custom type 1`] = `"c52c0ee5d84264471806290a3f2c4cecfc5490626bf912d01f240d7a274b371e"`;
 
-exports[`TypedDataUtils.hashStruct > V4 > example data > type "address" > should hash "0x0" (type "string") 1`] = `"c93aa5d5f1b1efece209c34fceee0aeb33da38ea34dbdd4df854e9708a636fea"`;
-
-exports[`TypedDataUtils.hashStruct > V4 > example data > type "address" > should hash "0x1fffffffffffff" (type "string") 1`] = `"edb736a49622b7860bcec9c56c2b0346870f5bf02b7e516722c51be85c740bd3"`;
-
-exports[`TypedDataUtils.hashStruct > V4 > example data > type "address" > should hash "0x1fffffffffffff1" (type "string") 1`] = `"de987a2d2d32026fc996b901c82d405a4ce60ef64f96c8f35735b71fb1e5b618"`;
-
-exports[`TypedDataUtils.hashStruct > V4 > example data > type "address" > should hash "0x10" (type "string") 1`] = `"894a63b658fa6d5bb6c952ee75b45769ba7239f339da816a60bb94c32657b31b"`;
+exports[`TypedDataUtils.hashStruct > V4 > example data > type "address" > should hash "0x0000000000000000000000000000000000000000" (type "string") 1`] = `"c93aa5d5f1b1efece209c34fceee0aeb33da38ea34dbdd4df854e9708a636fea"`;
 
 exports[`TypedDataUtils.hashStruct > V4 > example data > type "address" > should hash "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB" (type "string") 1`] = `"ab14541443c6f456616e472ecca6d4fc887f862760d3a056b348441a9e0fd1c6"`;
 
-exports[`TypedDataUtils.hashStruct > V4 > example data > type "address" > should hash "10" (type "number") 1`] = `"ce14e365ba45aa306d169b4cd22bd4a4dd45b07f68948757788cd974302272b9"`;
+exports[`TypedDataUtils.hashStruct > V4 > example data > type "address" > should hash "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" (type "string") 1`] = `"ab14541443c6f456616e472ecca6d4fc887f862760d3a056b348441a9e0fd1c6"`;
 
-exports[`TypedDataUtils.hashStruct > V4 > example data > type "address" > should hash "9007199254740991" (type "number") 1`] = `"edb736a49622b7860bcec9c56c2b0346870f5bf02b7e516722c51be85c740bd3"`;
-
-exports[`TypedDataUtils.hashStruct > V4 > example data > type "address" > should hash "bBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB" (type "string") 1`] = `"4d9b02d96f7647b8d3acfafc97b2faa65ef7b442ea647f8c8f6f606d4d794d34"`;
-
-exports[`TypedDataUtils.hashStruct > V4 > example data > type "address" > should hash array of all address example data 1`] = `"d714a2e5e9f4db8583cd86e447c95fdbb86e6fe7a8fdc576197c3f0805d1a693"`;
+exports[`TypedDataUtils.hashStruct > V4 > example data > type "address" > should hash array of all address example data 1`] = `"cc87fc6575442a8f35a501ad82e992be2a3401955457391a25f00b87c555535f"`;
 
 exports[`TypedDataUtils.hashStruct > V4 > example data > type "bool" > should hash "false" (type "boolean") 1`] = `"8015e06ae558f4ef85aa3a10a88e0530c81d4c6437ea005773d0ae01fa87e98f"`;
 
@@ -896,21 +856,11 @@ exports[`signTypedData > V1 > should sign data with a dynamic property set to un
 
 exports[`signTypedData > V1 > should sign data with an atomic property set to undefined 1`] = `[Function]`;
 
-exports[`signTypedData > V3 > example data > type "address" > should sign "0x0" (type "string") 1`] = `"0xe73f6e0860ebb2660c79396142325bd00033405615b608c757901a928f81533d78441e8c323c832e72c96bf6f95d874848336537f30081b5de518a26e9fae1891c"`;
-
-exports[`signTypedData > V3 > example data > type "address" > should sign "0x1fffffffffffff" (type "string") 1`] = `"0xd27fb914606ad217b3a238d24e86dd73499806fd45f6b229f50e242ec8eefe4b6325b3bcc8dc310c851379bc55d41b928d8b2828565f892819daccba3aeba0381b"`;
-
-exports[`signTypedData > V3 > example data > type "address" > should sign "0x1fffffffffffff1" (type "string") 1`] = `"0x678e9fc8c29ad71f0e946f7eaf4c2dc58a3d0efa301a5a9aa414d9dab96ec47826f68af1f35371834bb142f77d20aeaca5dc4a381ac96965b88ea7c9bacb00141b"`;
-
-exports[`signTypedData > V3 > example data > type "address" > should sign "0x10" (type "string") 1`] = `"0x2e8ec0d59c8e6cc60f2ce5ab70d604ead4add78d89aff00b1280ac684dea73ee411e5bdd670b00469c46d3a26a051d5453fad78ff28a9b7a4e25bdefd59d4c151b"`;
+exports[`signTypedData > V3 > example data > type "address" > should sign "0x0000000000000000000000000000000000000000" (type "string") 1`] = `"0xe73f6e0860ebb2660c79396142325bd00033405615b608c757901a928f81533d78441e8c323c832e72c96bf6f95d874848336537f30081b5de518a26e9fae1891c"`;
 
 exports[`signTypedData > V3 > example data > type "address" > should sign "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB" (type "string") 1`] = `"0x9dfeb4cb581e1cc8ef7f1192dbbaa05a67545116c1ecb951b8aa5e7e2167e1ca463e8260231fe82395a38a597c90537f3282f6197c17b7e04baf52c5250fa3831b"`;
 
-exports[`signTypedData > V3 > example data > type "address" > should sign "10" (type "number") 1`] = `"0xf43bcd9160bb4ca67d86daa0f8fe9ff06f95cc0b5e402b86cc8f9ac869be11ab4ff17fde422f95ae92d12a7394afd7ca8e72ccb262dfe3d47083933d9d2f6dd21c"`;
-
-exports[`signTypedData > V3 > example data > type "address" > should sign "9007199254740991" (type "number") 1`] = `"0xd27fb914606ad217b3a238d24e86dd73499806fd45f6b229f50e242ec8eefe4b6325b3bcc8dc310c851379bc55d41b928d8b2828565f892819daccba3aeba0381b"`;
-
-exports[`signTypedData > V3 > example data > type "address" > should sign "bBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB" (type "string") 1`] = `"0x47ad9b795affe960475274f8b067225cff2451eada53b0ccf9bebd4336674b4b35b9ac6bad764f197435c7d53b6992a6d5f835796346a6ee4fd2313f8dd5b8991b"`;
+exports[`signTypedData > V3 > example data > type "address" > should sign "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" (type "string") 1`] = `"0x9dfeb4cb581e1cc8ef7f1192dbbaa05a67545116c1ecb951b8aa5e7e2167e1ca463e8260231fe82395a38a597c90537f3282f6197c17b7e04baf52c5250fa3831b"`;
 
 exports[`signTypedData > V3 > example data > type "bool" > should sign "false" (type "boolean") 1`] = `"0xf61ac8da1b7c663c7a7d16d1fefc75ffa739cd5a7af7b165405df3f616f899fa205e73f6f885b7fb6a4f0a5ec14c715c8642d4f59cb88abd361c8a1590cd70071b"`;
 
@@ -1074,23 +1024,13 @@ exports[`signTypedData > V3 > should sign data with an atomic property set to un
 
 exports[`signTypedData > V3 > should sign data with custom type 1`] = `"0x22ee0cb3a379f3a122f7b59456ebcf404ca139320a0723560abde49cc95f4a2f69774bf94c4e776f1a9c8c8a67e9e2bdda131e04bde935f73fae376ee788920d1c"`;
 
-exports[`signTypedData > V4 > example data > type "address" > should sign "0x0" (type "string") 1`] = `"0xe73f6e0860ebb2660c79396142325bd00033405615b608c757901a928f81533d78441e8c323c832e72c96bf6f95d874848336537f30081b5de518a26e9fae1891c"`;
-
-exports[`signTypedData > V4 > example data > type "address" > should sign "0x1fffffffffffff" (type "string") 1`] = `"0xd27fb914606ad217b3a238d24e86dd73499806fd45f6b229f50e242ec8eefe4b6325b3bcc8dc310c851379bc55d41b928d8b2828565f892819daccba3aeba0381b"`;
-
-exports[`signTypedData > V4 > example data > type "address" > should sign "0x1fffffffffffff1" (type "string") 1`] = `"0x678e9fc8c29ad71f0e946f7eaf4c2dc58a3d0efa301a5a9aa414d9dab96ec47826f68af1f35371834bb142f77d20aeaca5dc4a381ac96965b88ea7c9bacb00141b"`;
-
-exports[`signTypedData > V4 > example data > type "address" > should sign "0x10" (type "string") 1`] = `"0x2e8ec0d59c8e6cc60f2ce5ab70d604ead4add78d89aff00b1280ac684dea73ee411e5bdd670b00469c46d3a26a051d5453fad78ff28a9b7a4e25bdefd59d4c151b"`;
+exports[`signTypedData > V4 > example data > type "address" > should sign "0x0000000000000000000000000000000000000000" (type "string") 1`] = `"0xe73f6e0860ebb2660c79396142325bd00033405615b608c757901a928f81533d78441e8c323c832e72c96bf6f95d874848336537f30081b5de518a26e9fae1891c"`;
 
 exports[`signTypedData > V4 > example data > type "address" > should sign "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB" (type "string") 1`] = `"0x9dfeb4cb581e1cc8ef7f1192dbbaa05a67545116c1ecb951b8aa5e7e2167e1ca463e8260231fe82395a38a597c90537f3282f6197c17b7e04baf52c5250fa3831b"`;
 
-exports[`signTypedData > V4 > example data > type "address" > should sign "10" (type "number") 1`] = `"0xf43bcd9160bb4ca67d86daa0f8fe9ff06f95cc0b5e402b86cc8f9ac869be11ab4ff17fde422f95ae92d12a7394afd7ca8e72ccb262dfe3d47083933d9d2f6dd21c"`;
+exports[`signTypedData > V4 > example data > type "address" > should sign "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" (type "string") 1`] = `"0x9dfeb4cb581e1cc8ef7f1192dbbaa05a67545116c1ecb951b8aa5e7e2167e1ca463e8260231fe82395a38a597c90537f3282f6197c17b7e04baf52c5250fa3831b"`;
 
-exports[`signTypedData > V4 > example data > type "address" > should sign "9007199254740991" (type "number") 1`] = `"0xd27fb914606ad217b3a238d24e86dd73499806fd45f6b229f50e242ec8eefe4b6325b3bcc8dc310c851379bc55d41b928d8b2828565f892819daccba3aeba0381b"`;
-
-exports[`signTypedData > V4 > example data > type "address" > should sign "bBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB" (type "string") 1`] = `"0x47ad9b795affe960475274f8b067225cff2451eada53b0ccf9bebd4336674b4b35b9ac6bad764f197435c7d53b6992a6d5f835796346a6ee4fd2313f8dd5b8991b"`;
-
-exports[`signTypedData > V4 > example data > type "address" > should sign array of all address example data 1`] = `"0x4a47328b668266b3bdaa67d9c1ac201a4a2245ed185f9b81adb4acb6eb1231fe58e08ef8dd8ed85b4a264219d297e8275b761216688c8ed9bb7b367e9b99435b1c"`;
+exports[`signTypedData > V4 > example data > type "address" > should sign array of all address example data 1`] = `"0x0fe52ab291e74ca8f16c7a4d2c95ad1ee5127558d768b6a84531ea75dc354db82059f4ad3598a98ea878222de3671f4d43bb23f1cfcb704d0e7f47589190db601b"`;
 
 exports[`signTypedData > V4 > example data > type "bool" > should sign "false" (type "boolean") 1`] = `"0xf61ac8da1b7c663c7a7d16d1fefc75ffa739cd5a7af7b165405df3f616f899fa205e73f6f885b7fb6a4f0a5ec14c715c8642d4f59cb88abd361c8a1590cd70071b"`;
 

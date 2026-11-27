@@ -466,152 +466,45 @@ describe('extractSignatureAddresses', () => {
     expect(addressesOf(data)).toStrictEqual([ADDR_A]);
   });
 
-  it('agrees with eth-sig-util encodeData / eip712Hash on leading-20-byte addresses', () => {
+  it.each([
+    [
+      'an oversized decimal address',
+      (BigInt(ADDR_A) * 256n + 0x42n).toString(10),
+      ADDR_A,
+    ],
+    ['an oversized hex address', `0x${ADDR_A.slice(2)}42`, ADDR_A],
+    [
+      'a short hex address',
+      '0x1',
+      '0x0000000000000000000000000000000000000001',
+    ],
+    [
+      'a 39-character hex address',
+      `0x${'1'.repeat(39)}`,
+      '0x0111111111111111111111111111111111111111',
+    ],
+    ['a 0X-prefixed address', `0X${ADDR_A.slice(2)}`, ADDR_A],
+  ])('collects %s that eth-sig-util rejects', (_title, value, expected) => {
+    // Older signers encoded these values as the collected address, so they
+    // are still scanned. The current signer rejects them, so this is an
+    // extra scan of a value that cannot be signed, not a signed-but-unscanned
+    // address.
     const types = {
       EIP712Domain: DOMAIN_TYPE,
       Mail: [{ name: 'to', type: 'address' }],
     };
-    const domain = {
-      name: 't',
-      version: '1',
-      chainId: 1,
-      verifyingContract: ADDR_C,
-    };
-    const oversized = (BigInt(ADDR_A) * 256n + 0x42n).toString(10);
-    const canonical = build('Mail', { Mail: types.Mail }, { to: ADDR_A });
-    const shifted = build('Mail', { Mail: types.Mail }, { to: oversized });
-
-    expect(
-      TypedDataUtils.encodeData(
-        'Mail',
-        { to: oversized },
-        types,
-        SignTypedDataVersion.V4,
-      ),
-    ).toStrictEqual(
-      TypedDataUtils.encodeData(
-        'Mail',
-        { to: ADDR_A },
-        types,
-        SignTypedDataVersion.V4,
-      ),
-    );
-    expect(
-      TypedDataUtils.eip712Hash(
-        { types, primaryType: 'Mail', domain, message: { to: oversized } },
-        SignTypedDataVersion.V4,
-      ),
-    ).toStrictEqual(
-      TypedDataUtils.eip712Hash(
-        { types, primaryType: 'Mail', domain, message: { to: ADDR_A } },
-        SignTypedDataVersion.V4,
-      ),
-    );
-    expect(addressesOf(shifted)).toStrictEqual([ADDR_A]);
-    expect(addressesOf(canonical)).toStrictEqual([ADDR_A]);
-  });
-
-  it('agrees with eth-sig-util on odd-length 0x-hex (isStrictHexString is true)', () => {
-    // Odd-length 0x-hex is still isStrictHexString in @metamask/utils, so the
-    // signer hexToBytes-pads the nibble and takes 20 bytes — same as we do.
-    // It does not fall through to reallyStrangeAddressToBytes.
-    const types = {
-      EIP712Domain: DOMAIN_TYPE,
-      Mail: [{ name: 'to', type: 'address' }],
-    };
-    const oddShort = '0x1';
-    const oddPadded = '0x0111111111111111111111111111111111111111';
-    const odd39 = `0x${'1'.repeat(39)}`;
-
-    expect(
-      TypedDataUtils.encodeData(
-        'Mail',
-        { to: oddShort },
-        types,
-        SignTypedDataVersion.V4,
-      ),
-    ).toStrictEqual(
-      TypedDataUtils.encodeData(
-        'Mail',
-        { to: '0x0000000000000000000000000000000000000001' },
-        types,
-        SignTypedDataVersion.V4,
-      ),
-    );
-    expect(
-      addressesOf(build('Mail', { Mail: types.Mail }, { to: oddShort })),
-    ).toStrictEqual(['0x0000000000000000000000000000000000000001']);
-
-    expect(
-      TypedDataUtils.encodeData(
-        'Mail',
-        { to: odd39 },
-        types,
-        SignTypedDataVersion.V4,
-      ),
-    ).toStrictEqual(
-      TypedDataUtils.encodeData(
-        'Mail',
-        { to: oddPadded },
-        types,
-        SignTypedDataVersion.V4,
-      ),
-    );
-    expect(
-      addressesOf(build('Mail', { Mail: types.Mail }, { to: odd39 })),
-    ).toStrictEqual([oddPadded]);
-  });
-
-  it('agrees with eth-sig-util on a 0X-prefixed address (isStrictHexString is true)', () => {
-    // The signer treats 0X-hex as isStrictHexString (regex is case-insensitive)
-    // and encodes it as the same address as 0x-hex.
-    const types = {
-      EIP712Domain: DOMAIN_TYPE,
-      Mail: [{ name: 'to', type: 'address' }],
-    };
-    const upperPrefix = `0X${ADDR_A.slice(2)}`;
-
-    expect(
-      TypedDataUtils.encodeData(
-        'Mail',
-        { to: upperPrefix },
-        types,
-        SignTypedDataVersion.V4,
-      ),
-    ).toStrictEqual(
-      TypedDataUtils.encodeData(
-        'Mail',
-        { to: ADDR_A },
-        types,
-        SignTypedDataVersion.V4,
-      ),
-    );
-    expect(
-      addressesOf(build('Mail', { Mail: types.Mail }, { to: upperPrefix })),
-    ).toStrictEqual([ADDR_A]);
-  });
-
-  it('does not treat oversized 0x-hex as a signable address (encoder rejects 21 bytes)', () => {
-    const types = {
-      EIP712Domain: DOMAIN_TYPE,
-      Mail: [{ name: 'to', type: 'address' }],
-    };
-    const oversizedHex = `0x${ADDR_A.slice(2)}42`;
 
     expect(() =>
       TypedDataUtils.encodeData(
         'Mail',
-        { to: oversizedHex },
+        { to: value },
         types,
         SignTypedDataVersion.V4,
       ),
-    ).toThrow(/21 bytes/u);
-
-    // We still collect the leading 20 bytes. That is an extra scan of a value
-    // that cannot be signed, not a signed-but-unscanned address.
+    ).toThrow(/Invalid address/u);
     expect(
-      addressesOf(build('Mail', { Mail: types.Mail }, { to: oversizedHex })),
-    ).toStrictEqual([ADDR_A]);
+      addressesOf(build('Mail', { Mail: types.Mail }, { to: value })),
+    ).toStrictEqual([expected]);
   });
 
   it('bounds traversal work for a very large array', () => {
