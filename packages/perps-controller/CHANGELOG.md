@@ -226,6 +226,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Deprecate `ServiceContext.globalSnapshot` in favor of `globalSnapshots`, with one `GlobalSnapshotContext` per provider ([#11698](https://github.com/MetaMask/core/pull/11698))
 
+### Changed
+
+- Point Lighter testnet REST and WebSocket endpoints at `https://api.testnet.lighter.xyz` and `wss://api.testnet.lighter.xyz/stream` ([#11689](https://github.com/MetaMask/core/pull/11689))
+- Fix Lighter block explorer links: use the `app.lighter.xyz/explorer` and `testnet.app.lighter.xyz/explorer` pages with `/accounts/<address>` instead of dead or API-only hosts ([#11689](https://github.com/MetaMask/core/pull/11689))
+- Update the Lighter testnet bridge config to the new testnet's Sepolia chain and contract addresses ([#11689](https://github.com/MetaMask/core/pull/11689))
+
 ### Fixed
 
 - Lighter open interest is in USD, as `PriceUpdate.openInterest` and market rows document, instead of the venue's base-unit amount ([#11713](https://github.com/MetaMask/core/pull/11713))

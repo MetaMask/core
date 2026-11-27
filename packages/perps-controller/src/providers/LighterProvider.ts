@@ -1443,8 +1443,8 @@ const deriveLighterExecutionPrice = (
 
 const LIGHTER_NOT_SUPPORTED_ERROR = 'Lighter operation not yet supported';
 const LIGHTER_SIGNER_UNAVAILABLE_ERROR = 'Lighter signer bridge not configured';
-const LIGHTER_MAINNET_EXPLORER_URL = 'https://scan.lighter.xyz';
-const LIGHTER_TESTNET_EXPLORER_URL = 'https://testnet.zklighter.elliot.ai';
+const LIGHTER_MAINNET_EXPLORER_URL = 'https://app.lighter.xyz/explorer';
+const LIGHTER_TESTNET_EXPLORER_URL = 'https://testnet.app.lighter.xyz/explorer';
 const LIGHTER_TRIGGER_WIRE_TYPES: Readonly<Record<TriggerOrderType, number>> =
   Object.freeze({
     stop_market: LIGHTER_ORDER_TYPE_STOP_LOSS,
@@ -20986,7 +20986,7 @@ export class LighterProvider implements PerpsProvider {
    */
   readonly #bridgeRoute = (minAmount: string): AssetRoute[] => {
     // Only the MAINNET bridge is ever advertised: the effective-testnet
-    // branches return [] before reaching here (devnet L1 unreachable).
+    // branches return [] before reaching here (testnet routes are not advertised).
     const bridge = LIGHTER_BRIDGE_CONFIG.mainnet;
     return [
       {
@@ -21007,7 +21007,7 @@ export class LighterProvider implements PerpsProvider {
   }
 
   getWithdrawalRoutes(params?: GetSupportedPathsParams): AssetRoute[] {
-    // Same devnet-L1 reality and fail-closed network binding as deposits.
+    // Same fail-closed network binding as deposits: no testnet routes.
     const isTestnet = this.#isTestnet || params?.isTestnet === true;
     if (isTestnet) {
       return [];
@@ -21023,6 +21023,6 @@ export class LighterProvider implements PerpsProvider {
     const baseUrl = this.#isTestnet
       ? LIGHTER_TESTNET_EXPLORER_URL
       : LIGHTER_MAINNET_EXPLORER_URL;
-    return address ? `${baseUrl}/address/${address}` : baseUrl;
+    return address ? `${baseUrl}/accounts/${address}` : baseUrl;
   }
 }
