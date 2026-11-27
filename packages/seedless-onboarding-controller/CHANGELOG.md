@@ -44,6 +44,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - When the remote primary SRP is missing, or it differs from the local primary SRP, the local primary SRP becomes the single remote `PrimarySrp`. The repair is best-effort, runs in the background, and never blocks unlock
   - Existing items are kept. Every other secret is retagged as imported, which also migrates legacy items to v2 without changing the encrypted data. The local primary SRP is promoted from its remote copy, or added as a new v2 item
   - Overlapping repairs for the same user share the in-flight run. The repair stops if the identity changes, and a failed write is logged and picked up on the next unlock
+- Emit a `Seedless Onboarding Primary SRP Repair` analytics event when a primary SRP repair starts, succeeds, or fails ([#11795](https://github.com/MetaMask/core/pull/11795))
+  - The `status` property is `started`, `succeeded`, or `failed`
+  - `started` includes `repair_type`, `metadata_schema_version`, `number_of_imported_wallets`, and `number_of_imported_accounts`
+  - `succeeded` includes `primary_write` (`promote` or `add`) and `number_of_retagged_items`
+  - `failed` includes `failure_stage` and `failure_reason`. Raw error messages are not sent
+- Add the optional persisted `primarySrpRepairStatus` state field and the `PrimarySrpRepairStatus` enum (`NONE` and `FAIL`) ([#11795](https://github.com/MetaMask/core/pull/11795))
+  - A healthy backup saves `NONE`, and later unlocks skip the backup check. A failed check or write saves `FAIL`, and the next unlock runs the check again
+  - `restoreVaultWithPassword`, password changes, and `recoverWithRecoverySecret` clear the field
 
 ### Changed
 

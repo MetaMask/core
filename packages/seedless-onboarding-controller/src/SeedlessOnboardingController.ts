@@ -28,7 +28,7 @@ import { secp256k1 } from '@noble/curves/secp256k1';
 import { Mutex } from 'async-mutex';
 
 import { PrimarySrpBackupRepairService } from './backup-repair/PrimarySrpBackupRepairService.js';
-import type { AuthConnection } from './constants.js';
+import type { AuthConnection, PrimarySrpRepairStatus } from './constants.js';
 import {
   controllerName,
   PASSWORD_OUTDATED_CACHE_TTL_MS,
@@ -40,7 +40,6 @@ import {
   SeedlessOnboardingOperation,
   SeedlessOnboardingCheckpoint,
   PasswordSyncInstruction,
-  PrimarySrpRepairStatus,
   Web3AuthNetwork,
 } from './constants.js';
 import {

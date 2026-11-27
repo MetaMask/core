@@ -9,9 +9,6 @@ import { sha256 } from '@noble/hashes/sha256';
 import {
   controllerName,
   PrimarySrpRepairEventStatus,
-  PrimarySrpRepairFailureReason,
-  PrimarySrpRepairFailureStage,
-  PrimarySrpRepairPrimaryWrite,
   PrimarySrpRepairType,
   SecretType,
   SeedlessIdentityMismatchEventName,
@@ -22,7 +19,12 @@ import {
   SeedlessPrimarySrpMissingEventName,
   SeedlessPrimarySrpRepairEventName,
 } from '../constants.js';
-import type { SeedlessIdentityMismatchSource } from '../constants.js';
+import type {
+  PrimarySrpRepairFailureReason,
+  PrimarySrpRepairFailureStage,
+  PrimarySrpRepairPrimaryWrite,
+  SeedlessIdentityMismatchSource,
+} from '../constants.js';
 import { createModuleLogger, projectLogger } from '../logger.js';
 import { SecretMetadata } from '../SecretMetadata.js';
 import type {
