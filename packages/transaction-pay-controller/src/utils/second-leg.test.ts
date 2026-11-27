@@ -50,7 +50,7 @@ function buildMessenger(
 function buildAmountDataCallMock(
   overrides: {
     addTransactionBatch?: () => Promise<unknown>;
-    updates?: { data: string; nestedTransactionIndex: number }[];
+    updates?: { data: string; nestedTransactionIndex: number; to?: string }[];
   } = {},
 ): Mock {
   return vi.fn((action: string) => {
@@ -313,6 +313,63 @@ describe('second-leg', () => {
         { data: '0xnewDeposit', to: '0xdeposit' },
       ]);
       expect(parentTransaction.requiredAssets?.[0].amount).toBe('0x4c4b40');
+    });
+
+    it('retargets calls when amount updates include a new to', async () => {
+      const parentTransaction = {
+        ...TRANSACTION_MOCK,
+        nestedTransactions: TRANSACTION_MOCK.nestedTransactions?.map((nt) => ({
+          ...nt,
+        })),
+      } as TransactionMeta;
+
+      updateTransactionMock.mockImplementation((_request, callback) => {
+        callback(parentTransaction);
+      });
+
+      const callMock = buildAmountDataCallMock({
+        updates: [
+          { data: '0xnewApprove', nestedTransactionIndex: 0 },
+          {
+            data: '0xnewDeposit',
+            nestedTransactionIndex: 1,
+            to: '0xpremiumTeller',
+          },
+        ],
+      });
+
+      await submitSecondLeg({
+        chainId: CHAIN_ID_MOCK,
+        from: FROM_MOCK,
+        messenger: buildMessenger(callMock),
+        settlementHash: SETTLEMENT_HASH_MOCK,
+        tokenAddress: TOKEN_MOCK,
+        transaction: TRANSACTION_MOCK,
+      });
+
+      expect(parentTransaction.nestedTransactions).toStrictEqual([
+        { data: '0xnewApprove', to: '0xapprove' },
+        { data: '0xnewDeposit', to: '0xpremiumTeller' },
+      ]);
+      expect(callMock).toHaveBeenCalledWith(
+        'TransactionController:addTransactionBatch',
+        expect.objectContaining({
+          transactions: [
+            {
+              params: { data: '0xnewApprove', to: '0xapprove', value: '0x0' },
+              type: TransactionType.tokenMethodApprove,
+            },
+            {
+              params: {
+                data: '0xnewDeposit',
+                to: '0xpremiumTeller',
+                value: '0x0',
+              },
+              type: TransactionType.contractInteraction,
+            },
+          ],
+        }),
+      );
     });
 
     it('ignores amount updates that target a call index that does not exist', async () => {

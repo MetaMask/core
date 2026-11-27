@@ -223,7 +223,7 @@ export type GetAmountDataRequest = {
 
 export type GetAmountDataResponse = {
   /** Per-nested-call data updates; empty when no update is needed. */
-  updates: { nestedTransactionIndex: number; data: Hex }[];
+  updates: { nestedTransactionIndex: number; data: Hex; to?: Hex }[];
 };
 
 /**

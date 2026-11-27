@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add the optional `secondLeg` flag to `GetAmountDataRequest`, set only when encoding calls for the settled amount in the non-atomic second leg ([#11787](https://github.com/MetaMask/core/pull/11787)).
+- Add the optional `to` field to `GetAmountDataResponse` updates; the second leg uses it to retarget a call (e.g. a Money Account premium teller deposit) ([#11787](https://github.com/MetaMask/core/pull/11787)).
 
 ### Changed
 
