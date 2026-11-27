@@ -1,5 +1,6 @@
 import {
   CHASE_ORDER_CONFIG,
+  STREAM_RETRY_CONFIG,
   TWAP_ORDER_CONFIG,
 } from '../constants/perpsConfig.js';
 import type {
@@ -12,7 +13,6 @@ import type {
 import {
   chaseOrderKey,
   isChaseOrderCancelable,
-  isTwapOrderActive,
   mergeChaseOrderHistory,
   mergeTwapOrders,
   twapOrderKey,
@@ -25,6 +25,21 @@ import { ensureError } from './errorUtils.js';
  * @returns Nothing.
  */
 const noop = (): void => undefined;
+
+/**
+ * Delay before retrying a failed list read.
+ *
+ * @param attempts - Retries made since the last read that succeeded.
+ * @returns Delay in milliseconds, or undefined once the retries are spent.
+ */
+function getReadRetryDelayMs(attempts: number): number | undefined {
+  return attempts < STREAM_RETRY_CONFIG.MaxAttempts
+    ? Math.min(
+        STREAM_RETRY_CONFIG.BaseDelayMs * 2 ** attempts,
+        STREAM_RETRY_CONFIG.MaxDelayMs,
+      )
+    : undefined;
+}
 
 /** Where a live TWAP list reads and streams schedules from. */
 export type LiveTwapOrderSource = {
@@ -55,6 +70,12 @@ export type CanceledChaseOrder = {
 export type LiveChaseOrderSource = {
   getChaseOrders: () => Promise<ChaseOrder[]>;
   /**
+   * Calls the listener when a chase may have changed (placed, re-priced,
+   * filled or ended), so the list reads again. Without it the list reads only
+   * when it opens, on a context change and after a cancel.
+   */
+  subscribeToChaseOrderChanges?: (listener: () => void) => () => void;
+  /**
    * Names the account, provider and network the reads follow. When it
    * changes, held lists are dropped so one context's chases, and their
    * cancel actions, never show in another.
@@ -81,10 +102,11 @@ export type LiveChaseOrderSource = {
  * The read is the authority: a schedule no read lists is dropped, unless the
  * stream still reports it (the stream can know of a TWAP before a read does,
  * for example one placed elsewhere). A push the last read cannot explain
- * triggers one catch-up read. While a schedule runs, or after a failed read,
- * reads repeat so slice fills, and with them execution totals, keep rising.
- * When the source's context key changes, held rows reset and the stream
- * reopens, and pushes from the earlier stream are ignored.
+ * triggers one catch-up read. Slice fills, and with them execution totals,
+ * rise from the stream's pushes; no read repeats on a timer. A failed read is
+ * retried a bounded number of times. When the source's context key changes,
+ * held rows reset and the stream reopens, and pushes from the earlier stream
+ * are ignored.
  *
  * Works over any source: the controller passes itself, and a client on the
  * other side of a messenger can pass its messenger calls.
@@ -93,7 +115,6 @@ export type LiveChaseOrderSource = {
  * @param params.source - Reads and stream of TWAP schedules.
  * @param params.callback - Receives the merged list, newest first, on change.
  * @param params.onError - Receives read failures; the list keeps its state.
- * @param params.refreshIntervalMs - Read cadence while a schedule runs.
  * @param params.catchUpIntervalMs - Delay before a catch-up read.
  * @returns A cleanup function that stops reads and the stream.
  */
@@ -101,12 +122,9 @@ export function createLiveTwapOrderList(params: {
   source: LiveTwapOrderSource;
   callback: (twapOrders: TwapOrder[]) => void;
   onError?: (error: Error) => void;
-  refreshIntervalMs?: number;
   catchUpIntervalMs?: number;
 }): () => void {
   const { source, callback, onError } = params;
-  const refreshIntervalMs =
-    params.refreshIntervalMs ?? TWAP_ORDER_CONFIG.RefreshIntervalMs;
   const catchUpIntervalMs =
     params.catchUpIntervalMs ?? TWAP_ORDER_CONFIG.StreamCatchUpIntervalMs;
 
@@ -115,7 +133,7 @@ export function createLiveTwapOrderList(params: {
   let listed = new Set<string>();
   let streamed = new Set<string>();
   let stopped = false;
-  let failed = false;
+  let failures = 0;
   // Generation of the read in flight, if any. A read for a context the list
   // has left neither blocks nor feeds the new context's reads.
   let activeRead: number | undefined;
@@ -138,6 +156,7 @@ export function createLiveTwapOrderList(params: {
     orders = [];
     listed = new Set();
     streamed = new Set();
+    failures = 0;
     // The stream answers for the context it opened in, so open a new one.
     openStream();
     return true;
@@ -165,14 +184,8 @@ export function createLiveTwapOrderList(params: {
     }, delayMs);
   };
 
-  const scheduleNext = (): void => {
-    if (failed || orders.some(isTwapOrderActive)) {
-      schedule(refreshIntervalMs);
-    }
-  };
-
   /**
-   * Read the venue, merge the result and schedule the next read.
+   * Read the venue and merge the result.
    */
   async function read(): Promise<void> {
     if (resetOnContextChange()) {
@@ -210,7 +223,11 @@ export function createLiveTwapOrderList(params: {
     }
     activeRead = undefined;
     if (failure) {
-      failed = true;
+      const retryDelayMs = getReadRetryDelayMs(failures);
+      failures += 1;
+      if (retryDelayMs !== undefined) {
+        schedule(retryDelayMs);
+      }
       onError?.(ensureError(failure.error, 'createLiveTwapOrderList'));
     } else {
       const readKeys = new Set(result.map(twapOrderKey));
@@ -222,15 +239,13 @@ export function createLiveTwapOrderList(params: {
         result,
       );
       listed = readKeys;
-      failed = false;
+      failures = 0;
       emit();
     }
     if (readAgain) {
       readAgain = false;
       schedule(0);
-      return;
     }
-    scheduleNext();
   }
 
   /**
@@ -343,14 +358,16 @@ function withProvider(
 }
 
 /**
- * Keep running and history chase lists from repeated reads.
+ * Keep running and history chase lists from reads the provider's own chase
+ * changes trigger.
  *
  * Ended chases stay in history after a provider drops them, up to
  * `historyLimit`. A running chase a read omits stays for `omissionGraceReads`
- * reads, since an aggregated read drops a provider whose read failed. Reads
- * repeat at `refreshIntervalMs` for as long as the list is subscribed, so a
- * chase placed anywhere appears without a manual refresh. Lists reset when the
- * source's context key changes. When a chase cancel succeeds with a known
+ * reads, since an aggregated read drops a provider whose read failed; those
+ * reads follow one after the other, then stop. Otherwise the list reads when
+ * it opens and when the source reports a change, never on a timer; a failed
+ * read is retried a bounded number of times. Lists reset when the source's
+ * context key changes. When a chase cancel succeeds with a known
  * ending, the list keeps that ending, also for a chase no read has listed yet,
  * and keeps it in history after the provider drops the session.
  *
@@ -358,7 +375,6 @@ function withProvider(
  * @param params.source - Reads of chase snapshots.
  * @param params.callback - Receives the lists on change.
  * @param params.onError - Receives read failures; the lists keep their state.
- * @param params.refreshIntervalMs - Read cadence.
  * @param params.historyLimit - Most ended chases kept.
  * @param params.omissionGraceReads - Reads a running chase survives omission.
  * @returns A cleanup function that stops reads.
@@ -367,13 +383,10 @@ export function createLiveChaseOrderList(params: {
   source: LiveChaseOrderSource;
   callback: (lists: ChaseOrderLists) => void;
   onError?: (error: Error) => void;
-  refreshIntervalMs?: number;
   historyLimit?: number;
   omissionGraceReads?: number;
 }): () => void {
   const { source, callback, onError, historyLimit } = params;
-  const refreshIntervalMs =
-    params.refreshIntervalMs ?? CHASE_ORDER_CONFIG.RefreshIntervalMs;
   const omissionGraceReads =
     params.omissionGraceReads ?? CHASE_ORDER_CONFIG.OmissionGraceReads;
   let lists: ChaseOrderLists | undefined;
@@ -383,6 +396,8 @@ export function createLiveChaseOrderList(params: {
   let context = source.getContextKey?.();
   let generation = 0;
   let activeRead: number | undefined;
+  let readAgain = false;
+  let failures = 0;
   let omissions = new Map<string, number>();
   // Endings the provider reported for chases cancelled in this context.
   let endings: ChaseOrder[] = [];
@@ -406,6 +421,8 @@ export function createLiveChaseOrderList(params: {
     lists = undefined;
     omissions = new Map();
     endings = [];
+    readAgain = false;
+    failures = 0;
     return true;
   };
 
@@ -447,7 +464,7 @@ export function createLiveChaseOrderList(params: {
   };
 
   /**
-   * Read the chases, merge them and schedule the next read.
+   * Read the chases and merge them.
    */
   async function read(): Promise<void> {
     if (resetOnContextChange()) {
@@ -455,6 +472,8 @@ export function createLiveChaseOrderList(params: {
       emit();
     }
     if (activeRead === generation) {
+      // One more read covers every change that arrives while one runs.
+      readAgain = true;
       return;
     }
     const readGeneration = generation;
@@ -482,9 +501,13 @@ export function createLiveChaseOrderList(params: {
       return;
     }
     activeRead = undefined;
+    let followUpMs: number | undefined;
     if (failure) {
+      followUpMs = getReadRetryDelayMs(failures);
+      failures += 1;
       onError?.(ensureError(failure.error, 'createLiveChaseOrderList'));
     } else {
+      failures = 0;
       const settled = current.map(settle);
       lists = mergeChaseOrderHistory({
         previous: lists,
@@ -492,9 +515,25 @@ export function createLiveChaseOrderList(params: {
         historyLimit,
       });
       emit();
+      if (omissions.size > 0) {
+        // Settle the omitted chases: they come back or their grace runs out.
+        followUpMs = STREAM_RETRY_CONFIG.BaseDelayMs;
+      }
     }
-    scheduleRead(refreshIntervalMs);
+    if (readAgain) {
+      readAgain = false;
+      followUpMs = 0;
+    }
+    if (followUpMs !== undefined) {
+      scheduleRead(followUpMs);
+    }
   }
+
+  const unsubscribeChanges = source.subscribeToChaseOrderChanges?.(() => {
+    if (!stopped) {
+      read().catch(() => undefined);
+    }
+  });
 
   const unsubscribeContext = source.subscribeToContextChanges?.(() => {
     if (!stopped && resetOnContextChange()) {
@@ -541,6 +580,7 @@ export function createLiveChaseOrderList(params: {
   return () => {
     stopped = true;
     clearTimeout(timer);
+    unsubscribeChanges?.();
     unsubscribeContext?.();
     unsubscribeCancellations?.();
   };

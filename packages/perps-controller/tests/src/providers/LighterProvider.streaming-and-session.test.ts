@@ -147,6 +147,113 @@ describe('LighterProvider', () => {
       await provider.disconnect();
     });
 
+    it('reports a market listed or dropped by the price push, and nothing for an ordinary frame', async () => {
+      const { provider } = buildProvider({ webSocketCtor: fakeCtor });
+      const callback = vi.fn();
+      const unsubscribe = provider.subscribeToMarketChanges({ callback });
+      const socket = FakeWebSocket.instances[0];
+      socket.open();
+      expect(socket.sent).toContainEqual(
+        JSON.stringify({ type: 'subscribe', channel: 'market_stats/all' }),
+      );
+      const stats = (type: string, ids: string[]): void =>
+        socket.receive({
+          type,
+          channel: 'market_stats:all',
+          market_stats: Object.fromEntries(
+            ids.map((id) => [id, wsStat(`M${id}`, Number(id), '1')]),
+          ),
+        });
+
+      stats('subscribed/market_stats', ['1', '2']);
+      stats('update/market_stats', ['2']);
+      expect(callback).not.toHaveBeenCalled();
+      stats('update/market_stats', ['3']);
+      expect(callback).toHaveBeenCalledTimes(1);
+      stats('update/market_stats', ['3']);
+      expect(callback).toHaveBeenCalledTimes(1);
+      // A retired market stays in the push, unquoted and unheld.
+      const now = Date.now();
+      const clock = vi.spyOn(Date, 'now').mockReturnValue(now);
+      socket.receive({
+        type: 'update/market_stats',
+        channel: 'market_stats:all',
+        market_stats: {
+          '2': { ...wsStat('M2', 2, '1'), mid_price: '', open_interest: '0.0' },
+        },
+      });
+      expect(callback).toHaveBeenCalledTimes(1);
+      // Any later frame carries the time forward.
+      clock.mockReturnValue(now + 60_000);
+      stats('update/market_stats', ['3']);
+      expect(callback).toHaveBeenCalledTimes(2);
+      clock.mockRestore();
+      // A full list without a market it had.
+      stats('subscribed/market_stats', ['1', '3']);
+      expect(callback).toHaveBeenCalledTimes(3);
+
+      unsubscribe();
+      stats('update/market_stats', ['4']);
+      expect(callback).toHaveBeenCalledTimes(3);
+      // The next listener's cached list may predate that change.
+      const late = vi.fn();
+      provider.subscribeToMarketChanges({ callback: late });
+      expect(late).toHaveBeenCalledTimes(1);
+      await provider.disconnect();
+    });
+
+    it.each([
+      ['matches it', { '1': wsStat('BTC', 1, '63000.5') }, 0],
+      [
+        'lists a market it did not',
+        { '1': wsStat('BTC', 1, '63000.5'), '2': wsStat('SOL', 2, '75.1') },
+        1,
+      ],
+      [
+        'shows one of its markets retired',
+        {
+          '1': {
+            ...wsStat('BTC', 1, '1'),
+            mid_price: '',
+            open_interest: '0.0',
+          },
+        },
+        1,
+      ],
+      ['drops one of its markets', {}, 1],
+    ])(
+      'compares the first price push with the market list read before it: %s',
+      async (_case, marketStats, calls) => {
+        const { provider, clientInstance } = buildProvider({
+          webSocketCtor: fakeCtor,
+        });
+        // The price push carries perps only.
+        clientInstance.getOrderBooks.mockResolvedValue([
+          BTC_MARKET,
+          {
+            ...BTC_MARKET,
+            symbol: 'ETH/USDC',
+            marketId: 2048,
+            marketType: 'spot',
+          },
+        ]);
+        await provider.getMarkets();
+        const callback = vi.fn();
+        provider.subscribeToMarketChanges({ callback });
+        const socket = FakeWebSocket.instances[0];
+        socket.open();
+
+        socket.receive({
+          type: 'subscribed/market_stats',
+          channel: 'market_stats:all',
+          market_stats: marketStats,
+        });
+
+        expect(callback).toHaveBeenCalledTimes(calls);
+        await provider.disconnect();
+      },
+    );
+
     it('does not log every price-stream frame', async () => {
       const infra = createMockInfrastructure();
       const { provider } = buildProvider({
@@ -980,6 +1087,64 @@ describe('LighterProvider', () => {
       expect(fills).not.toHaveBeenCalled();
       unsubscribeOrders();
       unsubscribeFills();
+      await provider.disconnect();
+    });
+
+    it.each(['subscribeToPositions', 'subscribeToAccount'] as const)(
+      'reports an account discovery failure to a lone %s reader, and recovers when it reopens',
+      async (method) => {
+        const { provider, clientInstance } = buildProvider({
+          webSocketCtor: fakeCtor,
+          configuredAccountIndex: null,
+        });
+        const failure = new Error('Account discovery transport unavailable');
+        clientInstance.getAccountsByL1Address.mockRejectedValueOnce(failure);
+        const onError = vi.fn();
+        const subscribe = (): (() => void) =>
+          provider[method]({ callback: vi.fn(), onError });
+        const unsubscribe = subscribe();
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        expect(onError).toHaveBeenCalledExactlyOnceWith(failure);
+
+        unsubscribe();
+        const stop = subscribe();
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        await new Promise((resolveTick) => setImmediate(resolveTick));
+        const socket = FakeWebSocket.instances[0];
+        socket.open();
+        expect(onError).toHaveBeenCalledTimes(1);
+        expect(socket.sent).toContainEqual(
+          expect.stringContaining('account_all_positions/'),
+        );
+        stop();
+        await provider.disconnect();
+      },
+    );
+
+    it('tells only orders and fills readers of a signer failure', async () => {
+      const { provider, bridge } = buildProvider({ webSocketCtor: fakeCtor });
+      (bridge.createClient as Mock).mockRejectedValue(
+        new Error('Lighter signer setup failed'),
+      );
+      const onOrderError = vi.fn();
+      const onPositionError = vi.fn();
+      const unsubscribeOrders = provider.subscribeToOrders({
+        callback: vi.fn(),
+        onError: onOrderError,
+      });
+      const unsubscribePositions = provider.subscribeToPositions({
+        callback: vi.fn(),
+        onError: onPositionError,
+      });
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+
+      expect(onOrderError).toHaveBeenCalled();
+      expect(onPositionError).not.toHaveBeenCalled();
+      unsubscribeOrders();
+      unsubscribePositions();
       await provider.disconnect();
     });
 

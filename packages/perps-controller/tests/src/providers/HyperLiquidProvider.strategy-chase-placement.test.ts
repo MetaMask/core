@@ -11,6 +11,8 @@ import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClien
 import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
 import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
 import type {
+  Order,
+  OrderFill,
   OrderParams,
   TransferBetweenDexsParams,
 } from '../../../src/types/index.js';
@@ -79,6 +81,33 @@ vi.mock('../../../src/utils/hyperLiquidAdapter', async (importOriginal) => {
 
 // Mock TradingReadinessCache - global singleton for signing operation caching
 vi.mock('../../../src/services/TradingReadinessCache');
+
+const createChildFill = (orderId: string): OrderFill => ({
+  orderId,
+  symbol: 'ETH',
+  side: 'buy',
+  size: '0.8',
+  price: '2999.1',
+  pnl: '0',
+  direction: 'Open Long',
+  fee: '0',
+  feeToken: 'USDC',
+  timestamp: 1,
+});
+
+const createRestingChild = (orderId: string): Order => ({
+  orderId,
+  symbol: 'ETH',
+  side: 'buy',
+  orderType: 'limit',
+  size: '1',
+  originalSize: '1',
+  price: '2999.1',
+  filledSize: '0',
+  remainingSize: '1',
+  status: 'open',
+  timestamp: 1,
+});
 
 describe('HyperLiquidProvider - strategy order types', () => {
   let provider: HyperLiquidProvider;
@@ -372,6 +401,199 @@ describe('HyperLiquidProvider - strategy order types', () => {
       ).toMatchObject({
         success: false,
         error: PERPS_ERROR_CODES.ORDER_CHASE_LIMIT_REACHED,
+      });
+    });
+
+    describe('change subscription', () => {
+      const openStatus = (sz: string): Record<string, unknown> => ({
+        status: 'order',
+        order: {
+          status: 'open',
+          order: {
+            coin: 'ETH',
+            side: 'B',
+            limitPx: '2999.1',
+            sz,
+            origSz: '1',
+            oid: 55,
+            timestamp: 1_700_000_000_000,
+            isTrigger: false,
+            triggerCondition: 'N/A',
+            triggerPx: '0',
+            children: [],
+            isPositionTpsl: false,
+            reduceOnly: false,
+            orderType: 'Limit',
+            tif: 'Alo',
+            cloid: null,
+          },
+        },
+      });
+
+      type Fills = Parameters<
+        HyperLiquidSubscriptionService['subscribeToOrderFills']
+      >[0];
+      type Orders = Parameters<
+        HyperLiquidSubscriptionService['subscribeToOrders']
+      >[0];
+
+      let fills: Fills;
+      let orders: Orders;
+      const stopFills = vi.fn();
+      const stopOrders = vi.fn();
+
+      beforeEach(() => {
+        mockSubscriptionService.subscribeToOrderFills.mockImplementation(
+          (params) => {
+            fills = params;
+            return stopFills;
+          },
+        );
+        Object.assign(mockSubscriptionService, {
+          subscribeToOrders: vi.fn((params: Orders) => {
+            orders = params;
+            return stopOrders;
+          }),
+        });
+      });
+
+      it('reports a placement and a cancel, and reads the venue only when the child is pushed', async () => {
+        const { infoClient } = useStrategyClients({
+          exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
+        });
+        const callback = vi.fn();
+        const unsubscribe = provider.subscribeToChaseOrderChanges({ callback });
+
+        await provider.placeOrder({ ...baseOrder, orderType: 'chase' });
+        expect(callback).toHaveBeenCalled();
+
+        // A child is read once, when it is new: a fill may have come first.
+        infoClient.orderStatus.mockClear().mockResolvedValue(openStatus('1'));
+        await provider.getChaseOrders();
+        await provider.getChaseOrders();
+        expect(infoClient.orderStatus).toHaveBeenCalledTimes(1);
+
+        callback.mockClear();
+        infoClient.orderStatus.mockClear().mockResolvedValue(openStatus('0.2'));
+        const fill = createChildFill('55');
+        fills.callback([{ ...fill, orderId: '1' }]);
+        expect(callback).not.toHaveBeenCalled();
+        fills.callback([fill]);
+        expect(callback).toHaveBeenCalledTimes(1);
+        expect(await provider.getChaseOrders()).toContainEqual(
+          expect.objectContaining({ remainingSize: '0.2' }),
+        );
+        expect(infoClient.orderStatus).toHaveBeenCalledTimes(1);
+
+        // A snapshot follows a reconnect, with fills missed in between.
+        infoClient.orderStatus.mockClear().mockResolvedValue(openStatus('0.1'));
+        fills.callback([], true);
+        expect(await provider.getChaseOrders()).toContainEqual(
+          expect.objectContaining({ remainingSize: '0.1' }),
+        );
+
+        unsubscribe();
+        expect(stopFills).toHaveBeenCalledTimes(1);
+        expect(stopOrders).toHaveBeenCalledTimes(1);
+      });
+
+      it('reports a child that stopped resting, once', async () => {
+        useStrategyClients({
+          exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
+        });
+        await provider.placeOrder({ ...baseOrder, orderType: 'chase' });
+        const callback = vi.fn();
+        provider.subscribeToChaseOrderChanges({ callback });
+
+        orders.callback([]);
+        expect(callback).not.toHaveBeenCalled();
+        orders.callback([createRestingChild('55')]);
+        expect(callback).not.toHaveBeenCalled();
+        orders.callback([]);
+        orders.callback([]);
+        expect(callback).toHaveBeenCalledTimes(1);
+      });
+
+      it('asks again a bounded number of times after a child read fails', async () => {
+        vi.useFakeTimers();
+        try {
+          const { infoClient } = useStrategyClients({
+            exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
+          });
+          await provider.placeOrder({
+            ...baseOrder,
+            orderType: 'chase',
+            chaseIntervalMs: 3_600_000,
+          });
+          infoClient.orderStatus.mockRejectedValue(new Error('offline'));
+          const reads: Promise<unknown>[] = [];
+          const callback = vi.fn(() => {
+            reads.push(provider.getChaseOrders());
+          });
+          provider.subscribeToChaseOrderChanges({ callback });
+          await provider.getChaseOrders();
+
+          await vi.advanceTimersByTimeAsync(600_000);
+
+          expect(callback).toHaveBeenCalledTimes(5);
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+      it('does not read an unread child again on the changes of another chase', async () => {
+        vi.useFakeTimers();
+        try {
+          const { infoClient } = useStrategyClients({
+            exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
+          });
+          await provider.placeOrder({
+            ...baseOrder,
+            orderType: 'chase',
+            chaseIntervalMs: 3_600_000,
+          });
+          infoClient.orderStatus.mockRejectedValue(new Error('offline'));
+          const stop = provider.subscribeToChaseOrderChanges({
+            callback: vi.fn(),
+          });
+          await provider.getChaseOrders();
+          const perRead = infoClient.orderStatus.mock.calls.length;
+          expect(perRead).toBeGreaterThan(0);
+
+          // Reads another chase's changes bring, well past the budget.
+          for (let index = 0; index < 600; index += 1) {
+            await vi.advanceTimersByTimeAsync(1_000);
+            await provider.getChaseOrders();
+          }
+          expect(infoClient.orderStatus).toHaveBeenCalledTimes(6 * perRead);
+
+          // A push of the child, and a new reader, each start anew.
+          orders.callback([createRestingChild('55')]);
+          orders.callback([]);
+          await provider.getChaseOrders();
+          expect(infoClient.orderStatus).toHaveBeenCalledTimes(7 * perRead);
+          stop();
+          provider.subscribeToChaseOrderChanges({ callback: vi.fn() });
+          await provider.getChaseOrders();
+          expect(infoClient.orderStatus).toHaveBeenCalledTimes(8 * perRead);
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+      it("still reports the sessions' own changes when the child streams cannot open", async () => {
+        mockSubscriptionService.subscribeToOrders.mockImplementation(() => {
+          throw new Error('PROVIDER_NOT_AVAILABLE');
+        });
+        useStrategyClients({
+          exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
+        });
+        const callback = vi.fn();
+        provider.subscribeToChaseOrderChanges({ callback });
+
+        await provider.placeOrder({ ...baseOrder, orderType: 'chase' });
+
+        expect(callback).toHaveBeenCalled();
       });
     });
 

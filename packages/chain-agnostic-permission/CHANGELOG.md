@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
@@ -16,8 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** The `endowment:caip25` permission specification no longer includes an `endowmentGetter` function ([#11751](https://github.com/MetaMask/core/pull/11751))
   - This follows the removal of `endowmentGetter` from endowment specifications in `@metamask/permission-controller`.
-- Bump `@metamask/utils` from `^12.0.0` to `^12.0.2` ([#11107](https://github.com/MetaMask/core/pull/11107), [#11474](https://github.com/MetaMask/core/pull/11474))
-- Bump `@metamask/permission-controller` from `^14.0.0` to `^14.1.0` ([#11157](https://github.com/MetaMask/core/pull/11157))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.1.0` ([#11107](https://github.com/MetaMask/core/pull/11107), [#11474](https://github.com/MetaMask/core/pull/11474), [#11796](https://github.com/MetaMask/core/pull/11796))
+- Bump `@metamask/permission-controller` from `^14.0.0` to `^15.0.0` ([#11157](https://github.com/MetaMask/core/pull/11157), [#11797](https://github.com/MetaMask/core/pull/11797))
 
 ## [2.1.0]
 
@@ -267,7 +269,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@2.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@2.1.0...@metamask/chain-agnostic-permission@3.0.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@2.0.0...@metamask/chain-agnostic-permission@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.7.0...@metamask/chain-agnostic-permission@2.0.0
 [1.7.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.6.2...@metamask/chain-agnostic-permission@1.7.0

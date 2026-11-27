@@ -3213,7 +3213,7 @@ function withController<ReturnValue>(
     sessionServerPublicKeyX: 'spk-x',
     nonce: 'n',
   });
-  mockWrapEncryptionKey.mockReturnValue({
+  mockWrapEncryptionKey.mockResolvedValue({
     data: 'enc',
     nonce: 'nonce',
   });

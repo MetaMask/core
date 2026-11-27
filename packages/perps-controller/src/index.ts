@@ -177,6 +177,13 @@ export type {
   PerpsControllerSubscribeToAccountAction,
   PerpsControllerSubscribeToAvailableToTradeAction,
   PerpsControllerSubscribeToCandlesAction,
+  PerpsControllerSubscribeToConnectionLatencyAction,
+  PerpsControllerSubscribeToFeeRatesAction,
+  PerpsControllerSubscribeToMarginAdjustmentLimitsAction,
+  PerpsControllerSubscribeToMarketMetaAction,
+  PerpsControllerSubscribeToTradingAgentValidityAction,
+  PerpsControllerGetStreamSnapshotAction,
+  PerpsControllerResubscribeStreamsAction,
   PerpsControllerSubscribeToConnectionStateAction,
   PerpsControllerSubscribeToOICapsAction,
   PerpsControllerSubscribeToOrderBookAction,
@@ -387,6 +394,19 @@ export type {
   GetMarginAdjustmentLimitsParams,
   MarginAdjustmentLimits,
   MarginAdjustmentLimitsUnavailableReason,
+  SubscribeMarginAdjustmentLimitsParams,
+  SubscribeMarketMetaParams,
+  SubscribeConnectionLatencyParams,
+  SubscribeChaseOrderChangesParams,
+  SubscribeFeeRatesParams,
+  SubscribeMarketChangesParams,
+  PerpsFeeRates,
+  SubscribeTradingAgentValidityParams,
+  PerpsStreamName,
+  PerpsStreamParams,
+  PerpsStreamSnapshot,
+  PerpsStreamSnapshotParams,
+  PerpsTradingAgentValidity,
   GetMarketMetaParams,
   PerpsMarketMeta,
   GetScalePriceLadderParams,
@@ -621,6 +641,7 @@ export {
   CHASE_ORDER_CONFIG,
   LIGHTER_ACCOUNT_DISCOVERY_CONFIG,
   CHASE_ORDER_STATUS,
+  STREAM_RETRY_CONFIG,
   TWAP_ORDER_CONFIG,
   ORDER_PRICE_WARNING_CONFIG,
   MAX_SLIPPAGE_BOUNDS,
@@ -1022,6 +1043,15 @@ export type {
   SubscribeAggregatedOrderBookParams,
   AggregatedOrderBookConnectionOptions,
 } from './services/AggregatedOrderBookConnection.js';
+export { StreamChannelManager } from './services/StreamChannelManager.js';
+export type {
+  StreamChannelKey,
+  StreamChannelManagerOptions,
+  StreamChannelSource,
+  StreamChannelSubscriber,
+  StreamConnectionWatcher,
+  StreamRebindOptions,
+} from './services/StreamChannelManager.js';
 
 // Removed with Live Market Prices component:
 // - usePerpsPrices

@@ -192,6 +192,95 @@ export type PerpsControllerGetMarketMetaAction = {
 };
 
 /**
+ * Stream every market's metadata (margin tiers, delisting, max leverage,
+ * Cross support) from the routed venue. The callback receives the current
+ * list at once, from the provider's session cache, then a new list when the
+ * venue's own stream shows that its markets changed (a listing or a
+ * delisting) and after a reconnect. There is no timer, and nothing has to be
+ * preloaded. A failed read goes to `onError`, leaves the last list current
+ * and is retried with a bounded backoff; an empty list is never reported for
+ * a failure. In aggregated mode an unrouted stream moves to a new default
+ * provider.
+ *
+ * @param params - Optional provider route, callback and error handler.
+ * @returns Cleanup function.
+ */
+export type PerpsControllerSubscribeToMarketMetaAction = {
+  type: `PerpsController:subscribeToMarketMeta`;
+  handler: PerpsController['subscribeToMarketMeta'];
+};
+
+/**
+ * Stream an isolated position's margin adjustment limits from the routed
+ * provider's live account and position streams, with no venue reads. The
+ * callback receives the current limits at once, then each change: the
+ * same result `getMarginAdjustmentLimits` returns. A provider without the
+ * stream, or a route that conflicts with the active provider, reports
+ * `unavailable`/`provider` once.
+ *
+ * @param params - Market, optional route, callback and error handler.
+ * @returns Cleanup function.
+ */
+export type PerpsControllerSubscribeToMarginAdjustmentLimitsAction = {
+  type: `PerpsController:subscribeToMarginAdjustmentLimits`;
+  handler: PerpsController['subscribeToMarginAdjustmentLimits'];
+};
+
+/**
+ * Stream the routed provider's WebSocket keepalive round trip, in whole
+ * milliseconds. The callback receives the last measurement at once when
+ * there is one, then each new one, at the keepalive's own cadence. A
+ * provider without a keepalive measurement never calls back.
+ *
+ * @param params - Optional provider route, callback and error handler.
+ * @returns Cleanup function.
+ */
+export type PerpsControllerSubscribeToConnectionLatencyAction = {
+  type: `PerpsController:subscribeToConnectionLatency`;
+  handler: PerpsController['subscribeToConnectionLatency'];
+};
+
+/**
+ * Stream a market's post-discount fee rates for the selected account: the
+ * `calculateFees` results for a taker and a maker fill, for `amount` when
+ * given. The callback receives one read at once, then a new read only on
+ * events: one of the account's own fills (its volume tier can change), an
+ * account switch, a default provider change in aggregated mode, a Rewards
+ * change (`rewards.subscribeToPerpsFeeChanges`), the expiry of a trading fee
+ * grant, and `invalidateSubscriptionBenefits`. There is no repeating timer.
+ * A failed read goes to `onError`, leaves the last rates current and is
+ * retried with a bounded backoff; an unchanged read is not delivered.
+ *
+ * `calculateFees` prices the selected account only, so the stream takes no
+ * account.
+ *
+ * @param params - Market, optional order type, amount and route, callback
+ * and error handler.
+ * @returns Cleanup function.
+ */
+export type PerpsControllerSubscribeToFeeRatesAction = {
+  type: `PerpsController:subscribeToFeeRates`;
+  handler: PerpsController['subscribeToFeeRates'];
+};
+
+/**
+ * Report whether the selected (or given) account's trading agent is valid
+ * for the routed venue (`PerpsTradingAgentValidity`). The callback receives
+ * one read at once, then a new value on events only: an agent set or
+ * cleared (`setAgentSigner`, `clearAgentSigners`), a venue rejection of the
+ * agent, an account switch, and the agent's `validUntil` expiry, a single
+ * timeout at that deadline. A venue without an agent step reports
+ * `not_required`.
+ *
+ * @param params - Optional account and route, callback and error handler.
+ * @returns Cleanup function.
+ */
+export type PerpsControllerSubscribeToTradingAgentValidityAction = {
+  type: `PerpsController:subscribeToTradingAgentValidity`;
+  handler: PerpsController['subscribeToTradingAgentValidity'];
+};
+
+/**
  * Build a Scale price ladder using the active provider's venue rules.
  *
  * @param params - Market, ladder bounds, count, optional sizing and explicit route.
@@ -1095,6 +1184,32 @@ export type PerpsControllerReconnectAction = {
 };
 
 /**
+ * The last value a stream's channel delivered, for a synchronous first
+ * render (such as React's `useSyncExternalStore`). Uses the same channel
+ * as a `subscribeTo*` call with these parameters.
+ *
+ * @param stream - Stream name.
+ * @param params - The `subscribeTo*` parameters; callbacks and throttle are
+ * ignored.
+ * @returns The callback arguments last delivered, or `undefined` when the
+ * channel is not open or has no value yet.
+ */
+export type PerpsControllerGetStreamSnapshotAction = {
+  type: `PerpsController:getStreamSnapshot`;
+  handler: PerpsController['getStreamSnapshot'];
+};
+
+/**
+ * Stop and restart every open stream's venue subscription, keeping readers
+ * and last values. For a socket that reports open but no longer delivers,
+ * such as after an app returns to the foreground.
+ */
+export type PerpsControllerResubscribeStreamsAction = {
+  type: `PerpsController:resubscribeStreams`;
+  handler: PerpsController['resubscribeStreams'];
+};
+
+/**
  * Subscribe to live price updates
  *
  * @param params - The operation parameters.
@@ -1130,9 +1245,8 @@ export type PerpsControllerSubscribeToOrderFillsAction = {
 /**
  * Stream TWAP lifecycle updates through the active provider.
  *
- * Providers without a native TWAP push channel do not implement this; the
- * returned no-op cleanup lets a client fall back to polling `getTwapOrders`
- * without branching on provider identity.
+ * Providers without a native TWAP push channel do not implement this, and
+ * the returned cleanup does nothing.
  *
  * @param params - Subscription parameters including callback and account ID.
  * @returns A cleanup function to remove the subscription.
@@ -1143,10 +1257,10 @@ export type PerpsControllerSubscribeToTwapOrdersAction = {
 };
 
 /**
- * Keep one merged, live TWAP list for the active provider: reads and the
- * venue stream merged by schedule, execution totals raised from slice
- * fills, and re-reads while a schedule runs. Split it with
- * `partitionTwapOrders`. Follows the selected account.
+ * Keep one merged, live TWAP list for the active provider: one read and the
+ * venue stream merged by schedule, execution totals raised from the slice
+ * fills the stream carries. Split it with `partitionTwapOrders`. Follows the
+ * selected account.
  *
  * @param params - Listener and optional error listener.
  * @returns A cleanup function that stops reads and the stream.
@@ -1157,7 +1271,8 @@ export type PerpsControllerSubscribeToLiveTwapOrdersAction = {
 };
 
 /**
- * Keep running and history chase lists for the active provider. Ended
+ * Keep running and history chase lists for the active provider, read when
+ * the provider reports a chase change and never on a timer. Ended
  * chases stay in history after the provider drops them, up to
  * `CHASE_ORDER_CONFIG.HistoryLimit`.
  *
@@ -1259,10 +1374,8 @@ export type PerpsControllerGetPublicTradesAction = {
  * switch, testnet toggle, reinitialization), or for any other symbol.
  * Subscribe again once the new provider is active. In aggregated mode an
  * unrouted stream follows the default provider: `setDefaultProvider` moves
- * it to the new venue, like `subscribeToCandles`. On Hyperliquid, like
- * `subscribeToCandles`, the stream is not restored after the client
- * service reconnects its WebSocket and `onError` is not called, so
- * resubscribe after a reconnect.
+ * it to the new venue, like `subscribeToCandles`. After a reconnect, and
+ * after a failure, the channel reopens the venue stream itself.
  *
  * When no provider is active, the route conflicts with the active
  * provider, or the provider has no public trade feed, this returns a no-op
@@ -1915,6 +2028,11 @@ export type PerpsControllerMethodActions =
   | PerpsControllerGetMarginModeLockAction
   | PerpsControllerGetMarginAdjustmentLimitsAction
   | PerpsControllerGetMarketMetaAction
+  | PerpsControllerSubscribeToMarketMetaAction
+  | PerpsControllerSubscribeToMarginAdjustmentLimitsAction
+  | PerpsControllerSubscribeToConnectionLatencyAction
+  | PerpsControllerSubscribeToFeeRatesAction
+  | PerpsControllerSubscribeToTradingAgentValidityAction
   | PerpsControllerGetScalePriceLadderAction
   | PerpsControllerPlaceOrderAction
   | PerpsControllerEditOrderAction
@@ -1986,6 +2104,8 @@ export type PerpsControllerMethodActions =
   | PerpsControllerGetProviderHealthAction
   | PerpsControllerSubscribeToProviderHealthAction
   | PerpsControllerReconnectAction
+  | PerpsControllerGetStreamSnapshotAction
+  | PerpsControllerResubscribeStreamsAction
   | PerpsControllerSubscribeToPricesAction
   | PerpsControllerSubscribeToPositionsAction
   | PerpsControllerSubscribeToOrderFillsAction
