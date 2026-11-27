@@ -1490,6 +1490,28 @@ describe('SentinelApiService', () => {
       service.destroy();
     });
 
+    it('requests a fresh signature for each concurrent identical request', async () => {
+      const { service } = createService();
+      mockNetworks();
+      const secondResponse = { ...response, signature: `0x${'cd'.repeat(65)}` };
+      const scope = nock(url)
+        .post(path, body)
+        .reply(200, response)
+        .post(path, body)
+        .reply(200, secondResponse);
+
+      const results = await Promise.all([
+        service.getVaultWhitelistSignature(request),
+        service.getVaultWhitelistSignature(request),
+      ]);
+      expect(results).toStrictEqual([
+        { eligible: true, ...response },
+        { eligible: true, ...secondResponse },
+      ]);
+      expect(scope.isDone()).toBe(true);
+      service.destroy();
+    });
+
     it.each([
       {
         stage: 'fetch',

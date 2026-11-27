@@ -572,10 +572,10 @@ export class SentinelApiService extends BaseDataService<
     }
 
     const url = `${this.#buildUrl(network.network)}${ENDPOINT_VAULT_WHITELIST_SIGN}`;
-    const result = await this.fetchQuery({
-      queryKey: [`${this.name}:getVaultWhitelistSignature`, request],
-      staleTime: 0,
-      queryFn: async (): Promise<SentinelVaultWhitelistSignResponse> => {
+    // Signatures are single-use, so concurrent identical requests must not share one.
+    const result = await this.executeMutation({
+      mutationKey: [`${this.name}:getVaultWhitelistSignature`],
+      mutationFn: async (): Promise<SentinelVaultWhitelistSignResponse> => {
         const headers = await this.#getHeaders();
         const controller = new AbortController();
         const timeout = setTimeout(
