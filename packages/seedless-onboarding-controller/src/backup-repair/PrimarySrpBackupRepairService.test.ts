@@ -765,7 +765,7 @@ describe('PrimarySrpBackupRepairService', () => {
         let finishFirstFetch!: (items: FetchedSecretDataItem[]) => void;
         fetchAllSecretData.mockImplementationOnce(
           async () =>
-            new Promise<FetchedSecretDataItem[]>((resolve) => {
+            await new Promise<FetchedSecretDataItem[]>((resolve) => {
               finishFirstFetch = resolve;
             }),
         );

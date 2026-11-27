@@ -145,7 +145,7 @@ export class PrimarySrpBackupRepairService {
       this.#pendingRun.identity.authConnectionId ===
         expectedIdentity.authConnectionId
     ) {
-      return this.#pendingRun.promise;
+      return await this.#pendingRun.promise;
     }
 
     const promise = this.#executeRun(password, expectedIdentity).finally(() => {
@@ -154,7 +154,7 @@ export class PrimarySrpBackupRepairService {
       }
     });
     this.#pendingRun = { identity: expectedIdentity, promise };
-    return promise;
+    return await promise;
   }
 
   /**
