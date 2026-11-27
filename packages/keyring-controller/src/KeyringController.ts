@@ -38,7 +38,6 @@ import {
   remove0x,
 } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
-import type { MutexInterface } from 'async-mutex';
 import * as ethereumjsWallet from 'ethereumjs-wallet';
 import type { Patch } from 'immer';
 // When generating a ULID within the same millisecond, monotonicFactory provides some guarantees regarding sort order.
@@ -47,6 +46,7 @@ import { ulid } from 'ulid';
 import { KeyringControllerErrorMessage } from './constants.js';
 import { KeyringControllerError } from './errors.js';
 import type { KeyringControllerMethodActions } from './KeyringController-method-action-types.js';
+import { projectLogger as log } from './logger.js';
 import type {
   Eip7702AuthorizationParams,
   Credentials,
@@ -60,6 +60,8 @@ import type {
   VaultSession,
   WalletTransactionScope,
 } from './VaultTransaction.js';
+import { withLock } from './withLock.js';
+import type { LogContext, MutuallyExclusiveCallback } from './withLock.js';
 
 /**
  * `ethereumjs-wallet` is CommonJS, and Node cannot reliably detect its named
@@ -620,18 +622,6 @@ export type KeyringV2Builder = {
 };
 
 /**
- * A function executed within a mutually exclusive lock, with a mutex
- * releaser in its option bag.
- *
- * @param releaseLock - A function to release the lock.
- */
-type MutuallyExclusiveCallback<Result> = ({
-  releaseLock,
-}: {
-  releaseLock: MutexInterface.Releaser;
-}) => Promise<Result>;
-
-/**
  * Get builder function for `Keyring`
  *
  * Returns a builder function for `Keyring` with a `type` property.
@@ -859,6 +849,8 @@ export class KeyringController<
 
   readonly #vaultOperationMutex = new Mutex();
 
+  #nextAtomicOperationId = 0;
+
   readonly #keyringBuilders: KeyringBuilder[];
 
   readonly #keyringV2Builders: KeyringV2Builder[];
@@ -964,6 +956,7 @@ export class KeyringController<
     // TODO: Migrate this to `#withKeyringOrRollback` so that only the
     // operated keyring is snapshotted and diffed.
     return this.#withTransaction(
+      'addNewAccount',
       () => this.#beginWalletTransaction(persistWhenSessionChanged),
       async () => {
         const primaryKeyring = this.getKeyringsByType('HD Key Tree')[0] as
@@ -1018,6 +1011,7 @@ export class KeyringController<
     // TODO: Migrate this to `#withKeyringOrRollback` so that only the
     // operated keyring is snapshotted and diffed.
     return this.#withTransaction(
+      'addNewAccountForKeyring',
       () => this.#beginWalletTransaction(persistWhenSessionChanged),
       async () => {
         const oldAccounts = await this.#getAccountsFromKeyrings();
@@ -1059,6 +1053,7 @@ export class KeyringController<
     seed: Uint8Array,
   ): Promise<void> {
     return this.#withTransaction(
+      'createNewVaultAndRestore',
       () => this.#beginWalletTransaction(persistWhenSessionChanged),
       async (transaction) => {
         assertIsValidPassword(password);
@@ -1085,6 +1080,7 @@ export class KeyringController<
    */
   async createNewVaultAndKeychain(password: string): Promise<void> {
     return this.#withTransaction(
+      'createNewVaultAndKeychain',
       () => this.#beginWalletTransaction(persistWhenSessionChanged),
       async (transaction) => {
         const accounts = await this.#getAccountsFromKeyrings();
@@ -1115,6 +1111,7 @@ export class KeyringController<
     // operated keyring is snapshotted and diffed.
     return this.#getKeyringMetadata(
       await this.#withTransaction(
+        'addNewKeyring',
         () => this.#beginWalletTransaction(persistWhenSessionChanged),
         async () => this.#newKeyring(type, opts),
       ),
@@ -1406,6 +1403,7 @@ export class KeyringController<
    */
   async persistAllKeyrings(): Promise<boolean> {
     return this.#withTransaction(
+      'persistAllKeyrings',
       // The deprecated method's contract is an unconditional vault write.
       () => this.#beginWalletTransaction(() => true),
       async () => {
@@ -1435,6 +1433,7 @@ export class KeyringController<
     // TODO: Migrate this to `#withKeyringOrRollback` so that only the
     // operated keyring is snapshotted and diffed.
     return this.#withTransaction(
+      'importAccountWithStrategy',
       () => this.#beginWalletTransaction(persistWhenSessionChanged),
       async () => {
         let privateKey;
@@ -1507,6 +1506,7 @@ export class KeyringController<
     // TODO: Migrate this to `#withKeyringOrRollback` so that only the
     // operated keyring is snapshotted and diffed.
     await this.#withTransaction(
+      'removeAccount',
       () => this.#beginWalletTransaction(persistWhenSessionChanged),
       async (transaction) => {
         const keyringIndex = await this.#findKeyringIndexForAccount(address);
@@ -1571,6 +1571,7 @@ export class KeyringController<
     this.#assertIsUnlocked();
 
     return this.#withTransaction(
+      'setLocked',
       // Locking clears the session without rewriting the vault, and the
       // encryption key is gone by commit time anyway.
       () => this.#beginWalletTransaction(() => false),
@@ -1850,6 +1851,7 @@ export class KeyringController<
     this.#assertIsUnlocked();
 
     return this.#withTransaction(
+      'changePassword',
       () => this.#beginWalletTransaction(persistWhenSessionChanged),
       async () => {
         assertIsValidPassword(password);
@@ -1874,6 +1876,7 @@ export class KeyringController<
     encryptionSalt?: string,
   ): Promise<void> {
     const { hasChanged } = await this.#withTransaction(
+      'submitEncryptionKey',
       // The unlock transaction is a rollback safety net: whether to
       // upgrade the vault is the next transaction's decision, on the
       // restoration's own change flag.
@@ -1892,6 +1895,7 @@ export class KeyringController<
       // if new metadata has been generated during login, we
       // can attempt to upgrade the vault.
       await this.#withTransaction(
+        'submitEncryptionKey:upgradeVault',
         // The criterion is the restoration's change flag from the unlock
         // above — not this transaction's own session diff.
         () => this.#beginWalletTransaction(() => hasChanged),
@@ -1912,7 +1916,7 @@ export class KeyringController<
   async exportEncryptionKey(): Promise<string> {
     this.#assertIsUnlocked();
 
-    return await this.#withControllerLock(async () => {
+    return await this.#withControllerLock('exportEncryptionKey', async () => {
       assertIsEncryptionKeySet(this.#encryptionKey?.serialized);
       return this.#encryptionKey.serialized;
     });
@@ -1927,6 +1931,7 @@ export class KeyringController<
    */
   async submitPassword(password: string): Promise<void> {
     const { hasChanged } = await this.#withTransaction(
+      'submitPassword',
       // The unlock transaction is a rollback safety net: whether to
       // upgrade the vault is the next transaction's decision.
       () => this.#beginWalletTransaction(() => false),
@@ -1942,6 +1947,7 @@ export class KeyringController<
       // if the keyring state has changed during deserialization, we
       // can attempt to upgrade the vault.
       await this.#withTransaction(
+        'submitPassword:upgradeVault',
         // The criterion combines the restoration's change flag from the
         // unlock above — not this transaction's own session diff — with
         // the available encryption params, and gates the re-derivation
@@ -1978,7 +1984,7 @@ export class KeyringController<
   async verifySeedPhrase(keyringId?: string): Promise<Uint8Array> {
     this.#assertIsUnlocked();
 
-    return this.#withControllerLock(async () =>
+    return this.#withControllerLock('verifySeedPhrase', async () =>
       this.#verifySeedPhrase(keyringId),
     );
   }
@@ -2344,6 +2350,7 @@ export class KeyringController<
     this.#assertIsUnlocked();
 
     return this.#withTransaction(
+      'withController',
       () => this.#beginWalletTransaction(persistWhenSessionChanged),
       async (transaction) => {
         // Track created and removed keyrings during the operation execution.
@@ -2856,7 +2863,7 @@ export class KeyringController<
     keyrings: { keyring: EthKeyring; metadata: KeyringMetadata }[];
     hasChanged: boolean;
   }> {
-    return this.#withVaultLock(async () => {
+    return this.#withVaultLock('unlockKeyrings', async () => {
       if (!this.state.vault) {
         throw new KeyringControllerError(
           KeyringControllerErrorMessage.VaultError,
@@ -2915,7 +2922,7 @@ export class KeyringController<
    * @returns A promise resolving to `true` if the operation is successful.
    */
   #updateVault(): Promise<boolean> {
-    return this.#withVaultLock(async () => {
+    return this.#withVaultLock('updateVault', async () => {
       // Ensure no duplicate accounts are persisted.
       await this.#assertNoDuplicateAccounts();
 
@@ -3071,29 +3078,42 @@ export class KeyringController<
     keyring: AtomicKeyring,
     action: () => void | Promise<void>,
   ): Promise<void> {
-    await this.#withControllerLock(async () => {
-      // Load-bearing, not defensive: detached keyrings cannot write the
-      // vault. Proceeding would silently write a vault without them, and
-      // update actions queued behind the controller lock during a lock or
-      // a restore would commit past it, to a fresh instance they never
-      // belonged to.
-      const keyringRef: object = keyring;
-      if (!this.#keyrings.some((entry) => entry.keyring === keyringRef)) {
-        throw new KeyringControllerError(
-          KeyringControllerErrorMessage.AtomicUpdateKeyringDetached,
+    await this.#withControllerLock(
+      'atomicUpdate',
+      async ({ setLogContext }) => {
+        // Load-bearing, not defensive: detached keyrings cannot write the
+        // vault. Proceeding would silently write a vault without them, and
+        // update actions queued behind the controller lock during a lock or
+        // a restore would commit past it, to a fresh instance they never
+        // belonged to.
+        const keyringRef: object = keyring;
+        const entry = this.#keyrings.find(
+          (candidate) => candidate.keyring === keyringRef,
         );
-      }
+        if (!entry) {
+          throw new KeyringControllerError(
+            KeyringControllerErrorMessage.AtomicUpdateKeyringDetached,
+          );
+        }
+        setLogContext({
+          keyring: {
+            type: entry.keyring.type,
+            kind: 'commit',
+            id: entry.metadata.id,
+          },
+        });
 
-      // The commit window: a wallet-scope transaction whose persist
-      // policy writes the vault if and only if the session state
-      // changed. Only the commit runs — a failure of the action leaves
-      // the transaction abandoned, restoring nothing.
-      const { transaction } = await this.#beginWalletTransaction(
-        persistWhenSessionChanged,
-      );
-      await action();
-      await transaction.commit();
-    });
+        // The commit window: a wallet-scope transaction whose persist
+        // policy writes the vault if and only if the session state
+        // changed. Only the commit runs — a failure of the action leaves
+        // the transaction abandoned, restoring nothing.
+        const { transaction } = await this.#beginWalletTransaction(
+          persistWhenSessionChanged,
+        );
+        await action();
+        await transaction.commit();
+      },
+    );
   }
 
   /**
@@ -3345,11 +3365,17 @@ export class KeyringController<
     create: () => Promise<KeyringEntry | undefined>,
     run: (entry: KeyringEntry) => Promise<Result>,
   ): Promise<Result> {
+    let logContext: LogContext | undefined;
     const outcome = await this.#withTransaction<
       TransactionOutcome<Result>,
       KeyringEntry
     >(
-      () => this.#beginKeyringTransaction({ v2 }, select, create),
+      v2 ? 'withKeyringV2' : 'withKeyring',
+      ({ setLogContext }) =>
+        this.#beginKeyringTransaction({ v2 }, select, create, (context) => {
+          logContext = context;
+          setLogContext(context);
+        }),
       async (transaction, entry) => {
         if (transaction.scope.type === 'atomic') {
           // An atomic keyring serializes its own operations and persists
@@ -3396,7 +3422,29 @@ export class KeyringController<
       // The selected (or transaction-created) keyring is atomic: the
       // operation runs unlocked, so the keyring's `update` commits can
       // take the controller lock.
-      return outcome.run();
+      const startedAt = performance.now();
+      const details = {
+        ...logContext,
+        id: this.#nextAtomicOperationId,
+        operation: v2 ? 'withKeyringV2' : 'withKeyring',
+      };
+      this.#nextAtomicOperationId += 1;
+      let success = false;
+      log(
+        'Atomic keyring operation started (outside controller lock)',
+        details,
+      );
+      try {
+        const result = await outcome.run();
+        success = true;
+        return result;
+      } finally {
+        log('Atomic keyring operation finished (outside controller lock)', {
+          ...details,
+          durationMs: performance.now() - startedAt,
+          success,
+        });
+      }
     }
 
     return outcome.result;
@@ -3424,12 +3472,14 @@ export class KeyringController<
    * @param select - Selects the keyring entry to operate on, if any.
    * @param create - Creates the keyring entry to operate on when selection
    *   found nothing, if needed.
+   * @param setLogContext - Adds the selected identity to subsequent lock logs.
    * @returns The transaction, and the operated entry.
    */
   async #beginKeyringTransaction(
     { v2 }: { v2: boolean },
     select: () => Promise<KeyringEntry | undefined>,
     create: () => Promise<KeyringEntry | undefined>,
+    setLogContext: (context: LogContext) => void,
   ): Promise<{
     transaction: VaultTransaction;
     setup: KeyringEntry;
@@ -3442,6 +3492,14 @@ export class KeyringController<
         KeyringControllerErrorMessage.KeyringNotFound,
       );
     }
+
+    setLogContext({
+      keyring: {
+        type: entry.keyring.type,
+        kind: v2 ? 'v2' : 'v1',
+        id: entry.metadata.id,
+      },
+    });
 
     if (v2 && !entry.keyringV2) {
       throw new KeyringControllerError(
@@ -3526,6 +3584,7 @@ export class KeyringController<
    * controller untouched — and committed after the function succeeds, or
    * rolled back if it throws.
    *
+   * @param operation - A non-sensitive operation label for lock diagnostics.
    * @param construct - Constructs and begins the transaction, plus
    *   whatever the operation needs from the construction.
    * @param run - Runs the operation, with the transaction and what its
@@ -3533,14 +3592,20 @@ export class KeyringController<
    * @returns The result of the operation.
    */
   async #withTransaction<Result, Setup>(
-    construct: () => Promise<{
+    operation: string,
+    construct: (
+      options: Pick<
+        Parameters<MutuallyExclusiveCallback<Result>>[0],
+        'setLogContext'
+      >,
+    ) => Promise<{
       transaction: VaultTransaction;
       setup: Setup;
     }>,
     run: (transaction: VaultTransaction, setup: Setup) => Promise<Result>,
   ): Promise<Result> {
-    return this.#withControllerLock(async () => {
-      const { transaction, setup } = await construct();
+    return this.#withControllerLock(operation, async (options) => {
+      const { transaction, setup } = await construct(options);
 
       try {
         const result = await run(transaction, setup);
@@ -3640,13 +3705,19 @@ export class KeyringController<
    * controller and that changes its state is executed in a mutually exclusive way,
    * preventing unsafe concurrent access that could lead to unpredictable behavior.
    *
+   * @param operation - A non-sensitive operation label for lock diagnostics.
    * @param callback - The function to execute while the controller mutex is locked.
    * @returns The result of the function.
    */
   async #withControllerLock<Result>(
+    operation: string,
     callback: MutuallyExclusiveCallback<Result>,
   ): Promise<Result> {
-    return withLock(this.#controllerOperationMutex, callback);
+    return withLock(
+      this.#controllerOperationMutex,
+      { lock: 'controller', operation },
+      callback,
+    );
   }
 
   /**
@@ -3657,37 +3728,21 @@ export class KeyringController<
    * This ensures that each operation that interacts with the vault
    * is executed in a mutually exclusive way.
    *
+   * @param operation - A non-sensitive operation label for lock diagnostics.
    * @param callback - The function to execute while the vault mutex is locked.
    * @returns The result of the function.
    */
   async #withVaultLock<Result>(
+    operation: string,
     callback: MutuallyExclusiveCallback<Result>,
   ): Promise<Result> {
     this.#assertControllerMutexIsLocked();
 
-    return withLock(this.#vaultOperationMutex, callback);
-  }
-}
-
-/**
- * Lock the given mutex before executing the given function,
- * and release it after the function is resolved or after an
- * error is thrown.
- *
- * @param mutex - The mutex to lock.
- * @param callback - The function to execute while the mutex is locked.
- * @returns The result of the function.
- */
-async function withLock<Result>(
-  mutex: Mutex,
-  callback: MutuallyExclusiveCallback<Result>,
-): Promise<Result> {
-  const releaseLock = await mutex.acquire();
-
-  try {
-    return await callback({ releaseLock });
-  } finally {
-    releaseLock();
+    return withLock(
+      this.#vaultOperationMutex,
+      { lock: 'vault', operation },
+      callback,
+    );
   }
 }
 
