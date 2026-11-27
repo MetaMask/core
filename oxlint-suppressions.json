@@ -459,12 +459,6 @@
     "no-unsafe-optional-chaining": {
       "count": 5
     },
-    "typescript/no-unsafe-call": {
-      "count": 4
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 13
-    },
     "vitest/no-conditional-in-test": {
       "count": 9
     }
@@ -5093,7 +5087,7 @@
       "count": 1
     },
     "typescript/return-await": {
-      "count": 21
+      "count": 20
     }
   },
   "packages/perps-controller/src/selectors.ts": {

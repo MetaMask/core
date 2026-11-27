@@ -840,6 +840,34 @@ describe('PerpsController default provider', () => {
     });
   });
 
+  describe('getExchangeAccountStatus', () => {
+    it('routes an aggregated read to the named venue instead of the default', async () => {
+      const status = { registered: true, accountIndex: 28 };
+      lighterProvider.getExchangeAccountStatus = vi
+        .fn()
+        .mockResolvedValue(status);
+      setupAggregatedMode('hyperliquid');
+
+      await expect(
+        controller.getExchangeAccountStatus({ providerId: 'lighter' }),
+      ).resolves.toStrictEqual(status);
+      expect(
+        lighterProvider.getExchangeAccountStatus,
+      ).toHaveBeenCalledExactlyOnceWith({ providerId: 'lighter' });
+    });
+
+    it('defaults to registered only for the active direct venue', async () => {
+      controller.testMarkInitialized();
+      controller.testSetActiveProvider(mockProvider);
+      await expect(
+        controller.getExchangeAccountStatus({ providerId: 'hyperliquid' }),
+      ).resolves.toStrictEqual({ registered: true });
+      await expect(
+        controller.getExchangeAccountStatus({ providerId: 'lighter' }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    });
+  });
+
   describe('account-state venue guard', () => {
     // The mocked MarketDataService does not write controller state, so this
     // block swaps in the real service for the write path under test.

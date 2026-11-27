@@ -87,6 +87,17 @@ export type PerpsControllerGetAccountSupportAction = {
 };
 
 /**
+ * Check the selected wallet’s venue registration once, without signing.
+ *
+ * @param params - Explicit provider route.
+ * @returns Registration status and the account index when the venue has one.
+ */
+export type PerpsControllerGetExchangeAccountStatusAction = {
+  type: `PerpsController:getExchangeAccountStatus`;
+  handler: PerpsController['getExchangeAccountStatus'];
+};
+
+/**
  * Report the venue a withdrawal will sign on, using the same provider
  * resolution and the same refusal as `withdraw`.
  *
@@ -1897,6 +1908,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerInitAction
   | PerpsControllerGetActiveProviderAction
   | PerpsControllerGetAccountSupportAction
+  | PerpsControllerGetExchangeAccountStatusAction
   | PerpsControllerResolveWithdrawalRouteAction
   | PerpsControllerGetActiveProviderOrNullAction
   | PerpsControllerGetOrderCapabilitiesAction

@@ -104,6 +104,8 @@ import type {
   Funding,
   GetAccountStateParams,
   GetAccountSupportParams,
+  GetExchangeAccountStatusParams,
+  ExchangeAccountStatus,
   GetAvailableDexsParams,
   GetFundingParams,
   GetMarketDataWithPricesParams,
@@ -1134,6 +1136,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'flipPosition',
   'getAccountState',
   'getAccountSupport',
+  'getExchangeAccountStatus',
   'getActiveProvider',
   'getActiveProviderOrNull',
   'resolveWithdrawalRoute',
@@ -3477,6 +3480,28 @@ export class PerpsController extends BaseController<
     return provider.getAccountSupport
       ? provider.getAccountSupport(params)
       : { isSupported: true };
+  }
+
+  /**
+   * Check the selected wallet’s venue registration once, without signing.
+   *
+   * @param params - Explicit provider route.
+   * @returns Registration status and the account index when the venue has one.
+   */
+  async getExchangeAccountStatus(
+    params: GetExchangeAccountStatusParams,
+  ): Promise<ExchangeAccountStatus> {
+    const provider = await this.#getActiveProviderWhenReady();
+    if (
+      !isPerpsProviderType(params.providerId) ||
+      this.#hasConflictingProviderRoute(params.providerId, provider)
+    ) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+    if (!provider.getExchangeAccountStatus) {
+      return { registered: true };
+    }
+    return await provider.getExchangeAccountStatus(params);
   }
 
   /**

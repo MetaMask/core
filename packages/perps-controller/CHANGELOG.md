@@ -10,10 +10,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Export `PERPS_EVENT_VALUE.INTERACTION_TYPE.TRADE_ON_SHEET_OPENED` and `TRADE_ON_VENUE_CHANGED` for the Lite market page's per-order venue selector ([#11778](https://github.com/MetaMask/core/pull/11778))
+- Report Lighter wallet registration in `AccountState.exchangeAccountStatus` on account reads and subscriptions. Export `LIGHTER_ACCOUNT_DISCOVERY_CONFIG` (from `constants/lighterConfig`) for the discovery interval and deadline. ([#11746](https://github.com/MetaMask/core/pull/11746))
+- Add `PerpsController:getExchangeAccountStatus` for read-only registration checks on an explicit venue. Export `GetExchangeAccountStatusParams`, `ExchangeAccountStatus`, `PerpsControllerGetExchangeAccountStatusAction`, and an optional provider hook. Lighter returns the master account index when registered; venues without a registration step return `{ registered: true }`. ([#11746](https://github.com/MetaMask/core/pull/11746))
+- Add `PERPS_ERROR_CODES.ORDERS_STREAM_PAUSED`. Lighter orders subscribers receive it through `onError` as a `PerpsControllerError` when the orders stream waits for a usable trading key, after a signer reset or when no retained key matches the venue. Show it as a waiting state, not a failure; the stream resumes once trading is set up. ([#11746](https://github.com/MetaMask/core/pull/11746))
 
 ### Changed
 
 - Add the partner's permissioned `ignp` HIP-3 dex to `TESTNET_HIP3_CONFIG.EnabledDexs`, so testnet loads and trades `ignp:*` markets alongside `xyz` ([#11701](https://github.com/MetaMask/core/pull/11701))
+
+### Fixed
+
+- Resume existing Lighter account, position, fill and order subscriptions by automatically checking for the account created by a first deposit, without reconnecting, prompting for a trading key, or replacing a ready trading signer. ([#11746](https://github.com/MetaMask/core/pull/11746))
+- After a Lighter signer reset, report the interrupted orders stream through `onError` and stop replaying its cached orders in both direct and multi-venue subscriptions until a fresh authenticated snapshot arrives. ([#11746](https://github.com/MetaMask/core/pull/11746))
+- Keep Lighter order updates flowing after a malformed frame on an initialized stream. Request a fresh authenticated orders snapshot without reconnecting unrelated channels or reporting an unconfirmed empty list. If the repair token refresh fails, keep known open orders visible in both direct and multi-venue subscriptions and retry on the next orders update. Report `onError` when no orders can be replayed, including when the repaired snapshot is malformed too. ([#11746](https://github.com/MetaMask/core/pull/11746))
 
 ## [26.2.0]
 

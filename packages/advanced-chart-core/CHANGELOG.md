@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0]
+
+### Fixed
+
+- Fix out-of-order bars after rapid interval switches (e.g. 1m → 5m → 1h → 1m) ([#11790](https://github.com/MetaMask/core/pull/11790))
+  - `REALTIME_UPDATE` bars older than the last stored bar are dropped instead of being appended after newer bars
+  - Realtime ticks are only forwarded to TradingView listeners subscribed for the current resolution
+  - The TradingView datafeed cache is reset before `setResolution`, so switching back to a previously loaded interval uses the bars from the latest `SET_OHLCV_DATA`
+- Fix low-liquidity tokens rendering at the wrong interval (e.g. 5m candles shown as 30m) and the resulting backward pagination storm ([#11790](https://github.com/MetaMask/core/pull/11790))
+  - `SET_OHLCV_DATA` accepts an optional `resolution` (TradingView format, e.g. `'5'`, `'60'`, `'1D'`), used instead of inferring the resolution from irregular bar spacing
+  - Absent or unsupported values fall back to inference, so existing consumers are unaffected
+
 ## [2.0.0]
 
 ### Changed
@@ -66,7 +78,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release: platform-agnostic TradingView Advanced Charts WebView engine copied verbatim from `metamask-mobile`'s `AdvancedChart/webview/src` ([#9762](https://github.com/MetaMask/core/pull/9762), [#10521](https://github.com/MetaMask/core/pull/10521))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@2.1.0...HEAD
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@2.0.0...@metamask/advanced-chart-core@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@1.2.0...@metamask/advanced-chart-core@2.0.0
 [1.2.0]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@1.1.2...@metamask/advanced-chart-core@1.2.0
 [1.1.2]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@1.1.1...@metamask/advanced-chart-core@1.1.2

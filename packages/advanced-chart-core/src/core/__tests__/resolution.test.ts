@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { detectResolution, INTERVAL_MS_TO_TV } from '../resolution.js';
+import {
+  canonicalResolution,
+  detectResolution,
+  INTERVAL_MS_TO_TV,
+  resolveResolution,
+} from '../resolution.js';
 
 const bars = (intervals: number[]): { time: number }[] => {
   const out: { time: number }[] = [{ time: 0 }];
@@ -37,4 +42,53 @@ describe('detectResolution', () => {
     const data = bars([390_000, 390_000, 390_000]);
     expect(detectResolution(data)).toBe('5');
   });
+});
+
+describe('canonicalResolution', () => {
+  it('expands single-letter shorthands', () => {
+    expect(canonicalResolution('D')).toBe('1D');
+    expect(canonicalResolution('W')).toBe('1W');
+    expect(canonicalResolution('M')).toBe('1M');
+    expect(canonicalResolution('S')).toBe('1S');
+  });
+
+  it('leaves canonical resolutions unchanged', () => {
+    expect(canonicalResolution('1')).toBe('1');
+    expect(canonicalResolution('60')).toBe('60');
+    expect(canonicalResolution('1D')).toBe('1D');
+    expect(canonicalResolution('3D')).toBe('3D');
+  });
+});
+
+describe('resolveResolution', () => {
+  // 5m candles with missing bars: median gap is 3m, so detection says "3".
+  const irregularFiveMinute = bars([180_000, 180_000, 180_000, 300_000]);
+
+  it('falls back to detection when no explicit resolution is given', () => {
+    expect(resolveResolution(undefined, irregularFiveMinute)).toBe('3');
+  });
+
+  it.each(['1', '5', '15', '60', '240', '1D', '1W', '1M'])(
+    'uses the explicit resolution %s over irregular bar spacing',
+    (resolution) => {
+      expect(resolveResolution(resolution, irregularFiveMinute)).toBe(
+        resolution,
+      );
+    },
+  );
+
+  it.each([
+    ['D', '1D'],
+    ['W', '1W'],
+    ['M', '1M'],
+  ])('canonicalizes the %s shorthand to %s', (shorthand, expected) => {
+    expect(resolveResolution(shorthand, irregularFiveMinute)).toBe(expected);
+  });
+
+  it.each(['', '7', '1h', '2D'])(
+    'falls back to detection for invalid explicit resolution %j',
+    (resolution) => {
+      expect(resolveResolution(resolution, irregularFiveMinute)).toBe('3');
+    },
+  );
 });
