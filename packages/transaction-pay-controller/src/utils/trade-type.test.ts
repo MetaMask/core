@@ -2,7 +2,12 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import { describe, expect, it } from 'vitest';
 
-import { getQuotePricing, TradeType } from './trade-type.js';
+import type { QuoteRequest } from '../types.js';
+import {
+  getQuotePricing,
+  isTrueExactOutputSupported,
+  TradeType,
+} from './trade-type.js';
 
 const SOURCE_TOKEN_AMOUNT_MOCK = '1000000000000000000';
 const TARGET_AMOUNT_MINIMUM_MOCK = '123';
@@ -12,12 +17,14 @@ const TARGET_AMOUNT_MINIMUM_MOCK = '123';
  *
  * @param overrides - Arguments to override.
  * @param overrides.hasCalls - Whether the request bundles calls.
+ * @param overrides.isTrueExactOutput - Whether an exact output is required.
  * @param overrides.transaction - Metadata of the original target transaction.
  * @returns The amount to quote and the pricing basis to quote it on.
  */
 function getPricing(
   overrides: {
     hasCalls?: boolean;
+    isTrueExactOutput?: boolean;
     transaction?: TransactionMeta;
   } = {},
 ): { amount: string; tradeType: TradeType } {
@@ -35,6 +42,13 @@ describe('trade-type', () => {
       expect(getPricing()).toStrictEqual({
         amount: SOURCE_TOKEN_AMOUNT_MOCK,
         tradeType: TradeType.ExactInput,
+      });
+    });
+
+    it('prices on the target amount when an exact output is required', () => {
+      expect(getPricing({ isTrueExactOutput: true })).toStrictEqual({
+        amount: TARGET_AMOUNT_MINIMUM_MOCK,
+        tradeType: TradeType.ExactOutput,
       });
     });
 
@@ -78,6 +92,33 @@ describe('trade-type', () => {
         amount: SOURCE_TOKEN_AMOUNT_MOCK,
         tradeType: TradeType.ExactInput,
       });
+    });
+  });
+
+  describe('isTrueExactOutputSupported', () => {
+    const REQUEST_MOCK = {
+      isTrueExactOutput: true,
+    } as QuoteRequest;
+
+    it('returns true for an atomic true exact output request', () => {
+      expect(isTrueExactOutputSupported([REQUEST_MOCK])).toBe(true);
+    });
+
+    it('returns true when no request requires a true exact output', () => {
+      expect(
+        isTrueExactOutputSupported([
+          { atomic: false, isMaxAmount: true } as QuoteRequest,
+        ]),
+      ).toBe(true);
+    });
+
+    it.each([
+      ['the maximum amount', { isMaxAmount: true }],
+      ['a non-atomic execution', { atomic: false }],
+    ])('returns false with %s', (_title, overrides) => {
+      expect(
+        isTrueExactOutputSupported([{ ...REQUEST_MOCK, ...overrides }]),
+      ).toBe(false);
     });
   });
 });

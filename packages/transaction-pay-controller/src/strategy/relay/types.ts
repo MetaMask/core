@@ -14,6 +14,7 @@ export type RelayQuoteRequest = {
   }[];
   destinationChainId: number;
   destinationCurrency: Hex;
+  enableTrueExactOutput?: boolean;
   originChainId: number;
   originCurrency: Hex;
   originGasOverhead?: string;

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `isTrueExactOutput` to `TransactionConfig` so token transfers deliver exactly the required amount to the recipient, supported by `ServerStrategy` and `RelayStrategy` ([#11775](https://github.com/MetaMask/core/pull/11775))
+
 ### Changed
 
 - Support provider-specific timeouts reported by the server in `ServerStrategy` ([#11737](https://github.com/MetaMask/core/pull/11737))

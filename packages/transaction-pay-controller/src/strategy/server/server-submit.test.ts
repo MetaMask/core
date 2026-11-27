@@ -462,6 +462,47 @@ describe('submitServerQuotes', () => {
     expect(getServerStatusMock).toHaveBeenCalledTimes(2);
   });
 
+  describe('true exact output', () => {
+    beforeEach(() => {
+      request.quotes = [
+        {
+          ...cloneDeep(QUOTE_MOCK),
+          request: { ...QUOTE_MOCK.request, isTrueExactOutput: true },
+        },
+      ];
+    });
+
+    it('returns the target hash', async () => {
+      const result = await submitServerQuotes(request);
+
+      expect(result).toStrictEqual({ transactionHash: TARGET_HASH_MOCK });
+    });
+
+    it('throws when the intent confirmed without a target hash', async () => {
+      getServerStatusMock.mockResolvedValue({
+        status: ServerStatus.Confirmed,
+        targetHash: undefined,
+      });
+
+      await expect(submitServerQuotes(request)).rejects.toThrow(
+        'Missing target hash for true exact output',
+      );
+    });
+
+    it('does not mark the intent complete when the target hash is missing', async () => {
+      getServerStatusMock.mockResolvedValue({
+        status: ServerStatus.Confirmed,
+        targetHash: undefined,
+      });
+
+      await expect(submitServerQuotes(request)).rejects.toThrow(
+        'Missing target hash for true exact output',
+      );
+
+      expect(currentTransaction.isIntentComplete).toBeUndefined();
+    });
+  });
+
   describe('second leg', () => {
     const SECOND_LEG_HASH_MOCK = '0xsecondleg' as Hex;
     const RECIPIENT_MOCK = '0x9999999999999999999999999999999999999999' as Hex;

@@ -336,6 +336,7 @@ async function getSingleQuote(
 
     const pricing = getQuotePricing({
       hasCalls: Boolean(body.txs?.length),
+      isTrueExactOutput: request.isTrueExactOutput,
       sourceTokenAmount,
       targetAmountMinimum,
       transaction,
@@ -347,6 +348,7 @@ async function getSingleQuote(
       // calls consume, so it wins over the derived amount.
       amount: body.amount ?? pricing.amount,
       tradeType: pricing.tradeType,
+      ...(request.isTrueExactOutput ? { enableTrueExactOutput: true } : {}),
     };
 
     log('Request body', finalBody);
@@ -550,7 +552,9 @@ async function normalizeQuote(
   const { usdToFiatRate } = getFiatRates(messenger, request);
 
   const dust = getFiatValueFromUsd(
-    calculateDustUsd(quote, request),
+    request.isTrueExactOutput
+      ? new BigNumber(0)
+      : calculateDustUsd(quote, request),
     usdToFiatRate,
   );
 
