@@ -13,6 +13,7 @@ import {
   PrimarySrpRepairFailureReason,
   PrimarySrpRepairFailureStage,
   PrimarySrpRepairPrimaryWrite,
+  PrimarySrpRepairStatus,
   PrimarySrpRepairType,
   SecretType,
 } from '../constants.js';
@@ -85,6 +86,15 @@ export type PrimarySrpBackupRepairServiceOptions = {
    */
   getIdentity: () => Identity;
   /**
+   * Returns the saved check for the current account. Another account returns
+   * `undefined`.
+   */
+  getPrimarySrpRepairStatus: () => PrimarySrpRepairStatus | undefined;
+  /**
+   * Saves the check result for the current account.
+   */
+  setPrimarySrpRepairStatus: (status: PrimarySrpRepairStatus) => void;
+  /**
    * Runs `fn` with the vault keys, under the controller lock, while unlocked,
    * with the password in sync, and with auth token refresh.
    */
@@ -108,6 +118,10 @@ export class PrimarySrpBackupRepairService {
 
   readonly #getIdentity: PrimarySrpBackupRepairServiceOptions['getIdentity'];
 
+  readonly #getPrimarySrpRepairStatus: PrimarySrpBackupRepairServiceOptions['getPrimarySrpRepairStatus'];
+
+  readonly #setPrimarySrpRepairStatus: PrimarySrpBackupRepairServiceOptions['setPrimarySrpRepairStatus'];
+
   readonly #withRepairContext: PrimarySrpBackupRepairServiceOptions['withRepairContext'];
 
   /**
@@ -123,6 +137,10 @@ export class PrimarySrpBackupRepairService {
    * @param options.exportPrimarySeedPhrase - Returns the local primary SRP.
    * @param options.trackEvent - Emits a non-sensitive analytics event.
    * @param options.getIdentity - Returns the current identity fields.
+   * @param options.getPrimarySrpRepairStatus - Returns the saved check for the
+   * current account.
+   * @param options.setPrimarySrpRepairStatus - Saves the check result for the
+   * current account.
    * @param options.withRepairContext - Runs the repair write under the
    * controller's guards.
    */
@@ -132,6 +150,8 @@ export class PrimarySrpBackupRepairService {
     exportPrimarySeedPhrase,
     trackEvent,
     getIdentity,
+    getPrimarySrpRepairStatus,
+    setPrimarySrpRepairStatus,
     withRepairContext,
   }: PrimarySrpBackupRepairServiceOptions) {
     this.#getToprfClient = getToprfClient;
@@ -139,6 +159,8 @@ export class PrimarySrpBackupRepairService {
     this.#exportPrimarySeedPhrase = exportPrimarySeedPhrase;
     this.#trackEvent = trackEvent;
     this.#getIdentity = getIdentity;
+    this.#getPrimarySrpRepairStatus = getPrimarySrpRepairStatus;
+    this.#setPrimarySrpRepairStatus = setPrimarySrpRepairStatus;
     this.#withRepairContext = withRepairContext;
   }
 
@@ -186,6 +208,11 @@ export class PrimarySrpBackupRepairService {
     password: string,
     expectedIdentity: Identity,
   ): Promise<void> {
+    // Repair not required for healthy backups.
+    if (this.#getPrimarySrpRepairStatus() === PrimarySrpRepairStatus.None) {
+      return;
+    }
+
     const { plan, failureReason } = await this.#planRepair(password);
     await trackIncompleteMetadataBackupEvents({
       plan,
@@ -193,6 +220,7 @@ export class PrimarySrpBackupRepairService {
     });
 
     if (failureReason) {
+      this.#saveRepairStatus(PrimarySrpRepairStatus.Fail, expectedIdentity);
       await trackPrimarySrpRepairEvent({
         status: PrimarySrpRepairEventStatus.Failed,
         result: {
@@ -206,6 +234,9 @@ export class PrimarySrpBackupRepairService {
 
     if (plan) {
       await this.#repairAndTrack(plan, expectedIdentity);
+    } else {
+      // no plan means no need to repair, so save the status as none.
+      this.#saveRepairStatus(PrimarySrpRepairStatus.None, expectedIdentity);
     }
   }
 
@@ -226,6 +257,9 @@ export class PrimarySrpBackupRepairService {
     });
 
     const result = await this.#repairPrimarySrpBackup(plan, expectedIdentity);
+    if (result.failureReason) {
+      this.#saveRepairStatus(PrimarySrpRepairStatus.Fail, expectedIdentity);
+    }
     await trackPrimarySrpRepairEvent({
       status: result.primaryWrite
         ? PrimarySrpRepairEventStatus.Succeeded
@@ -490,6 +524,27 @@ export class PrimarySrpBackupRepairService {
       dataType: EncAccountDataType.PrimarySrp,
       version: 'v2',
     });
+  }
+
+  /**
+   * Save the check result when the account is still the one this run started
+   * for. A logout or an account switch during the run leaves the saved check
+   * unchanged.
+   *
+   * @param status - The check result.
+   * @param expectedIdentity - The identity this run was started for.
+   */
+  #saveRepairStatus(
+    status: PrimarySrpRepairStatus,
+    expectedIdentity: Identity,
+  ): void {
+    const identity = this.#getIdentity();
+    if (
+      identity.userId === expectedIdentity.userId &&
+      identity.authConnectionId === expectedIdentity.authConnectionId
+    ) {
+      this.#setPrimarySrpRepairStatus(status);
+    }
   }
 
   /**

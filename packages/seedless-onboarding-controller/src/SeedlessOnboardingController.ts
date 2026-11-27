@@ -40,6 +40,7 @@ import {
   SeedlessOnboardingOperation,
   SeedlessOnboardingCheckpoint,
   PasswordSyncInstruction,
+  PrimarySrpRepairStatus,
   Web3AuthNetwork,
 } from './constants.js';
 import {
@@ -355,6 +356,13 @@ export class SeedlessOnboardingController<
         userId: this.state.userId,
         authConnectionId: this.state.authConnectionId,
       }),
+      getPrimarySrpRepairStatus: (): PrimarySrpRepairStatus | undefined =>
+        this.state.primarySrpRepairStatus,
+      setPrimarySrpRepairStatus: (status): void => {
+        this.update((draft) => {
+          draft.primarySrpRepairStatus = status;
+        });
+      },
       withRepairContext: (fn): Promise<void> =>
         this.#withControllerLock(async () => {
           this.#assertIsUnlocked();
@@ -897,6 +905,7 @@ export class SeedlessOnboardingController<
               delete state.envelope;
             }
             delete state.passwordOutdatedCache;
+            delete state.primarySrpRepairStatus;
             delete state.seedlessOperationLifecycle;
           },
         });
@@ -2490,6 +2499,7 @@ export class SeedlessOnboardingController<
           checkpoint,
         };
         delete state.passwordOutdatedCache;
+        delete state.primarySrpRepairStatus;
         onStateUpdate?.(state);
       });
 
@@ -3508,6 +3518,7 @@ export class SeedlessOnboardingController<
             state.isLocalPassword = true;
             state.envelope = createEnvelopeState(vaultKeySet, authPubKey);
             delete state.passwordOutdatedCache;
+            delete state.primarySrpRepairStatus;
             delete state.seedlessOperationLifecycle;
           },
         });

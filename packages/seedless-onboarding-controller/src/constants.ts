@@ -215,6 +215,18 @@ export const SeedlessPrimarySrpRepairEventName =
   'Seedless Onboarding Primary SRP Repair';
 
 /**
+ * Saved result of a primary SRP backup check.
+ *
+ * `NONE` means the backup is healthy and skips later checks. `FAIL` means the
+ * check or the repair failed and runs again. After a repair write, the status
+ * is not changed, so the next check verifies the backup.
+ */
+export enum PrimarySrpRepairStatus {
+  None = 'NONE',
+  Fail = 'FAIL',
+}
+
+/**
  * Status of a primary SRP repair analytics event.
  */
 export enum PrimarySrpRepairEventStatus {

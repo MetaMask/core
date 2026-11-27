@@ -19,6 +19,7 @@ import {
   SRP2,
 } from '../../tests/__fixtures__/secret-metadata.js';
 import {
+  PrimarySrpRepairStatus,
   SecretType,
   SeedlessPrimarySrpMismatchEventName,
   SeedlessPrimarySrpMissingEventName,
@@ -155,11 +156,16 @@ function createMetadataService(
  *
  * @param options - The options.
  * @param options.remoteItems - The items the metadata service starts with.
+ * @param options.initialRepairStatus - The saved check the service starts with.
  * @returns The service, its mocked dependencies and the metadata service.
  */
 function setup({
   remoteItems = [],
-}: { remoteItems?: FetchedSecretDataItem[] } = {}): {
+  initialRepairStatus,
+}: {
+  remoteItems?: FetchedSecretDataItem[];
+  initialRepairStatus?: PrimarySrpRepairStatus;
+} = {}): {
   service: PrimarySrpBackupRepairService;
   metadataService: ReturnType<typeof createMetadataService>;
   identity: { userId?: string; authConnectionId?: string };
@@ -178,6 +184,7 @@ function setup({
   withRepairContext: Mock<
     PrimarySrpBackupRepairServiceOptions['withRepairContext']
   >;
+  repairStatus: { status?: PrimarySrpRepairStatus };
 } {
   const identity = { ...IDENTITY };
   const metadataService = createMetadataService(remoteItems);
@@ -201,6 +208,9 @@ function setup({
   const withRepairContext = vi.fn<
     PrimarySrpBackupRepairServiceOptions['withRepairContext']
   >(async (fn) => await fn(VAULT_KEYS));
+  const repairStatus: { status?: PrimarySrpRepairStatus } = {
+    status: initialRepairStatus,
+  };
 
   const service = new PrimarySrpBackupRepairService({
     getToprfClient: (): ToprfSecureBackup =>
@@ -215,6 +225,11 @@ function setup({
     getIdentity: (): { userId?: string; authConnectionId?: string } => ({
       ...identity,
     }),
+    getPrimarySrpRepairStatus: (): PrimarySrpRepairStatus | undefined =>
+      repairStatus.status,
+    setPrimarySrpRepairStatus: (status): void => {
+      repairStatus.status = status;
+    },
     withRepairContext,
   });
 
@@ -229,6 +244,7 @@ function setup({
     exportPrimarySeedPhrase,
     trackEvent,
     withRepairContext,
+    repairStatus,
   };
 }
 
@@ -840,6 +856,119 @@ describe('PrimarySrpBackupRepairService', () => {
           expect(metadataService.items).toStrictEqual(originalItems);
         },
       );
+    });
+
+    describe('saved repair status', () => {
+      const healthyBackup = [
+        createFetchedSecretDataItem({
+          ...SRP1,
+          dataType: EncAccountDataType.PrimarySrp,
+        }),
+      ];
+
+      it('saves NONE for a healthy backup', async () => {
+        const { service, repairStatus } = setup({ remoteItems: healthyBackup });
+
+        await service.run(PASSWORD);
+
+        expect(repairStatus.status).toBe(PrimarySrpRepairStatus.None);
+      });
+
+      it('verifies a repaired backup on the next check, then skips later checks', async () => {
+        const {
+          service,
+          fetchAllSecretData,
+          exportPrimarySeedPhrase,
+          addSecretDataItem,
+          repairStatus,
+          ...mocks
+        } = setup({
+          remoteItems: [createFetchedSecretDataItem(ImportedPrivateKey1)],
+        });
+
+        await service.run(PASSWORD);
+
+        expect(addSecretDataItem).toHaveBeenCalledTimes(1);
+        expect(repairStatus.status).toBeUndefined();
+
+        fetchAllSecretData.mockClear();
+        addSecretDataItem.mockClear();
+
+        await service.run(PASSWORD);
+
+        expect(fetchAllSecretData).toHaveBeenCalledTimes(1);
+        expectNoWrites({ addSecretDataItem, ...mocks });
+        expect(repairStatus.status).toBe(PrimarySrpRepairStatus.None);
+
+        fetchAllSecretData.mockClear();
+        exportPrimarySeedPhrase.mockClear();
+
+        await service.run(PASSWORD);
+
+        expect(fetchAllSecretData).not.toHaveBeenCalled();
+        expect(exportPrimarySeedPhrase).not.toHaveBeenCalled();
+      });
+
+      it('saves FAIL when the backup cannot be read and checks again', async () => {
+        const { service, fetchAllSecretData, repairStatus } = setup();
+        fetchAllSecretData.mockRejectedValueOnce(new Error('fetch failed'));
+
+        await service.run(PASSWORD);
+
+        expect(repairStatus.status).toBe(PrimarySrpRepairStatus.Fail);
+
+        await service.run(PASSWORD);
+
+        expect(fetchAllSecretData).toHaveBeenCalledTimes(2);
+      });
+
+      it('saves FAIL when the repair write fails', async () => {
+        const { service, addSecretDataItem, repairStatus } = setup({
+          remoteItems: [createFetchedSecretDataItem(ImportedPrivateKey1)],
+        });
+        addSecretDataItem.mockRejectedValueOnce(new Error('write failed'));
+
+        await service.run(PASSWORD);
+
+        expect(repairStatus.status).toBe(PrimarySrpRepairStatus.Fail);
+      });
+
+      it('skips the check when the saved status is NONE', async () => {
+        const { service, fetchAllSecretData, exportPrimarySeedPhrase } = setup({
+          remoteItems: [createFetchedSecretDataItem(ImportedPrivateKey1)],
+          initialRepairStatus: PrimarySrpRepairStatus.None,
+        });
+
+        await service.run(PASSWORD);
+
+        expect(fetchAllSecretData).not.toHaveBeenCalled();
+        expect(exportPrimarySeedPhrase).not.toHaveBeenCalled();
+      });
+
+      it('saves NONE when the check after a FAIL finds a healthy backup', async () => {
+        const { service, repairStatus } = setup({
+          remoteItems: healthyBackup,
+          initialRepairStatus: PrimarySrpRepairStatus.Fail,
+        });
+
+        await service.run(PASSWORD);
+
+        expect(repairStatus.status).toBe(PrimarySrpRepairStatus.None);
+      });
+
+      it('does not save the result when the account changes during the run', async () => {
+        const { service, identity, fetchAllSecretData, repairStatus } = setup({
+          remoteItems: healthyBackup,
+        });
+        fetchAllSecretData.mockImplementationOnce(async () => {
+          identity.userId = 'second-user-id';
+          return healthyBackup.map((item) => ({ ...item }));
+        });
+
+        await service.run(PASSWORD);
+
+        expect(repairStatus.status).toBeUndefined();
+      });
     });
 
     describe('when the backup cannot be read', () => {

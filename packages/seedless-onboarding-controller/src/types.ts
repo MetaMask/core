@@ -10,6 +10,7 @@ import type {
   PrimarySrpRepairFailureReason,
   PrimarySrpRepairFailureStage,
   PrimarySrpRepairPrimaryWrite,
+  PrimarySrpRepairStatus,
   PrimarySrpRepairType,
   SecretType,
   SeedlessOperationLifecycle,
@@ -207,6 +208,12 @@ export type SeedlessOnboardingControllerState =
        * Cache for checkIsPasswordOutdated result and timestamp.
        */
       passwordOutdatedCache?: { isExpiredPwd: boolean; timestamp: number };
+
+      /**
+       * The last primary SRP backup check result. Absent until a check
+       * finishes. `NONE` skips later checks.
+       */
+      primarySrpRepairStatus?: PrimarySrpRepairStatus;
 
       /**
        * The refresh token used to refresh expired nodeAuthTokens.
