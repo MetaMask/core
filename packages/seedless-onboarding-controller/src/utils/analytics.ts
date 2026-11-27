@@ -8,6 +8,10 @@ import { sha256 } from '@noble/hashes/sha256';
 
 import {
   controllerName,
+  PrimarySrpRepairEventStatus,
+  PrimarySrpRepairFailureReason,
+  PrimarySrpRepairFailureStage,
+  PrimarySrpRepairPrimaryWrite,
   PrimarySrpRepairType,
   SecretType,
   SeedlessIdentityMismatchEventName,
@@ -16,6 +20,7 @@ import {
   SeedlessOnboardingMigrationVersion,
   SeedlessPrimarySrpMismatchEventName,
   SeedlessPrimarySrpMissingEventName,
+  SeedlessPrimarySrpRepairEventName,
 } from '../constants.js';
 import type { SeedlessIdentityMismatchSource } from '../constants.js';
 import { createModuleLogger, projectLogger } from '../logger.js';
@@ -131,6 +136,55 @@ export async function trackIncompleteMetadataBackupEvents({
     });
   } catch (error) {
     log('Error tracking incomplete metadata backup event', error);
+  }
+}
+
+/**
+ * Properties of the primary SRP repair event. Each status sends only the
+ * fields that apply to it.
+ */
+export type PrimarySrpRepairEventProperties = {
+  status: PrimarySrpRepairEventStatus;
+  repair_type?: PrimarySrpRepairType;
+  metadata_schema_version?: MetadataSchemaVersion;
+  number_of_imported_wallets?: number;
+  number_of_imported_accounts?: number;
+  primary_write?: PrimarySrpRepairPrimaryWrite;
+  number_of_retagged_items?: number;
+  failure_stage?: PrimarySrpRepairFailureStage;
+  failure_reason?: PrimarySrpRepairFailureReason;
+};
+
+/**
+ * Report the start, success or failure of a primary SRP repair.
+ *
+ * The properties are non-sensitive: they hold counts, schema versions and
+ * failure categories, never secret values, item ids or user ids. Tracking
+ * failures are logged and never thrown, so the repair is never blocked.
+ *
+ * @param params - The event properties and the function to emit telemetry.
+ * @param params.properties - The properties for the event's status.
+ * @param params.trackEvent - Emits a non-sensitive analytics event.
+ * @returns A promise that resolves after the best-effort telemetry has
+ * completed.
+ */
+export async function trackPrimarySrpRepairEvent({
+  properties,
+  trackEvent,
+}: {
+  properties: PrimarySrpRepairEventProperties;
+  trackEvent: TrackEvent;
+}): Promise<void> {
+  try {
+    await trackEvent({
+      name: SeedlessPrimarySrpRepairEventName,
+      properties,
+      sensitiveProperties: {},
+      saveDataRecording: false,
+      hasProperties: true,
+    });
+  } catch (error) {
+    log('Error tracking primary SRP repair event', error);
   }
 }
 

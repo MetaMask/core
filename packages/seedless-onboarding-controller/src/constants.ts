@@ -208,6 +208,55 @@ export const SeedlessIdentityMismatchEventName =
   'Seedless Onboarding Identity Mismatch';
 
 /**
+ * Emitted once when a primary SRP repair starts, and once when it succeeds or
+ * fails. The `status` property tells the two apart.
+ */
+export const SeedlessPrimarySrpRepairEventName =
+  'Seedless Onboarding Primary SRP Repair';
+
+/**
+ * Status of a primary SRP repair analytics event.
+ */
+export enum PrimarySrpRepairEventStatus {
+  Started = 'started',
+  Succeeded = 'succeeded',
+  Failed = 'failed',
+}
+
+/**
+ * The write that makes the local primary SRP the remote primary SRP.
+ */
+export enum PrimarySrpRepairPrimaryWrite {
+  Promote = 'promote',
+  Add = 'add',
+}
+
+/**
+ * The step of a primary SRP repair that failed.
+ */
+export enum PrimarySrpRepairFailureStage {
+  Plan = 'plan',
+  IdentityChanged = 'identity_changed',
+  ControllerLocked = 'controller_locked',
+  Retag = 'retag',
+  Primary = 'primary',
+}
+
+/**
+ * Non-sensitive category of a failed primary SRP repair. Raw error messages
+ * are never sent.
+ */
+export enum PrimarySrpRepairFailureReason {
+  FetchFailed = 'fetch_failed',
+  ExportFailed = 'export_failed',
+  InvalidBackup = 'invalid_backup',
+  IdentityMismatch = 'identity_mismatch',
+  Locked = 'locked',
+  WriteRejected = 'write_rejected',
+  Unknown = 'unknown',
+}
+
+/**
  * HMAC key for user ids on the identity-mismatch event.
  * The same user id always hashes to the same value. The raw id is not sent.
  */
