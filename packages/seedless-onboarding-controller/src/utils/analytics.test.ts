@@ -19,6 +19,10 @@ import {
   SRP2,
 } from '../../tests/__fixtures__/secret-metadata.js';
 import {
+  PrimarySrpRepairEventStatus,
+  PrimarySrpRepairFailureReason,
+  PrimarySrpRepairFailureStage,
+  PrimarySrpRepairPrimaryWrite,
   PrimarySrpRepairType,
   SecretType,
   SeedlessIdentityMismatchEventName,
@@ -28,6 +32,7 @@ import {
   SeedlessOnboardingControllerErrorMessage,
   SeedlessPrimarySrpMismatchEventName,
   SeedlessPrimarySrpMissingEventName,
+  SeedlessPrimarySrpRepairEventName,
 } from '../constants.js';
 import { serializeControlRecord } from '../envelope/envelope-keys.js';
 import type { ControlRecord } from '../envelope/envelope-keys.js';
@@ -36,6 +41,7 @@ import {
   getIncompleteMetadataBackupEventProperties,
   trackIdentityMismatchEvent,
   trackIncompleteMetadataBackupEvents,
+  trackPrimarySrpRepairEvent,
 } from './analytics.js';
 import { SeedlessOnboardingError } from './errors.js';
 import { parseSecretMetadata } from './secret-data-utils.js';
@@ -358,6 +364,152 @@ function hashUserId(userId: string): string {
     ),
   );
 }
+
+describe('trackPrimarySrpRepairEvent', () => {
+  beforeEach(() => {
+    logMock.mockClear();
+  });
+
+  it('tracks the started status with the backup summary', async () => {
+    const trackEvent = vi.fn();
+    const secretMetadata = parseSecretMetadata([
+      createFetchedSecretDataItem(PrivateKey1),
+      createFetchedSecretDataItem(SRP2),
+      createFetchedSecretDataItem(SRP1),
+    ]);
+
+    await trackPrimarySrpRepairEvent({
+      status: PrimarySrpRepairEventStatus.Started,
+      plan: {
+        repairType: PrimarySrpRepairType.Mismatch,
+        secretMetadata,
+        metadataSchemaVersion: 'v1',
+        localPrimarySRP: stringToBytes(SRP1.data),
+      },
+      trackEvent,
+    });
+
+    expect(trackEvent).toHaveBeenCalledWith({
+      name: SeedlessPrimarySrpRepairEventName,
+      properties: {
+        status: 'started',
+        repair_type: 'mismatch',
+        metadata_schema_version: 'v1',
+        number_of_imported_wallets: 1,
+        number_of_imported_accounts: 1,
+      },
+      sensitiveProperties: {},
+      saveDataRecording: false,
+      hasProperties: true,
+    });
+  });
+
+  it('tracks the succeeded status with the write and retag count', async () => {
+    const trackEvent = vi.fn();
+
+    await trackPrimarySrpRepairEvent({
+      status: PrimarySrpRepairEventStatus.Succeeded,
+      plan: {
+        repairType: PrimarySrpRepairType.Missing,
+        secretMetadata: [],
+        metadataSchemaVersion: 'none',
+        localPrimarySRP: stringToBytes(SRP1.data),
+      },
+      result: {
+        primaryWrite: PrimarySrpRepairPrimaryWrite.Add,
+        numberOfRetaggedItems: 0,
+      },
+      trackEvent,
+    });
+
+    expect(trackEvent).toHaveBeenCalledWith({
+      name: SeedlessPrimarySrpRepairEventName,
+      properties: {
+        status: 'succeeded',
+        repair_type: 'missing',
+        primary_write: 'add',
+        number_of_retagged_items: 0,
+      },
+      sensitiveProperties: {},
+      saveDataRecording: false,
+      hasProperties: true,
+    });
+  });
+
+  it('tracks the failed status with the stage and reason', async () => {
+    const trackEvent = vi.fn();
+
+    await trackPrimarySrpRepairEvent({
+      status: PrimarySrpRepairEventStatus.Failed,
+      plan: {
+        repairType: PrimarySrpRepairType.Mismatch,
+        secretMetadata: [],
+        metadataSchemaVersion: 'v2',
+        localPrimarySRP: stringToBytes(SRP1.data),
+      },
+      result: {
+        failureStage: PrimarySrpRepairFailureStage.Primary,
+        failureReason: PrimarySrpRepairFailureReason.WriteFailed,
+        numberOfRetaggedItems: 3,
+      },
+      trackEvent,
+    });
+
+    expect(trackEvent).toHaveBeenCalledWith({
+      name: SeedlessPrimarySrpRepairEventName,
+      properties: {
+        status: 'failed',
+        failure_stage: 'primary',
+        failure_reason: 'write_failed',
+        repair_type: 'mismatch',
+        number_of_retagged_items: 3,
+      },
+      sensitiveProperties: {},
+      saveDataRecording: false,
+      hasProperties: true,
+    });
+  });
+
+  it('tracks the failed status without a repair type when the plan failed', async () => {
+    const trackEvent = vi.fn();
+
+    await trackPrimarySrpRepairEvent({
+      status: PrimarySrpRepairEventStatus.Failed,
+      result: {
+        failureStage: PrimarySrpRepairFailureStage.Plan,
+        failureReason: PrimarySrpRepairFailureReason.BackupUnreadable,
+      },
+      trackEvent,
+    });
+
+    const [event] = trackEvent.mock.calls[0] as [
+      { properties: Record<string, unknown> },
+    ];
+    expect(event.properties).toStrictEqual({
+      status: 'failed',
+      failure_stage: 'plan',
+      failure_reason: 'backup_unreadable',
+    });
+  });
+
+  it('does not propagate analytics tracking failures', async () => {
+    const trackError = new Error('analytics unavailable');
+
+    await trackPrimarySrpRepairEvent({
+      status: PrimarySrpRepairEventStatus.Failed,
+      result: {
+        failureStage: PrimarySrpRepairFailureStage.Retag,
+        failureReason: PrimarySrpRepairFailureReason.Unknown,
+      },
+      trackEvent: vi.fn().mockRejectedValue(trackError),
+    });
+
+    expect(logMock).toHaveBeenCalledWith(
+      'Error tracking primary SRP repair event',
+      trackError,
+    );
+  });
+});
 
 describe('trackIdentityMismatchEvent', () => {
   beforeEach(() => {

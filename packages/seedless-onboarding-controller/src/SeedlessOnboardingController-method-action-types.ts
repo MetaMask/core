@@ -280,10 +280,11 @@ export type SeedlessOnboardingControllerLoadKeyringEncryptionKeyAction = {
  *
  * Call this after the current Keyring encryption key has been synchronized
  * and all required local writes have succeeded. The controller clears the
- * lifecycle so the next unlock is normal.
+ * lifecycle and saves the outdated-password cache as in sync. The next
+ * password check reads this cache.
  *
  * This only completes a lifecycle that is at `KEY_SYNC_PENDING`; in any other
- * state it is a no-op.
+ * state it is a no-op and the cache stays as it is.
  *
  * @returns A promise that resolves once recovery has been completed.
  */

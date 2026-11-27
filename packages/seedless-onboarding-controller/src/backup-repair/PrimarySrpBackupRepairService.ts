@@ -9,12 +9,21 @@ import { areUint8ArraysEqual } from '@metamask/utils';
 
 import {
   controllerName,
+  PrimarySrpRepairEventStatus,
+  PrimarySrpRepairFailureReason,
+  PrimarySrpRepairFailureStage,
+  PrimarySrpRepairPrimaryWrite,
+  PrimarySrpRepairStatus,
   PrimarySrpRepairType,
   SecretType,
 } from '../constants.js';
 import { createModuleLogger, projectLogger } from '../logger.js';
 import { SecretMetadata } from '../SecretMetadata.js';
-import type { PrimarySrpRepairPlan, PrimarySrpRepairWrites } from '../types.js';
+import type {
+  PrimarySrpRepairPlan,
+  PrimarySrpRepairResult,
+  PrimarySrpRepairWrites,
+} from '../types.js';
 import {
   assertIdentityUnchanged,
   getMetadataSchemaVersion,
@@ -22,6 +31,7 @@ import {
   isPrimarySecretCandidate,
   parseSecretMetadata,
   trackIncompleteMetadataBackupEvents,
+  trackPrimarySrpRepairEvent,
   validateSecretMetadataBackup,
 } from '../utils/index.js';
 
@@ -31,6 +41,16 @@ const log = createModuleLogger(projectLogger, controllerName);
  * The identity fields a repair is planned for.
  */
 type Identity = { userId?: string; authConnectionId?: string };
+
+/**
+ * The outcome of planning a repair. `plan` is set when a repair is needed,
+ * `failureReason` when the backup could not be read, and neither when the
+ * backup is in sync.
+ */
+type PrimarySrpRepairPlanResult = {
+  plan?: PrimarySrpRepairPlan;
+  failureReason?: PrimarySrpRepairFailureReason;
+};
 
 /**
  * The vault keys used to write to the metadata service.
@@ -66,6 +86,15 @@ export type PrimarySrpBackupRepairServiceOptions = {
    */
   getIdentity: () => Identity;
   /**
+   * Returns the saved check for the current account. Another account returns
+   * `undefined`.
+   */
+  getPrimarySrpRepairStatus: () => PrimarySrpRepairStatus | undefined;
+  /**
+   * Saves the check result for the current account.
+   */
+  setPrimarySrpRepairStatus: (status: PrimarySrpRepairStatus) => void;
+  /**
    * Runs `fn` with the vault keys, under the controller lock, while unlocked,
    * with the password in sync, and with auth token refresh.
    */
@@ -89,6 +118,10 @@ export class PrimarySrpBackupRepairService {
 
   readonly #getIdentity: PrimarySrpBackupRepairServiceOptions['getIdentity'];
 
+  readonly #getPrimarySrpRepairStatus: PrimarySrpBackupRepairServiceOptions['getPrimarySrpRepairStatus'];
+
+  readonly #setPrimarySrpRepairStatus: PrimarySrpBackupRepairServiceOptions['setPrimarySrpRepairStatus'];
+
   readonly #withRepairContext: PrimarySrpBackupRepairServiceOptions['withRepairContext'];
 
   /**
@@ -104,6 +137,10 @@ export class PrimarySrpBackupRepairService {
    * @param options.exportPrimarySeedPhrase - Returns the local primary SRP.
    * @param options.trackEvent - Emits a non-sensitive analytics event.
    * @param options.getIdentity - Returns the current identity fields.
+   * @param options.getPrimarySrpRepairStatus - Returns the saved check for the
+   * current account.
+   * @param options.setPrimarySrpRepairStatus - Saves the check result for the
+   * current account.
    * @param options.withRepairContext - Runs the repair write under the
    * controller's guards.
    */
@@ -113,6 +150,8 @@ export class PrimarySrpBackupRepairService {
     exportPrimarySeedPhrase,
     trackEvent,
     getIdentity,
+    getPrimarySrpRepairStatus,
+    setPrimarySrpRepairStatus,
     withRepairContext,
   }: PrimarySrpBackupRepairServiceOptions) {
     this.#getToprfClient = getToprfClient;
@@ -120,6 +159,8 @@ export class PrimarySrpBackupRepairService {
     this.#exportPrimarySeedPhrase = exportPrimarySeedPhrase;
     this.#trackEvent = trackEvent;
     this.#getIdentity = getIdentity;
+    this.#getPrimarySrpRepairStatus = getPrimarySrpRepairStatus;
+    this.#setPrimarySrpRepairStatus = setPrimarySrpRepairStatus;
     this.#withRepairContext = withRepairContext;
   }
 
@@ -167,16 +208,66 @@ export class PrimarySrpBackupRepairService {
     password: string,
     expectedIdentity: Identity,
   ): Promise<void> {
-    const plan = await this.#planRepair(password);
+    // Repair not required for healthy backups.
+    if (this.#getPrimarySrpRepairStatus() === PrimarySrpRepairStatus.None) {
+      return;
+    }
 
+    const { plan, failureReason } = await this.#planRepair(password);
     await trackIncompleteMetadataBackupEvents({
       plan,
       trackEvent: this.#trackEvent,
     });
 
-    if (plan) {
-      await this.#repairPrimarySrpBackup(plan, expectedIdentity);
+    if (failureReason) {
+      this.#saveRepairStatus(PrimarySrpRepairStatus.Fail, expectedIdentity);
+      await trackPrimarySrpRepairEvent({
+        status: PrimarySrpRepairEventStatus.Failed,
+        result: {
+          failureStage: PrimarySrpRepairFailureStage.Plan,
+          failureReason,
+        },
+        trackEvent: this.#trackEvent,
+      });
+      return;
     }
+
+    if (plan) {
+      await this.#repairAndTrack(plan, expectedIdentity);
+    } else {
+      // no plan means no need to repair, so save the status as none.
+      this.#saveRepairStatus(PrimarySrpRepairStatus.None, expectedIdentity);
+    }
+  }
+
+  /**
+   * Write the repair and report its start and outcome.
+   *
+   * @param plan - The repair plan.
+   * @param expectedIdentity - The identity the repair was planned for.
+   */
+  async #repairAndTrack(
+    plan: PrimarySrpRepairPlan,
+    expectedIdentity: Identity,
+  ): Promise<void> {
+    await trackPrimarySrpRepairEvent({
+      status: PrimarySrpRepairEventStatus.Started,
+      plan,
+      trackEvent: this.#trackEvent,
+    });
+
+    const result = await this.#repairPrimarySrpBackup(plan, expectedIdentity);
+    if (result.failureReason) {
+      this.#saveRepairStatus(PrimarySrpRepairStatus.Fail, expectedIdentity);
+    }
+    await trackPrimarySrpRepairEvent({
+      status: result.primaryWrite
+        ? PrimarySrpRepairEventStatus.Succeeded
+        : PrimarySrpRepairEventStatus.Failed,
+      plan,
+      result,
+      trackEvent: this.#trackEvent,
+    });
   }
 
   /**
@@ -189,52 +280,68 @@ export class PrimarySrpBackupRepairService {
    * the backup is `missing`, otherwise the candidate is compared with the local
    * primary SRP and a difference is a `mismatch`.
    *
-   * This only reads data. Fetch, parsing, and keyring failures are logged and
-   * result in no plan.
+   * This only reads data. Each read step that fails is logged and returns the
+   * matching `failureReason`, with no plan.
    *
    * @param password - The password used to export the local primary SRP.
-   * @returns The repair plan, or `undefined` if the backup is in sync or could
-   * not be read.
+   * @returns The plan when a repair is needed, the `failureReason` when the
+   * backup could not be read, and neither when the backup is in sync.
    */
-  async #planRepair(
-    password: string,
-  ): Promise<PrimarySrpRepairPlan | undefined> {
-    let secretMetadata: SecretMetadata[] = [];
-    let localPrimarySRP: Uint8Array | undefined;
+  async #planRepair(password: string): Promise<PrimarySrpRepairPlanResult> {
+    let secretMetadata: SecretMetadata[];
     try {
-      secretMetadata = parseSecretMetadata(await this.#fetchAllSecretData());
-      // Read once up front, so both the mismatch and missing results reuse it.
-      localPrimarySRP = await this.#exportPrimarySeedPhrase(password);
+      const remoteItems = await this.#fetchAllSecretData();
+      secretMetadata = parseSecretMetadata(remoteItems);
+    } catch (error) {
+      log('Error planning primary SRP repair', error);
+      return { failureReason: PrimarySrpRepairFailureReason.BackupUnreadable };
+    }
 
+    // Read once up front, so both the mismatch and missing results reuse it.
+    let localPrimarySRP: Uint8Array;
+    try {
+      localPrimarySRP = await this.#exportPrimarySeedPhrase(password);
+    } catch (error) {
+      log('Error planning primary SRP repair', error);
+      return { failureReason: PrimarySrpRepairFailureReason.ExportFailed };
+    }
+
+    try {
       const [primarySecretMetadata] =
         validateSecretMetadataBackup(secretMetadata);
       if (areUint8ArraysEqual(primarySecretMetadata.data, localPrimarySRP)) {
-        return undefined;
+        return {};
       }
 
       return {
-        repairType: PrimarySrpRepairType.Mismatch,
-        secretMetadata,
-        metadataSchemaVersion: getMetadataSchemaVersion(secretMetadata),
-        localPrimarySRP,
+        plan: {
+          repairType: PrimarySrpRepairType.Mismatch,
+          secretMetadata,
+          metadataSchemaVersion: getMetadataSchemaVersion(secretMetadata),
+          localPrimarySRP,
+        },
       };
     } catch (error) {
       // No mnemonic can be used as the primary secret, so the primary SRP is
       // missing and the local primary SRP read above is the data to write.
-      if (
-        error instanceof InvalidPrimarySecretDataTypeError &&
-        localPrimarySRP
-      ) {
+      if (error instanceof InvalidPrimarySecretDataTypeError) {
         return {
-          repairType: PrimarySrpRepairType.Missing,
-          secretMetadata,
-          metadataSchemaVersion: getMetadataSchemaVersion(secretMetadata),
-          localPrimarySRP,
+          plan: {
+            repairType: PrimarySrpRepairType.Missing,
+            secretMetadata,
+            metadataSchemaVersion: getMetadataSchemaVersion(secretMetadata),
+            localPrimarySRP,
+          },
         };
       }
 
+      // Safety net: validation only throws InvalidPrimarySecretDataTypeError,
+      // so this is unreachable in normal flow. It keeps an unexpected error
+      // from rejecting the run.
+      /* istanbul ignore next */
       log('Error planning primary SRP repair', error);
-      return undefined;
+      /* istanbul ignore next */
+      return { failureReason: PrimarySrpRepairFailureReason.Unknown };
     }
   }
 
@@ -287,8 +394,11 @@ export class PrimarySrpBackupRepairService {
     return {
       retag,
       primary: localCopy?.itemId
-        ? { type: 'promote', itemId: localCopy.itemId }
-        : { type: 'add' },
+        ? {
+            type: PrimarySrpRepairPrimaryWrite.Promote,
+            itemId: localCopy.itemId,
+          }
+        : { type: PrimarySrpRepairPrimaryWrite.Add },
     };
   }
 
@@ -307,58 +417,156 @@ export class PrimarySrpBackupRepairService {
    * @param plan - The repair plan.
    * @param expectedIdentity - The identity the repair was planned for. The
    * repair is aborted if the identity changed in the meantime.
+   * @returns The repair outcome.
    */
   async #repairPrimarySrpBackup(
     plan: PrimarySrpRepairPlan,
     expectedIdentity: Identity,
-  ): Promise<void> {
+  ): Promise<PrimarySrpRepairResult> {
+    const { retag, primary } = PrimarySrpBackupRepairService.#getWrites(plan);
+
+    // The step reached so far, reported on failure.
+    let stage: PrimarySrpRepairFailureStage =
+      PrimarySrpRepairFailureStage.ControllerLocked;
+    const numberOfRetaggedItems = retag.length;
     try {
-      const { retag, primary } = PrimarySrpBackupRepairService.#getWrites(plan);
+      await this.#withRepairContext(async (keys) => {
+        stage = PrimarySrpRepairFailureStage.IdentityChanged;
+        assertIdentityUnchanged(this.#getIdentity(), expectedIdentity);
+        const toprfClient = this.#getToprfClient();
 
-      await this.#withRepairContext(
-        async ({ toprfEncryptionKey, toprfAuthKeyPair }) => {
-          // The identity may have changed since the repair was planned.
-          assertIdentityUnchanged(this.#getIdentity(), expectedIdentity);
+        stage = PrimarySrpRepairFailureStage.Retag;
+        await PrimarySrpBackupRepairService.#retag(
+          toprfClient,
+          retag,
+          keys.toprfAuthKeyPair,
+        );
 
-          const toprfClient = this.#getToprfClient();
+        stage = PrimarySrpRepairFailureStage.Primary;
+        await PrimarySrpBackupRepairService.#writePrimary(
+          toprfClient,
+          primary,
+          plan.localPrimarySRP,
+          keys,
+        );
+      });
 
-          if (retag.length === 1) {
-            await toprfClient.updateSecretDataItem({
-              ...retag[0],
-              authKeyPair: toprfAuthKeyPair,
-            });
-          } else if (retag.length > 1) {
-            await toprfClient.batchUpdateSecretDataItems({
-              updateItems: retag,
-              authKeyPair: toprfAuthKeyPair,
-            });
-          }
-
-          if (primary.type === 'promote') {
-            // mismatched case; promote the local primary to remote primary
-            await toprfClient.updateSecretDataItem({
-              itemId: primary.itemId,
-              dataType: EncAccountDataType.PrimarySrp,
-              authKeyPair: toprfAuthKeyPair,
-            });
-          } else {
-            // missing case; add the local primary to the remote backup
-            const primarySecretMetadata = new SecretMetadata(
-              plan.localPrimarySRP,
-              { dataType: EncAccountDataType.PrimarySrp },
-            );
-            await toprfClient.addSecretDataItem({
-              encKey: toprfEncryptionKey,
-              secretData: primarySecretMetadata.toBytes(),
-              authKeyPair: toprfAuthKeyPair,
-              dataType: EncAccountDataType.PrimarySrp,
-              version: 'v2',
-            });
-          }
-        },
-      );
+      return {
+        primaryWrite: primary.type,
+        numberOfRetaggedItems,
+      };
     } catch (error) {
       log('Error repairing primary SRP backup', error);
+      return {
+        numberOfRetaggedItems,
+        failureStage: stage,
+        failureReason:
+          PrimarySrpBackupRepairService.#getWriteFailureReason(stage),
+      };
+    }
+  }
+
+  /**
+   * Retag the remote items, in one request when there are many.
+   *
+   * @param toprfClient - The TOPRF client.
+   * @param retag - The items to retag.
+   * @param authKeyPair - The TOPRF auth key pair.
+   */
+  static async #retag(
+    toprfClient: ToprfSecureBackup,
+    retag: PrimarySrpRepairWrites['retag'],
+    authKeyPair: KeyPair,
+  ): Promise<void> {
+    if (retag.length === 1) {
+      await toprfClient.updateSecretDataItem({ ...retag[0], authKeyPair });
+    } else if (retag.length > 1) {
+      await toprfClient.batchUpdateSecretDataItems({
+        updateItems: retag,
+        authKeyPair,
+      });
+    }
+  }
+
+  /**
+   * Promote the remote copy of the local primary SRP, or add it when there is
+   * none.
+   *
+   * @param toprfClient - The TOPRF client.
+   * @param primary - The primary write to apply.
+   * @param localPrimarySRP - The local primary SRP.
+   * @param keys - The vault keys.
+   * @param keys.toprfEncryptionKey - Encrypts the added item.
+   * @param keys.toprfAuthKeyPair - Authorizes the write.
+   */
+  static async #writePrimary(
+    toprfClient: ToprfSecureBackup,
+    primary: PrimarySrpRepairWrites['primary'],
+    localPrimarySRP: Uint8Array,
+    { toprfEncryptionKey, toprfAuthKeyPair }: RepairVaultKeys,
+  ): Promise<void> {
+    if (primary.type === PrimarySrpRepairPrimaryWrite.Promote) {
+      await toprfClient.updateSecretDataItem({
+        itemId: primary.itemId,
+        dataType: EncAccountDataType.PrimarySrp,
+        authKeyPair: toprfAuthKeyPair,
+      });
+      return;
+    }
+
+    const primarySecretMetadata = new SecretMetadata(localPrimarySRP, {
+      dataType: EncAccountDataType.PrimarySrp,
+    });
+    await toprfClient.addSecretDataItem({
+      encKey: toprfEncryptionKey,
+      secretData: primarySecretMetadata.toBytes(),
+      authKeyPair: toprfAuthKeyPair,
+      dataType: EncAccountDataType.PrimarySrp,
+      version: 'v2',
+    });
+  }
+
+  /**
+   * Save the check result when the account is still the one this run started
+   * for. A logout or an account switch during the run leaves the saved check
+   * unchanged.
+   *
+   * @param status - The check result.
+   * @param expectedIdentity - The identity this run was started for.
+   */
+  #saveRepairStatus(
+    status: PrimarySrpRepairStatus,
+    expectedIdentity: Identity,
+  ): void {
+    const identity = this.#getIdentity();
+    if (
+      identity.userId === expectedIdentity.userId &&
+      identity.authConnectionId === expectedIdentity.authConnectionId
+    ) {
+      this.#setPrimarySrpRepairStatus(status);
+    }
+  }
+
+  /**
+   * Map the write step that failed to a non-sensitive failure reason.
+   *
+   * A failure in the controller guard is reported as `locked`. A failure in
+   * the identity check is an identity mismatch. A failure in either metadata
+   * write is a failed write.
+   *
+   * @param stage - The write step that failed.
+   * @returns The failure reason for the step.
+   */
+  static #getWriteFailureReason(
+    stage: PrimarySrpRepairFailureStage,
+  ): PrimarySrpRepairFailureReason {
+    switch (stage) {
+      case PrimarySrpRepairFailureStage.IdentityChanged:
+        return PrimarySrpRepairFailureReason.IdentityMismatch;
+      case PrimarySrpRepairFailureStage.ControllerLocked:
+        return PrimarySrpRepairFailureReason.Locked;
+      default:
+        return PrimarySrpRepairFailureReason.WriteFailed;
     }
   }
 }

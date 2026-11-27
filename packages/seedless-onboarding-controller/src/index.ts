@@ -68,6 +68,7 @@ export {
   AUTH_CONNECTION_BY_NAMESPACE,
   SecretType,
   PasswordSyncInstruction,
+  PrimarySrpRepairStatus,
 } from './constants.js';
 export { SecretMetadata } from './SecretMetadata.js';
 export {

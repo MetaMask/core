@@ -7,6 +7,10 @@ import type { MutexInterface } from 'async-mutex';
 
 import type {
   AuthConnection,
+  PrimarySrpRepairFailureReason,
+  PrimarySrpRepairFailureStage,
+  PrimarySrpRepairPrimaryWrite,
+  PrimarySrpRepairStatus,
   PrimarySrpRepairType,
   SecretType,
   SeedlessOperationLifecycle,
@@ -204,6 +208,12 @@ export type SeedlessOnboardingControllerState =
        * Cache for checkIsPasswordOutdated result and timestamp.
        */
       passwordOutdatedCache?: { isExpiredPwd: boolean; timestamp: number };
+
+      /**
+       * The last primary SRP backup check result. Absent until a check
+       * finishes. `NONE` skips later checks.
+       */
+      primarySrpRepairStatus?: PrimarySrpRepairStatus;
 
       /**
        * The refresh token used to refresh expired nodeAuthTokens.
@@ -441,7 +451,20 @@ export type PrimarySrpRepairPlan = {
  */
 export type PrimarySrpRepairWrites = {
   retag: { itemId: string; dataType: EncAccountDataType }[];
-  primary: { type: 'promote'; itemId: string } | { type: 'add' };
+  primary:
+    | { type: PrimarySrpRepairPrimaryWrite.Promote; itemId: string }
+    | { type: PrimarySrpRepairPrimaryWrite.Add };
+};
+
+/**
+ * The outcome of a primary SRP repair. `primaryWrite` is set on success,
+ * `failureStage` and `failureReason` on failure.
+ */
+export type PrimarySrpRepairResult = {
+  primaryWrite?: PrimarySrpRepairPrimaryWrite;
+  numberOfRetaggedItems?: number;
+  failureStage?: PrimarySrpRepairFailureStage;
+  failureReason?: PrimarySrpRepairFailureReason;
 };
 
 export type DecodedBaseJWTToken = {

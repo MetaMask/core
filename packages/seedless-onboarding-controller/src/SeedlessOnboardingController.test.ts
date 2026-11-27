@@ -89,6 +89,7 @@ import {
   SeedlessIdentityMismatchSource,
   SeedlessOnboardingControllerErrorMessage,
   SeedlessOnboardingMigrationVersion,
+  PrimarySrpRepairStatus,
   SeedlessPrimarySrpMismatchEventName,
   AuthConnection,
   SecretType,
@@ -5069,6 +5070,61 @@ describe('SeedlessOnboardingController', () => {
     });
 
     describe('completePasswordChange', () => {
+      it('saves the outdated password cache as in sync when the lifecycle completes', async () => {
+        await withController(
+          {
+            state: {
+              seedlessOperationLifecycle: {
+                operation: SeedlessOnboardingOperation.PasswordChange,
+                checkpoint: SeedlessOnboardingCheckpoint.KeySyncPending,
+              },
+              passwordOutdatedCache: {
+                isExpiredPwd: true,
+                timestamp: 1,
+              },
+            },
+          },
+          async ({ controller }) => {
+            await controller.completePasswordChange();
+
+            expect(controller.state.seedlessOperationLifecycle).toBeUndefined();
+            expect(controller.state.passwordOutdatedCache).toStrictEqual({
+              isExpiredPwd: false,
+              timestamp: expect.any(Number),
+            });
+          },
+        );
+      });
+
+      it('keeps the outdated password cache when completion is a no-op', async () => {
+        const passwordOutdatedCache = {
+          isExpiredPwd: true,
+          timestamp: 1,
+        };
+
+        await withController(
+          {
+            state: {
+              seedlessOperationLifecycle: {
+                operation: SeedlessOnboardingOperation.PasswordChange,
+                checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+              },
+              passwordOutdatedCache,
+            },
+          },
+          async ({ controller }) => {
+            await controller.completePasswordChange();
+
+            expect(controller.state.passwordOutdatedCache).toStrictEqual(
+              passwordOutdatedCache,
+            );
+            expect(getLifecyclePhase(controller.state)).toBe(
+              SeedlessOnboardingCheckpoint.LocalPasswordPending,
+            );
+          },
+        );
+      });
+
       it('clears an in-progress lifecycle', async () => {
         await withController(
           {
@@ -7620,6 +7676,10 @@ describe('SeedlessOnboardingController', () => {
           exportSeedPhrase?: Mock;
         },
         testFn: (args: {
+          controller: SeedlessOnboardingController<
+            EncryptionKey | CryptoKey,
+            KeyDerivationOptions
+          >;
           baseMessenger: RootMessenger;
           toprfClient: ToprfSecureBackup;
           addSecretDataItem: Mock;
@@ -7672,6 +7732,7 @@ describe('SeedlessOnboardingController', () => {
               .mockResolvedValue(undefined);
 
             await testFn({
+              controller,
               baseMessenger,
               toprfClient,
               addSecretDataItem,
@@ -7910,6 +7971,59 @@ describe('SeedlessOnboardingController', () => {
 
             expect(await identify()).toBeUndefined();
             expect(addSecretDataItem).toHaveBeenCalledTimes(1);
+          },
+        );
+      });
+
+      it('saves NONE after the check that verifies a repair, then skips later checks', async () => {
+        await withRepairScenario(
+          { remoteItems: MISSING_PRIMARY_REMOTE_ITEMS },
+          async ({ controller, toprfClient, addSecretDataItem, identify }) => {
+            await identify();
+
+            expect(controller.state.primarySrpRepairStatus).toBeUndefined();
+
+            vi.spyOn(toprfClient, 'fetchAllSecretDataItems').mockResolvedValue([
+              {
+                data: new SecretMetadata(MOCK_SEED_PHRASE, {
+                  dataType: EncAccountDataType.PrimarySrp,
+                }).toBytes(),
+                itemId: 'remote-primary-srp',
+                version: 'v2',
+                dataType: EncAccountDataType.PrimarySrp,
+              },
+            ]);
+            addSecretDataItem.mockClear();
+
+            await identify();
+
+            expect(controller.state.primarySrpRepairStatus).toBe(
+              PrimarySrpRepairStatus.None,
+            );
+            expect(addSecretDataItem).not.toHaveBeenCalled();
+
+            const fetchAllSecretDataItems =
+              toprfClient.fetchAllSecretDataItems as Mock;
+            fetchAllSecretDataItems.mockClear();
+
+            await identify();
+
+            expect(fetchAllSecretDataItems).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('saves FAIL when the repair write fails', async () => {
+        await withRepairScenario(
+          { remoteItems: MISSING_PRIMARY_REMOTE_ITEMS },
+          async ({ controller, addSecretDataItem, identify }) => {
+            addSecretDataItem.mockRejectedValueOnce(new Error('write failed'));
+
+            await identify();
+
+            expect(controller.state.primarySrpRepairStatus).toBe(
+              PrimarySrpRepairStatus.Fail,
+            );
           },
         );
       });

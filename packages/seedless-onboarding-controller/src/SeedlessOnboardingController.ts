@@ -28,7 +28,7 @@ import { secp256k1 } from '@noble/curves/secp256k1';
 import { Mutex } from 'async-mutex';
 
 import { PrimarySrpBackupRepairService } from './backup-repair/PrimarySrpBackupRepairService.js';
-import type { AuthConnection } from './constants.js';
+import type { AuthConnection, PrimarySrpRepairStatus } from './constants.js';
 import {
   controllerName,
   PASSWORD_OUTDATED_CACHE_TTL_MS,
@@ -355,6 +355,13 @@ export class SeedlessOnboardingController<
         userId: this.state.userId,
         authConnectionId: this.state.authConnectionId,
       }),
+      getPrimarySrpRepairStatus: (): PrimarySrpRepairStatus | undefined =>
+        this.state.primarySrpRepairStatus,
+      setPrimarySrpRepairStatus: (status): void => {
+        this.update((draft) => {
+          draft.primarySrpRepairStatus = status;
+        });
+      },
       withRepairContext: (fn): Promise<void> =>
         this.#withControllerLock(async () => {
           this.#assertIsUnlocked();
@@ -897,6 +904,7 @@ export class SeedlessOnboardingController<
               delete state.envelope;
             }
             delete state.passwordOutdatedCache;
+            delete state.primarySrpRepairStatus;
             delete state.seedlessOperationLifecycle;
           },
         });
@@ -2490,7 +2498,7 @@ export class SeedlessOnboardingController<
           operation,
           checkpoint,
         };
-        delete state.passwordOutdatedCache;
+        delete state.primarySrpRepairStatus;
         onStateUpdate?.(state);
       });
 
@@ -2639,10 +2647,11 @@ export class SeedlessOnboardingController<
    *
    * Call this after the current Keyring encryption key has been synchronized
    * and all required local writes have succeeded. The controller clears the
-   * lifecycle so the next unlock is normal.
+   * lifecycle and saves the outdated-password cache as in sync. The next
+   * password check reads this cache.
    *
    * This only completes a lifecycle that is at `KEY_SYNC_PENDING`; in any other
-   * state it is a no-op.
+   * state it is a no-op and the cache stays as it is.
    *
    * @returns A promise that resolves once recovery has been completed.
    */
@@ -2658,7 +2667,13 @@ export class SeedlessOnboardingController<
       ) {
         return;
       }
-      this.#writeSeedlessOperationLifecycle(undefined);
+      this.update((state) => {
+        state.seedlessOperationLifecycle = undefined;
+        state.passwordOutdatedCache = {
+          isExpiredPwd: false,
+          timestamp: Date.now(),
+        };
+      });
     });
   }
 
@@ -3509,6 +3524,7 @@ export class SeedlessOnboardingController<
             state.isLocalPassword = true;
             state.envelope = createEnvelopeState(vaultKeySet, authPubKey);
             delete state.passwordOutdatedCache;
+            delete state.primarySrpRepairStatus;
             delete state.seedlessOperationLifecycle;
           },
         });
