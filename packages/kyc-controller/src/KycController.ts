@@ -1041,7 +1041,7 @@ export class KycController extends BaseController<
    */
   async #setAuthorizations(params: {
     sessionId: string;
-    sessionClientPrivateKey: Uint8Array;
+    sessionClientPrivateKey: Uint8Array<ArrayBuffer>;
     sessionClientPublicKey: string;
     encryptionDataKeySchema: EncryptionSchema;
     capabilityTokenSchema: EncryptionSchema;
@@ -1732,7 +1732,7 @@ export class KycController extends BaseController<
    * @returns The wrapped encryption key and capability token.
    */
   async #generateWrappedAuthorizations(
-    sessionClientPrivateKey: Uint8Array,
+    sessionClientPrivateKey: Uint8Array<ArrayBuffer>,
     encryptionDataKey: EncryptionSchema,
     capabilityTokenSchema: EncryptionSchema,
   ): Promise<{
@@ -1740,7 +1740,7 @@ export class KycController extends BaseController<
     wrappedUkycCapabilityToken: CapabilityAuthorization;
   }> {
     const clientMaterial = await this.#getClientMaterial();
-    const wrappedEncryptionDataKey = wrapEncryptionKey(
+    const wrappedEncryptionDataKey = await wrapEncryptionKey(
       sessionClientPrivateKey,
       encryptionDataKey.serverPublicKey.x,
       clientMaterial.dataEncryptionKey,
@@ -1792,7 +1792,7 @@ export class KycController extends BaseController<
    */
   async #wrapCapabilityToken(params: {
     clientMaterial: UkycClientMaterial;
-    sessionClientPrivateKey: Uint8Array;
+    sessionClientPrivateKey: Uint8Array<ArrayBuffer>;
     serverPublicKeyX: string;
     operations: UkycStorageOperation[];
     expiresAt: Date;
@@ -1802,7 +1802,7 @@ export class KycController extends BaseController<
       operations: params.operations,
       expiresAt: params.expiresAt,
     });
-    return wrapEncryptionKey(
+    return await wrapEncryptionKey(
       params.sessionClientPrivateKey,
       params.serverPublicKeyX,
       stringToBytes(encodeStorageAccessTokenForHeader(ukycCapabilityToken)),
