@@ -60,6 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/analytics-controller` from `^4.3.1` to `^4.4.0` ([#11691](https://github.com/MetaMask/core/pull/11691))
 - Bump `@metamask/auth-network-utils` from `^0.4.0` to `^0.5.0` ([#11346](https://github.com/MetaMask/core/pull/11346))
 - Bump `@metamask/toprf-secure-backup` from `^1.1.0` to `^2.0.0` ([#11346](https://github.com/MetaMask/core/pull/11346))
+- Bump `@metamask/utils` from `^12.0.2` to `^12.1.0` ([#11796](https://github.com/MetaMask/core/pull/11796))
 
 ### Removed
 

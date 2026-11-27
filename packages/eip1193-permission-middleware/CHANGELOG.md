@@ -7,16 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0]
+
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
 ### Changed
 
-- Bump `@metamask/utils` from `^11.12.0` to `^12.0.2` ([#10192](https://github.com/MetaMask/core/pull/10192), [#11107](https://github.com/MetaMask/core/pull/11107), [#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.1.0` ([#10192](https://github.com/MetaMask/core/pull/10192), [#11107](https://github.com/MetaMask/core/pull/11107), [#11474](https://github.com/MetaMask/core/pull/11474), [#11796](https://github.com/MetaMask/core/pull/11796))
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
-- Bump `@metamask/chain-agnostic-permission` from `^2.0.0` to `^2.1.0` ([#10982](https://github.com/MetaMask/core/pull/10982))
-- Bump `@metamask/permission-controller` from `^14.0.0` to `^14.1.0` ([#11157](https://github.com/MetaMask/core/pull/11157))
+- Bump `@metamask/chain-agnostic-permission` from `^2.0.0` to `^3.0.0` ([#10982](https://github.com/MetaMask/core/pull/10982), [#11797](https://github.com/MetaMask/core/pull/11797))
+- Bump `@metamask/permission-controller` from `^14.0.0` to `^15.0.0` ([#11157](https://github.com/MetaMask/core/pull/11157), [#11797](https://github.com/MetaMask/core/pull/11797))
 
 ## [3.0.0]
 
@@ -97,7 +99,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip1193-permission-middleware@3.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip1193-permission-middleware@3.1.0...HEAD
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/eip1193-permission-middleware@3.0.0...@metamask/eip1193-permission-middleware@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/eip1193-permission-middleware@2.0.1...@metamask/eip1193-permission-middleware@3.0.0
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/eip1193-permission-middleware@2.0.0...@metamask/eip1193-permission-middleware@2.0.1
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/eip1193-permission-middleware@1.0.3...@metamask/eip1193-permission-middleware@2.0.0
