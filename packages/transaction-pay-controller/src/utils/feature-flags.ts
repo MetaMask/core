@@ -245,15 +245,6 @@ type ServerFeatureFlagsRaw = {
   validationEnabled?: ServerValidationEnabledConfig;
 };
 
-export type ServerConfig = {
-  baseUrl: string;
-  enabled: boolean;
-  enabledTransactionTypes: TransactionType[];
-  gaslessEnabled: boolean;
-  pollingInterval: number;
-  validationEnabled?: ServerValidationEnabledConfig;
-};
-
 type EIP7702FeatureFlag = {
   contracts?: Record<Hex, { address: Hex; signature: Hex }[]>;
   supportedChains?: Hex[];
@@ -375,7 +366,7 @@ function normalizeStrategyOverride(
 
 function normalizeStrategyRoutingConfig(
   featureFlags: FeatureFlagsRaw,
-  serverFeatureFlags: ServerFeatureFlagsRaw,
+  serverEnabled: boolean,
 ): StrategyRoutingConfig {
   const strategyOrder = normalizeStrategyList(featureFlags.strategyOrder);
 
@@ -385,7 +376,7 @@ function normalizeStrategyRoutingConfig(
         enabled: featureFlags.payStrategies?.across?.enabled ?? false,
       },
       server: {
-        enabled: serverFeatureFlags.enabled ?? false,
+        enabled: serverEnabled,
       },
       relay: {
         enabled: featureFlags.payStrategies?.relay?.enabled ?? true,
@@ -414,12 +405,11 @@ function getStrategyRoutingConfig(
   const featureFlags = state.remoteFeatureFlags?.confirmations_pay as
     | FeatureFlagsRaw
     | undefined;
-  const serverFeatureFlags =
-    (state.remoteFeatureFlags?.confirmations_pay_server as
-      | ServerFeatureFlagsRaw
-      | undefined) ?? {};
 
-  return normalizeStrategyRoutingConfig(featureFlags ?? {}, serverFeatureFlags);
+  return normalizeStrategyRoutingConfig(
+    featureFlags ?? {},
+    isServerEnabled(messenger),
+  );
 }
 
 function filterEnabledStrategies(
@@ -698,35 +688,50 @@ export function getPayStrategiesConfig(
 }
 
 /**
- * Get the server strategy configuration from the dedicated
- * `confirmations_pay_server` remote feature flag.
+ * Whether the server strategy is enabled.
  *
- * The flag is separate from `confirmations_pay` and
- * `confirmations_pay_extended` so it can be versioned on its own, letting new
- * transaction types be enabled only for client versions that support them.
+ * Configured via the `confirmations_pay_server.enabled` flag. Disabled by
+ * default. Transactions are further narrowed by
+ * {@link getServerEnabledTransactionTypes}.
  *
  * @param messenger - Controller messenger.
- * @returns Server strategy configuration.
+ * @returns True if the server strategy is enabled.
  */
-export function getServerConfig(
+export function isServerEnabled(
   messenger: TransactionPayControllerMessenger,
-): ServerConfig {
-  const state = messenger.call('RemoteFeatureFlagController:getState');
-  const featureFlags =
-    (state.remoteFeatureFlags?.confirmations_pay_server as
-      | ServerFeatureFlagsRaw
-      | undefined) ?? {};
+): boolean {
+  return getServerFeatureFlags(messenger).enabled ?? false;
+}
 
-  return {
-    baseUrl: featureFlags.baseUrl ?? DEFAULT_SERVER_BASE_URL,
-    enabled: featureFlags.enabled ?? false,
-    enabledTransactionTypes: normalizeTransactionTypes(
-      featureFlags.enabledTransactionTypes,
-    ),
-    gaslessEnabled: featureFlags.gaslessEnabled ?? true,
-    pollingInterval: featureFlags.pollingInterval ?? SERVER_POLLING_INTERVAL,
-    validationEnabled: featureFlags.validationEnabled,
-  };
+/**
+ * Get the transaction types the server strategy is enabled for.
+ *
+ * Configured via the `confirmations_pay_server.enabledTransactionTypes` flag.
+ * Unrecognised types are discarded.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Enabled transaction types.
+ */
+export function getServerEnabledTransactionTypes(
+  messenger: TransactionPayControllerMessenger,
+): TransactionType[] {
+  return normalizeTransactionTypes(
+    getServerFeatureFlags(messenger).enabledTransactionTypes,
+  );
+}
+
+/**
+ * Get the base URL of the server intents API.
+ *
+ * Configured via the `confirmations_pay_server.baseUrl` flag.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Base URL.
+ */
+export function getServerBaseUrl(
+  messenger: TransactionPayControllerMessenger,
+): string {
+  return getServerFeatureFlags(messenger).baseUrl ?? DEFAULT_SERVER_BASE_URL;
 }
 
 /**
@@ -791,7 +796,7 @@ export function isRelayValidationEnabled(
 export function isServerGaslessEnabled(
   messenger: TransactionPayControllerMessenger,
 ): boolean {
-  return getServerConfig(messenger).gaslessEnabled;
+  return getServerFeatureFlags(messenger).gaslessEnabled ?? true;
 }
 
 /**
@@ -816,7 +821,7 @@ export function isServerValidationEnabled(
   transaction?: TransactionMeta,
 ): boolean {
   return isEnabledForTransaction(
-    getServerConfig(messenger).validationEnabled,
+    getServerFeatureFlags(messenger).validationEnabled,
     transaction,
   );
 }
@@ -950,7 +955,9 @@ export function getRelayPollingTimeout(
 export function getServerPollingInterval(
   messenger: TransactionPayControllerMessenger,
 ): number {
-  return getServerConfig(messenger).pollingInterval;
+  return (
+    getServerFeatureFlags(messenger).pollingInterval ?? SERVER_POLLING_INTERVAL
+  );
 }
 
 /**
@@ -1415,4 +1422,26 @@ function isEnabledForTransaction(
   }
 
   return config?.default ?? false;
+}
+
+/**
+ * Get the raw `confirmations_pay_server` remote feature flag.
+ *
+ * Server config lives in its own flag, rather than `confirmations_pay_extended`,
+ * so it can be versioned independently and new transaction types enabled only
+ * for client versions that support them.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Raw server feature flags.
+ */
+function getServerFeatureFlags(
+  messenger: TransactionPayControllerMessenger,
+): ServerFeatureFlagsRaw {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+
+  return (
+    (state.remoteFeatureFlags?.confirmations_pay_server as
+      | ServerFeatureFlagsRaw
+      | undefined) ?? {}
+  );
 }

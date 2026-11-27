@@ -8,7 +8,10 @@ import type {
   QuoteRequest,
   TransactionPayQuote,
 } from '../../types.js';
-import { getServerConfig } from '../../utils/feature-flags.js';
+import {
+  getServerEnabledTransactionTypes,
+  isServerEnabled,
+} from '../../utils/feature-flags.js';
 import { getMaxAmountRefreshInterval } from '../../utils/max-quote.js';
 import { getServerQuotes } from './server-quotes.js';
 import { submitServerQuotes } from './server-submit.js';
@@ -44,15 +47,18 @@ const SUPPORTS_REQUEST_MOCK = {
 describe('ServerStrategy', () => {
   const getServerQuotesMock = vi.mocked(getServerQuotes);
   const submitServerQuotesMock = vi.mocked(submitServerQuotes);
-  const getServerConfigMock = vi.mocked(getServerConfig);
+  const isServerEnabledMock = vi.mocked(isServerEnabled);
+  const getServerEnabledTransactionTypesMock = vi.mocked(
+    getServerEnabledTransactionTypes,
+  );
 
   beforeEach(() => {
     vi.resetAllMocks();
     getServerQuotesMock.mockResolvedValue([QUOTE_MOCK]);
-    getServerConfigMock.mockReturnValue({
-      enabled: true,
-      enabledTransactionTypes: [TransactionType.perpsDeposit],
-    } as ReturnType<typeof getServerConfig>);
+    isServerEnabledMock.mockReturnValue(true);
+    getServerEnabledTransactionTypesMock.mockReturnValue([
+      TransactionType.perpsDeposit,
+    ]);
   });
 
   describe('supports', () => {
@@ -61,19 +67,17 @@ describe('ServerStrategy', () => {
     });
 
     it('returns false when server strategy is disabled', () => {
-      getServerConfigMock.mockReturnValue({
-        enabled: false,
-        enabledTransactionTypes: [TransactionType.perpsDeposit],
-      } as ReturnType<typeof getServerConfig>);
+      isServerEnabledMock.mockReturnValue(false);
+      getServerEnabledTransactionTypesMock.mockReturnValue([
+        TransactionType.perpsDeposit,
+      ]);
 
       expect(new ServerStrategy().supports(SUPPORTS_REQUEST_MOCK)).toBe(false);
     });
 
     it('returns false when the flow is not allowlisted', () => {
-      getServerConfigMock.mockReturnValue({
-        enabled: true,
-        enabledTransactionTypes: [] as TransactionType[],
-      } as ReturnType<typeof getServerConfig>);
+      isServerEnabledMock.mockReturnValue(true);
+      getServerEnabledTransactionTypesMock.mockReturnValue([]);
 
       expect(new ServerStrategy().supports(SUPPORTS_REQUEST_MOCK)).toBe(false);
     });

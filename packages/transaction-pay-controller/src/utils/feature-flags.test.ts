@@ -30,7 +30,8 @@ import {
   getFiatOrderPollTimeoutMs,
   DEFAULT_RELAY_EXECUTE_URL,
   getDirectMoneyMusdEnabled,
-  getServerConfig,
+  getServerBaseUrl,
+  getServerEnabledTransactionTypes,
   getServerPollingInterval,
   getFiatVaultDisabled,
   getRelayOriginGasOverhead,
@@ -46,6 +47,7 @@ import {
   isRelayExecuteEnabled,
   isAtomicMaxEnabled,
   isRelayValidationEnabled,
+  isServerEnabled,
   isServerGaslessEnabled,
   isServerValidationEnabled,
   getFeatureFlags,
@@ -1241,41 +1243,20 @@ describe('Feature Flags Utils', () => {
     });
   });
 
-  describe('getServerConfig', () => {
-    it('returns defaults when the flag is missing', () => {
-      expect(getServerConfig(messenger)).toStrictEqual({
-        baseUrl: DEFAULT_SERVER_BASE_URL,
-        enabled: false,
-        enabledTransactionTypes: [],
-        gaslessEnabled: true,
-        pollingInterval: 2000,
-        validationEnabled: undefined,
-      });
+  describe('isServerEnabled', () => {
+    it('returns false when the flag is missing', () => {
+      expect(isServerEnabled(messenger)).toBe(false);
     });
 
-    it('returns values from the flag', () => {
+    it('returns value from the flag', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          confirmations_pay_server: {
-            baseUrl: 'https://server.test',
-            enabled: true,
-            enabledTransactionTypes: ['perpsDeposit'],
-            gaslessEnabled: false,
-            pollingInterval: 7500,
-            validationEnabled: { default: true },
-          },
+          confirmations_pay_server: { enabled: true },
         },
       });
 
-      expect(getServerConfig(messenger)).toStrictEqual({
-        baseUrl: 'https://server.test',
-        enabled: true,
-        enabledTransactionTypes: [TransactionType.perpsDeposit],
-        gaslessEnabled: false,
-        pollingInterval: 7500,
-        validationEnabled: { default: true },
-      });
+      expect(isServerEnabled(messenger)).toBe(true);
     });
 
     it('ignores server config in confirmations_pay_extended', () => {
@@ -1293,14 +1274,12 @@ describe('Feature Flags Utils', () => {
         },
       });
 
-      expect(getServerConfig(messenger)).toStrictEqual(
-        expect.objectContaining({
-          enabled: false,
-          enabledTransactionTypes: [],
-        }),
-      );
+      expect(isServerEnabled(messenger)).toBe(false);
+      expect(getServerEnabledTransactionTypes(messenger)).toStrictEqual([]);
     });
+  });
 
+  describe('getServerEnabledTransactionTypes', () => {
     it.each([
       ['the flag is absent', undefined, []],
       ['the flag is not an array', 'perpsDeposit', []],
@@ -1329,11 +1308,28 @@ describe('Feature Flags Utils', () => {
           },
         });
 
-        expect(
-          getServerConfig(messenger).enabledTransactionTypes,
-        ).toStrictEqual(expected);
+        expect(getServerEnabledTransactionTypes(messenger)).toStrictEqual(
+          expected,
+        );
       },
     );
+  });
+
+  describe('getServerBaseUrl', () => {
+    it('returns default when the flag is missing', () => {
+      expect(getServerBaseUrl(messenger)).toBe(DEFAULT_SERVER_BASE_URL);
+    });
+
+    it('returns value from the flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_server: { baseUrl: 'https://server.test' },
+        },
+      });
+
+      expect(getServerBaseUrl(messenger)).toBe('https://server.test');
+    });
   });
 
   describe('getMaxBalanceRefreshInterval', () => {

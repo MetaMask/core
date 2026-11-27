@@ -4,7 +4,7 @@ import { CLIENT_ID_HEADER } from '../../constants.js';
 import type { TransactionPayClientId } from '../../constants.js';
 import { projectLogger } from '../../logger.js';
 import type { TransactionPayControllerMessenger } from '../../types.js';
-import { getServerConfig } from '../../utils/feature-flags.js';
+import { getServerBaseUrl } from '../../utils/feature-flags.js';
 import type {
   ServerQuoteRequest,
   ServerQuoteResponse,
@@ -46,7 +46,7 @@ export async function fetchServerQuote(
   body: ServerQuoteRequest,
   signal?: AbortSignal,
 ): Promise<ServerQuoteResponse> {
-  const { baseUrl } = getServerConfig(messenger);
+  const baseUrl = getServerBaseUrl(messenger);
   const quoteUrl = `${baseUrl}/quote`;
 
   log('Fetching quote', { url: quoteUrl });
@@ -72,7 +72,7 @@ export async function submitServerIntent(
   messenger: TransactionPayControllerMessenger,
   body: ServerSubmitRequest,
 ): Promise<ServerSubmitResponse> {
-  const { baseUrl } = getServerConfig(messenger);
+  const baseUrl = getServerBaseUrl(messenger);
   const submitUrl = `${baseUrl}/submit`;
 
   log('Submitting intent', { url: submitUrl });
@@ -109,7 +109,7 @@ export async function getServerStatus(
     provider: string;
   },
 ): Promise<ServerStatusResponse> {
-  const { baseUrl } = getServerConfig(messenger);
+  const baseUrl = getServerBaseUrl(messenger);
   const url = `${baseUrl}/status`;
   const { elapsedMs, hash, id, logs, provider } = params;
 

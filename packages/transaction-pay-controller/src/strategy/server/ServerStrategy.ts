@@ -8,7 +8,10 @@ import type {
   PayStrategyGetRefreshIntervalRequest,
   TransactionPayQuote,
 } from '../../types.js';
-import { getServerConfig } from '../../utils/feature-flags.js';
+import {
+  getServerEnabledTransactionTypes,
+  isServerEnabled,
+} from '../../utils/feature-flags.js';
 import { getMaxAmountRefreshInterval } from '../../utils/max-quote.js';
 import { isEvmQuoteRequest } from '../../utils/token.js';
 import { getServerQuotes } from './server-quotes.js';
@@ -27,9 +30,7 @@ const log = createModuleLogger(projectLogger, 'server-strategy');
  */
 export class ServerStrategy implements PayStrategy<ServerQuote> {
   supports(request: PayStrategyGetQuotesRequest): boolean {
-    const config = getServerConfig(request.messenger);
-
-    if (!config.enabled) {
+    if (!isServerEnabled(request.messenger)) {
       return false;
     }
 
@@ -38,7 +39,9 @@ export class ServerStrategy implements PayStrategy<ServerQuote> {
     }
 
     const reason = getServerUnsupportedReason({
-      enabledTransactionTypes: config.enabledTransactionTypes,
+      enabledTransactionTypes: getServerEnabledTransactionTypes(
+        request.messenger,
+      ),
       requests: request.requests,
       transaction: request.transaction,
     });
