@@ -37,6 +37,7 @@ import {
 } from '../../utils/polymarket/withdraw.js';
 import { getNetworkClientId, rpcRequest } from '../../utils/provider.js';
 import { submitSecondLeg } from '../../utils/second-leg.js';
+import { isSolanaQuoteRequest } from '../../utils/solana.js';
 import {
   getEvmQuoteSource,
   getLiveTokenBalanceOrUndefined,
@@ -56,6 +57,7 @@ import {
   ServerApiError,
   submitServerIntent,
 } from './server-api.js';
+import { submitServerSolanaTransaction } from './server-solana.js';
 import type {
   ServerAuthorization,
   ServerQuote,
@@ -297,6 +299,8 @@ async function executeSingleServerQuote(
       messenger,
       transaction,
     );
+  } else if (isSolanaQuoteRequest(quote.request)) {
+    await submitServerSolanaTransaction(quote, messenger, transaction);
   } else {
     statusId = await submitTransactionSteps(quote, messenger, transaction);
   }
@@ -1171,7 +1175,7 @@ async function submitViaTransactionController(
       },
       (tx) => {
         tx.metamaskPay ??= {};
-        tx.metamaskPay.sourceHash = sourceHash as Hex;
+        tx.metamaskPay.sourceHash = sourceHash;
       },
     );
   }

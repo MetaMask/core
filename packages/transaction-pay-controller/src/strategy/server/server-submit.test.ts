@@ -44,6 +44,7 @@ import {
   submitServerIntent,
 } from './server-api.js';
 import { getServerQuotes } from './server-quotes.js';
+import { submitServerSolanaTransaction } from './server-solana.js';
 import { getServerSubmitParams, submitServerQuotes } from './server-submit.js';
 import { ServerStatus } from './types.js';
 import type {
@@ -67,6 +68,7 @@ vi.mock(import('../../utils/provider.js'), async (importOriginal) => ({
   rpcRequest: vi.fn(),
 }));
 vi.mock(import('../../utils/second-leg.js'));
+vi.mock(import('./server-solana.js'));
 vi.mock(import('../../utils/token.js'), async (importOriginal) => ({
   ...(await importOriginal()),
   getLiveTokenBalanceOrUndefined: vi.fn(),
@@ -500,6 +502,42 @@ describe('submitServerQuotes', () => {
       );
 
       expect(currentTransaction.isIntentComplete).toBeUndefined();
+    });
+  });
+
+  describe('Solana source', () => {
+    beforeEach(() => {
+      request.quotes[0].request = {
+        ...request.quotes[0].request,
+        sourceAccountId:
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
+        sourceAssetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+      };
+    });
+
+    it('submits the Solana transaction instead of the EVM steps, then polls the server', async () => {
+      const result = await submitServerQuotes(request);
+
+      expect(submitServerSolanaTransaction).toHaveBeenCalledWith(
+        request.quotes[0],
+        messenger,
+        request.transaction,
+      );
+      expect(submitServerIntentMock).not.toHaveBeenCalled();
+      expect(addTxMock).not.toHaveBeenCalled();
+      expect(addTxBatchMock).not.toHaveBeenCalled();
+      expect(result).toStrictEqual({ transactionHash: TARGET_HASH_MOCK });
+    });
+
+    it('does not poll the server when the Solana transaction fails', async () => {
+      vi.mocked(submitServerSolanaTransaction).mockRejectedValue(
+        new Error('Solana transaction expired'),
+      );
+
+      await expect(submitServerQuotes(request)).rejects.toThrow(
+        'Solana transaction expired',
+      );
+      expect(getServerStatusMock).not.toHaveBeenCalled();
     });
   });
 

@@ -9,10 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Support Solana source assets in `ServerStrategy`, so SOL and SPL tokens can pay for a transaction ([#10273](https://github.com/MetaMask/core/pull/10273))
+  - Quotes send the CAIP-19 Solana asset with the Solana source account as sender and refund address, and expect a single `solanaTransaction` step with the Relay instructions and lookup tables.
+  - The source network fee is the account Snap `computeFee` of the compiled transaction. Native SOL must also cover the amount, fee and rent-exempt reserve, and SPL sources need SOL for the fee and reserve, or the quote reports `insufficient-source-balance`.
+  - Native SOL max quotes are re-quoted with the network fee and rent reserve withheld.
+  - Submission recompiles the transaction with a fresh blockhash, makes one `signAndSendTransaction` Snap request, waits for the signature to confirm or expire on Solana RPC, and then polls the intents API as for EVM sources.
+  - Gated by the fail-closed `confirmations_pay_extended.payStrategies.server.solanaEnabled` flag, in addition to `payStrategies.server.enabledTransactionTypes` like every server flow.
+- Add `infuraProjectId` option and `getInfuraProjectId` method to resolve the `{infuraProjectId}` placeholder in RPC URLs from `ConfigRegistryController`, such as the Solana RPC URL ([#10273](https://github.com/MetaMask/core/pull/10273))
 - Add `isTrueExactOutput` to `TransactionConfig` so token transfers deliver exactly the required amount to the recipient, supported by `ServerStrategy` and `RelayStrategy` ([#11775](https://github.com/MetaMask/core/pull/11775))
 
 ### Changed
 
+- **BREAKING:** `TransactionPayControllerMessenger` requires the `ConfigRegistryController:getNetworkConfigByCaip2ChainId`, `ConfigRegistryController:getState`, `SnapController:handleRequest` and `SnapController:getState` actions ([#10273](https://github.com/MetaMask/core/pull/10273))
+- Add dependencies `@metamask/config-registry-controller`, `@metamask/snaps-controllers`, `@metamask/snaps-sdk`, `@metamask/snaps-utils`, `@solana/addresses`, `@solana/instructions`, `@solana/rpc-types`, `@solana/transaction-messages`, `@solana/transactions` and `uuid` ([#10273](https://github.com/MetaMask/core/pull/10273))
 - Support provider-specific timeouts reported by the server in `ServerStrategy` ([#11737](https://github.com/MetaMask/core/pull/11737))
   - Send `elapsedMs` with each status request and stop polling when the server returns the new `TIMEOUT` status.
   - Remove the local `confirmations_pay_extended.payStrategies.server.pollingTimeout` feature flag, as the server now owns the timeout.

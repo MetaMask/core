@@ -1,5 +1,7 @@
+import type { Base58 } from '@metamask/transaction-controller';
 import type { CaipAssetType, Hex } from '@metamask/utils';
 
+import type { SolanaTransactionInstructions } from '../../utils/solana.js';
 import type { TradeType } from '../../utils/trade-type.js';
 
 /** Token amount with its CAIP-19 asset ID. */
@@ -37,7 +39,18 @@ export type ServerSignatureStep = {
   };
 };
 
-export type ServerStep = ServerTransactionStep | ServerSignatureStep;
+/**
+ * Solana transaction for the sender to compile with a recent blockhash, sign
+ * and broadcast.
+ */
+export type ServerSolanaTransactionStep = SolanaTransactionInstructions & {
+  type: 'solanaTransaction';
+};
+
+export type ServerStep =
+  | ServerTransactionStep
+  | ServerSignatureStep
+  | ServerSolanaTransactionStep;
 
 /** A call to include in the quote request (for delegation flows). */
 export type ServerCall = {
@@ -66,11 +79,15 @@ export type ServerQuoteRequest = {
 
   amount: string;
   tradeType: TradeType;
-  sender: Hex;
+
+  /** Sender on the source chain, a base58 address for a Solana source. */
+  sender: Hex | Base58;
 
   /** Address of the recipient, or another identifier such as a Lighter account index. */
   recipient: string;
-  refundTo?: Hex;
+
+  /** Refund address on the source chain, a base58 address for a Solana source. */
+  refundTo?: Hex | Base58;
   slippage?: number;
   providers?: string[];
   calls?: ServerCall[];
@@ -157,8 +174,21 @@ export type ServerQuote = {
   client: ServerQuoteClient;
   steps: ServerStep[];
   gasless: boolean;
+
   /** Opaque value to send back unchanged when submitting the quote. */
   signature?: string;
+
+  /** Solana source details, set when the quote is paid with a Solana asset. */
+  solana?: ServerSolanaQuote;
+};
+
+/** Solana source details of a server quote, all amounts in lamports. */
+export type ServerSolanaQuote = {
+  /** Network fee of the compiled source transaction. */
+  feeRaw: string;
+
+  /** Rent-exempt reserve kept in the source account. */
+  rentReserveRaw: string;
 };
 
 /** Log from the source transaction receipt sent to POST /status. */
@@ -182,7 +212,7 @@ export enum ServerStatus {
 /** Response body from POST /status. */
 export type ServerStatusResponse = {
   status: ServerStatus;
-  sourceHash?: Hex;
+  sourceHash?: Hex | Base58;
   targetHash?: Hex;
   error?: string;
 };

@@ -45,6 +45,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getClientId',
   'getDelegationTransaction',
   'getFiatOptions',
+  'getInfuraProjectId',
   'getPaymentOverrideData',
   'getStrategy',
   'polymarketGetDepositWalletAddress',
@@ -94,6 +95,8 @@ export class TransactionPayController extends BaseController<
     transaction: TransactionMeta,
   ) => TransactionPayStrategy[];
 
+  readonly #infuraProjectId?: string;
+
   readonly #polymarket?: PolymarketCallbacks;
 
   constructor({
@@ -105,6 +108,7 @@ export class TransactionPayController extends BaseController<
     getPaymentOverrideData,
     getStrategy,
     getStrategies,
+    infuraProjectId,
     messenger,
     polymarket,
     state,
@@ -124,6 +128,7 @@ export class TransactionPayController extends BaseController<
     this.#getPaymentOverrideData = getPaymentOverrideData;
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
+    this.#infuraProjectId = infuraProjectId;
     this.#polymarket = polymarket;
 
     this.messenger.registerMethodActionHandlers(
@@ -293,6 +298,16 @@ export class TransactionPayController extends BaseController<
    */
   getFiatOptions(): TransactionPayFiatOptions | undefined {
     return this.#fiatOptions;
+  }
+
+  /**
+   * Returns the Infura project ID used to resolve `{infuraProjectId}`
+   * placeholders in RPC URLs.
+   *
+   * @returns The Infura project ID, if configured.
+   */
+  getInfuraProjectId(): string | undefined {
+    return this.#infuraProjectId;
   }
 
   getPaymentOverrideData(

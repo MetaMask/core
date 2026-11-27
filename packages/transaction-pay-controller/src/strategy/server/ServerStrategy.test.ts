@@ -8,7 +8,10 @@ import type {
   QuoteRequest,
   TransactionPayQuote,
 } from '../../types.js';
-import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import {
+  getPayStrategiesConfig,
+  isServerSolanaEnabled,
+} from '../../utils/feature-flags.js';
 import { getMaxAmountRefreshInterval } from '../../utils/max-quote.js';
 import { getServerQuotes } from './server-quotes.js';
 import { submitServerQuotes } from './server-submit.js';
@@ -33,6 +36,13 @@ const QUOTE_REQUEST_MOCK = {
   targetAmountMinimum: '900',
   targetChainId: '0xa4b1',
   targetTokenAddress: '0x0000000000000000000000000000000000000002',
+} as QuoteRequest;
+
+const SOLANA_QUOTE_REQUEST_MOCK = {
+  ...QUOTE_REQUEST_MOCK,
+  sourceAccountId:
+    'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
+  sourceAssetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
 } as QuoteRequest;
 
 const SUPPORTS_REQUEST_MOCK = {
@@ -145,7 +155,40 @@ describe('ServerStrategy', () => {
       ).toBe(false);
     });
 
-    it('returns false when a request has a non-EVM source asset', () => {
+    it('returns true for a single Solana source request when Solana is enabled', () => {
+      vi.mocked(isServerSolanaEnabled).mockReturnValue(true);
+
+      expect(
+        new ServerStrategy().supports({
+          ...SUPPORTS_REQUEST_MOCK,
+          requests: [SOLANA_QUOTE_REQUEST_MOCK],
+        }),
+      ).toBe(true);
+    });
+
+    it('returns false for a Solana source request when Solana is disabled', () => {
+      vi.mocked(isServerSolanaEnabled).mockReturnValue(false);
+
+      expect(
+        new ServerStrategy().supports({
+          ...SUPPORTS_REQUEST_MOCK,
+          requests: [SOLANA_QUOTE_REQUEST_MOCK],
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false for multiple requests with a Solana source', () => {
+      vi.mocked(isServerSolanaEnabled).mockReturnValue(true);
+
+      expect(
+        new ServerStrategy().supports({
+          ...SUPPORTS_REQUEST_MOCK,
+          requests: [SOLANA_QUOTE_REQUEST_MOCK, QUOTE_REQUEST_MOCK],
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false for a source on another non-EVM chain', () => {
       expect(
         new ServerStrategy().supports({
           ...SUPPORTS_REQUEST_MOCK,
@@ -153,9 +196,8 @@ describe('ServerStrategy', () => {
             {
               ...QUOTE_REQUEST_MOCK,
               sourceAccountId:
-                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
-              sourceAssetId:
-                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+                'bip122:000000000019d6689c085ae165831e93:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq',
+              sourceAssetId: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
             },
           ],
         }),

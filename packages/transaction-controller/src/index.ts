@@ -70,6 +70,7 @@ export type {
   AfterAddHook,
   Authorization,
   AuthorizationList,
+  Base58,
   BatchTransaction,
   BatchTransactionParams,
   BeforeSignHook,

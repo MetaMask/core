@@ -33,7 +33,7 @@ Each `PayStrategy` dictates how the `quotes` are retrieved, which detail the ass
 `TransactionPayController` provides an ordered strategy list via internal `getStrategies` callback configuration.
 The quote flow iterates strategies in order, applies `supports(...)` compatibility checks when present, and falls back to the next compatible strategy if quote retrieval fails or returns no quotes.
 
-Every payment token produces quote requests the same way, with one `QuoteRequest` shape for every protocol. Each request identifies its source by the CAIP-19 `sourceAssetId` and the CAIP-10 `sourceAccountId` of the account holding the source token, EVM included. Shared quote code does not branch on the source protocol. Strategies opt in to a source protocol through `supports(...)`; every strategy currently supports `eip155` sources only, so a non-EVM payment token gets no quotes yet. EVM code that needs a Hex chain ID or token address derives them from `sourceAssetId` with `getEvmQuoteSource`. Post-quote flows with a non-EVM destination token produce no quote requests.
+Every payment token produces quote requests the same way, with one `QuoteRequest` shape for every protocol. Each request identifies its source by the CAIP-19 `sourceAssetId` and the CAIP-10 `sourceAccountId` of the account holding the source token, EVM included. Shared quote code does not branch on the source protocol. Strategies opt in to a source protocol through `supports(...)`; the `ServerStrategy` also supports a single `solana` source request, and every other strategy supports `eip155` sources only. EVM code that needs a Hex chain ID or token address derives them from `sourceAssetId` with `getEvmQuoteSource`. Post-quote flows with a non-EVM destination token produce no quote requests.
 
 ### Bridge
 
@@ -50,6 +50,12 @@ The `RelayStrategy` also requires a payment or source token.
 Quotes are retrieved from the [Relay API](https://docs.relay.link/what-is-relay), then submitted via a transaction directly to the `TransactionController`.
 
 The resulting transaction deposits the necessary funds (on the source network), then a Relayer on the target chain immediately transfers the necessary funds and optionally executes any requested call data.
+
+### Server
+
+The `ServerStrategy` retrieves quotes from the MetaMask intents API, which routes them to a provider such as Relay, then submits the returned steps and polls the intents API until the funds settle on the target chain.
+
+A Solana source quote returns a single `solanaTransaction` step holding the provider instructions and lookup tables. Core compiles it with the source account as fee payer, prices the network fee through the account Snap `computeFee`, and checks that the source account can pay the amount, the network fee, and the rent-exempt reserve. On submit, Core recompiles the transaction with a fresh blockhash, signs and broadcasts it with one Snap `signAndSendTransaction` request, and waits until the signature is confirmed, failed, or expired on Solana RPC before polling the intents API as for EVM sources. The Solana RPC URL comes from `ConfigRegistryController`, with `{infuraProjectId}` resolved from the `infuraProjectId` option. Solana sources are only supported when the `confirmations_pay_extended.payStrategies.server.solanaEnabled` flag is `true`.
 
 ## Lifecycle
 

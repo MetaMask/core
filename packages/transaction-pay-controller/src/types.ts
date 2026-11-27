@@ -10,6 +10,10 @@ import type {
 } from '@metamask/assets-controller';
 import type { ControllerStateChangeEvent } from '@metamask/base-controller';
 import type { ControllerGetStateAction } from '@metamask/base-controller';
+import type {
+  ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction,
+  ConfigRegistryControllerGetStateAction,
+} from '@metamask/config-registry-controller';
 import type { GetGasFeeState } from '@metamask/gas-fee-controller';
 import type {
   KeyringControllerGetStateAction,
@@ -31,6 +35,10 @@ import type {
 } from '@metamask/ramps-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { SentinelApiServiceActions } from '@metamask/sentinel-api-service';
+import type {
+  SnapControllerGetStateAction,
+  SnapControllerHandleRequestAction,
+} from '@metamask/snaps-controllers';
 import type {
   AuthorizationList,
   TransactionControllerAddTransactionBatchAction,
@@ -73,6 +81,8 @@ export type AllowedActions =
   | AccountTreeControllerGetStateAction
   | AccountsControllerGetStateAction
   | AssetsControllerGetStateAction
+  | ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction
+  | ConfigRegistryControllerGetStateAction
   | GetGasFeeState
   | KeyringControllerGetStateAction
   | KeyringControllerSignTypedMessageAction
@@ -85,6 +95,8 @@ export type AllowedActions =
   | RampsControllerGetStateAction
   | RemoteFeatureFlagControllerGetStateAction
   | SentinelApiServiceActions
+  | SnapControllerGetStateAction
+  | SnapControllerHandleRequestAction
   | TransactionControllerAddTransactionAction
   | TransactionControllerAddTransactionBatchAction
   | TransactionControllerEstimateGasAction
@@ -312,6 +324,12 @@ export type TransactionPayControllerOptions = {
 
   /** Optional fiat execution configuration. */
   fiatOptions?: TransactionPayFiatOptions;
+
+  /**
+   * Infura project ID substituted for the `{infuraProjectId}` placeholder in
+   * RPC URLs from `ConfigRegistryController`, such as the Solana RPC URL.
+   */
+  infuraProjectId?: string;
 
   /**
    * Optional callback invoked during quote execution when `paymentOverride` is defined.

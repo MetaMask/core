@@ -5,6 +5,7 @@ import type {
 import type { AccountsControllerGetStateAction } from '@metamask/accounts-controller';
 import { getDefaultAssetsControllerState } from '@metamask/assets-controller';
 import type { AssetsControllerGetStateAction } from '@metamask/assets-controller';
+import type { ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction } from '@metamask/config-registry-controller';
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type {
   MessengerActions,
@@ -17,6 +18,7 @@ import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metam
 import type { NetworkControllerGetNetworkConfigurationByChainIdAction } from '@metamask/network-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { SentinelApiServiceSimulateTransactionsAction } from '@metamask/sentinel-api-service';
+import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type {
   TransactionControllerAddTransactionAction,
   TransactionControllerAddTransactionBatchAction,
@@ -34,6 +36,7 @@ import type {
   TransactionPayControllerGetClientIdAction,
   TransactionPayControllerGetDelegationTransactionAction,
   TransactionPayControllerGetFiatOptionsAction,
+  TransactionPayControllerGetInfuraProjectIdAction,
   TransactionPayControllerGetPaymentOverrideDataAction,
   TransactionPayControllerGetStrategyAction,
   TransactionPayControllerPolymarketGetDepositWalletAddressAction,
@@ -134,6 +137,18 @@ export function getMessengerMock({
     TransactionPayControllerGetFiatOptionsAction['handler']
   > = vi.fn();
 
+  const getInfuraProjectIdMock: MockedFunction<
+    TransactionPayControllerGetInfuraProjectIdAction['handler']
+  > = vi.fn();
+
+  const snapHandleRequestMock: MockedFunction<
+    SnapControllerHandleRequestAction['handler']
+  > = vi.fn();
+
+  const getNetworkConfigByCaip2ChainIdMock: MockedFunction<
+    ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction['handler']
+  > = vi.fn();
+
   const getPaymentOverrideDataMock: MockedFunction<
     TransactionPayControllerGetPaymentOverrideDataAction['handler']
   > = vi.fn().mockResolvedValue({ calls: [] });
@@ -188,6 +203,21 @@ export function getMessengerMock({
     messenger.registerActionHandler(
       'TransactionPayController:getStrategy',
       getStrategyMock,
+    );
+
+    messenger.registerActionHandler(
+      'TransactionPayController:getInfuraProjectId',
+      getInfuraProjectIdMock,
+    );
+
+    messenger.registerActionHandler(
+      'SnapController:handleRequest',
+      snapHandleRequestMock,
+    );
+
+    messenger.registerActionHandler(
+      'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
+      getNetworkConfigByCaip2ChainIdMock,
     );
 
     messenger.registerActionHandler(
@@ -330,7 +360,9 @@ export function getMessengerMock({
     getPaymentOverrideDataMock,
     getGasFeeControllerStateMock,
     getGasFeeTokensMock,
+    getInfuraProjectIdMock,
     getKeyringControllerStateMock,
+    getNetworkConfigByCaip2ChainIdMock,
     getNetworkClientByIdMock,
     getNetworkConfigurationByChainIdMock,
     getRemoteFeatureFlagControllerStateMock,
@@ -341,6 +373,7 @@ export function getMessengerMock({
     polymarketSubmitDepositWalletBatchMock,
     publish,
     simulateTransactionsMock,
+    snapHandleRequestMock,
     updateTransactionMock,
   };
 }
