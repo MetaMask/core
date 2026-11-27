@@ -10,7 +10,7 @@ The repair is best-effort: it runs asynchronously, never throws, and can be run 
 
 ## Flow
 
-It runs after `submitPassword`, and on request through `identifyIncompleteMetadataBackup`.
+`submitPassword` starts the repair and does not wait for it. `identifyIncompleteMetadataBackup` runs the same repair and waits until the attempt finishes. A failed write is logged, and the returned promise still resolves.
 
 ```mermaid
 flowchart TB
