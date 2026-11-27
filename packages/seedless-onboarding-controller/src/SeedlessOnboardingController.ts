@@ -27,7 +27,7 @@ import {
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { Mutex } from 'async-mutex';
 
-import { PrimarySrpBackupRepair } from './backup-repair/PrimarySrpBackupRepair.js';
+import { PrimarySrpBackupRepairService } from './backup-repair/PrimarySrpBackupRepairService.js';
 import type { AuthConnection } from './constants.js';
 import {
   controllerName,
@@ -223,7 +223,7 @@ export class SeedlessOnboardingController<
 
   readonly #recoverySession: RecoverySessionManager;
 
-  readonly #primarySrpBackupRepair: PrimarySrpBackupRepair;
+  readonly #primarySrpBackupRepairService: PrimarySrpBackupRepairService;
 
   readonly #refreshJWTToken: RefreshJWTToken;
 
@@ -321,7 +321,7 @@ export class SeedlessOnboardingController<
         });
       },
     });
-    this.#primarySrpBackupRepair = new PrimarySrpBackupRepair({
+    this.#primarySrpBackupRepairService = new PrimarySrpBackupRepairService({
       getToprfClient: (): ToprfSecureBackup => this.toprfClient,
       fetchAllSecretData: (): Promise<FetchedSecretDataItem[]> => {
         const vaultData = this.#cachedDecryptedVaultData;
@@ -1203,23 +1203,24 @@ export class SeedlessOnboardingController<
       await this.#unlockVaultAndReconcileAccessToken(password);
 
       // Not awaited: the repair takes the controller lock held here.
-      this.#primarySrpBackupRepair.run(password);
+      this.#primarySrpBackupRepairService.run(password);
     });
   }
 
   /**
-   * Identify an incomplete or mismatched primary SRP backup.
+   * Identify an incomplete or mismatched primary SRP backup and repair it.
    *
-   * This method must only be called after the controller has been unlocked.
+   * The call waits until the repair attempt finishes. A failed write is logged
+   * and the promise still resolves. Call this only after the controller is
+   * unlocked.
    *
    * @param password - The password used to export the local primary SRP.
-   * @returns A promise that resolves after identification and telemetry have
-   * completed.
+   * @returns A promise that resolves after the repair attempt finishes.
    */
   async identifyIncompleteMetadataBackup(password: string): Promise<void> {
     this.#assertIsUnlocked();
 
-    await this.#primarySrpBackupRepair.run(password);
+    await this.#primarySrpBackupRepairService.run(password);
   }
 
   /**

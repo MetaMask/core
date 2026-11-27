@@ -31,8 +31,11 @@ export {
   getDataTypeMigrationUpdates,
   getNewSocialBackupsMetadata,
   findSocialBackupMetadata,
+  getMetadataSchemaVersion,
+  isPrimarySecretCandidate,
   parseAndValidateSecretMetadataBackup,
-  planPrimarySrpRepair,
+  parseSecretMetadata,
+  validateSecretMetadataBackup,
 } from './secret-data-utils.js';
 export {
   convertUrlSafeBase64StringToBase64String,

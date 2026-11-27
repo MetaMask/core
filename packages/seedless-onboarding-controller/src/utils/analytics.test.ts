@@ -38,10 +38,7 @@ import {
   trackIncompleteMetadataBackupEvents,
 } from './analytics.js';
 import { SeedlessOnboardingError } from './errors.js';
-import {
-  parseSecretMetadata,
-  planPrimarySrpRepair,
-} from './secret-data-utils.js';
+import { parseSecretMetadata } from './secret-data-utils.js';
 
 const { logMock } = vi.hoisted(() => ({ logMock: vi.fn() }));
 
@@ -104,24 +101,20 @@ describe('trackIncompleteMetadataBackupEvents', () => {
       version: 'v2',
       dataType: EncAccountDataType.EnvelopeControl,
     } as FetchedSecretDataItem;
-    const fetchAllSecretDataFn = vi
-      .fn()
-      .mockResolvedValue([
-        createFetchedSecretDataItem(PrivateKey1),
-        controlItem,
-        createFetchedSecretDataItem(SRP1),
-        createFetchedSecretDataItem(SRP2),
-      ]);
-    const getPrimaryKeyringSeedPhraseFn = vi
-      .fn()
-      .mockResolvedValue(stringToBytes('actual primary srp'));
     const trackEvent = vi.fn();
 
     await trackIncompleteMetadataBackupEvents({
-      plan: await planPrimarySrpRepair({
-        fetchAllSecretDataFn,
-        getPrimaryKeyringSeedPhraseFn,
-      }),
+      plan: {
+        repairType: PrimarySrpRepairType.Mismatch,
+        secretMetadata: parseSecretMetadata([
+          createFetchedSecretDataItem(PrivateKey1),
+          controlItem,
+          createFetchedSecretDataItem(SRP1),
+          createFetchedSecretDataItem(SRP2),
+        ]),
+        metadataSchemaVersion: 'v1',
+        localPrimarySRP: stringToBytes('actual primary srp'),
+      },
       trackEvent,
     });
 

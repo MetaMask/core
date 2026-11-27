@@ -7596,6 +7596,7 @@ describe('SeedlessOnboardingController', () => {
           }).toBytes(),
           itemId: 'remote-private-key',
           version: 'v2' as const,
+          dataType: EncAccountDataType.ImportedPrivateKey,
         },
       ];
 
@@ -7622,6 +7623,7 @@ describe('SeedlessOnboardingController', () => {
           baseMessenger: RootMessenger;
           toprfClient: ToprfSecureBackup;
           addSecretDataItem: Mock;
+          updateSecretDataItem: Mock;
           identify: () => Promise<void>;
         }) => Promise<void>,
       ): Promise<void> {
@@ -7665,11 +7667,15 @@ describe('SeedlessOnboardingController', () => {
             const addSecretDataItem = vi
               .spyOn(toprfClient, 'addSecretDataItem')
               .mockResolvedValue(undefined);
+            const updateSecretDataItem = vi
+              .spyOn(toprfClient, 'updateSecretDataItem')
+              .mockResolvedValue(undefined);
 
             await testFn({
               baseMessenger,
               toprfClient,
               addSecretDataItem,
+              updateSecretDataItem,
               identify: () =>
                 baseMessenger.call(
                   'SeedlessOnboardingController:identifyIncompleteMetadataBackup',
@@ -7721,7 +7727,7 @@ describe('SeedlessOnboardingController', () => {
         );
       });
 
-      it('adds the local primary SRP as v1 when the remote backup is v1', async () => {
+      it('migrates a legacy private key to v2 before adding the local primary SRP when the remote backup is v1', async () => {
         await withRepairScenario(
           {
             remoteItems: [
@@ -7734,24 +7740,22 @@ describe('SeedlessOnboardingController', () => {
               },
             ],
           },
-          async ({ addSecretDataItem, identify }) => {
+          async ({ addSecretDataItem, updateSecretDataItem, identify }) => {
             await identify();
 
+            expect(updateSecretDataItem).toHaveBeenCalledTimes(1);
+            expect(updateSecretDataItem).toHaveBeenCalledWith({
+              itemId: 'remote-legacy-private-key',
+              dataType: EncAccountDataType.ImportedPrivateKey,
+              authKeyPair: expect.any(Object),
+            });
             expect(addSecretDataItem).toHaveBeenCalledTimes(1);
-            const { secretData, dataType, version } = addSecretDataItem.mock
-              .calls[0][0] as {
-              secretData: Uint8Array;
-              dataType?: EncAccountDataType;
-              version?: 'v1' | 'v2';
-            };
-            expect(dataType).toBeUndefined();
-            // The SDK defaults to v2, which requires a data type.
-            expect(version).toBe('v1');
-
-            const metadata = SecretMetadata.fromRawMetadata(secretData, {});
-            expect(metadata.data).toStrictEqual(MOCK_SEED_PHRASE);
-            expect(metadata.type).toBe(SecretType.Mnemonic);
-            expect(metadata.dataType).toBeUndefined();
+            expect(addSecretDataItem).toHaveBeenCalledWith(
+              expect.objectContaining({
+                dataType: EncAccountDataType.PrimarySrp,
+                version: 'v2',
+              }),
+            );
           },
         );
       });
@@ -7799,7 +7803,7 @@ describe('SeedlessOnboardingController', () => {
         );
       });
 
-      it('does not add anything when a legacy untagged mnemonic can be the primary SRP', async () => {
+      it('demotes a legacy untagged mnemonic that differs from the local primary SRP and adds the local one', async () => {
         await withRepairScenario(
           {
             remoteItems: [
@@ -7813,10 +7817,20 @@ describe('SeedlessOnboardingController', () => {
               },
             ],
           },
-          async ({ addSecretDataItem, identify }) => {
+          async ({ addSecretDataItem, updateSecretDataItem, identify }) => {
             await identify();
 
-            expect(addSecretDataItem).not.toHaveBeenCalled();
+            expect(updateSecretDataItem).toHaveBeenCalledWith({
+              itemId: 'remote-legacy-srp',
+              dataType: EncAccountDataType.ImportedSrp,
+              authKeyPair: expect.any(Object),
+            });
+            expect(addSecretDataItem).toHaveBeenCalledWith(
+              expect.objectContaining({
+                dataType: EncAccountDataType.PrimarySrp,
+                version: 'v2',
+              }),
+            );
           },
         );
       });
