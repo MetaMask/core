@@ -2250,9 +2250,13 @@ describe('Quotes Utils', () => {
           ],
         }),
       );
-      expect(
-        getQuotesMock.mock.calls[0][0].requests[0].isHyperliquidSource,
-      ).toBeUndefined();
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: [
+            expect.not.objectContaining({ isHyperliquidSource: true }),
+          ],
+        }),
+      );
     });
 
     it('requests the USDC that stands in for a Hyperliquid payment token as a Hyperliquid source', async () => {

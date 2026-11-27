@@ -7134,11 +7134,6 @@
       "count": 2
     }
   },
-  "packages/transaction-pay-controller/src/TransactionPayController.ts": {
-    "typescript/consistent-type-imports": {
-      "count": 1
-    }
-  },
   "packages/transaction-pay-controller/src/actions/update-fiat-payment.test.ts": {
     "typescript/no-unsafe-call": {
       "count": 4
@@ -7391,11 +7386,6 @@
       "count": 2
     }
   },
-  "packages/transaction-pay-controller/src/strategy/server/server-support.ts": {
-    "typescript/consistent-type-imports": {
-      "count": 1
-    }
-  },
   "packages/transaction-pay-controller/src/strategy/server/server-validation.test.ts": {
     "typescript/no-unsafe-call": {
       "count": 1
@@ -7589,13 +7579,13 @@
       "count": 1
     },
     "typescript/no-unsafe-argument": {
-      "count": 72
+      "count": 73
     },
     "typescript/no-unsafe-call": {
-      "count": 68
+      "count": 69
     },
     "typescript/no-unsafe-member-access": {
-      "count": 68
+      "count": 69
     }
   },
   "packages/transaction-pay-controller/src/utils/token.ts": {

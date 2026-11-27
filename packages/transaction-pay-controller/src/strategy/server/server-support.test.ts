@@ -1,5 +1,6 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
+import type { CaipAssetType } from '@metamask/utils';
 import { describe, expect, it } from 'vitest';
 
 import type { QuoteRequest } from '../../types.js';
@@ -8,6 +9,8 @@ import {
   getServerUnsupportedReason,
   ServerUnsupportedReason,
 } from './server-support.js';
+
+const LIGHTER_ASSET_ID_MOCK = 'lighter:mainnet/perps:usdc' as CaipAssetType;
 
 const TRANSACTION_MOCK = {
   type: TransactionType.perpsDeposit,
@@ -198,7 +201,7 @@ describe('server-support', () => {
           requests: [
             {
               isPostQuote: true,
-              targetAssetIdOverride: 'lighter:mainnet/perps:usdc',
+              targetAssetIdOverride: LIGHTER_ASSET_ID_MOCK,
             } as QuoteRequest,
           ],
           transaction: {
@@ -253,7 +256,7 @@ describe('server-support', () => {
           requests: [
             {
               isPostQuote: false,
-              targetAssetIdOverride: 'lighter:mainnet/perps:usdc',
+              targetAssetIdOverride: LIGHTER_ASSET_ID_MOCK,
             } as QuoteRequest,
           ],
           transaction: {
