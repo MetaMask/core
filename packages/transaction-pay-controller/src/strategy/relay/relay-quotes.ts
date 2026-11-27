@@ -279,11 +279,9 @@ async function getSingleQuote(
       destinationCurrency: targetTokenAddress,
       originChainId: Number(sourceChainId),
       originCurrency: sourceTokenAddress,
+      metamask: { executeVersion: 2 },
       ...(useExecute
-        ? {
-            originGasOverhead: getRelayOriginGasOverhead(messenger),
-            metamask: { executeVersion: 2 },
-          }
+        ? { originGasOverhead: getRelayOriginGasOverhead(messenger) }
         : {}),
       recipient,
       slippageTolerance,

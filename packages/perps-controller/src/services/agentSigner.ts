@@ -88,6 +88,20 @@ export class AgentBindings {
   }
 
   /**
+   * Whether L1 actions of an account and network can be signed by an agent:
+   * it has an agent binding, or no pin and the host answers `getAgentSigner`.
+   *
+   * @param account - The main account and network.
+   * @returns False when the account always signs with the main wallet.
+   */
+  readonly hasSource = (account: PerpsAgentAccount): boolean => {
+    const key = getAgentAccountKey(account);
+    return this.#bindings.has(key)
+      ? this.#bindings.get(key) !== null
+      : this.#getAgentSigner !== undefined;
+  };
+
+  /**
    * Resolve the agent for an L1 action: the binding when there is one, else
    * the host's `getAgentSigner` answer.
    *

@@ -271,14 +271,22 @@ export class LighterChaseService {
   readonly #active = new Map<string, { epoch: number; symbol: string }>();
   #epoch = 0;
   readonly #stopRequests = new Map<string, ChaseOrderStatus>();
+  readonly #onChange: (() => void) | undefined;
 
+  /**
+   * @param options - Service options.
+   * @param options.storage - Durable storage of the records.
+   * @param options.onChange - Called after a record was stored.
+   */
   constructor(options: {
     storage: Pick<
       PerpsPlatformDependencies['diskCache'],
       'getItem' | 'setItem'
     >;
+    onChange?: () => void;
   }) {
     this.#storage = options.storage;
+    this.#onChange = options.onChange;
   }
 
   /**
@@ -432,6 +440,7 @@ export class LighterChaseService {
   ): Promise<void> {
     io.assertCurrent();
     await this.#storage.setItem(ownerKey(owner), JSON.stringify(journal));
+    this.#onChange?.();
     io.assertCurrent();
   }
 
@@ -497,6 +506,7 @@ export class LighterChaseService {
       ownerKey(record.intent.owner),
       JSON.stringify(journal),
     );
+    this.#onChange?.();
   }
 
   #running(record: LighterChaseRecord): void {
