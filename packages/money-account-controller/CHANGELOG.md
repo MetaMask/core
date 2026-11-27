@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/eth-money-mpc-keyring` from `^0.3.1` to `^0.4.0` ([#11801](https://github.com/MetaMask/core/pull/11801))
+
 ## [3.0.1]
 
 ### Changed
