@@ -13,6 +13,9 @@ import type { MoneyAccountLifecycle } from './get-money-account-lifecycle.js';
  * The point in `startMigration` at which a binding migrator runs.
  *
  * - `afterLink`: after the MPC Money Account is linked as the successor.
+ * - `beforeMigrationIntents`: before the intents the Money Account signs for
+ * the migration are registered, once every `afterLink` migrator has
+ * completed.
  * - `beforeFundsTransfer`: before CHOMP is asked to move the funds, after
  * which the migration can no longer be cancelled.
  * - `afterDone`: once the identity is `DONE` and the MPC Money Account of
@@ -20,11 +23,13 @@ import type { MoneyAccountLifecycle } from './get-money-account-lifecycle.js';
  */
 export type BindingMigrationPhase =
   | 'afterLink'
+  | 'beforeMigrationIntents'
   | 'beforeFundsTransfer'
   | 'afterDone';
 
 export const BINDING_MIGRATION_PHASES: readonly BindingMigrationPhase[] = [
   'afterLink',
+  'beforeMigrationIntents',
   'beforeFundsTransfer',
   'afterDone',
 ];
@@ -169,8 +174,8 @@ export function getBindingMigrationId(
 
 /**
  * The phases whose migrators `startMigration` can still run for a Money
- * Account in the given lifecycle. `afterLink` and `beforeFundsTransfer` have
- * passed once CHOMP has started the funds transfer.
+ * Account in the given lifecycle. Every phase before `afterDone` has passed
+ * once CHOMP has started the funds transfer.
  *
  * @param lifecycle - The lifecycle of the Money Account.
  * @returns The phases that can still run.

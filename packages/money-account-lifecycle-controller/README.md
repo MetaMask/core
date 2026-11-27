@@ -18,7 +18,12 @@ Other integrations are bound to the Money Account address, and that binding is n
 
 ### The Money Account Plus payer migrator
 
-The controller registers one migrator itself, `money-account-plus-payer`, in the `afterLink` phase. It moves an active Money Account Plus subscription paid in crypto by the Money Account to the MPC Money Account: the MPC Money Account signs a new subscription delegation, which also registers its subscription intent with CHOMP, and becomes the payer. CHOMP only accepts the intents of a premium migration once the MPC Money Account holds the premium eligibility, so a premium migration without such a subscription paid by either account is `blocked`.
+The controller registers one migrator itself, `money-account-plus-payer` (exported as `MONEY_ACCOUNT_PLUS_PAYER_MIGRATOR_ID`), in the `beforeMigrationIntents` phase. It moves an active Money Account Plus subscription paid in crypto by the Money Account to the MPC Money Account: the MPC Money Account signs a new subscription delegation, which also registers its subscription intent with CHOMP, and becomes the payer. CHOMP only accepts the intents of a premium migration once the MPC Money Account holds the premium eligibility, so a premium migration without such a subscription paid by either account is `blocked`, as is a subscription whose interval Money Account Plus has no price for.
+
+- It is `completed` once the MPC Money Account pays and CHOMP no longer reports its subscription intent missing.
+- Signing the subscription delegation needs a 2FA prompt, unlike the rule below, so its timeout is 5 minutes, and clients should only run it while the user is present.
+- `getStatus` cannot tell a missing subscription from one `SubscriptionController` has not fetched yet, so it reports `unknown` rather than `blocked` until a run has found the migration blocked.
+- A subscription the Money Account starts paying for once the funds transfer has started is not moved, as the phase has passed.
 
 Its `getStatus` reads `SubscriptionController`'s state and the identity the controller has recorded. `SubscriptionController:updatePaymentMethod` takes no idempotency key, so instead of one, `reconcile` reads the payer fresh first and only moves a subscription the Money Account still pays.
 
@@ -53,14 +58,15 @@ Register migrators when the client starts, before it can call `startMigration`. 
 
 `startMigration` runs each phase's migrators at its step boundary:
 
-| Phase                 | When it runs                                                                            |
-| --------------------- | --------------------------------------------------------------------------------------- |
-| `afterLink`           | After the MPC address is linked as the successor (`upgradeSuccessorAccount`).           |
-| `beforeFundsTransfer` | Before CHOMP is asked to move the funds (`startFundsTransfer`).                         |
-| `afterDone`           | Once the identity is `DONE` and this wallet's MPC Money Account is its current address. |
+| Phase                    | When it runs                                                                                                             |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `afterLink`              | After the MPC address is linked as the successor (`upgradeSuccessorAccount`).                                            |
+| `beforeMigrationIntents` | Once every `afterLink` migrator has completed, before the migration intents are registered (`registerMigrationIntents`). |
+| `beforeFundsTransfer`    | Before CHOMP is asked to move the funds (`startFundsTransfer`).                                                          |
+| `afterDone`              | Once the identity is `DONE` and this wallet's MPC Money Account is its current address.                                  |
 
 - Within a phase, migrators run in the order they were registered.
-- `afterLink` and `beforeFundsTransfer` have passed once CHOMP has started the funds transfer. From then on their migrators are never run for that migration, even when `startMigration` resumes it, and `afterDone` migrators only run once the migration is `DONE`.
+- Every phase before `afterDone` has passed once CHOMP has started the funds transfer. From then on their migrators are never run for that migration, even when `startMigration` resumes it, and `afterDone` migrators only run once the migration is `DONE`.
 - A migrator registered after its phase has passed for a migration is never run for that migration, including when it is registered after the migration has finished. The controller does not catch up on it: owners must roll out a migrator before the migrations it has to cover reach its phase, or choose a later phase.
 - Every migrator of a phase runs. If any returns `pending` or `blocked`, `startMigration` then stops before the next step and throws a `BindingMigrationIncompleteError` naming those migrators.
 - A migrator that throws, or takes longer than its `timeoutMs`, is treated as `pending` and reported. A `blocked` result is reported too. A `reconcile` that timed out keeps running; a later run on the same device waits for it rather than calling `reconcile` again.
@@ -76,7 +82,7 @@ Register migrators when the client starts, before it can call `startMigration`. 
 
 Only one migration, from the SRP Money Account to the MPC Money Account, is supported.
 
-- `identityStatus`: `MIGRATING` in `afterLink` and `beforeFundsTransfer`, `DONE` in `afterDone`.
+- `identityStatus`: `MIGRATING` in every phase before `afterDone`, `DONE` in `afterDone`.
 
 ### Idempotency rules
 
@@ -97,7 +103,7 @@ Every migrator must follow these rules:
 
 ### State and clients
 
-While the Money Account is migrating or migrated, and this wallet can drive that migration, `bindingMigrations` in the controller state records the migration's `migrationId`, `previousAddress` and `currentAddress`, and for each migrator its `phase`, `status`, `details`, `lastResult` and `lastError`. It is `null` otherwise, including when no migrator is registered. It is not persisted: it is refreshed from `getStatus` when a migrator registers, after each identity fetch and after each run, and cleared on lock and by `clearState`.
+While the Money Account is migrating or migrated, and this wallet can drive that migration, `bindingMigrations` in the controller state records the migration's `migrationId`, `previousAddress` and `currentAddress`, and for each migrator its `phase`, `status`, `details`, `lastResult` and `lastError`. It is `null` otherwise. As the controller registers its own migrator, it is never `null` for a migration this wallet can drive. It is not persisted: it is refreshed from `getStatus` when a migrator registers, after each identity fetch and after each run, and cleared on lock and by `clearState`.
 
 The controller does not run migrators by itself. Clients call `startMigration` again when `moneyAccountLifecycleControllerSelectors.selectHasUnfinishedBindingMigrations` is true: a migrator that `startMigration` can still run is `pending` or `unknown`. Blocked migrators need investigation rather than another run, and as `startMigration` stops at a blocked migrator's phase, the selector also ignores migrators from that phase onwards; `selectBlockedBindingMigrations` lists their ids. A call made while a migration is in flight joins it and gets its outcome.
 

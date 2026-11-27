@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Add `bindingMigrations` to `MoneyAccountLifecycleControllerState`, recording the migration this wallet can drive and the status of each registered binding migrator, or `null` when there is none ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
 - Add `registerBindingMigrator` method, also exposed through the messenger, so integrations bound to the Money Account address can be moved to the MPC Money Account during `startMigration` ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
 - Add `moneyAccountLifecycleControllerSelectors`, with `selectHasUnfinishedBindingMigrations`, which tells clients to call `startMigration` again, and `selectBlockedBindingMigrations` ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
-- Export `BindingMigrationIncompleteError`, `getBindingMigrationId` and the binding migrator types ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
+- Export `BindingMigrationIncompleteError`, `getBindingMigrationId`, `MONEY_ACCOUNT_PLUS_PAYER_MIGRATOR_ID` and the binding migrator types ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
 - Add `@noble/hashes` and `reselect` dependencies ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
 
 ### Changed
@@ -20,7 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `startMigration` runs the registered binding migrators of each phase and throws `BindingMigrationIncompleteError` when any of them is pending or blocked ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
   - Clients should handle `BindingMigrationIncompleteError` and call `startMigration` again while `selectHasUnfinishedBindingMigrations` is true.
 - **BREAKING:** `MoneyAccountLifecycleControllerMessenger` now requires the `SubscriptionController:getState` action ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
-- **BREAKING:** `startMigration` moves the Money Account Plus subscription with a built-in `money-account-plus-payer` binding migrator in the `afterLink` phase, so a premium migration without an eligible subscription, or a failure while moving the subscription, now throws `BindingMigrationIncompleteError` ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
+- **BREAKING:** `startMigration` moves the Money Account Plus subscription with a built-in `money-account-plus-payer` binding migrator in the `beforeMigrationIntents` phase, so a premium migration without an eligible subscription, a missing price, a failure while moving the subscription, or a move that takes longer than 5 minutes now throws `BindingMigrationIncompleteError` ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
+  - The subscription is no longer moved once the funds transfer has started.
 - `startMigration` no longer throws for a Money Account that has already migrated; it runs the `afterDone` binding migrators instead ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
 - `startMigration` waits up to a minute for the funds to move when `afterDone` binding migrators are registered ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
 - `startMigration` joins a migration in flight and shares its outcome, instead of throwing ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))

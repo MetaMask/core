@@ -53,7 +53,7 @@ const MIGRATION_CONTEXT = {
 };
 
 const PAYER_MIGRATOR_STATE = {
-  phase: 'afterLink',
+  phase: 'beforeMigrationIntents',
   status: 'not_required',
   details: null,
   lastResult: null,
@@ -494,7 +494,7 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
   });
 
   describe('startMigration', () => {
-    it('runs the afterLink migrators once the successor is linked, before registering the migration intents', async () => {
+    it('runs the afterLink migrators once the successor is linked, before moving the subscription', async () => {
       await withController(async ({ controller, mocks }) => {
         const migrator = buildBindingMigrator({ phase: 'afterLink' });
         controller.registerBindingMigrator(migrator);
@@ -511,7 +511,7 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
           mocks.upgradeSuccessorAccount.mock.invocationCallOrder[0],
         );
         expect(reconcileOrder).toBeLessThan(
-          mocks.registerMigrationIntents.mock.invocationCallOrder[0],
+          mocks.getSubscriptions.mock.invocationCallOrder[0],
         );
       });
     });
@@ -671,6 +671,7 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
           ]),
         );
         expect(completed.reconcile).toHaveBeenCalledTimes(1);
+        expect(mocks.getSubscriptions).not.toHaveBeenCalled();
         expect(mocks.registerMigrationIntents).not.toHaveBeenCalled();
         expect(getLifecycle(controller)?.type).toBe('migrating');
         expect(getMigrators(controller).blocked?.lastResult).toStrictEqual({
@@ -780,7 +781,7 @@ describe('MoneyAccountLifecycleController binding migrations', () => {
           'Money Account migration is not available',
         );
         expect(second.reconcile).not.toHaveBeenCalled();
-        expect(getMigrators(controller).first?.lastResult).toBeNull();
+        expect(controller.state.bindingMigrations).toBeNull();
       });
     });
 

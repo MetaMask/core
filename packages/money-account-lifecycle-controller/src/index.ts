@@ -15,6 +15,7 @@ export type {
 } from './money-account-lifecycle-controller.js';
 export type { MoneyAccountLifecycle } from './get-money-account-lifecycle.js';
 export { moneyAccountLifecycleControllerSelectors } from './selectors.js';
+export { MONEY_ACCOUNT_PLUS_PAYER_MIGRATOR_ID } from './money-account-plus-payer-migrator.js';
 export {
   BindingMigrationIncompleteError,
   getBindingMigrationId,

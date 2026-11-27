@@ -23,7 +23,10 @@ import type { MoneyAccountLifecycleControllerMessenger } from './money-account-l
 
 export const MONEY_ACCOUNT_PLUS_PAYER_MIGRATOR_ID = 'money-account-plus-payer';
 
-const MONEY_ACCOUNT_PLUS_PAYER_MIGRATOR_TIMEOUT_MS = 60_000;
+// Signing the subscription delegation with the MPC Money Account needs a 2FA
+// prompt, as `@metamask/money-account-mfa-whitelist` does not cover it, so
+// this leaves the user time to approve it.
+const MONEY_ACCOUNT_PLUS_PAYER_MIGRATOR_TIMEOUT_MS = 5 * 60_000;
 
 const ACTIVE_SUBSCRIPTION_STATUSES: string[] = [
   SUBSCRIPTION_STATUSES.active,
@@ -43,9 +46,9 @@ type MoneyAccountPlusCryptoPayment = {
 /**
  * Creates the binding migrator that moves an active Money Account Plus
  * subscription paid by the Money Account to the MPC Money Account, in the
- * `afterLink` phase, because CHOMP only accepts the intents of a premium
- * migration once the successor holds the premium eligibility. The MPC Money
- * Account signs a new subscription delegation, which also registers its
+ * `beforeMigrationIntents` phase, because CHOMP only accepts the intents of a
+ * premium migration once the successor holds the premium eligibility. The MPC
+ * Money Account signs a new subscription delegation, which also registers its
  * subscription intent, and becomes the payer of the subscription.
  *
  * `SubscriptionController:updatePaymentMethod` takes no idempotency key, so
@@ -65,12 +68,25 @@ export function createMoneyAccountPlusPayerMigrator({
   messenger: MoneyAccountLifecycleControllerMessenger;
   getLifecycle: (address: string) => MoneyAccountLifecycle | undefined;
 }): BindingMigrator {
+  // `getStatus` only reads cached state, which cannot tell a missing
+  // subscription from one that has not been fetched yet, so it only reports
+  // `blocked` once `reconcile` has found the migration blocked.
+  let blockedMigrationId: string | undefined;
+
   return {
     id: MONEY_ACCOUNT_PLUS_PAYER_MIGRATOR_ID,
-    phase: 'afterLink',
+    phase: 'beforeMigrationIntents',
     timeoutMs: MONEY_ACCOUNT_PLUS_PAYER_MIGRATOR_TIMEOUT_MS,
-    reconcile: async (context) => await reconcile(messenger, context),
-    getStatus: (context) => getStatus(messenger, getLifecycle, context),
+    reconcile: async (context) => {
+      const result = await reconcile(messenger, context);
+      blockedMigrationId =
+        result.status === 'blocked' ? context.migrationId : undefined;
+      return result;
+    },
+    getStatus: (context) =>
+      blockedMigrationId === context.migrationId
+        ? { status: 'blocked' }
+        : getStatus(messenger, getLifecycle, context),
   };
 }
 
@@ -101,6 +117,12 @@ async function reconcile(
       messenger,
       recurringInterval,
     );
+    if (billingCycles === undefined) {
+      return {
+        status: 'blocked',
+        reason: `Money Account Plus has no '${recurringInterval}' price`,
+      };
+    }
     const delegationHash = await prepareSubscriptionDelegation(
       messenger,
       currentAddress,
@@ -146,7 +168,11 @@ async function reconcile(
 
 /**
  * Reads the status from `SubscriptionController`'s state and the recorded
- * identity of the Money Account, without calling any backend.
+ * identity of the Money Account, without calling any backend. The migrator is
+ * only completed once the MPC Money Account pays and CHOMP no longer reports
+ * its subscription intent missing. When CHOMP reports it missing and neither
+ * account pays, the status is `unknown`, as the cached subscriptions may not
+ * have been fetched yet.
  *
  * @param messenger - The messenger of `MoneyAccountLifecycleController`.
  * @param getLifecycle - Returns the recorded lifecycle of a Money Account
@@ -165,16 +191,15 @@ function getStatus(
   if (payment?.payerAddress === previousAddress) {
     return { status: 'pending' };
   }
-  if (payment?.payerAddress === currentAddress) {
-    return { status: 'completed' };
-  }
 
   const lifecycle = getLifecycle(previousAddress);
-  const migration =
-    lifecycle?.type === 'migrating' ? lifecycle.identity.migration : null;
-  return {
-    status: isSubscriptionIntentMissing(migration) ? 'blocked' : 'not_required',
-  };
+  const isIntentMissing = isSubscriptionIntentMissing(
+    lifecycle?.type === 'migrating' ? lifecycle.identity.migration : null,
+  );
+  if (payment?.payerAddress === currentAddress) {
+    return { status: isIntentMissing ? 'pending' : 'completed' };
+  }
+  return { status: isIntentMissing ? 'unknown' : 'not_required' };
 }
 
 function findMoneyAccountPlusCryptoPayment(
@@ -234,13 +259,10 @@ async function prepareSubscriptionDelegation(
 async function getMoneyAccountPlusBillingCycles(
   messenger: MoneyAccountLifecycleControllerMessenger,
   recurringInterval: RecurringInterval,
-): Promise<number> {
+): Promise<number | undefined> {
   const pricing = await messenger.call('SubscriptionController:getPricing');
-  const price = pricing.products
+  return pricing.products
     .find((product) => product.name === PRODUCT_TYPES.MONEY_ACCOUNT_PLUS)
-    ?.prices.find((entry) => entry.interval === recurringInterval);
-  if (!price) {
-    throw new Error(`Money Account Plus has no '${recurringInterval}' price`);
-  }
-  return price.minBillingCycles;
+    ?.prices.find((entry) => entry.interval === recurringInterval)
+    ?.minBillingCycles;
 }

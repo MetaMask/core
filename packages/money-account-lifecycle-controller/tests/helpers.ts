@@ -173,6 +173,22 @@ export const MONEY_ACCOUNT_PLUS_SUBSCRIPTION: Subscription = {
   isEligibleForSupport: true,
 };
 
+/**
+ * Builds the Money Account Plus subscription paid in crypto by an address.
+ *
+ * @param payerAddress - The address paying for the subscription.
+ * @returns The subscription.
+ */
+export function buildCryptoSubscription(payerAddress: Hex): Subscription {
+  return {
+    ...MONEY_ACCOUNT_PLUS_SUBSCRIPTION,
+    paymentMethod: {
+      type: 'crypto',
+      crypto: { payerAddress, chainId: '0x8f', tokenSymbol: 'mUSD' },
+    },
+  };
+}
+
 const MONEY_ACCOUNT_PLUS_PRICING: PricingResponse = {
   products: [
     {

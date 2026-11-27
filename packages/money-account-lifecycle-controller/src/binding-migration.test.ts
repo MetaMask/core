@@ -103,6 +103,7 @@ describe('getRunnableBindingMigrationPhases', () => {
   ])('runs every phase for %s', (_description, lifecycle) => {
     expect(getRunnableBindingMigrationPhases(lifecycle)).toStrictEqual([
       'afterLink',
+      'beforeMigrationIntents',
       'beforeFundsTransfer',
       'afterDone',
     ]);
