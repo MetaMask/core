@@ -205,9 +205,7 @@ describe('validateServerQuotes', () => {
           [CHAIN_ID_MOCK]: [{ address: DELEGATOR_MOCK, signature: '0x' }],
         },
       },
-      confirmations_pay_extended: {
-        payStrategies: { server: { validationEnabled: { default: true } } },
-      },
+      confirmations_pay_server: { validationEnabled: { default: true } },
     });
 
     generateEIP7702BatchTransactionMock.mockReturnValue({

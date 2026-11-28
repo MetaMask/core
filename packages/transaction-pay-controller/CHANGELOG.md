@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Configure the server strategy via a dedicated `confirmations_pay_server` remote feature flag ([#11804](https://github.com/MetaMask/core/pull/11804))
+  - Read `enabled`, `enabledTransactionTypes`, `baseUrl`, `gaslessEnabled`, `pollingInterval` and `validationEnabled` from `confirmations_pay_server`, ignoring `confirmations_pay_extended.payStrategies.server`, so server support can be versioned independently of other pay flags.
 - Support provider-specific timeouts reported by the server in `ServerStrategy` ([#11737](https://github.com/MetaMask/core/pull/11737))
   - Send `elapsedMs` with each status request and stop polling when the server returns the new `TIMEOUT` status.
   - Remove the local `confirmations_pay_extended.payStrategies.server.pollingTimeout` feature flag, as the server now owns the timeout.

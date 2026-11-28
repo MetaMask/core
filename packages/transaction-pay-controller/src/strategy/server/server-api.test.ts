@@ -2,8 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockInstance } from 'vitest';
 
 import { TransactionPayClientId } from '../../constants.js';
-import type { PayStrategiesConfig } from '../../utils/feature-flags.js';
-import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import { getServerBaseUrl } from '../../utils/feature-flags.js';
 import { TradeType } from '../../utils/trade-type.js';
 import {
   fetchServerQuote,
@@ -16,7 +15,7 @@ import type { ServerQuoteRequest, ServerSubmitRequest } from './types.js';
 
 vi.mock(import('../../utils/feature-flags.js'));
 
-const getPayStrategiesConfigMock = vi.mocked(getPayStrategiesConfig);
+const getServerBaseUrlMock = vi.mocked(getServerBaseUrl);
 
 let fetchMock: MockInstance;
 
@@ -48,13 +47,7 @@ describe('server-api', () => {
       call: callMock,
     } as unknown as Parameters<typeof fetchServerQuote>[0];
 
-    getPayStrategiesConfigMock.mockReturnValue({
-      server: {
-        enabled: true,
-        baseUrl: BASE_URL_MOCK,
-        pollingInterval: 1000,
-      },
-    } as PayStrategiesConfig);
+    getServerBaseUrlMock.mockReturnValue(BASE_URL_MOCK);
   });
 
   afterEach(() => {

@@ -2,7 +2,7 @@ import type { CaipAssetType } from '@metamask/utils';
 
 /**
  * Default base URL for the server intents API.
- * Override via `payStrategies.server.baseUrl` remote feature flag.
+ * Override via `confirmations_pay_server.baseUrl` remote feature flag.
  */
 export const SERVER_URL_BASE = 'https://intents.api.cx.metamask.io';
 

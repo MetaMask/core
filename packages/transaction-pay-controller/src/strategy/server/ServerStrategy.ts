@@ -8,7 +8,10 @@ import type {
   PayStrategyGetRefreshIntervalRequest,
   TransactionPayQuote,
 } from '../../types.js';
-import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import {
+  getServerEnabledTransactionTypes,
+  isServerEnabled,
+} from '../../utils/feature-flags.js';
 import { getMaxAmountRefreshInterval } from '../../utils/max-quote.js';
 import { isEvmQuoteRequest } from '../../utils/token.js';
 import { getServerQuotes } from './server-quotes.js';
@@ -22,14 +25,12 @@ const log = createModuleLogger(projectLogger, 'server-strategy');
  * Pay strategy that routes quote, submit, and status requests through the
  * MetaMask intents API. Supports both gasless (delegated server-execute) and
  * non-gasless (TransactionController-submitted) execution paths. Gated by the
- * `payStrategies.server.enabled` remote feature flag, then narrowed per flow by
- * `payStrategies.server.enabledTransactionTypes`.
+ * `confirmations_pay_server.enabled` remote feature flag, then narrowed per flow
+ * by `confirmations_pay_server.enabledTransactionTypes`.
  */
 export class ServerStrategy implements PayStrategy<ServerQuote> {
   supports(request: PayStrategyGetQuotesRequest): boolean {
-    const config = getPayStrategiesConfig(request.messenger);
-
-    if (!config.server.enabled) {
+    if (!isServerEnabled(request.messenger)) {
       return false;
     }
 
@@ -38,7 +39,9 @@ export class ServerStrategy implements PayStrategy<ServerQuote> {
     }
 
     const reason = getServerUnsupportedReason({
-      enabledTransactionTypes: config.server.enabledTransactionTypes,
+      enabledTransactionTypes: getServerEnabledTransactionTypes(
+        request.messenger,
+      ),
       requests: request.requests,
       transaction: request.transaction,
     });

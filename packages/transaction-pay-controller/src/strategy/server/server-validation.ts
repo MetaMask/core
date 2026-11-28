@@ -45,7 +45,7 @@ export type ValidateServerQuotesRequest = {
  * Validate server quotes by checking the live source balance and simulating
  * the transactions each quote would submit on the source chain.
  *
- * Gated by the `payStrategies.server.validationEnabled` feature flag.
+ * Gated by the `confirmations_pay_server.validationEnabled` feature flag.
  *
  * @param request - Validation request.
  */
