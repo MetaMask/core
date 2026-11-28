@@ -31,7 +31,6 @@ import {
   DEFAULT_RELAY_EXECUTE_URL,
   getDirectMoneyMusdEnabled,
   getServerPollingInterval,
-  getServerPollingTimeout,
   getFiatVaultDisabled,
   getRelayOriginGasOverhead,
   getRelayPollingInterval,
@@ -1266,7 +1265,6 @@ describe('Feature Flags Utils', () => {
         enabledTransactionTypes: [],
         baseUrl: DEFAULT_SERVER_BASE_URL,
         pollingInterval: 2000,
-        pollingTimeout: undefined,
       });
     });
 
@@ -1423,29 +1421,6 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(getServerPollingInterval(messenger)).toBe(7500);
-    });
-  });
-
-  describe('getServerPollingTimeout', () => {
-    it('returns undefined when no feature flag is set', () => {
-      expect(getServerPollingTimeout(messenger)).toBeUndefined();
-    });
-
-    it('returns the configured polling timeout when set', () => {
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay_extended: {
-            payStrategies: {
-              server: {
-                pollingTimeout: 45000,
-              },
-            },
-          },
-        },
-      });
-
-      expect(getServerPollingTimeout(messenger)).toBe(45000);
     });
   });
 

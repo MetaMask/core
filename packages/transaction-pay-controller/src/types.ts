@@ -148,6 +148,17 @@ export type TransactionConfig = {
   /** Whether the source of funds is a Polymarket deposit wallet. */
   isPolymarketDepositWallet?: boolean;
 
+  /**
+   * Whether the recipient must receive exactly the required amount, with any
+   * swap surplus kept by the provider rather than sent to the recipient.
+   * Distinct from an `EXACT_OUTPUT` trade type, which only guarantees a
+   * minimum. Quotes are priced as an exact output, and only the server and
+   * relay strategies support it. Not supported with `isMaxAmount` or
+   * `atomic: false`. Submission fails if the settlement hash is unknown.
+   * Ignored for post-quote transactions.
+   */
+  isTrueExactOutput?: boolean;
+
   /** Whether the user has selected the maximum amount. */
   isMaxAmount?: boolean;
 
@@ -364,6 +375,12 @@ export type TransactionData = {
 
   /** Fiat payment method state. */
   fiatPayment?: TransactionFiatPayment;
+
+  /**
+   * Whether the recipient must receive exactly the required amount.
+   * See {@link TransactionConfig.isTrueExactOutput}.
+   */
+  isTrueExactOutput?: boolean;
 
   /** Whether quotes are currently being retrieved. */
   isLoading: boolean;
@@ -648,6 +665,12 @@ export type QuoteRequest = {
   /** Address of the user's account. */
   from: Hex;
 
+  /**
+   * Whether the recipient must receive exactly the target amount.
+   * See {@link TransactionConfig.isTrueExactOutput}.
+   */
+  isTrueExactOutput?: boolean;
+
   /** Whether the transaction is a maximum amount transaction. */
   isMaxAmount?: boolean;
 
@@ -683,15 +706,9 @@ export type QuoteRequest = {
   sourceAccountId: CaipAccountId;
 
   /**
-   * CAIP-19 asset type the client declared for the source, when it is not
-   * `sourceAssetId`, for example a Lighter perps balance. `sourceAssetId`
-   * then holds the EVM token that stands in for it.
-   */
-  sourceAssetIdOverride?: CaipAssetType;
-
-  /**
    * CAIP-19 asset type of the source token. The protocol of its chain selects
-   * the strategy execution path.
+   * the strategy execution path. A source the client declared by asset ID, such
+   * as a Lighter perps balance, is not an EVM asset.
    */
   sourceAssetId: CaipAssetType;
 
@@ -734,12 +751,6 @@ export type TransactionPayFees = {
 
   /** Whether a gas fee token is used to pay target network fees. */
   isTargetGasFeeToken?: boolean;
-
-  /**
-   * Fee Lighter charges for the withdrawal transfer, on top of the amount
-   * sent. Only set for Lighter withdrawals.
-   */
-  lighter?: FiatValue;
 
   /** Fee charged by MetaMask. */
   metaMask: FiatValue;

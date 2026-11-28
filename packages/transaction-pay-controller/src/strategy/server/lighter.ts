@@ -1,5 +1,5 @@
 import { successfulFetch } from '@metamask/controller-utils';
-import type { CaipAssetType, Hex } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
@@ -158,9 +158,9 @@ export function isLighterAsset(assetId: string | undefined): boolean {
  * @returns Whether the request withdraws from Lighter.
  */
 export function isLighterSourceRequest(
-  request: Pick<QuoteRequest, 'sourceAssetIdOverride'>,
+  request: Pick<QuoteRequest, 'sourceAssetId'>,
 ): boolean {
-  return isLighterAsset(request.sourceAssetIdOverride);
+  return isLighterAsset(request.sourceAssetId);
 }
 
 /** Changes a Lighter request makes to the server quote request. */
@@ -168,11 +168,8 @@ type LighterRequestOverrides = {
   /** Index of the Lighter account receiving a deposit. */
   recipient?: string;
 
-  /**
-   * Lighter balance a withdrawal debits and the index of the account that owns
-   * it, which replace the source asset and sender of the quote request.
-   */
-  source?: { asset: CaipAssetType; sender: string };
+  /** Index of the Lighter account a withdrawal debits. */
+  sender?: string;
 };
 
 /**
@@ -188,12 +185,9 @@ export async function processLighterRequest(
   executionAccount: Hex,
 ): Promise<LighterRequestOverrides | undefined> {
   const isDeposit = LighterNormalizer.isLighterRequest(request);
-  const { sourceAssetIdOverride } = request;
-  const asset = isLighterSourceRequest(request)
-    ? sourceAssetIdOverride
-    : undefined;
+  const isWithdraw = isLighterSourceRequest(request);
 
-  if (!isDeposit && !asset) {
+  if (!isDeposit && !isWithdraw) {
     return undefined;
   }
 
@@ -201,7 +195,7 @@ export async function processLighterRequest(
 
   return {
     ...(isDeposit ? { recipient: accountIndex } : {}),
-    ...(asset ? { source: { asset, sender: accountIndex } } : {}),
+    ...(isWithdraw ? { sender: accountIndex } : {}),
   };
 }
 

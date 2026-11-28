@@ -51,6 +51,17 @@ describe('post-quote', () => {
       expect(requote).not.toHaveBeenCalled();
     });
 
+    it('returns the quote when the source is not an EVM asset', async () => {
+      const quote = buildQuote({
+        isSourceGasFeeToken: false,
+        request: { sourceAssetId: 'lighter:mainnet/perps:usdc' },
+      });
+      const requote = vi.fn();
+
+      expect(await reservePostQuoteGas({ quote, requote })).toBe(quote);
+      expect(requote).not.toHaveBeenCalled();
+    });
+
     it('requotes with the buffered gas cost subtracted when gas is paid with the source token', async () => {
       const quote = buildQuote();
       const adjustedQuote = buildQuote();

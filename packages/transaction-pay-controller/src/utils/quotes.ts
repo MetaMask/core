@@ -6,10 +6,7 @@ import { createModuleLogger, parseCaipAssetType } from '@metamask/utils';
 
 import { PaymentOverride, TransactionPayStrategy } from '../constants.js';
 import { projectLogger } from '../logger.js';
-import {
-  isLighterAsset,
-  LIGHTER_USDC_STAND_IN_ASSET_ID,
-} from '../strategy/server/lighter.js';
+import { isLighterAsset } from '../strategy/server/lighter.js';
 import type {
   EvmPaymentToken,
   QuoteRequest,
@@ -185,6 +182,7 @@ export async function updateQuotes(
     accountOverride,
     atomic: requestedAtomic,
     fiatPayment,
+    isTrueExactOutput,
     isHyperliquidSource,
     isMaxAmount,
     isPolymarketDepositWallet,
@@ -254,6 +252,7 @@ export async function updateQuotes(
         : undefined,
       atomic: requestedAtomic,
       from,
+      isTrueExactOutput,
       isHyperliquidSource,
       isMaxAmount: isMaxAmount ?? false,
       isPolymarketDepositWallet,
@@ -595,6 +594,7 @@ function getSourceAmounts(
  * @param request.accountOverride - Optional account receiving post-quote output.
  * @param request.atomic - Whether the target transaction is executed atomically with the Relay quote.
  * @param request.from - Address from which the transaction is sent.
+ * @param request.isTrueExactOutput - Whether the recipient must receive exactly the required amount.
  * @param request.isHyperliquidSource - Whether the source of funds is HyperLiquid.
  * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.isPolymarketDepositWallet - Whether the source of funds is a Polymarket deposit wallet.
@@ -612,6 +612,7 @@ function buildQuoteRequests({
   accountOverride,
   atomic,
   from,
+  isTrueExactOutput,
   isHyperliquidSource,
   isMaxAmount,
   isPolymarketDepositWallet,
@@ -627,6 +628,7 @@ function buildQuoteRequests({
   accountOverride?: Hex;
   atomic?: boolean;
   from: Hex;
+  isTrueExactOutput?: boolean;
   isHyperliquidSource?: boolean;
   isMaxAmount: boolean;
   isPolymarketDepositWallet?: boolean;
@@ -665,13 +667,7 @@ function buildQuoteRequests({
     });
   }
 
-  // A Lighter balance is not an EVM asset, so the USDC that stands in for it
-  // is the source and the Lighter asset is declared as the override.
-  const isLighterSource = isLighterAsset(paymentToken.assetId);
-  const sourceAssetId = isLighterSource
-    ? LIGHTER_USDC_STAND_IN_ASSET_ID
-    : paymentToken.assetId;
-  const sourceAccountId = getCaipAccountId(sourceAssetId, sourceAddress);
+  const sourceAccountId = getCaipAccountId(paymentToken.assetId, sourceAddress);
 
   // Standard flow: source = paymentToken, target = required tokens
   const requests = (sourceAmounts ?? []).map((sourceAmount) => {
@@ -682,14 +678,12 @@ function buildQuoteRequests({
     return {
       atomic,
       from,
+      ...(isTrueExactOutput ? { isTrueExactOutput } : {}),
       isMaxAmount,
       paymentOverride,
       refundTo,
       sourceAccountId,
-      sourceAssetId,
-      ...(isLighterSource
-        ? { sourceAssetIdOverride: paymentToken.assetId }
-        : {}),
+      sourceAssetId: paymentToken.assetId,
       sourceBalanceRaw: paymentToken.balanceRaw,
       sourceTokenAmount: sourceAmount.sourceAmountRaw,
       targetAmountMinimum: token.allowUnderMinimum ? '0' : token.amountRaw,
@@ -769,10 +763,15 @@ function buildPostQuoteRequests({
     return [];
   }
 
-  const sourceAssetId = buildCaipAssetType(
-    sourceAmount.sourceChainId,
-    sourceAmount.sourceTokenAddress,
-  );
+  // A source the client declared by asset ID, such as a Lighter perps balance,
+  // is the source of the quote. The EVM token on the source amount only
+  // stands in for it in balance and price lookups.
+  const sourceAssetId =
+    sourceAmount.sourceAssetId ??
+    buildCaipAssetType(
+      sourceAmount.sourceChainId,
+      sourceAmount.sourceTokenAddress,
+    );
 
   const request: QuoteRequest = {
     accountOverride,
@@ -786,7 +785,6 @@ function buildPostQuoteRequests({
     refundTo,
     sourceAccountId: getCaipAccountId(sourceAssetId, from),
     sourceAssetId,
-    sourceAssetIdOverride: sourceAmount.sourceAssetId,
     sourceBalanceRaw: sourceAmount.sourceBalanceRaw,
     sourceTokenAmount: sourceAmount.sourceAmountRaw,
     targetAmountMinimum: '0',

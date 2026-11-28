@@ -10,7 +10,6 @@ import type { MockedFunction } from 'vitest';
 import { getMessengerMock } from '../../tests/messenger-mock.js';
 import { mockModuleExcept } from '../../tests/mock-module-except.js';
 import { PaymentOverride, TransactionPayStrategy } from '../constants.js';
-import { LIGHTER_USDC_STAND_IN_ASSET_ID } from '../strategy/server/lighter.js';
 import type {
   GetBalanceCallback,
   QuoteRequest,
@@ -2229,7 +2228,7 @@ describe('Quotes Utils', () => {
       symbol: 'USDC',
     };
 
-    it('requests the USDC that stands in for a Lighter payment token as the source, declaring the Lighter asset', async () => {
+    it('requests a Lighter payment token as the source', async () => {
       await run({
         transactionData: {
           ...TRANSACTION_DATA_MOCK,
@@ -2241,9 +2240,8 @@ describe('Quotes Utils', () => {
         expect.objectContaining({
           requests: [
             expect.objectContaining({
-              sourceAccountId: `eip155:1:${TRANSACTION_META_MOCK.txParams.from}`,
-              sourceAssetId: LIGHTER_USDC_STAND_IN_ASSET_ID,
-              sourceAssetIdOverride: LIGHTER_ASSET_ID_MOCK,
+              sourceAccountId: `lighter:mainnet:${TRANSACTION_META_MOCK.txParams.from}`,
+              sourceAssetId: LIGHTER_ASSET_ID_MOCK,
             }),
           ],
         }),
@@ -2863,6 +2861,31 @@ describe('Quotes Utils', () => {
       );
     });
 
+    it('passes isTrueExactOutput through to the quote request', async () => {
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          isTrueExactOutput: true,
+        },
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: [expect.objectContaining({ isTrueExactOutput: true })],
+        }),
+      );
+    });
+
+    it('omits isTrueExactOutput from the quote request when not set', async () => {
+      await run();
+
+      const [{ requests }] = getQuotesMock.mock.calls[0] as [
+        PayStrategyGetQuotesRequest,
+      ];
+
+      expect(requests[0]).not.toHaveProperty('isTrueExactOutput');
+    });
+
     it('passes isHyperliquidSource through to post-quote request', async () => {
       await run({
         transactionData: {
@@ -2883,7 +2906,7 @@ describe('Quotes Utils', () => {
       );
     });
 
-    it('passes the declared source asset through to post-quote request', async () => {
+    it('uses the declared source asset as the source of the post-quote request', async () => {
       await run({
         transactionData: {
           ...POST_QUOTE_TRANSACTION_DATA,
@@ -2901,7 +2924,8 @@ describe('Quotes Utils', () => {
           requests: [
             expect.objectContaining({
               isPostQuote: true,
-              sourceAssetIdOverride: 'lighter:mainnet/perps:usdc',
+              sourceAccountId: `lighter:mainnet:${TRANSACTION_META_MOCK.txParams.from}`,
+              sourceAssetId: 'lighter:mainnet/perps:usdc',
             }),
           ],
         }),

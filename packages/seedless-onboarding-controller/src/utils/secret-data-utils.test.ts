@@ -2,12 +2,14 @@ import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import type { FetchedSecretDataItem } from '@metamask/toprf-secure-backup';
 import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 import { bigIntToHex, stringToBytes } from '@metamask/utils';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import {
   createFetchedSecretDataItem,
   createSecretMetadata,
   createSecretMetadataFromMock,
+  ImportedPrivateKey1,
   ImportedSRP1,
   PrimarySRP2,
   PrivateKey1,
@@ -22,6 +24,7 @@ import {
   findSocialBackupMetadata,
   getCreatedAtMs,
   getDataTypeMigrationUpdates,
+  getMetadataSchemaVersion,
   getNewSocialBackupsMetadata,
   isSecretDataType,
   parseAndValidateSecretMetadataBackup,
@@ -29,6 +32,13 @@ import {
   sortNewestFirst,
   splitVaultItems,
 } from './secret-data-utils.js';
+
+const { logMock } = vi.hoisted(() => ({ logMock: vi.fn() }));
+
+vi.mock('../logger.js', () => ({
+  projectLogger: {},
+  createModuleLogger: (): Mock => logMock,
+}));
 
 /**
  * @param overrides - The fields to set on the item.
@@ -155,6 +165,33 @@ describe('secret data utilities', () => {
       ).toThrow(
         new InvalidPrimarySecretDataTypeError([EncAccountDataType.ImportedSrp]),
       );
+    });
+  });
+
+  describe('getMetadataSchemaVersion', () => {
+    it.each([
+      { description: 'there are no items', items: [], expected: 'none' },
+      {
+        description: 'every item is stored as v1',
+        items: [SRP1, PrivateKey1],
+        expected: 'v1',
+      },
+      {
+        description: 'every item is stored as v2',
+        items: [PrimarySRP2, ImportedPrivateKey1],
+        expected: 'v2',
+      },
+      {
+        description: 'the items use both versions',
+        items: [SRP1, ImportedPrivateKey1],
+        expected: 'mixed',
+      },
+    ])('returns $expected when $description', ({ items, expected }) => {
+      const secretMetadata = parseSecretMetadata(
+        items.map(createFetchedSecretDataItem),
+      );
+
+      expect(getMetadataSchemaVersion(secretMetadata)).toBe(expected);
     });
   });
 

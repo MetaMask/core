@@ -9,13 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `isTrueExactOutput` to `TransactionConfig` so token transfers deliver exactly the required amount to the recipient, supported by `ServerStrategy` and `RelayStrategy` ([#11775](https://github.com/MetaMask/core/pull/11775))
 - Withdraw from Lighter through `ServerStrategy` when a required asset of the transaction has a Lighter `assetId` ([#11730](https://github.com/MetaMask/core/pull/11730))
-  - The client declares the source with the new optional `assetId` on the transaction's `requiredAssets`, such as `lighter:mainnet/perps:usdc`. It is exposed as `TransactionPayRequiredToken.assetId` and `QuoteRequest.sourceAssetIdOverride`, so no transaction config is needed.
+  - The client declares the source with the new optional `assetId` on the transaction's `requiredAssets`, such as `lighter:mainnet/perps:usdc`. It is exposed as `TransactionPayRequiredToken.assetId` and becomes the `sourceAssetId` of the post-quote `QuoteRequest`, so no transaction config is needed.
   - The server quote uses that asset as the source asset and the Lighter account index as the sender.
   - A `lighterTransfer` step is signed and sent through the `PerpsController:submitLighterTransfer` messenger action, which is now an allowed action of `TransactionPayControllerMessenger`.
   - A failed transfer stops the withdrawal before status polling.
-  - `RelayStrategy` and `AcrossStrategy` do not support a request with a declared source asset, so they never quote the EVM token that stands in for the Lighter balance.
-  - Return the flat Lighter transfer fee as `fees.lighter` on quotes and totals, and include it in the total.
+  - `RelayStrategy` and `AcrossStrategy` do not support the Lighter source asset, as it is not an EVM asset.
+  - Include the flat Lighter transfer fee in the provider fee.
 - Deposit into and withdraw from Lighter in flows that also use a payment override, such as a Money Account ([#11779](https://github.com/MetaMask/core/pull/11779))
   - A Lighter `assetId` on a required asset of a flow that is not post-quote is the deposit target, like the `perpsLighter` payment override, which leaves `paymentOverride` free for `moneyAccount`. A quote is always requested for it.
   - A Lighter `assetId` on the payment token of a flow that is not post-quote is the source of funds. `updatePaymentToken` accepts it without `AssetsController` data and prices it as the mainnet USDC that stands in for it. Pay does not know its balance, so it is zero and clients supply it through `getBalance`.
@@ -24,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Support provider-specific timeouts reported by the server in `ServerStrategy` ([#11737](https://github.com/MetaMask/core/pull/11737))
+  - Send `elapsedMs` with each status request and stop polling when the server returns the new `TIMEOUT` status.
+  - Remove the local `confirmations_pay_extended.payStrategies.server.pollingTimeout` feature flag, as the server now owns the timeout.
+  - Sweep Polymarket deposit wallets before reporting a timed out intent, as is already done for failed and refunded intents.
 - Add `@metamask/perps-controller` as a dependency ([#11730](https://github.com/MetaMask/core/pull/11730))
 - Bump `@metamask/transaction-controller` from `^74.5.0` to `^74.5.1` ([#11789](https://github.com/MetaMask/core/pull/11789))
 - Send the Lighter transfer for the account that owns the Lighter balance, which is the payer of the quote, instead of the sender of the transaction ([#11779](https://github.com/MetaMask/core/pull/11779))

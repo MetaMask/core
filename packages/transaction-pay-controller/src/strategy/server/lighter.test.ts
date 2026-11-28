@@ -80,15 +80,13 @@ describe('processLighterRequest', () => {
     ).toStrictEqual({ recipient: '770167' });
   });
 
-  it('returns the declared asset and account index as source for a withdrawal', async () => {
+  it('returns the account index as sender for a withdrawal', async () => {
     expect(
       await processLighterRequest(
-        request({ sourceAssetIdOverride: 'lighter:mainnet/perps:usdc' }),
+        request({ sourceAssetId: 'lighter:mainnet/perps:usdc' }),
         L1_ADDRESS_MOCK,
       ),
-    ).toStrictEqual({
-      source: { asset: 'lighter:mainnet/perps:usdc', sender: '770167' },
-    });
+    ).toStrictEqual({ sender: '770167' });
   });
 
   it('returns undefined and skips the lookup if the request does not involve Lighter', async () => {
@@ -191,7 +189,7 @@ describe('Lighter assets', () => {
     it('is false for a Lighter source asset', () => {
       expect(
         LighterNormalizer.isLighterRequest(
-          request({ sourceAssetIdOverride: 'lighter:mainnet/perps:usdc' }),
+          request({ sourceAssetId: 'lighter:mainnet/perps:usdc' }),
         ),
       ).toBe(false);
     });
@@ -200,14 +198,14 @@ describe('Lighter assets', () => {
   describe('isLighterSourceRequest', () => {
     it('is true when the client declared a Lighter source asset', () => {
       expect(
-        isLighterSourceRequest({
-          sourceAssetIdOverride: 'lighter:mainnet/perps:usdc',
-        }),
+        isLighterSourceRequest({ sourceAssetId: 'lighter:mainnet/perps:usdc' }),
       ).toBe(true);
     });
 
-    it('is false without a declared source asset', () => {
-      expect(isLighterSourceRequest({})).toBe(false);
+    it('is false for an EVM source asset', () => {
+      expect(
+        isLighterSourceRequest({ sourceAssetId: 'eip155:1/slip44:60' }),
+      ).toBe(false);
     });
   });
 });

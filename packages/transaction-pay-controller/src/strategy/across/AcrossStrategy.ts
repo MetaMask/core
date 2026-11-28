@@ -15,10 +15,7 @@ import {
   isPerpsDepositRequest,
   isPerpsDepositTransaction,
 } from '../../utils/perps.js';
-import {
-  getEvmQuoteSource,
-  isDirectEvmQuoteRequest,
-} from '../../utils/token.js';
+import { getEvmQuoteSource, isEvmQuoteRequest } from '../../utils/token.js';
 import { getAcrossDestination } from './across-actions.js';
 import { getAcrossQuotes } from './across-quotes.js';
 import { submitAcrossQuotes } from './across-submit.js';
@@ -34,7 +31,13 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
       return false;
     }
 
-    if (!request.requests.every(isDirectEvmQuoteRequest)) {
+    if (!request.requests.every(isEvmQuoteRequest)) {
+      return false;
+    }
+
+    if (
+      request.requests.some((singleRequest) => singleRequest.isTrueExactOutput)
+    ) {
       return false;
     }
 

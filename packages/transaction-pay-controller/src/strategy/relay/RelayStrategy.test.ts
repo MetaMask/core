@@ -114,27 +114,41 @@ describe('RelayStrategy', () => {
     expect(getRelayQuotesMock).toHaveBeenCalledWith(request);
   });
 
-  it('returns false when a request has a non-EVM source asset', () => {
-    const strategy = new RelayStrategy();
-
-    expect(
-      strategy.supports({ ...request, requests: [nonEvmQuoteRequest] }),
-    ).toBe(false);
-  });
-
-  it('returns false when a request declares a source asset override', () => {
+  it('returns true when a request requires a true exact output', () => {
     const strategy = new RelayStrategy();
 
     expect(
       strategy.supports({
         ...request,
-        requests: [
-          {
-            ...request.requests[0],
-            sourceAssetIdOverride: 'lighter:mainnet/perps:usdc',
-          },
-        ],
+        requests: [{ ...request.requests[0], isTrueExactOutput: true }],
       }),
+    ).toBe(true);
+  });
+
+  it.each([
+    ['the maximum amount', { isMaxAmount: true }],
+    ['a non-atomic execution', { atomic: false }],
+  ])(
+    'returns false when a true exact output request uses %s',
+    (_title, overrides) => {
+      const strategy = new RelayStrategy();
+
+      expect(
+        strategy.supports({
+          ...request,
+          requests: [
+            { ...request.requests[0], isTrueExactOutput: true, ...overrides },
+          ],
+        }),
+      ).toBe(false);
+    },
+  );
+
+  it('returns false when a request has a non-EVM source asset', () => {
+    const strategy = new RelayStrategy();
+
+    expect(
+      strategy.supports({ ...request, requests: [nonEvmQuoteRequest] }),
     ).toBe(false);
   });
 

@@ -10,6 +10,7 @@ import {
   ERC20_APPROVE_SELECTOR,
   ERC7579_BATCH_DEFAULT_MODE,
   ERC7821_EXECUTE_SELECTOR,
+  RECEIVE_WITH_AUTHORIZATION_SELECTOR,
   TELLER_DEPOSIT_SELECTOR,
   ZERO_ADDRESS,
 } from './constants.js';
@@ -113,7 +114,7 @@ export function getExactExecutions(
 }
 
 /**
- * Checks whether calls are a Money Account vault deposit:
+ * Gets the amount of a Money Account vault deposit:
  * `mUSD.approve(boringVault, amount)` followed by
  * `teller.deposit(mUSD, amount, minimumMint, 0x0)` of the same vault, with
  * no native value. Funds never leave the user: mUSD in the Money Account
@@ -121,22 +122,23 @@ export function getExactExecutions(
  *
  * @param executions - The calls.
  * @param config - The whitelist config.
- * @returns Whether the calls are a vault deposit.
+ * @returns The deposit amount, or `undefined` if the calls are not a vault
+ * deposit.
  */
-export function isVaultDeposit(
+function getVaultDepositAmount(
   executions: Execution[],
   config: MfaWhitelistConfig,
-): boolean {
+): bigint | undefined {
   if (executions.length !== 2) {
-    return false;
+    return undefined;
   }
 
   const [approve, deposit] = executions;
   if (approve.value !== 0n || deposit.value !== 0n) {
-    return false;
+    return undefined;
   }
   if (!isSameHex(approve.target, config.musdTokenAddress)) {
-    return false;
+    return undefined;
   }
 
   const approveArgs = decodeCall(approve.callData, ERC20_APPROVE_SELECTOR, [
@@ -144,7 +146,7 @@ export function isVaultDeposit(
     'uint256',
   ]);
   if (!approveArgs) {
-    return false;
+    return undefined;
   }
   const [spender, approveAmount] = approveArgs as [Hex, bigint];
 
@@ -152,7 +154,7 @@ export function isVaultDeposit(
     isSameHex(boringVault, spender),
   );
   if (!vault || !isSameHex(deposit.target, vault.tellerAddress)) {
-    return false;
+    return undefined;
   }
 
   const depositArgs = decodeCall(deposit.callData, TELLER_DEPOSIT_SELECTOR, [
@@ -162,7 +164,7 @@ export function isVaultDeposit(
     'address',
   ]);
   if (!depositArgs) {
-    return false;
+    return undefined;
   }
   const [asset, depositAmount, , referral] = depositArgs as [
     Hex,
@@ -171,10 +173,68 @@ export function isVaultDeposit(
     Hex,
   ];
 
-  return (
-    isSameHex(asset, config.musdTokenAddress) &&
+  return isSameHex(asset, config.musdTokenAddress) &&
     depositAmount === approveAmount &&
     depositAmount > 0n &&
     isSameHex(referral, ZERO_ADDRESS)
+    ? depositAmount
+    : undefined;
+}
+
+/**
+ * Checks whether calls are a Money Account vault deposit, as described in
+ * {@link getVaultDepositAmount}.
+ *
+ * @param executions - The calls.
+ * @param config - The whitelist config.
+ * @returns Whether the calls are a vault deposit.
+ */
+export function isVaultDeposit(
+  executions: Execution[],
+  config: MfaWhitelistConfig,
+): boolean {
+  return getVaultDepositAmount(executions, config) !== undefined;
+}
+
+/**
+ * Checks whether calls are a MetaMask Rewards claim:
+ * `mUSD.receiveWithAuthorization(from, delegator, amount, ...)` (EIP-3009)
+ * followed by a vault deposit of the same `amount`, with no native value.
+ * The voucher can only pay the Money Account itself, and the deposit only
+ * turns what it received into vault shares owned by the Money Account, so
+ * funds only come in.
+ *
+ * @param executions - The calls.
+ * @param delegator - The Money Account.
+ * @param config - The whitelist config.
+ * @returns Whether the calls are a Rewards claim.
+ */
+export function isRewardsClaim(
+  executions: Execution[],
+  delegator: Hex,
+  config: MfaWhitelistConfig,
+): boolean {
+  const [receive, ...deposit] = executions;
+  if (
+    !receive ||
+    receive.value !== 0n ||
+    !isSameHex(receive.target, config.musdTokenAddress)
+  ) {
+    return false;
+  }
+
+  const receiveArgs = decodeCall(
+    receive.callData,
+    RECEIVE_WITH_AUTHORIZATION_SELECTOR,
+    ['address', 'address', 'uint256', 'uint256', 'uint256', 'bytes32', 'bytes'],
+  );
+  if (!receiveArgs) {
+    return false;
+  }
+  const [, to, amount] = receiveArgs as [Hex, Hex, bigint];
+
+  return (
+    isSameHex(to, delegator) &&
+    getVaultDepositAmount(deposit, config) === amount
   );
 }

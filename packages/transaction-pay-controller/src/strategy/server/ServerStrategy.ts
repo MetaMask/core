@@ -11,6 +11,7 @@ import type {
 import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
 import { getMaxAmountRefreshInterval } from '../../utils/max-quote.js';
 import { isEvmQuoteRequest } from '../../utils/token.js';
+import { isLighterSourceRequest } from './lighter.js';
 import { getServerQuotes } from './server-quotes.js';
 import { submitServerQuotes } from './server-submit.js';
 import { getServerUnsupportedReason } from './server-support.js';
@@ -33,12 +34,19 @@ export class ServerStrategy implements PayStrategy<ServerQuote> {
       return false;
     }
 
-    if (!request.requests.every(isEvmQuoteRequest)) {
+    if (
+      !request.requests.every(
+        (quoteRequest) =>
+          isEvmQuoteRequest(quoteRequest) ||
+          isLighterSourceRequest(quoteRequest),
+      )
+    ) {
       return false;
     }
 
     const reason = getServerUnsupportedReason({
       enabledTransactionTypes: config.server.enabledTransactionTypes,
+      requests: request.requests,
       transaction: request.transaction,
     });
 

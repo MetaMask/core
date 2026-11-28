@@ -99,6 +99,14 @@ export type ServerQuoteRequest = {
   supportsGasless?: boolean;
 
   /**
+   * Whether the recipient must receive exactly `amount`, with any swap surplus
+   * kept by the provider rather than sent to the recipient. Requires an exact
+   * output trade type. Providers that cannot guarantee this
+   * decline the request.
+   */
+  useTrueExactOutput?: boolean;
+
+  /**
    * Whether the quote is funded with a plain token transfer to a provider
    * deposit address, rather than by calling the provider contracts. The
    * transfer must not include any additional calldata, such as an appended
@@ -192,6 +200,7 @@ export enum ServerStatus {
   Confirmed = 'CONFIRMED',
   Failed = 'FAILED',
   Refunded = 'REFUNDED',
+  Timeout = 'TIMEOUT',
   Unknown = 'UNKNOWN',
 }
 

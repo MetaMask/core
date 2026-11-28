@@ -184,6 +184,7 @@ export class TransactionPayController extends BaseController<
         isPolymarketDepositWallet: transactionData.isPolymarketDepositWallet,
         isPostQuote: transactionData.isPostQuote,
         isQuoteRequired: transactionData.isQuoteRequired,
+        isTrueExactOutput: transactionData.isTrueExactOutput,
         paymentOverride: transactionData.paymentOverride,
         refundTo: transactionData.refundTo,
       };
@@ -369,6 +370,7 @@ export class TransactionPayController extends BaseController<
       const originalTokens = current?.tokens;
       const originalIsMaxAmount = current?.isMaxAmount;
       const originalIsPostQuote = current?.isPostQuote;
+      const originalIsTrueExactOutput = current?.isTrueExactOutput;
       const originalAccountOverride = current?.accountOverride;
       const originalFiatPaymentAmount = current?.fiatPayment?.amountFiat;
       const originalFiatPaymentMethodId =
@@ -440,7 +442,15 @@ export class TransactionPayController extends BaseController<
         );
       }
 
-      if (isFiatAmountUpdated || isFiatPaymentMethodUpdated) {
+      // The source amounts do not depend on the pricing basis, but the quotes do.
+      const isTrueExactOutputUpdated =
+        current.isTrueExactOutput !== originalIsTrueExactOutput;
+
+      if (
+        isFiatAmountUpdated ||
+        isFiatPaymentMethodUpdated ||
+        isTrueExactOutputUpdated
+      ) {
         shouldUpdateQuotes = true;
       }
     });

@@ -7,7 +7,8 @@ import type {
 } from '../../types.js';
 import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
 import { getMaxAmountRefreshInterval } from '../../utils/max-quote.js';
-import { isDirectEvmQuoteRequest } from '../../utils/token.js';
+import { isEvmQuoteRequest } from '../../utils/token.js';
+import { isTrueExactOutputSupported } from '../../utils/trade-type.js';
 import { getRelayQuotes } from './relay-quotes.js';
 import { submitRelayQuotes } from './relay-submit.js';
 import type { RelayQuote } from './types.js';
@@ -21,7 +22,9 @@ export class RelayStrategy implements PayStrategy<RelayQuote> {
     const config = getPayStrategiesConfig(request.messenger);
 
     return (
-      config.relay.enabled && request.requests.every(isDirectEvmQuoteRequest)
+      config.relay.enabled &&
+      request.requests.every(isEvmQuoteRequest) &&
+      isTrueExactOutputSupported(request.requests)
     );
   }
 
