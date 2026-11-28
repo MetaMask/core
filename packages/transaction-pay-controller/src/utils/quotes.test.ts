@@ -9,7 +9,7 @@ import type { MockedFunction } from 'vitest';
 
 import { getMessengerMock } from '../../tests/messenger-mock.js';
 import { mockModuleExcept } from '../../tests/mock-module-except.js';
-import { TransactionPayStrategy } from '../constants.js';
+import { PaymentOverride, TransactionPayStrategy } from '../constants.js';
 import type {
   GetBalanceCallback,
   QuoteRequest,
@@ -2212,6 +2212,78 @@ describe('Quotes Utils', () => {
       });
 
       expect(getQuotesMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Lighter assets', () => {
+    const LIGHTER_ASSET_ID_MOCK = 'lighter:mainnet/perps:usdc' as CaipAssetType;
+
+    const LIGHTER_PAYMENT_TOKEN_MOCK: TransactionPaymentToken = {
+      assetId: LIGHTER_ASSET_ID_MOCK,
+      balanceFiat: '0',
+      balanceHuman: '0',
+      balanceRaw: '0',
+      balanceUsd: '0',
+      decimals: 6,
+      symbol: 'USDC',
+    };
+
+    it('requests a Lighter payment token as the source', async () => {
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          paymentToken: LIGHTER_PAYMENT_TOKEN_MOCK,
+        },
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: [
+            expect.objectContaining({
+              sourceAccountId: `lighter:mainnet:${TRANSACTION_META_MOCK.txParams.from}`,
+              sourceAssetId: LIGHTER_ASSET_ID_MOCK,
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('does not resolve an account or read an on-chain balance for a Lighter payment token', async () => {
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          paymentToken: LIGHTER_PAYMENT_TOKEN_MOCK,
+        },
+      });
+
+      expect(getAssetAccount).not.toHaveBeenCalled();
+      expect(getLiveTokenBalanceMock).not.toHaveBeenCalled();
+    });
+
+    it('passes the Lighter asset declared on a required token as the target', async () => {
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          paymentOverride: PaymentOverride.MoneyAccount,
+          tokens: [
+            {
+              ...TRANSACTION_DATA_MOCK.tokens[0],
+              assetId: LIGHTER_ASSET_ID_MOCK,
+            },
+          ],
+        },
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: [
+            expect.objectContaining({
+              paymentOverride: PaymentOverride.MoneyAccount,
+              targetAssetIdOverride: LIGHTER_ASSET_ID_MOCK,
+            }),
+          ],
+        }),
+      );
     });
   });
 

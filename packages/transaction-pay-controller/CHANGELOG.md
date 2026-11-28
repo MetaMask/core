@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - A failed transfer stops the withdrawal before status polling.
   - `RelayStrategy` and `AcrossStrategy` do not support the Lighter source asset, as it is not an EVM asset.
   - Include the flat Lighter transfer fee in the provider fee.
+- Deposit into and withdraw from Lighter in flows that also use a payment override, such as a Money Account ([#11779](https://github.com/MetaMask/core/pull/11779))
+  - A Lighter `assetId` on a required asset of a flow that is not post-quote is the deposit target, like the `perpsLighter` payment override, which leaves `paymentOverride` free for `moneyAccount`. A quote is always requested for it.
+  - A Lighter `assetId` on the payment token of a flow that is not post-quote is the source of funds. `updatePaymentToken` accepts it without `AssetsController` data and prices it as the mainnet USDC that stands in for it. Pay does not know its balance, so it is zero and clients supply it through `getBalance`.
+  - Expose the declared target as `QuoteRequest.targetAssetIdOverride`.
+- Return a quote error with the new `amount-too-low` reason when the server strategy gets no quote because a provider rejects the amount as below its minimum ([#11779](https://github.com/MetaMask/core/pull/11779))
 
 ### Changed
 
@@ -26,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Sweep Polymarket deposit wallets before reporting a timed out intent, as is already done for failed and refunded intents.
 - Add `@metamask/perps-controller` as a dependency ([#11730](https://github.com/MetaMask/core/pull/11730))
 - Bump `@metamask/transaction-controller` from `^74.5.0` to `^74.5.1` ([#11789](https://github.com/MetaMask/core/pull/11789))
+- Send the Lighter transfer for the account that owns the Lighter balance, which is the payer of the quote, instead of the sender of the transaction ([#11779](https://github.com/MetaMask/core/pull/11779))
+  - They are the same account for a withdrawal.
 - Bump `@metamask/utils` from `^12.0.2` to `^12.1.0` ([#11796](https://github.com/MetaMask/core/pull/11796))
 - Bump `@metamask/assets-controller` from `^22.0.0` to `^22.0.1` ([#11797](https://github.com/MetaMask/core/pull/11797))
 

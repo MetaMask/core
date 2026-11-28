@@ -6,6 +6,7 @@ import { createModuleLogger, parseCaipAssetType } from '@metamask/utils';
 
 import { PaymentOverride, TransactionPayStrategy } from '../constants.js';
 import { projectLogger } from '../logger.js';
+import { isLighterAsset } from '../strategy/server/lighter.js';
 import type {
   EvmPaymentToken,
   QuoteRequest,
@@ -206,8 +207,12 @@ export async function updateQuotes(
   });
 
   try {
+    // A Lighter balance is held by the EVM account that owns the Lighter
+    // account, so it has no account of its own to resolve.
     const sourceAccount =
-      originalPaymentToken && isNonEvmPaymentToken(originalPaymentToken)
+      originalPaymentToken &&
+      isNonEvmPaymentToken(originalPaymentToken) &&
+      !isLighterAsset(originalPaymentToken.assetId)
         ? getAssetAccount(messenger, {
             accountOverride,
             assetId: originalPaymentToken.assetId,
@@ -682,6 +687,7 @@ function buildQuoteRequests({
       sourceBalanceRaw: paymentToken.balanceRaw,
       sourceTokenAmount: sourceAmount.sourceAmountRaw,
       targetAmountMinimum: token.allowUnderMinimum ? '0' : token.amountRaw,
+      ...(token.assetId ? { targetAssetIdOverride: token.assetId } : {}),
       targetChainId: token.chainId,
       targetTokenAddress: token.address,
     };
@@ -812,6 +818,11 @@ async function refreshPaymentTokenBalance({
 }): Promise<TransactionPaymentToken | undefined> {
   if (!paymentToken) {
     return undefined;
+  }
+
+  // The Lighter balance cannot be read here, so the client supplies it.
+  if (isLighterAsset(paymentToken.assetId)) {
+    return paymentToken;
   }
 
   if (sourceAccount) {

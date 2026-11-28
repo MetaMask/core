@@ -1,5 +1,5 @@
 import { successfulFetch } from '@metamask/controller-utils';
-import type { Hex } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
@@ -33,7 +33,15 @@ const LIGHTER_MAIN_ACCOUNT_TYPE = 0;
 const LIGHTER_ASSET_PREFIX = 'lighter:';
 
 /** Decimals of USDC on Lighter, in which transfer amounts and fees are set. */
-const LIGHTER_USDC_DECIMALS = 6;
+export const LIGHTER_USDC_DECIMALS = 6;
+
+/**
+ * CAIP-19 asset type of mainnet USDC, which stands in for the Lighter perps
+ * balance where the quote request needs an EVM source: its chain and address
+ * identify the source, and `AssetsController` prices it.
+ */
+export const LIGHTER_USDC_STAND_IN_ASSET_ID =
+  'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as CaipAssetType;
 
 /**
  * Placeholder chain ID for the Lighter perps balance. Only used within the
@@ -59,13 +67,19 @@ type LighterAccountsByL1AddressResponse = {
  */
 export class LighterNormalizer {
   /**
-   * Checks if a quote request targets Lighter perps.
+   * Checks if a quote request targets Lighter perps, either through the
+   * `perpsLighter` payment override or the Lighter asset the client declared
+   * on the required asset. The latter leaves the payment override free, for
+   * example for a Money Account.
    *
    * @param request - Quote request from the transaction-pay controller.
    * @returns Whether the request is for Lighter perps.
    */
   static isLighterRequest(request: QuoteRequest): boolean {
-    return request.paymentOverride === PaymentOverride.PerpsLighter;
+    return (
+      request.paymentOverride === PaymentOverride.PerpsLighter ||
+      isLighterAsset(request.targetAssetIdOverride)
+    );
   }
 
   /**

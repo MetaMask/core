@@ -1876,13 +1876,13 @@ describe('submitServerQuotes', () => {
       mockTransferResult({ success: true, txHash: '0x1234' });
     });
 
-    it('sends the transfer to Lighter for the account that owns the Lighter account', async () => {
+    it('sends the transfer to Lighter for the account that owns the Lighter account, which is the payer', async () => {
       await submitServerQuotes(buildLighterRequest());
 
       expect(lighterSubmitTransferMock).toHaveBeenCalledTimes(1);
       expect(lighterSubmitTransferMock).toHaveBeenCalledWith({
         accountIndex: 770167,
-        eoa: ORIGINAL_FROM_MOCK,
+        eoa: QUOTE_FROM_MOCK,
         toAccountIndex: LIGHTER_STEP_MOCK.toAccountIndex,
         assetIndex: LIGHTER_STEP_MOCK.assetIndex,
         fromRouteType: LIGHTER_STEP_MOCK.fromRouteType,
