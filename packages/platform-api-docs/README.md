@@ -59,7 +59,7 @@ Which strategy to use depends on whether the project has a single messenger carr
 
 ### `scan` (default)
 
-Parses every TypeScript source and declaration file it can find — the scan directories, `packages/*/src`, and `node_modules/@metamask/*/dist` — and reads every `*Messenger` type alias it encounters.
+Parses TypeScript source files in the scan directories and `packages/*/src`, plus `.d.cts` and `.d.ts` declaration files in `node_modules/@metamask/*/dist` (including nested directories), and reads every `*Messenger` type alias it encounters. Packages that publish both declaration formats are scanned together, with duplicate actions and events handled by the existing deduplication rules.
 
 Use this when no single messenger aggregates every capability, as in a monorepo of independently published packages.
 
