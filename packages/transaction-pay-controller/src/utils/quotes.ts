@@ -672,8 +672,8 @@ function buildQuoteRequests({
 
   // A Hyperliquid balance is stood in for by the USDC it is bridged from, which
   // `isHyperliquidSource` marks. A Lighter balance is the source itself.
-  const isHyperliquidSource = isHyperliquidAsset(paymentToken.assetId);
-  const sourceAssetId = isHyperliquidSource
+  const isHyperliquidBalance = isHyperliquidAsset(paymentToken.assetId);
+  const sourceAssetId = isHyperliquidBalance
     ? HYPERLIQUID_USDC_STAND_IN_ASSET_ID
     : paymentToken.assetId;
   const sourceAccountId = getCaipAccountId(sourceAssetId, sourceAddress);
@@ -687,7 +687,7 @@ function buildQuoteRequests({
     return {
       atomic,
       from,
-      ...(isHyperliquidSource ? { isHyperliquidSource } : {}),
+      ...(isHyperliquidBalance ? { isHyperliquidSource: true } : {}),
       ...(isTrueExactOutput ? { isTrueExactOutput } : {}),
       isMaxAmount,
       paymentOverride,
