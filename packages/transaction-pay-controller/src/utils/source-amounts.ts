@@ -24,7 +24,7 @@ import {
   buildCaipAssetType,
   getAssetFiatRate,
   getEvmAsset,
-  getEvmPaymentToken,
+  getPostQuoteDestinationToken,
   isSameToken,
 } from './token.js';
 import { getTransaction } from './transaction.js';
@@ -69,10 +69,12 @@ export function updateSourceAmounts(
   // For post-quote flows, source amounts are calculated differently
   // The source is the transaction's required token, not the selected token
   if (isPostQuote) {
-    const evmPaymentToken = getEvmPaymentToken(paymentToken);
+    const evmPaymentToken = getPostQuoteDestinationToken(paymentToken);
 
     if (!evmPaymentToken) {
-      throw new Error('Post-quote payment tokens must be EVM tokens');
+      throw new Error(
+        'Post-quote payment tokens must be EVM tokens or perps balances',
+      );
     }
 
     const { isHyperliquidSource, isPolymarketDepositWallet, paymentOverride } =

@@ -34,7 +34,7 @@ import type {
 import { getStrategyOrder } from './utils/feature-flags.js';
 import { updateQuotes } from './utils/quotes.js';
 import { updateSourceAmounts } from './utils/source-amounts.js';
-import { getEvmPaymentToken } from './utils/token.js';
+import { getEvmPaymentToken, isPerpsBalanceAsset } from './utils/token.js';
 import { getPayTransactionType } from './utils/transaction-type.js';
 import {
   subscribeAssetChanges,
@@ -482,6 +482,12 @@ export class TransactionPayController extends BaseController<
 
     if (validStrategies.length) {
       return validStrategies;
+    }
+
+    // A Perps balance, as the source or the destination, has no EVM chain to
+    // match route overrides, and only the server strategy can quote it.
+    if (isPerpsBalanceAsset(transactionData?.paymentToken?.assetId)) {
+      return [TransactionPayStrategy.Server];
     }
 
     const evmPaymentToken = getEvmPaymentToken(transactionData?.paymentToken);

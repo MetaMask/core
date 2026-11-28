@@ -9,6 +9,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import { getMessengerMock } from '../../tests/messenger-mock.js';
 import {
+  ARBITRUM_USDC_ADDRESS,
+  CHAIN_ID_ARBITRUM,
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
   POLYGON_USDCE_ADDRESS,
@@ -28,8 +30,12 @@ import {
   getTokenInfo,
   getTokenFiatRate,
   getNativeToken,
+  getPostQuoteDestinationToken,
+  isDirectEvmQuoteRequest,
   isEvmQuoteRequest,
+  isHyperliquidAsset,
   isNonEvmPaymentToken,
+  isPerpsBalanceAsset,
   isSameToken,
   getLiveTokenBalance,
   getLiveTokenBalanceOrUndefined,
@@ -1686,6 +1692,121 @@ describe('Token Utils', () => {
     });
   });
 
+  describe('isDirectEvmQuoteRequest', () => {
+    it('returns true for an EVM source asset with no target override', () => {
+      expect(
+        isDirectEvmQuoteRequest({ sourceAssetId: 'eip155:1/slip44:60' }),
+      ).toBe(true);
+    });
+
+    it('returns false for an EVM target asset that stands in for an override', () => {
+      expect(
+        isDirectEvmQuoteRequest({
+          sourceAssetId: 'eip155:1/slip44:60',
+          targetAssetIdOverride: 'lighter:mainnet/perps:usdc',
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false for a non-EVM source asset', () => {
+      expect(
+        isDirectEvmQuoteRequest({ sourceAssetId: SOLANA_ASSET_ID_MOCK }),
+      ).toBe(false);
+    });
+  });
+
+  describe('isHyperliquidAsset', () => {
+    it('returns true for the Hyperliquid perps balance', () => {
+      expect(isHyperliquidAsset('hyperliq:mainnet/perps:usdc')).toBe(true);
+    });
+
+    it.each([undefined, 'lighter:mainnet/perps:usdc', 'eip155:1/slip44:60'])(
+      'returns false for %s',
+      (assetId) => {
+        expect(isHyperliquidAsset(assetId)).toBe(false);
+      },
+    );
+  });
+
+  describe('isPerpsBalanceAsset', () => {
+    it.each(['hyperliq:mainnet/perps:usdc', 'lighter:mainnet/perps:usdc'])(
+      'returns true for %s',
+      (assetId) => {
+        expect(isPerpsBalanceAsset(assetId)).toBe(true);
+      },
+    );
+
+    it.each([undefined, 'eip155:1/slip44:60'])(
+      'returns false for %s',
+      (assetId) => {
+        expect(isPerpsBalanceAsset(assetId)).toBe(false);
+      },
+    );
+  });
+
+  describe('getPostQuoteDestinationToken', () => {
+    const PERPS_PAYMENT_TOKEN_MOCK = {
+      balanceFiat: '0',
+      balanceHuman: '0',
+      balanceRaw: '0',
+      balanceUsd: '0',
+      decimals: 6,
+      symbol: 'USDC',
+    };
+
+    it('returns undefined without a payment token', () => {
+      expect(getPostQuoteDestinationToken(undefined)).toBeUndefined();
+    });
+
+    it('returns the EVM payment token of an EVM token', () => {
+      const paymentToken: TransactionPaymentToken = {
+        ...PERPS_PAYMENT_TOKEN_MOCK,
+        assetId: `eip155:137/erc20:${TOKEN_ADDRESS_MOCK}`,
+      };
+
+      expect(getPostQuoteDestinationToken(paymentToken)).toStrictEqual({
+        ...paymentToken,
+        address: TOKEN_ADDRESS_MOCK,
+        chainId: CHAIN_ID_POLYGON,
+      });
+    });
+
+    it('returns undefined for a non-EVM token', () => {
+      expect(
+        getPostQuoteDestinationToken({
+          ...PERPS_PAYMENT_TOKEN_MOCK,
+          assetId: SOLANA_ASSET_ID_MOCK,
+        }),
+      ).toBeUndefined();
+    });
+
+    it('stands in mainnet USDC for the Lighter perps balance', () => {
+      const paymentToken: TransactionPaymentToken = {
+        ...PERPS_PAYMENT_TOKEN_MOCK,
+        assetId: 'lighter:mainnet/perps:usdc',
+      };
+
+      expect(getPostQuoteDestinationToken(paymentToken)).toStrictEqual({
+        ...paymentToken,
+        address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        chainId: '0x1',
+      });
+    });
+
+    it('stands in Arbitrum USDC for the Hyperliquid perps balance', () => {
+      const paymentToken: TransactionPaymentToken = {
+        ...PERPS_PAYMENT_TOKEN_MOCK,
+        assetId: 'hyperliq:mainnet/perps:usdc',
+      };
+
+      expect(getPostQuoteDestinationToken(paymentToken)).toStrictEqual({
+        ...paymentToken,
+        address: ARBITRUM_USDC_ADDRESS,
+        chainId: CHAIN_ID_ARBITRUM,
+      });
+    });
+  });
+
   describe('getEvmQuoteSource', () => {
     it('derives the chain ID and token address of an EVM source asset', () => {
       expect(
@@ -1832,6 +1953,33 @@ describe('Token Utils', () => {
 
       expect(getAssetFiatRate(messenger, SOLANA_ASSET_ID_MOCK)).toBeUndefined();
     });
+
+    it.each([
+      [
+        'lighter:mainnet/perps:usdc',
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+      ],
+      [
+        'hyperliq:mainnet/perps:usdc',
+        'eip155:42161/erc20:0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+      ],
+    ] as const)(
+      'prices the %s balance as the USDC that stands in for it',
+      (assetId, standInAssetId) => {
+        getAssetsControllerStateMock.mockReturnValue({
+          assetsPrice: {
+            [standInAssetId]: {
+              assetPriceType: 'fungible',
+              lastUpdated: 0,
+              price: 0.9,
+              usdPrice: 0.99,
+            },
+          },
+        });
+
+        expect(getAssetFiatRate(messenger, assetId)).toBeDefined();
+      },
+    );
 
     it('returns a fixed USD rate for an EVM stablecoin', () => {
       const assetId = buildAssetId(CHAIN_ID_POLYGON, POLYGON_USDCE_ADDRESS);

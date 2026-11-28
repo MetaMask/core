@@ -590,6 +590,10 @@ export type TransactionPaymentToken = {
    * `AssetsController`. Selecting it as the payment token of a flow that is not
    * post-quote pays from that balance. Pay does not know the balance, so it is
    * zero here and clients supply it through `getBalance`.
+   *
+   * In a post-quote flow the payment token is the destination, so selecting a
+   * Lighter perps balance or the Hyperliquid perps balance
+   * (`hyperliq:mainnet/perps:usdc`) transfers the withdrawn funds into it.
    */
   assetId: CaipAssetType;
 
@@ -725,7 +729,7 @@ export type QuoteRequest = {
    * CAIP-19 asset type the client declared for the target, when it is not the
    * EVM token below, for example a Lighter perps balance. `targetChainId` and
    * `targetTokenAddress` then hold the EVM token that stands in for it.
-   * Only set for flows that are not post-quote.
+   * In a post-quote flow it is the perps balance selected as the destination.
    */
   targetAssetIdOverride?: CaipAssetType;
 

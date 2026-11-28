@@ -68,7 +68,11 @@ vi.mock(import('./token.js'), async (importOriginal) =>
     'getEvmAsset',
     'getEvmPaymentToken',
     'getNativeToken',
+    'getPerpsBalanceStandInAssetId',
+    'getPostQuoteDestinationToken',
+    'isHyperliquidAsset',
     'isNonEvmPaymentToken',
+    'isPerpsBalanceAsset',
   ]),
 );
 
@@ -2246,6 +2250,38 @@ describe('Quotes Utils', () => {
           ],
         }),
       );
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: [
+            expect.not.objectContaining({ isHyperliquidSource: true }),
+          ],
+        }),
+      );
+    });
+
+    it('requests the USDC that stands in for a Hyperliquid payment token as a Hyperliquid source', async () => {
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          paymentToken: {
+            ...LIGHTER_PAYMENT_TOKEN_MOCK,
+            assetId: 'hyperliq:mainnet/perps:usdc',
+          },
+        },
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: [
+            expect.objectContaining({
+              isHyperliquidSource: true,
+              sourceAccountId: `eip155:42161:${TRANSACTION_META_MOCK.txParams.from}`,
+              sourceAssetId:
+                'eip155:42161/erc20:0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+            }),
+          ],
+        }),
+      );
     });
 
     it('does not resolve an account or read an on-chain balance for a Lighter payment token', async () => {
@@ -2926,6 +2962,66 @@ describe('Quotes Utils', () => {
               isPostQuote: true,
               sourceAccountId: `lighter:mainnet:${TRANSACTION_META_MOCK.txParams.from}`,
               sourceAssetId: 'lighter:mainnet/perps:usdc',
+            }),
+          ],
+        }),
+      );
+    });
+
+    it.each([
+      {
+        assetId: 'lighter:mainnet/perps:usdc',
+        targetChainId: '0x1',
+        targetTokenAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+      },
+      {
+        assetId: 'hyperliq:mainnet/perps:usdc',
+        targetChainId: '0xa4b1',
+        targetTokenAddress: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+      },
+    ])(
+      'declares the $assetId destination and sends its stand-in token as target',
+      async ({ assetId, targetChainId, targetTokenAddress }) => {
+        await run({
+          transactionData: {
+            ...POST_QUOTE_TRANSACTION_DATA,
+            paymentToken: {
+              ...DESTINATION_TOKEN_MOCK,
+              assetId: assetId as CaipAssetType,
+            },
+            sourceAmounts: [
+              {
+                ...POST_QUOTE_TRANSACTION_DATA.sourceAmounts?.[0],
+                targetTokenAddress: targetTokenAddress as Hex,
+              } as TransactionPaySourceAmount,
+            ],
+          },
+        });
+
+        expect(getQuotesMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            requests: [
+              expect.objectContaining({
+                isPostQuote: true,
+                targetAssetIdOverride: assetId,
+                targetChainId,
+                targetTokenAddress,
+              }),
+            ],
+          }),
+        );
+        expect(getAssetAccount).not.toHaveBeenCalled();
+      },
+    );
+
+    it('does not declare a target asset for an EVM destination', async () => {
+      await run({ transactionData: POST_QUOTE_TRANSACTION_DATA });
+
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: [
+            expect.not.objectContaining({
+              targetAssetIdOverride: expect.anything(),
             }),
           ],
         }),

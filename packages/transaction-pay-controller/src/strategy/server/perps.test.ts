@@ -108,5 +108,41 @@ describe('strategy/server/perps', () => {
       );
       expect(result.sourceTokenAmount).toBe('100000000');
     });
+
+    it('rewrites the target to HyperCore for a post-quote Hyperliquid destination', () => {
+      const postQuoteRequest: QuoteRequest = {
+        ...baseRequest,
+        isPostQuote: true,
+        targetAmountMinimum: '0',
+        targetAssetIdOverride: 'hyperliq:mainnet/perps:usdc',
+      };
+
+      const result = normalizeServerPerpsRequest(
+        postQuoteRequest,
+        innocuousTransaction,
+      );
+
+      expect(result).toStrictEqual({
+        ...postQuoteRequest,
+        targetChainId: CHAIN_ID_HYPERCORE,
+        targetTokenAddress: SERVER_HYPERCORE_USDC_PERPS_ADDRESS,
+      });
+    });
+
+    it('keeps the target of a post-quote request to another destination', () => {
+      const postQuoteRequest: QuoteRequest = {
+        ...baseRequest,
+        isPostQuote: true,
+        targetAmountMinimum: '0',
+        targetAssetIdOverride: 'lighter:mainnet/perps:usdc',
+      };
+
+      const result = normalizeServerPerpsRequest(
+        postQuoteRequest,
+        innocuousTransaction,
+      );
+
+      expect(result).toBe(postQuoteRequest);
+    });
   });
 });

@@ -1,5 +1,6 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
+import type { CaipAssetType } from '@metamask/utils';
 import { describe, expect, it } from 'vitest';
 
 import type { QuoteRequest } from '../../types.js';
@@ -8,6 +9,8 @@ import {
   getServerUnsupportedReason,
   ServerUnsupportedReason,
 } from './server-support.js';
+
+const LIGHTER_ASSET_ID_MOCK = 'lighter:mainnet/perps:usdc' as CaipAssetType;
 
 const TRANSACTION_MOCK = {
   type: TransactionType.perpsDeposit,
@@ -152,6 +155,116 @@ describe('server-support', () => {
         ).toBe(ServerUnsupportedReason.DisabledTransactionType);
       },
     );
+
+    it.each(['lighter:mainnet/perps:usdc', 'hyperliq:mainnet/perps:usdc'])(
+      'supports a Perps withdraw to the %s balance without the allowlist',
+      (targetAssetIdOverride) => {
+        expect(
+          getServerUnsupportedReason({
+            enabledTransactionTypes: [],
+            requests: [
+              {
+                isPostQuote: true,
+                targetAssetIdOverride,
+              } as QuoteRequest,
+            ],
+            transaction: {
+              nestedTransactions: [{ type: TransactionType.perpsWithdraw }],
+              type: TransactionType.batch,
+            } as TransactionMeta,
+          }),
+        ).toBeUndefined();
+      },
+    );
+
+    it('does not support a Perps withdraw to an EVM token without the allowlist', () => {
+      expect(
+        getServerUnsupportedReason({
+          enabledTransactionTypes: [],
+          requests: [
+            {
+              isPostQuote: true,
+              targetAssetIdOverride: undefined,
+            } as QuoteRequest,
+          ],
+          transaction: {
+            type: TransactionType.perpsWithdraw,
+          } as TransactionMeta,
+        }),
+      ).toBe(ServerUnsupportedReason.DisabledTransactionType);
+    });
+
+    it('does not support a Perps balance destination outside a Perps withdraw', () => {
+      expect(
+        getServerUnsupportedReason({
+          enabledTransactionTypes: [],
+          requests: [
+            {
+              isPostQuote: true,
+              targetAssetIdOverride: LIGHTER_ASSET_ID_MOCK,
+            } as QuoteRequest,
+          ],
+          transaction: {
+            type: TransactionType.perpsDeposit,
+          } as TransactionMeta,
+        }),
+      ).toBe(ServerUnsupportedReason.DisabledTransactionType);
+    });
+
+    it('supports a Perps deposit paid from the Lighter balance without the allowlist', () => {
+      expect(
+        getServerUnsupportedReason({
+          enabledTransactionTypes: [],
+          requests: [
+            { sourceAssetId: 'lighter:mainnet/perps:usdc' } as QuoteRequest,
+          ],
+          transaction: {
+            type: TransactionType.perpsDeposit,
+          } as TransactionMeta,
+        }),
+      ).toBeUndefined();
+    });
+
+    it('supports a Perps deposit paid from the Hyperliquid balance without the allowlist', () => {
+      expect(
+        getServerUnsupportedReason({
+          enabledTransactionTypes: [],
+          requests: [{ isHyperliquidSource: true } as QuoteRequest],
+          transaction: {
+            type: TransactionType.perpsDeposit,
+          } as TransactionMeta,
+        }),
+      ).toBeUndefined();
+    });
+
+    it('does not support a Perps deposit paid from an EVM token without the allowlist', () => {
+      expect(
+        getServerUnsupportedReason({
+          enabledTransactionTypes: [],
+          requests: [{ sourceAssetId: 'eip155:1/slip44:60' } as QuoteRequest],
+          transaction: {
+            type: TransactionType.perpsDeposit,
+          } as TransactionMeta,
+        }),
+      ).toBe(ServerUnsupportedReason.DisabledTransactionType);
+    });
+
+    it('does not support a Perps withdraw that is not a post-quote transfer', () => {
+      expect(
+        getServerUnsupportedReason({
+          enabledTransactionTypes: [],
+          requests: [
+            {
+              isPostQuote: false,
+              targetAssetIdOverride: LIGHTER_ASSET_ID_MOCK,
+            } as QuoteRequest,
+          ],
+          transaction: {
+            type: TransactionType.perpsWithdraw,
+          } as TransactionMeta,
+        }),
+      ).toBe(ServerUnsupportedReason.DisabledTransactionType);
+    });
 
     it.each([
       TransactionType.perpsDepositAndOrder,

@@ -20,6 +20,8 @@ vi.mock(import('../utils/token.js'), async (importOriginal) =>
     'computeTokenAmounts',
     'getEvmAsset',
     'getNativeToken',
+    'isHyperliquidAsset',
+    'isPerpsBalanceAsset',
   ]),
 );
 vi.mock(import('../utils/account.js'));
@@ -407,6 +409,51 @@ describe('Update Payment Token Action', () => {
         symbol: 'USDC',
       });
     });
+  });
+
+  describe('Hyperliquid payment token', () => {
+    const HYPERLIQUID_ASSET_ID_MOCK = 'hyperliq:mainnet/perps:usdc';
+
+    it.each([
+      ['the destination of a post-quote flow', true],
+      ['a source of funds', false],
+    ])(
+      'resolves the Hyperliquid perps balance as %s',
+      (_description, isPostQuote) => {
+        const updateTransactionDataMock =
+          vi.fn<
+            (transactionId: string, fn: (data: TransactionData) => void) => void
+          >();
+
+        updatePaymentToken(
+          {
+            assetId: HYPERLIQUID_ASSET_ID_MOCK,
+            transactionId: TRANSACTION_ID_MOCK,
+          },
+          {
+            messenger: createMessengerMock({
+              [TRANSACTION_ID_MOCK]: { isPostQuote },
+            }),
+            updateTransactionData: updateTransactionDataMock,
+          },
+        );
+
+        expect(getAssetInfoMock).not.toHaveBeenCalled();
+
+        const transactionDataMock = {} as TransactionData;
+        updateTransactionDataMock.mock.calls[0][1](transactionDataMock);
+
+        expect(transactionDataMock.paymentToken).toStrictEqual({
+          assetId: HYPERLIQUID_ASSET_ID_MOCK,
+          balanceFiat: '0',
+          balanceHuman: '0',
+          balanceRaw: '0',
+          balanceUsd: '0',
+          decimals: 6,
+          symbol: 'USDC',
+        });
+      },
+    );
   });
 
   describe('non-EVM payment token', () => {

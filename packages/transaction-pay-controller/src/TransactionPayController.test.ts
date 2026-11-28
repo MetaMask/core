@@ -1021,6 +1021,70 @@ describe('TransactionPayController', () => {
       ]);
     });
 
+    it.each([
+      'lighter:mainnet/perps:usdc',
+      'hyperliq:mainnet/perps:usdc',
+    ] as const)(
+      'returns the server strategy for a post-quote transfer to the %s balance',
+      (assetId) => {
+        const controller = createController();
+
+        controller.updatePaymentToken({
+          transactionId: TRANSACTION_ID_MOCK,
+          assetId,
+        });
+
+        const { updateTransactionData } =
+          updatePaymentTokenMock.mock.calls[0][1];
+
+        updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+          data.isPostQuote = true;
+          data.paymentToken = {
+            ...NON_EVM_PAYMENT_TOKEN_MOCK,
+            assetId,
+          };
+        });
+
+        expect(
+          messenger.call(
+            'TransactionPayController:getStrategy',
+            TRANSACTION_META_MOCK,
+          ),
+        ).toBe(TransactionPayStrategy.Server);
+        expect(getStrategyOrderMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      'lighter:mainnet/perps:usdc',
+      'hyperliq:mainnet/perps:usdc',
+    ] as const)(
+      'returns the server strategy for a payment from the %s balance',
+      (assetId) => {
+        const controller = createController();
+
+        controller.updatePaymentToken({
+          transactionId: TRANSACTION_ID_MOCK,
+          assetId,
+        });
+
+        const { updateTransactionData } =
+          updatePaymentTokenMock.mock.calls[0][1];
+
+        updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+          data.paymentToken = { ...NON_EVM_PAYMENT_TOKEN_MOCK, assetId };
+        });
+
+        expect(
+          messenger.call(
+            'TransactionPayController:getStrategy',
+            TRANSACTION_META_MOCK,
+          ),
+        ).toBe(TransactionPayStrategy.Server);
+        expect(getStrategyOrderMock).not.toHaveBeenCalled();
+      },
+    );
+
     it('passes fiat payment method ID into getStrategyOrder', async () => {
       const controller = createController();
 

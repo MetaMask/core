@@ -13,11 +13,14 @@ import type { CaipAssetType, Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import {
+  ARBITRUM_USDC_ADDRESS,
+  CHAIN_ID_ARBITRUM,
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
   SLIP44_COIN_TYPE_BY_CHAIN,
 } from '../constants.js';
 import { projectLogger } from '../logger.js';
+import { SERVER_HYPERLIQUID_PERPS_USDC_ASSET } from '../strategy/server/constants.js';
 import {
   isLighterAsset,
   LIGHTER_USDC_STAND_IN_ASSET_ID,
@@ -93,6 +96,24 @@ export function isEvmQuoteRequest(
 }
 
 /**
+ * Check if the source and target of a quote request are EVM assets that
+ * stand for themselves.
+ *
+ * A request with a `targetAssetIdOverride`, such as a Lighter or Hyperliquid
+ * perps balance, has an EVM target token that only stands in for the declared
+ * asset. Only strategies that read the override can quote it, so the others
+ * must reject it rather than deliver the stand-in token.
+ *
+ * @param request - Quote request to check.
+ * @returns True if the source is an EVM asset and the target has no declared override.
+ */
+export function isDirectEvmQuoteRequest(
+  request: Pick<QuoteRequest, 'sourceAssetId' | 'targetAssetIdOverride'>,
+): boolean {
+  return isEvmQuoteRequest(request) && !request.targetAssetIdOverride;
+}
+
+/**
  * Get the Hex chain ID and token address of the EVM source asset of a quote
  * request, as used by the EVM quote and execution paths.
  *
@@ -156,6 +177,81 @@ export function getEvmPaymentToken(
   const evmAsset = paymentToken && getEvmAsset(paymentToken.assetId);
 
   return evmAsset && { ...paymentToken, ...evmAsset };
+}
+
+/**
+ * Check if an asset is the Hyperliquid perps balance.
+ *
+ * @param assetId - CAIP-19 asset type, if any.
+ * @returns Whether the asset is the Hyperliquid perps balance.
+ */
+export function isHyperliquidAsset(assetId: string | undefined): boolean {
+  return assetId === SERVER_HYPERLIQUID_PERPS_USDC_ASSET;
+}
+
+/**
+ * Check if an asset is a perps balance that is not in `AssetsController`: the
+ * Lighter or the Hyperliquid perps balance.
+ *
+ * @param assetId - CAIP-19 asset type, if any.
+ * @returns Whether the asset is a perps balance.
+ */
+export function isPerpsBalanceAsset(assetId: string | undefined): boolean {
+  return isLighterAsset(assetId) || isHyperliquidAsset(assetId);
+}
+
+/**
+ * CAIP-19 asset type of Arbitrum USDC, which stands in for the Hyperliquid
+ * perps balance where the quote request needs an EVM asset.
+ */
+export const HYPERLIQUID_USDC_STAND_IN_ASSET_ID =
+  'eip155:42161/erc20:0xaf88d065e77c8cC2239327C5EDb3A432268e5831' as CaipAssetType;
+
+/**
+ * Get the EVM asset that stands in for a perps balance: mainnet USDC for the
+ * Lighter balance and Arbitrum USDC for the Hyperliquid balance. Its chain and
+ * address identify the asset in a quote request, and `AssetsController` prices
+ * it.
+ *
+ * @param assetId - CAIP-19 asset type.
+ * @returns The stand-in asset, or the asset itself if it is not a perps
+ * balance.
+ */
+export function getPerpsBalanceStandInAssetId(
+  assetId: CaipAssetType,
+): CaipAssetType {
+  if (isLighterAsset(assetId)) {
+    return LIGHTER_USDC_STAND_IN_ASSET_ID;
+  }
+
+  return isHyperliquidAsset(assetId)
+    ? HYPERLIQUID_USDC_STAND_IN_ASSET_ID
+    : assetId;
+}
+
+/**
+ * Get the EVM payment token that stands in for the destination of a post-quote
+ * flow, which the quote request needs to identify the target token.
+ *
+ * A Lighter perps balance is stood in for by mainnet USDC and a Hyperliquid
+ * perps balance by Arbitrum USDC, which `AssetsController` prices.
+ *
+ * @param paymentToken - Payment token, if any.
+ * @returns The payment token with the chain ID and address that identify the
+ * target, or undefined if it is neither an EVM token nor a perps balance.
+ */
+export function getPostQuoteDestinationToken(
+  paymentToken: TransactionPaymentToken | undefined,
+): EvmPaymentToken | undefined {
+  if (!paymentToken || !isPerpsBalanceAsset(paymentToken.assetId)) {
+    return getEvmPaymentToken(paymentToken);
+  }
+
+  const standIn = isLighterAsset(paymentToken.assetId)
+    ? getEvmAsset(LIGHTER_USDC_STAND_IN_ASSET_ID)
+    : { address: ARBITRUM_USDC_ADDRESS, chainId: CHAIN_ID_ARBITRUM };
+
+  return standIn && { ...paymentToken, ...standIn };
 }
 
 /**
@@ -241,9 +337,8 @@ export function getAssetInfo(
 /**
  * Get the fiat rates for a CAIP-19 asset.
  *
- * Configured EVM stablecoins are priced at exactly 1 USD. A Lighter perps
- * balance is not in `AssetsController`, so it is priced as the USDC that
- * stands in for it.
+ * Configured EVM stablecoins are priced at exactly 1 USD. A perps balance is
+ * not in `AssetsController`, so it is priced as the USDC that stands in for it.
  *
  * @param messenger - Controller messenger.
  * @param assetId - CAIP-19 asset type as keyed in `AssetsController` state.
@@ -254,9 +349,7 @@ export function getAssetFiatRate(
   assetId: CaipAssetType,
 ): FiatRates | undefined {
   const { assetsPrice } = messenger.call('AssetsController:getState');
-  const pricedAssetId = isLighterAsset(assetId)
-    ? LIGHTER_USDC_STAND_IN_ASSET_ID
-    : assetId;
+  const pricedAssetId = getPerpsBalanceStandInAssetId(assetId);
   const price = assetsPrice[pricedAssetId];
 
   if (price?.assetPriceType !== 'fungible') {

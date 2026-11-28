@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - A Lighter `assetId` on a required asset of a flow that is not post-quote is the deposit target, like the `perpsLighter` payment override, which leaves `paymentOverride` free for `moneyAccount`. A quote is always requested for it.
   - A Lighter `assetId` on the payment token of a flow that is not post-quote is the source of funds. `updatePaymentToken` accepts it without `AssetsController` data and prices it as the mainnet USDC that stands in for it. Pay does not know its balance, so it is zero and clients supply it through `getBalance`.
   - Expose the declared target as `QuoteRequest.targetAssetIdOverride`.
+- Transfer between the Lighter and Hyperliquid perps accounts by accepting a perps balance as the payment token of a post-quote flow ([#11799](https://github.com/MetaMask/core/pull/11799))
+  - `updatePaymentToken` accepts `lighter:mainnet/perps:usdc`, and `hyperliq:mainnet/perps:usdc` in a post-quote flow, without `AssetsController` data. The balance is zero and clients supply it through `getBalance`.
+  - The perps balance is priced as the USDC that stands in for it, and the quote request declares it as `QuoteRequest.targetAssetIdOverride`.
+  - `RelayStrategy` and `AcrossStrategy` do not support a request with a declared target asset.
+  - `updatePaymentToken` also accepts `hyperliq:mainnet/perps:usdc` as the source of funds of a flow that is not post-quote, so a `perpsDeposit` can be paid from the Lighter balance and a `perpsLighterDeposit` from the Hyperliquid balance. A Hyperliquid source sets `QuoteRequest.isHyperliquidSource`.
+  - A perps balance payment token is quoted only by the server strategy, which supports a `perpsWithdraw` to a perps balance and a `perpsDeposit` from a perps balance without the `enabledTransactionTypes` flag.
 - Return a quote error with the new `amount-too-low` reason when the server strategy gets no quote because a provider rejects the amount as below its minimum ([#11779](https://github.com/MetaMask/core/pull/11779))
 
 ### Changed
